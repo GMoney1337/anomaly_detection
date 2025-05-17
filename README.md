@@ -39,7 +39,7 @@ python classical/iqr_anomaly_detection.py
 # Isolation Forest Example
 python classical/isolation_forest.py
 ```
-These scripts simulate common behavioral patterns (like file access or data transfer) and show how basic techniques flag outliers.
+#### These scripts simulate common behavioral patterns (like file access or data transfer) and show how basic techniques flag outliers.
 ---
 ## 🤖 Run Git Commit Anomaly Detection
 ```text
