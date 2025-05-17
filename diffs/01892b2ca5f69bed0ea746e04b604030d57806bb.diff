@@ -1,0 +1,12 @@
+diff --git a/THANKS b/THANKS
+index ac65b027..bd703d74 100644
+--- a/THANKS
++++ b/THANKS
+@@ -17,6 +17,7 @@ In alphabetical order:
+   - Igor Pavlov
+   - Mikko Pouru
+   - Alexandre Sauvé
++  - Andreas Schwab
+   - Julian Seward
+   - Paul Townsend
+   - Mohammed Adnène Trojette

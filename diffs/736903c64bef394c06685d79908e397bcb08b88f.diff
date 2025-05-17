@@ -1,0 +1,346 @@
+diff --git a/src/xz/Makefile.am b/src/xz/Makefile.am
+index 10ceee75..3d3154ed 100644
+--- a/src/xz/Makefile.am
++++ b/src/xz/Makefile.am
+@@ -22,6 +22,8 @@ xz_SOURCES = \
+ 	main.h \
+ 	message.c \
+ 	message.h \
++	mytime.c \
++	mytime.h \
+ 	options.c \
+ 	options.h \
+ 	private.h \
+diff --git a/src/xz/coder.c b/src/xz/coder.c
+index 54864506..897ff6a9 100644
+--- a/src/xz/coder.c
++++ b/src/xz/coder.c
+@@ -766,6 +766,11 @@ coder_run(const char *filename)
+ 			// Don't open the destination file when --test
+ 			// is used.
+ 			if (opt_mode == MODE_TEST || !io_open_dest(pair)) {
++				// Remember the current time. It is needed
++				// for progress indicator and for timed
++				// flushing.
++				mytime_set_start_time();
++
+ 				// Initialize the progress indicator.
+ 				const uint64_t in_size
+ 						= pair->src_st.st_size <= 0
+diff --git a/src/xz/message.c b/src/xz/message.c
+index abdf0568..e94a94d5 100644
+--- a/src/xz/message.c
++++ b/src/xz/message.c
+@@ -12,10 +12,6 @@
+ 
+ #include "private.h"
+ 
+-#ifdef HAVE_SYS_TIME_H
+-#	include <sys/time.h>
+-#endif
+-
+ #include <stdarg.h>
+ 
+ 
+@@ -64,9 +60,6 @@ static lzma_stream *progress_strm;
+ /// and estimate remaining time.
+ static uint64_t expected_in_size;
+ 
+-/// Time when we started processing the file
+-static uint64_t start_time;
+-
+ 
+ // Use alarm() and SIGALRM when they are supported. This has two minor
+ // advantages over the alternative of polling gettimeofday():
+@@ -112,16 +105,6 @@ static uint64_t progress_next_update;
+ #endif
+ 
+ 
+-/// Get the current time as microseconds since epoch
+-static uint64_t
+-my_time(void)
+-{
+-	struct timeval tv;
+-	gettimeofday(&tv, NULL);
+-	return (uint64_t)(tv.tv_sec) * UINT64_C(1000000) + tv.tv_usec;
+-}
+-
+-
+ extern void
+ message_init(void)
+ {
+@@ -264,11 +247,10 @@ message_progress_start(lzma_stream *strm, uint64_t in_size)
+ 	// It is needed to find out the position in the stream.
+ 	progress_strm = strm;
+ 
+-	// Store the processing start time of the file and its expected size.
+-	// If we aren't printing any statistics, then these are unused. But
+-	// since it is possible that the user sends us a signal to show
+-	// statistics, we need to have these available anyway.
+-	start_time = my_time();
++	// Store the expected size of the file. If we aren't printing any
++	// statistics, then is will be unused. But since it is possible
++	// that the user sends us a signal to show statistics, we need
++	// to have it available anyway.
+ 	expected_in_size = in_size;
+ 
+ 	// Indicate that progress info may need to be printed before
+@@ -290,7 +272,7 @@ message_progress_start(lzma_stream *strm, uint64_t in_size)
+ 		alarm(1);
+ #else
+ 		progress_needs_updating = true;
+-		progress_next_update = 1000000;
++		progress_next_update = 1000;
+ #endif
+ 	}
+ 
+@@ -364,7 +346,7 @@ progress_speed(uint64_t uncompressed_pos, uint64_t elapsed)
+ {
+ 	// Don't print the speed immediately, since the early values look
+ 	// somewhat random.
+-	if (elapsed < 3000000)
++	if (elapsed < 3000)
+ 		return "";
+ 
+ 	static const char unit[][8] = {
+@@ -377,7 +359,7 @@ progress_speed(uint64_t uncompressed_pos, uint64_t elapsed)
+ 
+ 	// Calculate the speed as KiB/s.
+ 	double speed = (double)(uncompressed_pos)
+-			/ ((double)(elapsed) * (1024.0 / 1e6));
++			/ ((double)(elapsed) * (1024.0 / 1000.0));
+ 
+ 	// Adjust the unit of the speed if needed.
+ 	while (speed > 999.0) {
+@@ -402,12 +384,12 @@ progress_speed(uint64_t uncompressed_pos, uint64_t elapsed)
+ /// Make a string indicating elapsed or remaining time. The format is either
+ /// M:SS or H:MM:SS depending on if the time is an hour or more.
+ static const char *
+-progress_time(uint64_t useconds)
++progress_time(uint64_t mseconds)
+ {
+ 	// 9999 hours = 416 days
+ 	static char buf[sizeof("9999:59:59")];
+ 
+-	uint32_t seconds = useconds / 1000000;
++	uint32_t seconds = mseconds / 1000;
+ 
+ 	// Don't show anything if the time is zero or ridiculously big.
+ 	if (seconds == 0 || seconds > ((9999 * 60) + 59) * 60 + 59)
+@@ -445,14 +427,14 @@ progress_remaining(uint64_t in_pos, uint64_t elapsed)
+ 	//  - Only a few seconds has passed since we started (de)compressing,
+ 	//    so estimate would be too inaccurate.
+ 	if (expected_in_size == 0 || in_pos > expected_in_size
+-			|| in_pos < (UINT64_C(1) << 19) || elapsed < 8000000)
++			|| in_pos < (UINT64_C(1) << 19) || elapsed < 8000)
+ 		return "";
+ 
+ 	// Calculate the estimate. Don't give an estimate of zero seconds,
+ 	// since it is possible that all the input has been already passed
+ 	// to the library, but there is still quite a bit of output pending.
+ 	uint32_t remaining = (double)(expected_in_size - in_pos)
+-			* ((double)(elapsed) / 1e6) / (double)(in_pos);
++			* ((double)(elapsed) / 1000.0) / (double)(in_pos);
+ 	if (remaining < 1)
+ 		remaining = 1;
+ 
+@@ -518,14 +500,6 @@ progress_remaining(uint64_t in_pos, uint64_t elapsed)
+ }
+ 
+ 
+-/// Calculate the elapsed time as microseconds.
+-static uint64_t
+-progress_elapsed(void)
+-{
+-	return my_time() - start_time;
+-}
+-
+-
+ /// Get how much uncompressed and compressed data has been processed.
+ static void
+ progress_pos(uint64_t *in_pos,
+@@ -559,13 +533,13 @@ message_progress_update(void)
+ 		return;
+ 
+ 	// Calculate how long we have been processing this file.
+-	const uint64_t elapsed = progress_elapsed();
++	const uint64_t elapsed = mytime_get_elapsed();
+ 
+ #ifndef SIGALRM
+ 	if (progress_next_update > elapsed)
+ 		return;
+ 
+-	progress_next_update = elapsed + 1000000;
++	progress_next_update = elapsed + 1000;
+ #endif
+ 
+ 	// Get our current position in the stream.
+@@ -658,7 +632,7 @@ progress_flush(bool finished)
+ 
+ 	progress_active = false;
+ 
+-	const uint64_t elapsed = progress_elapsed();
++	const uint64_t elapsed = mytime_get_elapsed();
+ 
+ 	signals_block();
+ 
+diff --git a/src/xz/mytime.c b/src/xz/mytime.c
+new file mode 100644
+index 00000000..4be184fd
+--- /dev/null
++++ b/src/xz/mytime.c
+@@ -0,0 +1,89 @@
++///////////////////////////////////////////////////////////////////////////////
++//
++/// \file       mytime.c
++/// \brief      Time handling functions
++//
++//  Author:     Lasse Collin
++//
++//  This file has been put into the public domain.
++//  You can do whatever you want with this file.
++//
++///////////////////////////////////////////////////////////////////////////////
++
++#include "private.h"
++
++#if !(defined(HAVE_CLOCK_GETTIME) && HAVE_DECL_CLOCK_MONOTONIC)
++#	include <sys/time.h>
++#endif
++
++uint64_t opt_flush_timeout = 0;
++bool flush_needed;
++
++static uint64_t start_time;
++static uint64_t next_flush;
++
++
++/// \brief      Get the current time as milliseconds
++///
++/// It's relative to some point but not necessarily to the UNIX Epoch.
++static uint64_t
++mytime_now(void)
++{
++	// NOTE: HAVE_DECL_CLOCK_MONOTONIC is always defined to 0 or 1.
++#if defined(HAVE_CLOCK_GETTIME) && HAVE_DECL_CLOCK_MONOTONIC
++	// If CLOCK_MONOTONIC was available at compile time but for some
++	// reason isn't at runtime, fallback to CLOCK_REALTIME which
++	// according to POSIX is mandatory for all implementations.
++	static clockid_t clk_id = CLOCK_MONOTONIC;
++	struct timespec tv;
++	while (clock_gettime(clk_id, &tv))
++		clk_id = CLOCK_REALTIME;
++
++	return (uint64_t)(tv.tv_sec) * UINT64_C(1000) + tv.tv_nsec / 1000000;
++#else
++	struct timeval tv;
++	gettimeofday(&tv, NULL);
++	return (uint64_t)(tv.tv_sec) * UINT64_C(1000) + tv.tv_usec / 1000;
++#endif
++}
++
++
++extern void
++mytime_set_start_time(void)
++{
++	start_time = mytime_now();
++	next_flush = start_time + opt_flush_timeout;
++	flush_needed = false;
++	return;
++}
++
++
++extern uint64_t
++mytime_get_elapsed(void)
++{
++	return mytime_now() - start_time;
++}
++
++
++extern void
++mytime_set_flush_time(void)
++{
++	next_flush = mytime_now() + opt_flush_timeout;
++	flush_needed = false;
++	return;
++}
++
++
++extern int
++mytime_get_flush_timeout(void)
++{
++	if (opt_flush_timeout == 0 || opt_mode != MODE_COMPRESS)
++		return -1;
++
++	const uint64_t now = mytime_now();
++	if (now >= next_flush)
++		return 0;
++
++	const uint64_t remaining = next_flush - now;
++	return remaining > INT_MAX ? INT_MAX : (int)remaining;
++}
+diff --git a/src/xz/mytime.h b/src/xz/mytime.h
+new file mode 100644
+index 00000000..ea291eed
+--- /dev/null
++++ b/src/xz/mytime.h
+@@ -0,0 +1,47 @@
++///////////////////////////////////////////////////////////////////////////////
++//
++/// \file       mytime.h
++/// \brief      Time handling functions
++//
++//  Author:     Lasse Collin
++//
++//  This file has been put into the public domain.
++//  You can do whatever you want with this file.
++//
++///////////////////////////////////////////////////////////////////////////////
++
++
++/// \brief      Number of milliseconds to between LZMA_SYNC_FLUSHes
++///
++/// If 0, timed flushing is disabled. Otherwise if no more input is available
++/// and not at the end of the file and at least opt_flush_timeout milliseconds
++/// has elapsed since the start of compression or the previous flushing
++/// (LZMA_SYNC_FLUSH or LZMA_FULL_FLUSH), set LZMA_SYNC_FLUSH to flush
++/// the pending data.
++extern uint64_t opt_flush_timeout;
++
++
++/// \brief      True when flushing is needed due to expired timeout
++extern bool flush_needed;
++
++
++/// \brief      Store the time when (de)compression was started
++///
++/// The start time is also stored as the time of the first flush.
++extern void mytime_set_start_time(void);
++
++
++/// \brief      Get the number of milliseconds since the operation started
++extern uint64_t mytime_get_elapsed(void);
++
++
++/// \brief      Store the time of when compressor was flushed
++extern void mytime_set_flush_time(void);
++
++
++/// \brief      Get the number of milliseconds until the next flush
++///
++/// This returns -1 if no timed flushing is used.
++///
++/// The return value is inteded for use with poll().
++extern int mytime_get_flush_timeout(void);
+diff --git a/src/xz/private.h b/src/xz/private.h
+index 978f81a3..9576da82 100644
+--- a/src/xz/private.h
++++ b/src/xz/private.h
+@@ -47,6 +47,7 @@
+ #endif
+ 
+ #include "main.h"
++#include "mytime.h"
+ #include "coder.h"
+ #include "message.h"
+ #include "args.h"

@@ -1,0 +1,18 @@
+diff --git a/src/scripts/xzgrep.in b/src/scripts/xzgrep.in
+index 018915f7..a1fd19cf 100644
+--- a/src/scripts/xzgrep.in
++++ b/src/scripts/xzgrep.in
+@@ -106,9 +106,11 @@ while test $# -ne 0; do
+     with_filename=1
+     continue;;
+   (-l | --files-with-*)
+-    files_with_matches=1;;
++    files_with_matches=1
++    continue;;
+   (-L | --files-witho*)
+-    files_without_matches=1;;
++    files_without_matches=1
++    continue;;
+   (-h | --no-f*)
+     no_filename=1;;
+   (-V | --v | --ve | --ver | --vers | --versi | --versio | --version)

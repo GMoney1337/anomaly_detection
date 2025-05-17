@@ -1,0 +1,31 @@
+diff --git a/Makefile.am b/Makefile.am
+index 129ecfa8..56f3141d 100644
+--- a/Makefile.am
++++ b/Makefile.am
+@@ -92,10 +92,11 @@ dist-hook:
+ 	cd "$(distdir)" && $(SHELL) "build-aux/license-check.sh"
+ 
+ # This works with GNU tar and gives cleaner package than normal 'make dist'.
+-# This also ensures that the man page translations are up to date (dist-hook
++# This also ensures that the translations are up to date (dist-hook
+ # would be too late for that).
+ mydist:
+ 	$(SHELL) "$(srcdir)/src/liblzma/validate_map.sh"
++	cd po && $(MAKE) xz.pot-update
+ 	cd "$(srcdir)/po4a" && $(SHELL) update-po
+ 	VERSION=$(VERSION); \
+ 	if test -d "$(srcdir)/.git" && type git > /dev/null 2>&1; then \
+diff --git a/po/Makevars b/po/Makevars
+index 8f97f7de..91087890 100644
+--- a/po/Makevars
++++ b/po/Makevars
+@@ -84,4 +84,8 @@ PO_DEPENDS_ON_POT = yes
+ # regenerate PO files on "make dist".  Possible values are "yes" and
+ # "no".  Set this to no if the POT file and PO files are maintained
+ # externally.
+-DIST_DEPENDS_ON_UPDATE_PO = yes
++#
++# NOTE: The the custom "mydist" target in ../Makefile.am updates xz.pot.
++# An updated xz.pot will cause the .po files to be updated too but
++# only when updating would change more than the POT-Creation-Date line.
++DIST_DEPENDS_ON_UPDATE_PO = no

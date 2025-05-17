@@ -1,0 +1,39 @@
+diff --git a/debug/full_flush.c b/debug/full_flush.c
+index 71106b56..6b22898b 100644
+--- a/debug/full_flush.c
++++ b/debug/full_flush.c
+@@ -68,8 +68,6 @@ encode(size_t size, lzma_action action)
+ int
+ main(int argc, char **argv)
+ {
+-	lzma_init_encoder();
+-
+ 	file_in = argc > 1 ? fopen(argv[1], "rb") : stdin;
+ 
+ 
+diff --git a/debug/memusage.c b/debug/memusage.c
+index 716dc8b5..15efe3d4 100644
+--- a/debug/memusage.c
++++ b/debug/memusage.c
+@@ -23,8 +23,6 @@
+ int
+ main(void)
+ {
+-	lzma_init();
+-
+ 	lzma_options_lzma lzma = {
+ 		.dict_size = (1U << 30) + (1U << 29),
+ 		.lc = 3,
+diff --git a/debug/sync_flush.c b/debug/sync_flush.c
+index 19fbef53..076fb7e7 100644
+--- a/debug/sync_flush.c
++++ b/debug/sync_flush.c
+@@ -68,8 +68,6 @@ encode(size_t size, lzma_action action)
+ int
+ main(int argc, char **argv)
+ {
+-	lzma_init_encoder();
+-
+ 	file_in = argc > 1 ? fopen(argv[1], "rb") : stdin;
+ 
+ 	// Config

@@ -1,0 +1,25 @@
+diff --git a/src/xz/args.c b/src/xz/args.c
+index be26bf3d..7468a496 100644
+--- a/src/xz/args.c
++++ b/src/xz/args.c
+@@ -25,7 +25,7 @@ bool opt_robot = false;
+ 
+ // We don't modify or free() this, but we need to assign it in some
+ // non-const pointers.
+-const char *stdin_filename = "(stdin)";
++const char *const stdin_filename = "(stdin)";
+ 
+ 
+ static void
+diff --git a/src/xz/args.h b/src/xz/args.h
+index ac5959b5..d01033c8 100644
+--- a/src/xz/args.h
++++ b/src/xz/args.h
+@@ -37,6 +37,6 @@ extern bool opt_keep_original;
+ // extern bool opt_recursive;
+ extern bool opt_robot;
+ 
+-extern const char *stdin_filename;
++extern const char *const stdin_filename;
+ 
+ extern void args_parse(args_info *args, int argc, char **argv);

@@ -1,0 +1,118 @@
+diff --git a/src/liblzma/api/lzma/container.h b/src/liblzma/api/lzma/container.h
+index 6a2f4d78..6e432a1f 100644
+--- a/src/liblzma/api/lzma/container.h
++++ b/src/liblzma/api/lzma/container.h
+@@ -700,11 +700,13 @@ extern LZMA_API(lzma_ret) lzma_stream_decoder_mt(
+ 
+ 
+ /**
+- * \brief       Decode .xz Streams and .lzma files with autodetection
++ * \brief       Decode .xz, .lzma, and .lz (lzip) files with autodetection
+  *
+- * This decoder autodetects between the .xz and .lzma file formats, and
+- * calls lzma_stream_decoder() or lzma_alone_decoder() once the type
+- * of the input file has been detected.
++ * This decoder autodetects between the .xz, .lzma, and .lz file formats,
++ * and calls lzma_stream_decoder(), lzma_alone_decoder(), or
++ * lzma_lzip_decoder() once the type of the input file has been detected.
++ *
++ * Support for .lz was added in 5.4.0.
+  *
+  * If the flag LZMA_CONCATENATED is used and the input is a .lzma file:
+  * For historical reasons concatenated .lzma files aren't supported.
+diff --git a/src/liblzma/common/Makefile.inc b/src/liblzma/common/Makefile.inc
+index f821571a..44ab32f3 100644
+--- a/src/liblzma/common/Makefile.inc
++++ b/src/liblzma/common/Makefile.inc
+@@ -97,6 +97,7 @@ endif
+ 
+ if COND_LZIP_DECODER
+ liblzma_la_SOURCES += \
+-	common/lzip_decoder.c
++	common/lzip_decoder.c \
++	common/lzip_decoder.h
+ endif
+ endif
+diff --git a/src/liblzma/common/auto_decoder.c b/src/liblzma/common/auto_decoder.c
+index f58ab595..2a5c0894 100644
+--- a/src/liblzma/common/auto_decoder.c
++++ b/src/liblzma/common/auto_decoder.c
+@@ -1,7 +1,7 @@
+ ///////////////////////////////////////////////////////////////////////////////
+ //
+ /// \file       auto_decoder.c
+-/// \brief      Autodetect between .xz Stream and .lzma (LZMA_Alone) formats
++/// \brief      Autodetect between .xz, .lzma (LZMA_Alone), and .lz (lzip)
+ //
+ //  Author:     Lasse Collin
+ //
+@@ -12,10 +12,13 @@
+ 
+ #include "stream_decoder.h"
+ #include "alone_decoder.h"
++#ifdef HAVE_LZIP_DECODER
++#	include "lzip_decoder.h"
++#endif
+ 
+ 
+ typedef struct {
+-	/// Stream decoder or LZMA_Alone decoder
++	/// .xz Stream decoder, LZMA_Alone decoder, or lzip decoder
+ 	lzma_next_coder next;
+ 
+ 	uint64_t memlimit;
+@@ -46,14 +49,22 @@ auto_decode(void *coder_ptr, const lzma_allocator *allocator,
+ 		// SEQ_CODE even if we return some LZMA_*_CHECK.
+ 		coder->sequence = SEQ_CODE;
+ 
+-		// Detect the file format. For now this is simple, since if
+-		// it doesn't start with 0xFD (the first magic byte of the
+-		// new format), it has to be LZMA_Alone, or something that
+-		// we don't support at all.
++		// Detect the file format. .xz files start with 0xFD which
++		// cannot be the first byte of .lzma (LZMA_Alone) format.
++		// The .lz format starts with 0x4C which could be the
++		// first byte of a .lzma file but luckily it would mean
++		// lc/lp/pb being 4/3/1 which liblzma doesn't support because
++		// lc + lp > 4. So using just 0x4C to detect .lz is OK here.
+ 		if (in[*in_pos] == 0xFD) {
+ 			return_if_error(lzma_stream_decoder_init(
+ 					&coder->next, allocator,
+ 					coder->memlimit, coder->flags));
++#ifdef HAVE_LZIP_DECODER
++		} else if (in[*in_pos] == 0x4C) {
++			return_if_error(lzma_lzip_decoder_init(
++					&coder->next, allocator,
++					coder->memlimit, coder->flags));
++#endif
+ 		} else {
+ 			return_if_error(lzma_alone_decoder_init(&coder->next,
+ 					allocator, coder->memlimit, true));
+diff --git a/src/liblzma/common/lzip_decoder.h b/src/liblzma/common/lzip_decoder.h
+new file mode 100644
+index 00000000..33a01c35
+--- /dev/null
++++ b/src/liblzma/common/lzip_decoder.h
+@@ -0,0 +1,22 @@
++///////////////////////////////////////////////////////////////////////////////
++//
++/// \file       lzip_decoder.h
++/// \brief      Decodes .lz (lzip) files
++//
++//  Author:     Michał Górny
++//
++//  This file has been put into the public domain.
++//  You can do whatever you want with this file.
++//
++///////////////////////////////////////////////////////////////////////////////
++
++#ifndef LZMA_LZIP_DECODER_H
++#define LZMA_LZIP_DECODER_H
++
++#include "common.h"
++
++extern lzma_ret lzma_lzip_decoder_init(
++		lzma_next_coder *next, const lzma_allocator *allocator,
++		uint64_t memlimit, uint32_t flags);
++
++#endif

@@ -1,0 +1,79 @@
+diff --git a/m4/tuklib_cpucores.m4 b/m4/tuklib_cpucores.m4
+index 64a6b43c..08e2cb0d 100644
+--- a/m4/tuklib_cpucores.m4
++++ b/m4/tuklib_cpucores.m4
+@@ -45,6 +45,22 @@ compile error
+ #endif
+ ]])], [tuklib_cv_cpucores_method=special], [
+ 
++# FreeBSD has both cpuset and sysctl. Look for cpuset first because
++# it's a better approach.
++AC_COMPILE_IFELSE([AC_LANG_SOURCE([[
++#include <sys/param.h>
++#include <sys/cpuset.h>
++
++int
++main(void)
++{
++	cpuset_t set;
++	cpuset_getaffinity(CPU_LEVEL_WHICH, CPU_WHICH_PID, -1,
++			sizeof(set), &set);
++	return 0;
++}
++]])], [tuklib_cv_cpucores_method=cpuset], [
++
+ # Look for sysctl() solution first, because on OS/2, both sysconf()
+ # and sysctl() pass the tests in this file, but only sysctl()
+ # actually works.
+@@ -97,9 +113,14 @@ main(void)
+ ]])], [tuklib_cv_cpucores_method=pstat_getdynamic], [
+ 
+ 	tuklib_cv_cpucores_method=unknown
+-])])])])])
++])])])])])])
+ 
+ case $tuklib_cv_cpucores_method in
++	cpuset)
++		AC_DEFINE([TUKLIB_CPUCORES_CPUSET], [1],
++			[Define to 1 if the number of available CPU cores
++			can be detected with cpuset(2).])
++		;;
+ 	sysctl)
+ 		AC_DEFINE([TUKLIB_CPUCORES_SYSCTL], [1],
+ 			[Define to 1 if the number of available CPU cores
+diff --git a/src/common/tuklib_cpucores.c b/src/common/tuklib_cpucores.c
+index 7574bc9c..e235fd1c 100644
+--- a/src/common/tuklib_cpucores.c
++++ b/src/common/tuklib_cpucores.c
+@@ -18,6 +18,11 @@
+ #	endif
+ #	include <windows.h>
+ 
++// FreeBSD
++#elif defined(TUKLIB_CPUCORES_CPUSET)
++#	include <sys/param.h>
++#	include <sys/cpuset.h>
++
+ #elif defined(TUKLIB_CPUCORES_SYSCTL)
+ #	ifdef HAVE_SYS_PARAM_H
+ #		include <sys/param.h>
+@@ -44,6 +49,19 @@ tuklib_cpucores(void)
+ 	GetSystemInfo(&sysinfo);
+ 	ret = sysinfo.dwNumberOfProcessors;
+ 
++#elif defined(TUKLIB_CPUCORES_CPUSET)
++	cpuset_t set;
++	if (cpuset_getaffinity(CPU_LEVEL_WHICH, CPU_WHICH_PID, -1,
++			sizeof(set), &set) == 0) {
++#	ifdef CPU_COUNT
++		ret = CPU_COUNT(&set);
++#	else
++		for (unsigned i = 0; i < CPU_SETSIZE; ++i)
++			if (CPU_ISSET(i, &set))
++				++ret;
++#	endif
++	}
++
+ #elif defined(TUKLIB_CPUCORES_SYSCTL)
+ 	int name[2] = { CTL_HW, HW_NCPU };
+ 	int cpus;

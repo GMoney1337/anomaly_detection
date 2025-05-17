@@ -1,0 +1,12 @@
+diff --git a/THANKS b/THANKS
+index 01e6d0bf..49ed9eda 100644
+--- a/THANKS
++++ b/THANKS
+@@ -127,6 +127,7 @@ has been important. :-) In alphabetical order:
+   - Adam Walling
+   - Jeffrey Walton
+   - Christian Weisgerber
++  - Dan Weiss
+   - Bert Wesarg
+   - Fredrik Wikstrom
+   - Jim Wilcoxson

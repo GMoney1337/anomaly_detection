@@ -1,0 +1,115 @@
+diff --git a/INSTALL b/INSTALL
+index fece4b74..22ef0773 100644
+--- a/INSTALL
++++ b/INSTALL
+@@ -136,22 +136,31 @@ XZ Utils Installation
+ 
+ 1.2.7. Windows
+ 
+-    Building XZ Utils on Windows is supported under MinGW + MSYS,
+-    MinGW-w64 + MSYS, and Cygwin. There is windows/build.bash to
+-    ease packaging XZ Utils with MinGW(-w64) + MSYS into a
+-    redistributable .zip or .7z file. See windows/INSTALL-Windows.txt
+-    for more information.
++    Building XZ Utils on Windows is supported under the following
++    environments:
++
++      - MinGW-w64 + MSYS (32-bit and 64-bit x86): This is used
++        for building the official binary packages for Windows.
++        There is windows/build.bash to ease packaging XZ Utils with
++        MinGW(-w64) + MSYS into a redistributable .zip or .7z file.
++        See windows/INSTALL-MinGW.txt for more information.
++
++      - MinGW + MSYS (32-bit x86): I haven't recently tested this.
++
++      - Cygwin 1.7.35 and later: NOTE that using XZ Utils >= 5.2.0
++        under Cygwin older than 1.7.35 can lead to DATA LOSS! If
++        you must use an old Cygwin version, stick to XZ Utils 5.0.x
++        which is safe under older Cygwin versions. You can check
++        the Cygwin version with the command "cygcheck -V".
++
++      - Microsoft Visual Studio 2013 update 2 or later (MSVC for short):
++        See windows/INSTALL-MSVC.txt for more information.
+ 
+     It may be possible to build liblzma with other toolchains too, but
+     that will probably require writing a separate makefile. Building
+     the command line tools with non-GNU toolchains will be harder than
+     building only liblzma.
+ 
+-    Starting with XZ Utils 5.2.0, building liblzma (not the whole
+-    XZ Utils) should work with MSVC 2013 update 2 or later using
+-    windows/config.h. No project files or makefiles are included yet,
+-    so the build process isn't as convenient yet as it could be.
+-
+     Even if liblzma is built with MinGW(-w64), the resulting DLL can
+     be used by other compilers and linkers, including MSVC. See
+     windows/README-Windows.txt for details.
+diff --git a/windows/INSTALL-MSVC.txt b/windows/INSTALL-MSVC.txt
+new file mode 100644
+index 00000000..7dd31685
+--- /dev/null
++++ b/windows/INSTALL-MSVC.txt
+@@ -0,0 +1,47 @@
++
++Building XZ Utils with Microsoft Visual Studio
++==============================================
++
++Introduction
++------------
++
++    MSVC 2013 update 2 and later have enough C99 support to build
++    liblzma from XZ Utils 5.2.0 and later without modifications.
++    Older MSVC versions would require a large number of changes to
++    the XZ Utils code and thus the old MSVC versions aren't supported.
++
++    As of 2015-06-19, some work has been done to get xz.exe and other
++    command line tools built with MSVC, but it's not complete enough
++    to be included in XZ Utils.
++
++
++Building
++--------
++
++    The following files in this directory are for MSVC:
++
++        config.h              liblzma configuration #defines for MSVC.
++        liblzma.vcxproj       This builds static liblzma.
++        liblzma_dll.vcxproj   This builds liblzma.dll.
++        xz_win.sln            Solution using the above project files.
++
++    The projects have x86 and x86-64 platform configurations, as well
++    as a Debug, Release, and ReleaseMT configuration -- MT is the
++    compiler switch to link to the CRT statically, so it will not
++    have any other DLL dependencies.
++
++    Currently no test programs are built or run under MSVC.
++
++    MSVC gives a bunch of compiler warnings. Some warnings are specific
++    to 32-bit or 64-bit build and some appear for both builds. These
++    are known and shouldn't be a problem. Some of them will probably
++    be fixed in the future.
++
++
++Notes
++-----
++
++    liblzma API headers declare the functions with __declspec(dllimport)
++    by default. To avoid this when using static liblzma from your code,
++    #define LZMA_API_STATIC before #including <lzma.h>.
++
+diff --git a/windows/INSTALL-Windows.txt b/windows/INSTALL-MinGW.txt
+similarity index 98%
+rename from windows/INSTALL-Windows.txt
+rename to windows/INSTALL-MinGW.txt
+index 7f0afc20..90921711 100644
+--- a/windows/INSTALL-Windows.txt
++++ b/windows/INSTALL-MinGW.txt
+@@ -6,7 +6,7 @@ Introduction
+ ------------
+ 
+     This document explains shortly where to get and how to install the
+-    build tool that are needed to build XZ Utils on Windows. The final
++    build tools that are needed to build XZ Utils on Windows. The final
+     binary package will be standalone in sense that it will depend only
+     on DLLs that are included in all Windows installations.
+ 

@@ -1,0 +1,299 @@
+diff --git a/src/liblzma/api/lzma/lzma.h b/src/liblzma/api/lzma/lzma.h
+index da0bb52d..9473f448 100644
+--- a/src/liblzma/api/lzma/lzma.h
++++ b/src/liblzma/api/lzma/lzma.h
+@@ -167,7 +167,7 @@ typedef struct {
+ 	 */
+ 	uint32_t literal_context_bits;
+ #	define LZMA_LITERAL_CONTEXT_BITS_MIN       0
+-#	define LZMA_LITERAL_CONTEXT_BITS_MAX       8
++#	define LZMA_LITERAL_CONTEXT_BITS_MAX       4
+ #	define LZMA_LITERAL_CONTEXT_BITS_DEFAULT   3
+ 
+ 	/**
+@@ -278,6 +278,14 @@ typedef struct {
+ } lzma_options_lzma;
+ 
+ 
++/**
++ * \brief       Maximum sum of literal_context_bits and literal_pos_bits
++ *
++ * literal_context_bits + literal_pos_bits <= LZMA_LITERAL_BITS_MAX
++ */
++#define LZMA_LITERAL_BITS_MAX 4
++
++
+ /**
+  * \brief       Available LZMA encoding modes
+  *
+diff --git a/src/liblzma/lzma/lzma_decoder.c b/src/liblzma/lzma/lzma_decoder.c
+index d4cefe0b..68941021 100644
+--- a/src/liblzma/lzma/lzma_decoder.c
++++ b/src/liblzma/lzma/lzma_decoder.c
+@@ -115,7 +115,7 @@ struct lzma_coder_s {
+ 	uint32_t pos_mask;
+ 	uint32_t now_pos; // Lowest 32-bits are enough here.
+ 
+-	lzma_literal_coder *literal_coder;
++	lzma_literal_coder literal_coder;
+ 
+ 	/// If 1, it's a match. Otherwise it's a single 8-bit literal.
+ 	probability is_match[STATES][POS_STATES_MAX];
+@@ -651,7 +651,6 @@ lzma_decoder_end(lzma_coder *coder, lzma_allocator *allocator)
+ {
+ 	lzma_next_coder_end(&coder->next, allocator);
+ 	lzma_lz_decoder_end(&coder->lz, allocator);
+-	lzma_literal_end(&coder->literal_coder, allocator);
+ 	lzma_free(coder, allocator);
+ 	return;
+ }
+@@ -661,6 +660,9 @@ extern lzma_ret
+ lzma_lzma_decoder_init(lzma_next_coder *next, lzma_allocator *allocator,
+ 		const lzma_filter_info *filters)
+ {
++	// LZMA can only be the last filter in the chain.
++	assert(filters[1].init == NULL);
++
+ 	// Validate pos_bits. Other options are validated by the
+ 	// respective initialization functions.
+ 	const lzma_options_lzma *options = filters[0].options;
+@@ -673,43 +675,25 @@ lzma_lzma_decoder_init(lzma_next_coder *next, lzma_allocator *allocator,
+ 		if (next->coder == NULL)
+ 			return LZMA_MEM_ERROR;
+ 
+-		// Initialize variables so that we know later that we don't
+-		// have an existing decoder initialized.
++		next->code = &lzma_lz_decode;
++		next->end = &lzma_decoder_end;
+ 		next->coder->next = LZMA_NEXT_CODER_INIT;
+ 		next->coder->lz = LZMA_LZ_DECODER_INIT;
+-		next->coder->literal_coder = NULL;
+ 	}
+ 
+ 	// Store the pos_bits and calculate pos_mask.
+ 	next->coder->pos_bits = options->pos_bits;
+ 	next->coder->pos_mask = (1U << next->coder->pos_bits) - 1;
+ 
+-	// Allocate (if needed) and initialize the literal decoder.
+-	{
+-		const lzma_ret ret = lzma_literal_init(
+-				&next->coder->literal_coder, allocator,
++	// Initialize the literal decoder.
++	return_if_error(lzma_literal_init(&next->coder->literal_coder,
+ 				options->literal_context_bits,
+-				options->literal_pos_bits);
+-		if (ret != LZMA_OK) {
+-			lzma_free(next->coder, allocator);
+-			next->coder = NULL;
+-			return ret;
+-		}
+-	}
++				options->literal_pos_bits));
+ 
+ 	// Allocate and initialize the LZ decoder.
+-	{
+-		const lzma_ret ret = lzma_lz_decoder_reset(
+-				&next->coder->lz, allocator, &decode_real,
+-				options->dictionary_size, MATCH_MAX_LEN);
+-		if (ret != LZMA_OK) {
+-			lzma_literal_end(&next->coder->literal_coder,
+-					allocator);
+-			lzma_free(next->coder, allocator);
+-			next->coder = NULL;
+-			return ret;
+-		}
+-	}
++	return_if_error(lzma_lz_decoder_reset(&next->coder->lz, allocator,
++			&decode_real, options->dictionary_size,
++			MATCH_MAX_LEN));
+ 
+ 	// State
+ 	next->coder->state = 0;
+@@ -769,20 +753,6 @@ lzma_lzma_decoder_init(lzma_next_coder *next, lzma_allocator *allocator,
+ 
+ 	next->coder->has_produced_output = false;
+ 
+-	// Initialize the next decoder in the chain, if any.
+-	{
+-		const lzma_ret ret = lzma_next_filter_init(&next->coder->next,
+-				allocator, filters + 1);
+-		if (ret != LZMA_OK) {
+-			lzma_decoder_end(next->coder, allocator);
+-			return ret;
+-		}
+-	}
+-
+-	// Initialization successful. Set the function pointers.
+-	next->code = &lzma_lz_decode;
+-	next->end = &lzma_decoder_end;
+-
+ 	return LZMA_OK;
+ }
+ 
+@@ -808,5 +778,6 @@ lzma_lzma_decode_properties(lzma_options_lzma *options, uint8_t byte)
+ 	options->literal_pos_bits = byte / 9;
+ 	options->literal_context_bits = byte - options->literal_pos_bits * 9;
+ 
+-	return false;
++	return options->literal_context_bits + options->literal_pos_bits
++			> LZMA_LITERAL_BITS_MAX;
+ }
+diff --git a/src/liblzma/lzma/lzma_encoder_init.c b/src/liblzma/lzma/lzma_encoder_init.c
+index c925f811..21335f95 100644
+--- a/src/liblzma/lzma/lzma_encoder_init.c
++++ b/src/liblzma/lzma/lzma_encoder_init.c
+@@ -52,7 +52,6 @@ static void
+ lzma_lzma_encoder_end(lzma_coder *coder, lzma_allocator *allocator)
+ {
+ 	lzma_lz_encoder_end(&coder->lz, allocator);
+-	lzma_literal_end(&coder->literal_coder, allocator);
+ 	lzma_free(coder, allocator);
+ 	return;
+ }
+@@ -69,7 +68,6 @@ lzma_lzma_encoder_init(lzma_next_coder *next, lzma_allocator *allocator,
+ 
+ 		next->coder->next = LZMA_NEXT_CODER_INIT;
+ 		next->coder->lz = LZMA_LZ_ENCODER_INIT;
+-		next->coder->literal_coder = NULL;
+ 	}
+ 
+ 	// Validate options that aren't validated elsewhere.
+@@ -99,13 +97,11 @@ lzma_lzma_encoder_init(lzma_next_coder *next, lzma_allocator *allocator,
+ 	// Initialize literal coder.
+ 	{
+ 		const lzma_ret ret = lzma_literal_init(
+-				&next->coder->literal_coder, allocator,
++				&next->coder->literal_coder,
+ 				options->literal_context_bits,
+ 				options->literal_pos_bits);
+-		if (ret != LZMA_OK) {
+-			lzma_lzma_encoder_end(next->coder, allocator);
++		if (ret != LZMA_OK)
+ 			return ret;
+-		}
+ 	}
+ 
+ 	// Initialize LZ encoder.
+@@ -218,7 +214,10 @@ lzma_lzma_encode_properties(const lzma_options_lzma *options, uint8_t *byte)
+ 	if (options->literal_context_bits > LZMA_LITERAL_CONTEXT_BITS_MAX
+ 			|| options->literal_pos_bits
+ 				> LZMA_LITERAL_POS_BITS_MAX
+-			|| options->pos_bits > LZMA_POS_BITS_MAX)
++			|| options->pos_bits > LZMA_POS_BITS_MAX
++			|| options->literal_context_bits
++					+ options->literal_pos_bits
++				> LZMA_LITERAL_BITS_MAX)
+ 		return true;
+ 
+ 	*byte = (options->pos_bits * 5 + options->literal_pos_bits) * 9
+diff --git a/src/liblzma/lzma/lzma_encoder_private.h b/src/liblzma/lzma/lzma_encoder_private.h
+index 4159b468..a16051f8 100644
+--- a/src/liblzma/lzma/lzma_encoder_private.h
++++ b/src/liblzma/lzma/lzma_encoder_private.h
+@@ -95,7 +95,7 @@ struct lzma_coder_s {
+ 	bool write_eopm;
+ 
+ 	// Literal encoder
+-	lzma_literal_coder *literal_coder;
++	lzma_literal_coder literal_coder;
+ 
+ 	// Bit encoders
+ 	probability is_match[STATES][POS_STATES_MAX];
+diff --git a/src/liblzma/lzma/lzma_literal.c b/src/liblzma/lzma/lzma_literal.c
+index 8f650fbf..3611a1f7 100644
+--- a/src/liblzma/lzma/lzma_literal.c
++++ b/src/liblzma/lzma/lzma_literal.c
+@@ -22,7 +22,7 @@
+ 
+ 
+ extern lzma_ret
+-lzma_literal_init(lzma_literal_coder **coder, lzma_allocator *allocator,
++lzma_literal_init(lzma_literal_coder *coder,
+ 		uint32_t literal_context_bits, uint32_t literal_pos_bits)
+ {
+ 	// Verify that arguments are sane.
+@@ -34,41 +34,18 @@ lzma_literal_init(lzma_literal_coder **coder, lzma_allocator *allocator,
+ 	const uint32_t states = literal_states(
+ 			literal_pos_bits, literal_context_bits);
+ 
+-	// Allocate a new literal coder, if needed.
+-	if (*coder == NULL || (**coder).literal_context_bits
+-				!= literal_context_bits
+-			|| (**coder).literal_pos_bits != literal_pos_bits) {
+-		// Free the old coder, if any.
+-		lzma_free(*coder, allocator);
++	// Store the new settings.
++	coder->literal_context_bits = literal_context_bits;
++	coder->literal_pos_bits = literal_pos_bits;
+ 
+-		// Allocate a new one.
+-		*coder = lzma_alloc(sizeof(lzma_literal_coder)
+-				+ states * LIT_SIZE * sizeof(probability),
+-				allocator);
+-		if (*coder == NULL)
+-			return LZMA_MEM_ERROR;
+-
+-		// Store the new settings.
+-		(**coder).literal_context_bits = literal_context_bits;
+-		(**coder).literal_pos_bits = literal_pos_bits;
+-
+-		// Calculate also the literal_pos_mask. It's not changed
+-		// anywhere else than here.
+-		(**coder).literal_pos_mask = (1 << literal_pos_bits) - 1;
+-	}
++	// Calculate also the literal_pos_mask. It's not changed
++	// anywhere else than here.
++	coder->literal_pos_mask = (1 << literal_pos_bits) - 1;
+ 
+ 	// Reset the literal coder.
+ 	for (uint32_t i = 0; i < states; ++i)
+ 		for (uint32_t j = 0; j < LIT_SIZE; ++j)
+-			bit_reset((**coder).coders[i][j]);
++			bit_reset(coder->coders[i][j]);
+ 
+ 	return LZMA_OK;
+ }
+-
+-
+-extern void
+-lzma_literal_end(lzma_literal_coder **coder, lzma_allocator *allocator)
+-{
+-	lzma_free(*coder, allocator);
+-	*coder = NULL;
+-}
+diff --git a/src/liblzma/lzma/lzma_literal.h b/src/liblzma/lzma/lzma_literal.h
+index 174f5ed4..208abd99 100644
+--- a/src/liblzma/lzma/lzma_literal.h
++++ b/src/liblzma/lzma/lzma_literal.h
+@@ -45,9 +45,9 @@
+ ///     byte; and
+ ///   - the highest literal_context_bits bits of the previous byte.
+ #define literal_get_subcoder(literal_coder, pos, prev_byte) \
+-	(literal_coder)->coders[(((pos) & (literal_coder)->literal_pos_mask) \
+-			<< (literal_coder)->literal_context_bits) \
+-		+ ((prev_byte) >> (8 - (literal_coder)->literal_context_bits))]
++	(literal_coder).coders[(((pos) & (literal_coder).literal_pos_mask) \
++			<< (literal_coder).literal_context_bits) \
++		+ ((prev_byte) >> (8 - (literal_coder).literal_context_bits))]
+ 
+ 
+ typedef struct {
+@@ -59,16 +59,13 @@ typedef struct {
+ 
+ 	/// There are (1 << (literal_pos_bits + literal_context_bits))
+ 	/// literal coders.
+-	probability coders[][LIT_SIZE];
++	probability coders[1 << LZMA_LITERAL_BITS_MAX][LIT_SIZE];
+ 
+ } lzma_literal_coder;
+ 
+ 
+ extern lzma_ret lzma_literal_init(
+-		lzma_literal_coder **coder, lzma_allocator *allocator,
++		lzma_literal_coder *coder,
+ 		uint32_t literal_context_bits, uint32_t literal_pos_bits);
+ 
+-extern void lzma_literal_end(
+-		lzma_literal_coder **coder, lzma_allocator *allocator);
+-
+ #endif

@@ -1,0 +1,28 @@
+diff --git a/.github/workflows/ci.yml b/.github/workflows/ci.yml
+index b7cbd1b6..8865a966 100644
+--- a/.github/workflows/ci.yml
++++ b/.github/workflows/ci.yml
+@@ -40,6 +40,11 @@ jobs:
+       - name: Test with full features
+         run: ./build-aux/ci_build.sh -b autotools -p test
+ 
++      - name: Build 32-bit
++        run: ./build-aux/ci_build.sh -b autotools -p build -f "-m32"
++      - name: Test 32-bit
++        run: ./build-aux/ci_build.sh -b autotools -p test -f "-m32"
++
+       - name: Build without encoders
+         run: ./build-aux/ci_build.sh -b autotools -d encoders -p build
+       - name: Test without encoders
+@@ -75,11 +80,6 @@ jobs:
+       - name: Test without crc64 check
+         run: ./build-aux/ci_build.sh -b autotools -c crc32,sha256 -p test
+ 
+-      - name: Build 32-bit
+-        run: ./build-aux/ci_build.sh -b autotools -p build -f "-m32"
+-      - name: Test 32-bit
+-        run: ./build-aux/ci_build.sh -b autotools -p test -f "-m32"
+-
+   Linux-CMake:
+     runs-on: ubuntu-latest
+     steps:

@@ -1,0 +1,24 @@
+diff --git a/.gitignore b/.gitignore
+index 69353b90..73127718 100644
+--- a/.gitignore
++++ b/.gitignore
+@@ -40,6 +40,10 @@ coverage
+ /doc/internal
+ /doc/api
+ 
++/po4a/man
++/po4a/xz-man.pot
++/po4a/*.po.authors
++
+ /src/liblzma/liblzma.pc
+ /src/lzmainfo/lzmainfo
+ /src/xz/xz
+diff --git a/po4a/.gitignore b/po4a/.gitignore
+deleted file mode 100644
+index 735f9fd1..00000000
+--- a/po4a/.gitignore
++++ /dev/null
+@@ -1,3 +0,0 @@
+-/man
+-/xz-man.pot
+-/*.po.authors

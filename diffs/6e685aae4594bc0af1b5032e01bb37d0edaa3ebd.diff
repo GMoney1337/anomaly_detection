@@ -1,0 +1,13 @@
+diff --git a/src/liblzma/Makefile.am b/src/liblzma/Makefile.am
+index 3c5095d9..defed167 100644
+--- a/src/liblzma/Makefile.am
++++ b/src/liblzma/Makefile.am
+@@ -9,7 +9,7 @@ SUBDIRS = api common check
+ 
+ lib_LTLIBRARIES = liblzma.la
+ liblzma_la_SOURCES =
+-liblzma_la_LDFLAGS = -version-info 0:0:0
++liblzma_la_LDFLAGS = -no-undefined -version-info 0:0:0
+ 
+ liblzma_la_LIBADD = \
+ 	common/libcommon.la \

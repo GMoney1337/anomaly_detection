@@ -1,0 +1,26 @@
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+index 4924f436..b783399c 100644
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -273,7 +273,7 @@ endif()
+ # Translation support requires CMake 3.20 because it added the Intl::Intl
+ # target so we don't need to play with the individual variables.
+ #
+-# The defintion ENABLE_NLS is added only to those targets that use it, thus
++# The definition ENABLE_NLS is added only to those targets that use it, thus
+ # it's not done here. (xz has translations, xzdec doesn't.)
+ if(CMAKE_VERSION VERSION_GREATER_EQUAL "3.20")
+     find_package(Intl)
+diff --git a/NEWS b/NEWS
+index 65a8724d..2e9f408a 100644
+--- a/NEWS
++++ b/NEWS
+@@ -23,7 +23,7 @@ XZ Utils Release Notes
+     * Sandboxing support in xz:
+ 
+         - Landlock is now used even when xz needs to create files.
+-          In this case the sandbox is has to be more permissive than
++          In this case the sandbox has to be more permissive than
+           when no files need to be created. A similar thing was
+           already in use with pledge(2) since 5.3.4alpha.
+ 

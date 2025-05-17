@@ -1,0 +1,12 @@
+diff --git a/tests/files/malicious-single-subblock-loop.lzma b/tests/files/bad-single-subblock-padding_loop.lzma
+similarity index 100%
+rename from tests/files/malicious-single-subblock-loop.lzma
+rename to tests/files/bad-single-subblock-padding_loop.lzma
+diff --git a/tests/files/malicious-single-subblock1023-slow.lzma b/tests/files/bad-single-subblock1023-slow.lzma
+similarity index 100%
+rename from tests/files/malicious-single-subblock1023-slow.lzma
+rename to tests/files/bad-single-subblock1023-slow.lzma
+diff --git a/tests/files/malicious-single-subblock-lzma.lzma b/tests/files/malicious-single-subblock-lzma.lzma
+deleted file mode 100644
+index 2cbbc18c..00000000
+Binary files a/tests/files/malicious-single-subblock-lzma.lzma and /dev/null differ

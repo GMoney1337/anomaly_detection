@@ -1,0 +1,14 @@
+diff --git a/po/Makevars b/po/Makevars
+index 3f56947c..9d82a84d 100644
+--- a/po/Makevars
++++ b/po/Makevars
+@@ -14,7 +14,8 @@ subdir = po
+ top_builddir = ..
+ 
+ # These options get passed to xgettext.
+-XGETTEXT_OPTIONS = --keyword=_ --keyword=N_ --no-wrap --package-name='XZ Utils'
++XGETTEXT_OPTIONS = --keyword=_ --keyword=N_ \
++	--add-location=file --no-wrap --package-name='XZ Utils'
+ 
+ # This is the copyright holder that gets inserted into the header of the
+ # $(DOMAIN).pot file.  Set this to the copyright holder of the surrounding

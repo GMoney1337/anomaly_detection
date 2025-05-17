@@ -1,0 +1,83 @@
+diff --git a/src/liblzma/api/lzma/base.h b/src/liblzma/api/lzma/base.h
+index 566247a1..228e8ec4 100644
+--- a/src/liblzma/api/lzma/base.h
++++ b/src/liblzma/api/lzma/base.h
+@@ -235,7 +235,7 @@ typedef enum {
+ 		 * how to report bugs.
+ 		 */
+ 
+-	LZMA_SEEK_NEEDED        = 12
++	LZMA_SEEK_NEEDED        = 12,
+ 		/**<
+ 		 * \brief       Request to change the input file position
+ 		 *
+@@ -251,6 +251,19 @@ typedef enum {
+ 		 * After seeking the application should read new input and
+ 		 * pass it normally via lzma_stream.next_in and .avail_in.
+ 		 */
++
++	/*
++	 * These eumerations may be used internally by liblzma
++	 * but they will never be returned to applications.
++	 */
++	LZMA_RET_INTERNAL1      = 101,
++	LZMA_RET_INTERNAL2      = 102,
++	LZMA_RET_INTERNAL3      = 103,
++	LZMA_RET_INTERNAL4      = 104,
++	LZMA_RET_INTERNAL5      = 105,
++	LZMA_RET_INTERNAL6      = 106,
++	LZMA_RET_INTERNAL7      = 107,
++	LZMA_RET_INTERNAL8      = 108
+ } lzma_ret;
+ 
+ 
+diff --git a/src/liblzma/common/common.c b/src/liblzma/common/common.c
+index 39bfabc2..346fc7af 100644
+--- a/src/liblzma/common/common.c
++++ b/src/liblzma/common/common.c
+@@ -298,9 +298,7 @@ lzma_code(lzma_stream *strm, lzma_action action)
+ 
+ 	strm->internal->avail_in = strm->avail_in;
+ 
+-	// Cast is needed to silence a warning about LZMA_TIMED_OUT, which
+-	// isn't part of lzma_ret enumeration.
+-	switch ((unsigned int)(ret)) {
++	switch (ret) {
+ 	case LZMA_OK:
+ 		// Don't return LZMA_BUF_ERROR when it happens the first time.
+ 		// This is to avoid returning LZMA_BUF_ERROR when avail_out
+diff --git a/src/liblzma/common/common.h b/src/liblzma/common/common.h
+index b3d3b7a0..555c77d1 100644
+--- a/src/liblzma/common/common.h
++++ b/src/liblzma/common/common.h
+@@ -83,9 +83,8 @@
+ 
+ /// Special return value (lzma_ret) to indicate that a timeout was reached
+ /// and lzma_code() must not return LZMA_BUF_ERROR. This is converted to
+-/// LZMA_OK in lzma_code(). This is not in the lzma_ret enumeration because
+-/// there's no need to have it in the public API.
+-#define LZMA_TIMED_OUT 32
++/// LZMA_OK in lzma_code().
++#define LZMA_TIMED_OUT LZMA_RET_INTERNAL1
+ 
+ 
+ typedef struct lzma_next_coder_s lzma_next_coder;
+diff --git a/src/xz/message.c b/src/xz/message.c
+index c3b14c27..00eb65b6 100644
+--- a/src/xz/message.c
++++ b/src/xz/message.c
+@@ -833,6 +833,14 @@ message_strm(lzma_ret code)
+ 	case LZMA_GET_CHECK:
+ 	case LZMA_PROG_ERROR:
+ 	case LZMA_SEEK_NEEDED:
++	case LZMA_RET_INTERNAL1:
++	case LZMA_RET_INTERNAL2:
++	case LZMA_RET_INTERNAL3:
++	case LZMA_RET_INTERNAL4:
++	case LZMA_RET_INTERNAL5:
++	case LZMA_RET_INTERNAL6:
++	case LZMA_RET_INTERNAL7:
++	case LZMA_RET_INTERNAL8:
+ 		// Without "default", compiler will warn if new constants
+ 		// are added to lzma_ret, it is not too easy to forget to
+ 		// add the new constants to this function.

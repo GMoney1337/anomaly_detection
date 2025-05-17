@@ -1,0 +1,12 @@
+diff --git a/src/common/tuklib_exit.c b/src/common/tuklib_exit.c
+index c393be64..aa55620e 100644
+--- a/src/common/tuklib_exit.c
++++ b/src/common/tuklib_exit.c
+@@ -14,6 +14,7 @@
+ 
+ #include <stdlib.h>
+ #include <stdio.h>
++#include <string.h>
+ 
+ #include "tuklib_gettext.h"
+ #include "tuklib_progname.h"

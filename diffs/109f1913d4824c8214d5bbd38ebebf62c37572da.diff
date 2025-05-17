@@ -1,0 +1,126 @@
+diff --git a/src/scripts/xzdiff.1 b/src/scripts/xzdiff.1
+index 5f556072..8f473eda 100644
+--- a/src/scripts/xzdiff.1
++++ b/src/scripts/xzdiff.1
+@@ -5,7 +5,7 @@
+ .\"
+ .\" (Note that this file is not based on gzip's zdiff.1.)
+ .\"
+-.TH XZDIFF 1 "2024-02-12" "Tukaani" "XZ Utils"
++.TH XZDIFF 1 "2024-02-13" "Tukaani" "XZ Utils"
+ .SH NAME
+ xzcmp, xzdiff, lzcmp, lzdiff \- compare compressed files
+ .
+@@ -48,8 +48,9 @@ are specified, they can be uncompressed files or files in formats that
+ .BR gzip (1),
+ .BR bzip2 (1),
+ .BR lzop (1),
++.BR zstd (1),
+ or
+-.BR zstd (1)
++.BR lz4 (1)
+ can decompress.
+ The required decompression commands are determined from
+ the filename suffixes of
+@@ -91,4 +92,5 @@ is used.
+ .BR gzip (1),
+ .BR bzip2 (1),
+ .BR lzop (1),
+-.BR zstd (1)
++.BR zstd (1),
++.BR lz4 (1)
+diff --git a/src/scripts/xzdiff.in b/src/scripts/xzdiff.in
+index 40a1fd33..ee5726e8 100644
+--- a/src/scripts/xzdiff.in
++++ b/src/scripts/xzdiff.in
+@@ -84,13 +84,15 @@ if test $# -eq 1; then
+       xz1=lzop;;
+     *[-.]zst | *.tzst)
+       xz1='zstd -q';;
++    *[-.]lz4)
++      xz1=lz4;;
+     *)
+       printf '%s\n' "$0: $1: Unknown compressed file name suffix" >&2
+       exit 2;;
+   esac
+   case $1 in
+-    *[-.][zZ] | *_z | *[-.][gx]z | *[-.]bz2 | *[-.]lzma | *[-.]lz | *[-.]lzo | *[-.]zst)
+-      FILE=`expr "X$1" : 'X\(.*\)[-.][abglmostxzZ2]*$'`;;
++    *[-.][zZ] | *_z | *[-.][gx]z | *[-.]bz2 | *[-.]lzma | *[-.]lz | *[-.]lzo | *[-.]zst | *[-.]lz4)
++      FILE=`expr "X$1" : 'X\(.*\)[-.][abglmostxzZ24]*$'`;;
+     *.t[abglx]z)
+       FILE=`expr "X$1" : 'X\(.*[-.]t\)[abglx]z$'`ar;;
+     *.tbz2)
+@@ -110,17 +112,19 @@ elif test $# -eq 2; then
+     *[-.][zZ] | *_z | *[-.]gz | *.t[ag]z) xz1=gzip;;
+     *[-.]lzo | *.tzo) xz1=lzop;;
+     *[-.]zst | *.tzst) xz1='zstd -q';;
++    *[-.]lz4) xz1=lz4;;
+   esac
+   case $2 in
+     *[-.]bz2 | *.tbz | *.tbz2) xz2=bzip2;;
+     *[-.][zZ] | *_z | *[-.]gz | *.t[ag]z) xz2=gzip;;
+     *[-.]lzo | *.tzo) xz2=lzop;;
+     *[-.]zst | *.tzst) xz2='zstd -q';;
++    *[-.]lz4) xz2=lz4;;
+   esac
+   case $1 in
+-    *[-.][zZ] | *_z | *[-.][gx]z | *[-.]bz2 | *[-.]lzma | *[-.]lz | *.t[abglx]z | *.tbz2 | *[-.]lzo | *.tzo | *[-.]zst | *.tzst | -)
++    *[-.][zZ] | *_z | *[-.][gx]z | *[-.]bz2 | *[-.]lzma | *[-.]lz | *.t[abglx]z | *.tbz2 | *[-.]lzo | *.tzo | *[-.]zst | *.tzst | *[-.]lz4 | -)
+       case "$2" in
+-        *[-.][zZ] | *_z | *[-.][gx]z | *[-.]bz2 | *[-.]lzma | *[-.]lz | *.t[abglx]z | *.tbz2 | *[-.]lzo | *.tzo | *[-.]zst | *.tzst | -)
++        *[-.][zZ] | *_z | *[-.][gx]z | *[-.]bz2 | *[-.]lzma | *[-.]lz | *.t[abglx]z | *.tbz2 | *[-.]lzo | *.tzo | *[-.]zst | *.tzst | *[-.]lz4 | -)
+           if test "$1$2" = --; then
+             xz_status=$(
+               exec 4>&1
+@@ -184,7 +188,7 @@ elif test $# -eq 2; then
+     esac;;
+   *)
+     case "$2" in
+-      *[-.][zZ] | *_z | *[-.][gx]z | *[-.]bz2 | *[-.]lzma | *[-.]lz | *.t[abglx]z | *.tbz2 | *[-.]lzo | *.tzo | *[-.]zst | *.tzst | -)
++      *[-.][zZ] | *_z | *[-.][gx]z | *[-.]bz2 | *[-.]lzma | *[-.]lz | *.t[abglx]z | *.tbz2 | *[-.]lzo | *.tzo | *[-.]zst | *.tzst | *[-.]lz4 | -)
+         xz_status=$(
+           exec 4>&1
+           ($xz2 -cdf -- "$2" 4>&-; echo $? >&4) 3>&- |
+diff --git a/src/scripts/xzgrep.1 b/src/scripts/xzgrep.1
+index d60a0516..63f012c9 100644
+--- a/src/scripts/xzgrep.1
++++ b/src/scripts/xzgrep.1
+@@ -5,7 +5,7 @@
+ .\"
+ .\" (Note that this file is not based on gzip's zgrep.1.)
+ .\"
+-.TH XZGREP 1 "2024-02-12" "Tukaani" "XZ Utils"
++.TH XZGREP 1 "2024-02-13" "Tukaani" "XZ Utils"
+ .SH NAME
+ xzgrep \- search possibly-compressed files for patterns
+ .
+@@ -45,8 +45,9 @@ with a suffix supported by
+ .BR gzip (1),
+ .BR bzip2 (1),
+ .BR lzop (1),
++.BR zstd (1),
+ or
+-.BR zstd (1)
++.BR lz4 (1)
+ will be decompressed;
+ all other files are assumed to be uncompressed.
+ .PP
+@@ -139,4 +140,5 @@ or
+ .BR bzip2 (1),
+ .BR lzop (1),
+ .BR zstd (1),
++.BR lz4 (1),
+ .BR zgrep (1)
+diff --git a/src/scripts/xzgrep.in b/src/scripts/xzgrep.in
+index 6e3d8d7e..74add3e0 100644
+--- a/src/scripts/xzgrep.in
++++ b/src/scripts/xzgrep.in
+@@ -181,6 +181,7 @@ for i; do
+     *[-.]bz2 | *[-.]tbz | *.tbz2) uncompress="bzip2 -cdf";;
+     *[-.]lzo | *[-.]tzo) uncompress="lzop -cdf";;
+     *[-.]zst | *[-.]tzst) uncompress="zstd -cdfq";; # zstd needs -q.
++    *[-.]lz4) uncompress="lz4 -cdf";;
+     *) uncompress="$xz -cdfqQ";; # -qQ to ignore warnings like unsupp. check.
+   esac
+   # xz_status will hold the decompressor's exit status.

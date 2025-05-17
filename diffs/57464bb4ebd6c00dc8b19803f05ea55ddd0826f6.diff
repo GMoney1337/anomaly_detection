@@ -1,0 +1,25 @@
+diff --git a/.github/workflows/ci.yml b/.github/workflows/ci.yml
+index a1ef1f3b..b7cbd1b6 100644
+--- a/.github/workflows/ci.yml
++++ b/.github/workflows/ci.yml
+@@ -30,7 +30,7 @@ jobs:
+       # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
+       - uses: actions/checkout@v2
+       - name: Install Dependencies
+-        run: sudo apt-get install -y autoconf automake build-essential po4a autopoint
++        run: sudo apt-get install -y autoconf automake build-essential po4a autopoint gcc-multilib
+ 
+       # -b specifies the build system to use.
+       # -p specifies the phase (build or test) to help narrow down an error
+@@ -75,6 +75,11 @@ jobs:
+       - name: Test without crc64 check
+         run: ./build-aux/ci_build.sh -b autotools -c crc32,sha256 -p test
+ 
++      - name: Build 32-bit
++        run: ./build-aux/ci_build.sh -b autotools -p build -f "-m32"
++      - name: Test 32-bit
++        run: ./build-aux/ci_build.sh -b autotools -p test -f "-m32"
++
+   Linux-CMake:
+     runs-on: ubuntu-latest
+     steps:

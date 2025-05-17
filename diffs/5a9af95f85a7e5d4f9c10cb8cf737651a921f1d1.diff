@@ -1,0 +1,14 @@
+diff --git a/src/liblzma/check/crc64_table.c b/src/liblzma/check/crc64_table.c
+index 6f9adb04..688e527b 100644
+--- a/src/liblzma/check/crc64_table.c
++++ b/src/liblzma/check/crc64_table.c
+@@ -18,8 +18,7 @@
+ #if (defined(__x86_64__) && defined(__SSSE3__) \
+ 			&& defined(__SSE4_1__) && defined(__PCLMUL__)) \
+ 		|| (defined(__e2k__) && __iset__ >= 6)
+-// No table needed but something has to be exported to keep some toolchains
+-// happy. Also use a declaration to silence compiler warnings.
++// No table needed. Use a typedef to avoid an empty translation unit.
+ typedef void lzma_crc64_dummy;
+ 
+ #else

@@ -1,0 +1,17 @@
+diff --git a/tests/files/README b/tests/files/README
+index 542a7b27..f4d4fe77 100644
+--- a/tests/files/README
++++ b/tests/files/README
+@@ -45,6 +45,8 @@
+     concatenated as is. Fully decoding this file requires that the decoder
+     supports decoding concatenated files.
+ 
++    good-single-subblock_implicit.lzma uses implicit Subblock filter.
++
+     good-single-lzma.lzma is LZMA compressed file with EOPM.
+ 
+     good-single-subblock-lzma.lzma has basic combination of Subblock and
+diff --git a/tests/files/good-single-subblock_implicit.lzma b/tests/files/good-single-subblock_implicit.lzma
+new file mode 100644
+index 00000000..b33c6028
+Binary files /dev/null and b/tests/files/good-single-subblock_implicit.lzma differ

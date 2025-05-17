@@ -1,0 +1,168 @@
+diff --git a/src/liblzma/simple/arm.c b/src/liblzma/simple/arm.c
+index ff5073ae..6e53970d 100644
+--- a/src/liblzma/simple/arm.c
++++ b/src/liblzma/simple/arm.c
+@@ -53,6 +53,7 @@ arm_coder_init(lzma_next_coder *next, const lzma_allocator *allocator,
+ }
+ 
+ 
++#ifdef HAVE_ENCODER_ARM
+ extern lzma_ret
+ lzma_simple_arm_encoder_init(lzma_next_coder *next,
+ 		const lzma_allocator *allocator,
+@@ -60,8 +61,10 @@ lzma_simple_arm_encoder_init(lzma_next_coder *next,
+ {
+ 	return arm_coder_init(next, allocator, filters, true);
+ }
++#endif
+ 
+ 
++#ifdef HAVE_DECODER_ARM
+ extern lzma_ret
+ lzma_simple_arm_decoder_init(lzma_next_coder *next,
+ 		const lzma_allocator *allocator,
+@@ -69,3 +72,4 @@ lzma_simple_arm_decoder_init(lzma_next_coder *next,
+ {
+ 	return arm_coder_init(next, allocator, filters, false);
+ }
++#endif
+diff --git a/src/liblzma/simple/armthumb.c b/src/liblzma/simple/armthumb.c
+index a8da334a..25d8dbd4 100644
+--- a/src/liblzma/simple/armthumb.c
++++ b/src/liblzma/simple/armthumb.c
+@@ -58,6 +58,7 @@ armthumb_coder_init(lzma_next_coder *next, const lzma_allocator *allocator,
+ }
+ 
+ 
++#ifdef HAVE_ENCODER_ARMTHUMB
+ extern lzma_ret
+ lzma_simple_armthumb_encoder_init(lzma_next_coder *next,
+ 		const lzma_allocator *allocator,
+@@ -65,8 +66,10 @@ lzma_simple_armthumb_encoder_init(lzma_next_coder *next,
+ {
+ 	return armthumb_coder_init(next, allocator, filters, true);
+ }
++#endif
+ 
+ 
++#ifdef HAVE_DECODER_ARMTHUMB
+ extern lzma_ret
+ lzma_simple_armthumb_decoder_init(lzma_next_coder *next,
+ 		const lzma_allocator *allocator,
+@@ -74,3 +77,4 @@ lzma_simple_armthumb_decoder_init(lzma_next_coder *next,
+ {
+ 	return armthumb_coder_init(next, allocator, filters, false);
+ }
++#endif
+diff --git a/src/liblzma/simple/ia64.c b/src/liblzma/simple/ia64.c
+index 6492d0a3..692b0a29 100644
+--- a/src/liblzma/simple/ia64.c
++++ b/src/liblzma/simple/ia64.c
+@@ -94,6 +94,7 @@ ia64_coder_init(lzma_next_coder *next, const lzma_allocator *allocator,
+ }
+ 
+ 
++#ifdef HAVE_ENCODER_IA64
+ extern lzma_ret
+ lzma_simple_ia64_encoder_init(lzma_next_coder *next,
+ 		const lzma_allocator *allocator,
+@@ -101,8 +102,10 @@ lzma_simple_ia64_encoder_init(lzma_next_coder *next,
+ {
+ 	return ia64_coder_init(next, allocator, filters, true);
+ }
++#endif
+ 
+ 
++#ifdef HAVE_DECODER_IA64
+ extern lzma_ret
+ lzma_simple_ia64_decoder_init(lzma_next_coder *next,
+ 		const lzma_allocator *allocator,
+@@ -110,3 +113,4 @@ lzma_simple_ia64_decoder_init(lzma_next_coder *next,
+ {
+ 	return ia64_coder_init(next, allocator, filters, false);
+ }
++#endif
+diff --git a/src/liblzma/simple/powerpc.c b/src/liblzma/simple/powerpc.c
+index 0b60e9b3..3a340fd1 100644
+--- a/src/liblzma/simple/powerpc.c
++++ b/src/liblzma/simple/powerpc.c
+@@ -58,6 +58,7 @@ powerpc_coder_init(lzma_next_coder *next, const lzma_allocator *allocator,
+ }
+ 
+ 
++#ifdef HAVE_ENCODER_POWERPC
+ extern lzma_ret
+ lzma_simple_powerpc_encoder_init(lzma_next_coder *next,
+ 		const lzma_allocator *allocator,
+@@ -65,8 +66,10 @@ lzma_simple_powerpc_encoder_init(lzma_next_coder *next,
+ {
+ 	return powerpc_coder_init(next, allocator, filters, true);
+ }
++#endif
+ 
+ 
++#ifdef HAVE_DECODER_POWERPC
+ extern lzma_ret
+ lzma_simple_powerpc_decoder_init(lzma_next_coder *next,
+ 		const lzma_allocator *allocator,
+@@ -74,3 +77,4 @@ lzma_simple_powerpc_decoder_init(lzma_next_coder *next,
+ {
+ 	return powerpc_coder_init(next, allocator, filters, false);
+ }
++#endif
+diff --git a/src/liblzma/simple/sparc.c b/src/liblzma/simple/sparc.c
+index 74b2655f..bad8492e 100644
+--- a/src/liblzma/simple/sparc.c
++++ b/src/liblzma/simple/sparc.c
+@@ -65,6 +65,7 @@ sparc_coder_init(lzma_next_coder *next, const lzma_allocator *allocator,
+ }
+ 
+ 
++#ifdef HAVE_ENCODER_SPARC
+ extern lzma_ret
+ lzma_simple_sparc_encoder_init(lzma_next_coder *next,
+ 		const lzma_allocator *allocator,
+@@ -72,8 +73,10 @@ lzma_simple_sparc_encoder_init(lzma_next_coder *next,
+ {
+ 	return sparc_coder_init(next, allocator, filters, true);
+ }
++#endif
+ 
+ 
++#ifdef HAVE_DECODER_SPARC
+ extern lzma_ret
+ lzma_simple_sparc_decoder_init(lzma_next_coder *next,
+ 		const lzma_allocator *allocator,
+@@ -81,3 +84,4 @@ lzma_simple_sparc_decoder_init(lzma_next_coder *next,
+ {
+ 	return sparc_coder_init(next, allocator, filters, false);
+ }
++#endif
+diff --git a/src/liblzma/simple/x86.c b/src/liblzma/simple/x86.c
+index 0e78909c..232b2954 100644
+--- a/src/liblzma/simple/x86.c
++++ b/src/liblzma/simple/x86.c
+@@ -141,6 +141,7 @@ x86_coder_init(lzma_next_coder *next, const lzma_allocator *allocator,
+ }
+ 
+ 
++#ifdef HAVE_ENCODER_X86
+ extern lzma_ret
+ lzma_simple_x86_encoder_init(lzma_next_coder *next,
+ 		const lzma_allocator *allocator,
+@@ -148,8 +149,10 @@ lzma_simple_x86_encoder_init(lzma_next_coder *next,
+ {
+ 	return x86_coder_init(next, allocator, filters, true);
+ }
++#endif
+ 
+ 
++#ifdef HAVE_DECODER_X86
+ extern lzma_ret
+ lzma_simple_x86_decoder_init(lzma_next_coder *next,
+ 		const lzma_allocator *allocator,
+@@ -157,3 +160,4 @@ lzma_simple_x86_decoder_init(lzma_next_coder *next,
+ {
+ 	return x86_coder_init(next, allocator, filters, false);
+ }
++#endif

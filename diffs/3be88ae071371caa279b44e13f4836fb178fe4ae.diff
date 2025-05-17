@@ -1,0 +1,76 @@
+diff --git a/src/liblzma/lz/lz_encoder.c b/src/liblzma/lz/lz_encoder.c
+index 2dad7e5f..702582ce 100644
+--- a/src/liblzma/lz/lz_encoder.c
++++ b/src/liblzma/lz/lz_encoder.c
+@@ -293,11 +293,15 @@ lz_encoder_prepare(lzma_mf *mf, const lzma_allocator *allocator,
+ 		return true;
+ 	}
+ 
+-	// Calculate the sizes of mf->hash and mf->son and check that
+-	// nice_len is big enough for the selected match finder.
+-	const uint32_t hash_bytes = lz_options->match_finder & 0x0F;
+-	if (hash_bytes > mf->nice_len)
+-		return true;
++	// Calculate the sizes of mf->hash and mf->son.
++	//
++	// NOTE: Since 5.3.5beta the LZMA encoder ensures that nice_len
++	// is big enough for the selected match finder. This makes it
++	// easier for applications as nice_len = 2 will always be accepted
++	// even though the effective value can be slightly bigger.
++	const uint32_t hash_bytes
++			= mf_get_hash_bytes(lz_options->match_finder);
++	assert(hash_bytes <= mf->nice_len);
+ 
+ 	const bool is_bt = (lz_options->match_finder & 0x10) != 0;
+ 	uint32_t hs;
+diff --git a/src/liblzma/lz/lz_encoder.h b/src/liblzma/lz/lz_encoder.h
+index e249beba..41439408 100644
+--- a/src/liblzma/lz/lz_encoder.h
++++ b/src/liblzma/lz/lz_encoder.h
+@@ -220,6 +220,15 @@ typedef struct {
+ // are called `read ahead'.
+ 
+ 
++/// Get how many bytes the match finder hashes in its initial step.
++/// This is also the minimum nice_len value with the match finder.
++static inline uint32_t
++mf_get_hash_bytes(lzma_match_finder match_finder)
++{
++	return (uint32_t)match_finder & 0x0F;
++}
++
++
+ /// Get pointer to the first byte not ran through the match finder
+ static inline const uint8_t *
+ mf_ptr(const lzma_mf *mf)
+diff --git a/src/liblzma/lzma/lzma_encoder.c b/src/liblzma/lzma/lzma_encoder.c
+index 788bcd1f..9a64b71f 100644
+--- a/src/liblzma/lzma/lzma_encoder.c
++++ b/src/liblzma/lzma/lzma_encoder.c
+@@ -492,7 +492,8 @@ set_lz_options(lzma_lz_options *lz_options, const lzma_options_lzma *options)
+ 	lz_options->dict_size = options->dict_size;
+ 	lz_options->after_size = LOOP_INPUT_MAX;
+ 	lz_options->match_len_max = MATCH_LEN_MAX;
+-	lz_options->nice_len = options->nice_len;
++	lz_options->nice_len = my_max(mf_get_hash_bytes(options->mf),
++				options->nice_len);
+ 	lz_options->match_finder = options->mf;
+ 	lz_options->depth = options->depth;
+ 	lz_options->preset_dict = options->preset_dict;
+@@ -643,10 +644,14 @@ lzma_lzma_encoder_create(void **coder_ptr,
+ 			coder->dist_table_size = log_size * 2;
+ 
+ 			// Length encoders' price table size
++			const uint32_t nice_len = my_max(
++					mf_get_hash_bytes(options->mf),
++					options->nice_len);
++
+ 			coder->match_len_encoder.table_size
+-				= options->nice_len + 1 - MATCH_LEN_MIN;
++					= nice_len + 1 - MATCH_LEN_MIN;
+ 			coder->rep_len_encoder.table_size
+-				= options->nice_len + 1 - MATCH_LEN_MIN;
++					= nice_len + 1 - MATCH_LEN_MIN;
+ 			break;
+ 		}
+ 

@@ -1,0 +1,6 @@
+diff --git a/tests/files/good-1-riscv-lzma2-1.xz b/tests/files/good-1-riscv-lzma2-1.xz
+index 0d04a122..85f3b756 100644
+Binary files a/tests/files/good-1-riscv-lzma2-1.xz and b/tests/files/good-1-riscv-lzma2-1.xz differ
+diff --git a/tests/files/good-1-riscv-lzma2-2.xz b/tests/files/good-1-riscv-lzma2-2.xz
+index 7ca0ed86..60d2403a 100644
+Binary files a/tests/files/good-1-riscv-lzma2-2.xz and b/tests/files/good-1-riscv-lzma2-2.xz differ

@@ -1,0 +1,13 @@
+diff --git a/src/liblzma/lzma/lzma_encoder.c b/src/liblzma/lzma/lzma_encoder.c
+index f68633b8..5c80a2f8 100644
+--- a/src/liblzma/lzma/lzma_encoder.c
++++ b/src/liblzma/lzma/lzma_encoder.c
+@@ -101,7 +101,7 @@ do { \
+ 
+ /// \brief      Updates price table of the length encoder
+ ///
+-/// All all the other prices in LZMA, these are used by lzma_get_optimum().
++/// Like all the other prices in LZMA, these are used by lzma_get_optimum().
+ ///
+ extern void
+ lzma_length_encoder_update_table(lzma_length_encoder *lencoder,

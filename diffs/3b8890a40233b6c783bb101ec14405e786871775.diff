@@ -1,0 +1,12 @@
+diff --git a/THANKS b/THANKS
+index a2c452d1..0d811705 100644
+--- a/THANKS
++++ b/THANKS
+@@ -23,6 +23,7 @@ has been important. :-) In alphabetical order:
+   - Kevin R. Bulgrien
+   - James Buren
+   - David Burklund
++  - Frank Busse
+   - Daniel Mealha Cabrita
+   - Milo Casagrande
+   - Marek Černocký

@@ -1,0 +1,20 @@
+diff --git a/THANKS b/THANKS
+index 0904c30f..242435ea 100644
+--- a/THANKS
++++ b/THANKS
+@@ -13,6 +13,7 @@ has been important. :-) In alphabetical order:
+   - Emmanuel Blot
+   - Melanie Blower
+   - Martin Blumenstingl
++  - Ben Boeckel
+   - Jakub Bogusz
+   - Maarten Bosmans
+   - Trent W. Buck
+@@ -95,6 +96,7 @@ has been important. :-) In alphabetical order:
+   - Stuart Shelton
+   - Sebastian Andrzej Siewior
+   - Brad Smith
++  - Pippijn van Steenhoven
+   - Jonathan Stott
+   - Dan Stromberg
+   - Vincent Torri

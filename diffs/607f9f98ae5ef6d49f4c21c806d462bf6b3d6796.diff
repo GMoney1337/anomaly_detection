@@ -1,0 +1,12 @@
+diff --git a/THANKS b/THANKS
+index 7afe415b..adea5bb1 100644
+--- a/THANKS
++++ b/THANKS
+@@ -24,6 +24,7 @@ has been important. :-) In alphabetical order:
+   - Gilles Espinasse
+   - Denis Excoffier
+   - Mike Frysinger
++  - Jason Gorski
+   - Juan Manuel Guerrero
+   - Joachim Henke
+   - Peter Ivanov

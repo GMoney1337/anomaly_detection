@@ -1,0 +1,26 @@
+diff --git a/configure.ac b/configure.ac
+index eee54259..39996bcc 100644
+--- a/configure.ac
++++ b/configure.ac
+@@ -24,7 +24,7 @@
+ 
+ AC_PREREQ([2.61])
+ 
+-AC_INIT([XZ Utils], [4.999.7beta], [lasse.collin@tukaani.org], [xz])
++AC_INIT([XZ Utils], [4.999.8beta], [lasse.collin@tukaani.org], [xz])
+ AC_CONFIG_SRCDIR([src/liblzma/common/common.h])
+ AC_CONFIG_HEADER([config.h])
+ 
+diff --git a/src/liblzma/api/lzma/version.h b/src/liblzma/api/lzma/version.h
+index 0dbb39d6..6d6f824a 100644
+--- a/src/liblzma/api/lzma/version.h
++++ b/src/liblzma/api/lzma/version.h
+@@ -37,7 +37,7 @@
+  * \note        The version number of liblzma has nothing to with
+  *              the version number of Igor Pavlov's LZMA SDK.
+  */
+-#define LZMA_VERSION UINT32_C(49990071)
++#define LZMA_VERSION UINT32_C(49990081)
+ 
+ 
+ /**

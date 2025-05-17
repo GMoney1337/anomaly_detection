@@ -1,0 +1,30 @@
+diff --git a/lib/getopt.c b/lib/getopt.c
+index f8fc003d..36c28318 100644
+--- a/lib/getopt.c
++++ b/lib/getopt.c
+@@ -21,7 +21,9 @@
+    Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.  */
+ 
+ #ifndef _LIBC
+-# include <config.h>
++# ifdef HAVE_CONFIG_H
++#  include <config.h>
++# endif
+ #endif
+ 
+ #include "getopt.h"
+diff --git a/lib/getopt1.c b/lib/getopt1.c
+index da5d5330..ebc46404 100644
+--- a/lib/getopt1.c
++++ b/lib/getopt1.c
+@@ -20,7 +20,9 @@
+ #ifdef _LIBC
+ # include <getopt.h>
+ #else
+-# include <config.h>
++# ifdef HAVE_CONFIG_H
++#  include <config.h>
++# endif
+ # include "getopt.h"
+ #endif
+ #include "getopt_int.h"

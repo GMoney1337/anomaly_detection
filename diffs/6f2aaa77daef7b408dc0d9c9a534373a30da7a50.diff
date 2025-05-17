@@ -1,0 +1,4 @@
+diff --git a/.github/workflows/windows-ci.yml b/.github/workflows/msys2.yml
+similarity index 100%
+rename from .github/workflows/windows-ci.yml
+rename to .github/workflows/msys2.yml

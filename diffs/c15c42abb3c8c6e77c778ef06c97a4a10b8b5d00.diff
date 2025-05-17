@@ -1,0 +1,138 @@
+diff --git a/src/xz/args.c b/src/xz/args.c
+index 7b12529c..be26bf3d 100644
+--- a/src/xz/args.c
++++ b/src/xz/args.c
+@@ -45,6 +45,7 @@ parse_real(args_info *args, int argc, char **argv)
+ 		OPT_NO_SPARSE,
+ 		OPT_FILES,
+ 		OPT_FILES0,
++		OPT_NO_ADJUST,
+ 		OPT_INFO_MEMORY,
+ 		OPT_ROBOT,
+ 	};
+@@ -74,6 +75,7 @@ parse_real(args_info *args, int argc, char **argv)
+ 		// Basic compression settings
+ 		{ "format",       required_argument, NULL,  'F' },
+ 		{ "check",        required_argument, NULL,  'C' },
++		{ "no-adjust",    no_argument,       NULL,  OPT_NO_ADJUST },
+ 		{ "memory",       required_argument, NULL,  'M' },
+ 		{ "threads",      required_argument, NULL,  'T' },
+ 
+@@ -367,6 +369,10 @@ parse_real(args_info *args, int argc, char **argv)
+ 
+ 			break;
+ 
++		case OPT_NO_ADJUST:
++			opt_auto_adjust = false;
++			break;
++
+ 		default:
+ 			message_try_help();
+ 			tuklib_exit(E_ERROR, E_ERROR, false);
+diff --git a/src/xz/coder.c b/src/xz/coder.c
+index 8d882d26..ff50d63c 100644
+--- a/src/xz/coder.c
++++ b/src/xz/coder.c
+@@ -22,8 +22,8 @@ enum coder_init_ret {
+ 
+ 
+ enum operation_mode opt_mode = MODE_COMPRESS;
+-
+ enum format_type opt_format = FORMAT_AUTO;
++bool opt_auto_adjust = true;
+ 
+ 
+ /// Stream used to communicate with liblzma
+@@ -42,10 +42,6 @@ static size_t filters_count = 0;
+ /// Number of the preset (0-9)
+ static size_t preset_number = 6;
+ 
+-/// True if we should auto-adjust the compression settings to use less memory
+-/// if memory usage limit is too low for the original settings.
+-static bool auto_adjust = true;
+-
+ /// Indicate if no preset has been explicitly given. In that case, if we need
+ /// to auto-adjust for lower memory usage, we won't print a warning.
+ static bool preset_default = true;
+@@ -191,7 +187,7 @@ coder_set_compression_settings(void)
+ 		// If --no-auto-adjust was used or we didn't find LZMA1 or
+ 		// LZMA2 as the last filter, give an error immediately.
+ 		// --format=raw implies --no-auto-adjust.
+-		if (!auto_adjust || opt_format == FORMAT_RAW)
++		if (!opt_auto_adjust || opt_format == FORMAT_RAW)
+ 			memlimit_too_small(memory_usage);
+ 
+ 		assert(opt_mode == MODE_COMPRESS);
+diff --git a/src/xz/coder.h b/src/xz/coder.h
+index 0d3af6ad..4626466f 100644
+--- a/src/xz/coder.h
++++ b/src/xz/coder.h
+@@ -37,6 +37,10 @@ extern enum operation_mode opt_mode;
+ /// This is set in args.c.
+ extern enum format_type opt_format;
+ 
++/// If true, the compression settings are automatically adjusted down if
++/// they exceed the memory usage limit.
++extern bool opt_auto_adjust;
++
+ 
+ /// Set the integrity check type used when compressing
+ extern void coder_set_check(lzma_check check);
+diff --git a/src/xz/message.c b/src/xz/message.c
+index 6eed5f7e..5044ea22 100644
+--- a/src/xz/message.c
++++ b/src/xz/message.c
+@@ -1137,10 +1137,14 @@ message_help(bool long_help)
+ "  -e, --extreme       use more CPU time when encoding to increase compression\n"
+ "                      ratio without increasing memory usage of the decoder"));
+ 
+-	if (long_help)
++	if (long_help) {
++		puts(_(
++"      --no-adjust     if compression settings exceed the memory usage limit,\n"
++"                      give an error instead of adjusting the settings downwards"));
+ 		puts(_( // xgettext:no-c-format
+ "  -M, --memory=NUM    use roughly NUM bytes of memory at maximum; 0 indicates\n"
+ "                      the default setting, which is 40 % of total RAM"));
++	}
+ 
+ 	if (long_help) {
+ 		puts(_(
+diff --git a/src/xz/xz.1 b/src/xz/xz.1
+index 3520d0f9..2c241700 100644
+--- a/src/xz/xz.1
++++ b/src/xz/xz.1
+@@ -5,7 +5,7 @@
+ .\" This file has been put into the public domain.
+ .\" You can do whatever you want with this file.
+ .\"
+-.TH XZ 1 "2010-06-01" "Tukaani" "XZ Utils"
++.TH XZ 1 "2010-06-15" "Tukaani" "XZ Utils"
+ .SH NAME
+ xz, unxz, xzcat, lzma, unlzma, lzcat \- Compress or decompress .xz and .lzma files
+ .SH SYNOPSIS
+@@ -210,7 +210,9 @@ When compressing, if the selected compression settings exceed the memory
+ usage limit, the settings are automatically adjusted downwards and a notice
+ about this is displayed. As an exception, if the memory usage limit is
+ exceeded when compressing with
+-.BR \-\-format=raw ,
++.B \-\-format=raw
++or
++.BR \-\-no\-adjust ,
+ an error is displayed and
+ .B xz
+ will exit with exit status
+@@ -617,6 +619,13 @@ of the compressor or decompressor (exception: compressor memory usage may
+ increase a little with presets \fB\-0\fR ... \fB\-2\fR). The downside is that
+ the compression time will increase dramatically (it can easily double).
+ .TP
++.B \-\-no\-adjust
++Display an error and exit if the compression settings exceed the
++the memory usage limit. The default is to adjust the settings downwards so
++that the memory usage limit is not exceeded. Automatic adjusting is
++always disabled when creating raw streams
++.RB ( \-\-format=raw ).
++.TP
+ \fB\-M\fR \fIlimit\fR, \fB\-\-memory=\fIlimit
+ Set the memory usage limit. If this option is specified multiple times,
+ the last one takes effect. The

@@ -1,0 +1,43 @@
+diff --git a/src/scripts/xzgrep.1 b/src/scripts/xzgrep.1
+index 3ac4fadb..dcbd0316 100644
+--- a/src/scripts/xzgrep.1
++++ b/src/scripts/xzgrep.1
+@@ -67,9 +67,9 @@ is invoked as
+ or
+ .B xzfgrep
+ then
+-.BR egrep (1)
++.B grep \-E
+ or
+-.BR fgrep (1)
++.B grep \-F
+ is used instead of
+ .BR grep (1).
+ The same applies to names
+@@ -87,9 +87,9 @@ environment variable is set,
+ .B xzgrep
+ uses it instead of
+ .BR grep (1),
+-.BR egrep (1),
++.BR "grep \-E" ,
+ or
+-.BR fgrep (1).
++.BR "grep \-F" .
+ .SH "SEE ALSO"
+ .BR grep (1),
+ .BR xz (1),
+diff --git a/src/scripts/xzgrep.in b/src/scripts/xzgrep.in
+index baec826e..b180936c 100644
+--- a/src/scripts/xzgrep.in
++++ b/src/scripts/xzgrep.in
+@@ -29,8 +29,8 @@ xz='@xz@ --format=auto'
+ unset GZIP BZIP BZIP2 LZOP
+ 
+ case ${0##*/} in
+-  *egrep*) prog=xzegrep; grep=${GREP:-egrep};;
+-  *fgrep*) prog=xzfgrep; grep=${GREP:-fgrep};;
++  *egrep*) prog=xzegrep; grep=${GREP:-grep -E};;
++  *fgrep*) prog=xzfgrep; grep=${GREP:-grep -F};;
+   *)       prog=xzgrep; grep=${GREP:-grep};;
+ esac
+ 

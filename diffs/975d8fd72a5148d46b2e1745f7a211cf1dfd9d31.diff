@@ -1,0 +1,25 @@
+diff --git a/tests/bcj_test.c b/tests/bcj_test.c
+index d64c5a79..91456de7 100644
+--- a/tests/bcj_test.c
++++ b/tests/bcj_test.c
+@@ -8,7 +8,7 @@
+ /// be used to test the branch conversion filters. Note that this program
+ /// itself does nothing useful.
+ ///
+-/// Compiling: gcc -std=c99 -fPIC bcj_test.c
++/// Compiling: gcc -std=c99 -fPIC -c bcj_test.c
+ /// Don't optimize or strip.
+ //
+ //  This code has been put into the public domain.
+diff --git a/tests/compress_prepared_bcj_sparc b/tests/compress_prepared_bcj_sparc
+index ba3ee297..86ea7ddb 100644
+Binary files a/tests/compress_prepared_bcj_sparc and b/tests/compress_prepared_bcj_sparc differ
+diff --git a/tests/compress_prepared_bcj_x86 b/tests/compress_prepared_bcj_x86
+index 48dde27c..bcc546f0 100644
+Binary files a/tests/compress_prepared_bcj_x86 and b/tests/compress_prepared_bcj_x86 differ
+diff --git a/tests/files/good-1-sparc-lzma2.xz b/tests/files/good-1-sparc-lzma2.xz
+index 5c1c8600..4532bc61 100644
+Binary files a/tests/files/good-1-sparc-lzma2.xz and b/tests/files/good-1-sparc-lzma2.xz differ
+diff --git a/tests/files/good-1-x86-lzma2.xz b/tests/files/good-1-x86-lzma2.xz
+index 2c4a471a..8053917b 100644
+Binary files a/tests/files/good-1-x86-lzma2.xz and b/tests/files/good-1-x86-lzma2.xz differ

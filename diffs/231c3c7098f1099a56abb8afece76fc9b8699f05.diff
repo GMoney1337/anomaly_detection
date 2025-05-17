@@ -1,0 +1,511 @@
+diff --git a/src/xz/coder.c b/src/xz/coder.c
+index 48dfd4a6..4786e375 100644
+--- a/src/xz/coder.c
++++ b/src/xz/coder.c
+@@ -417,10 +417,23 @@ coder_init(file_pair *pair)
+ 			ret = lzma_raw_decoder(&strm, filters);
+ 			break;
+ 		}
++
++		// Try to decode the headers. This will catch too low
++		// memory usage limit in case it happens in the first
++		// Block of the first Stream, which is where it very
++		// probably will happen if it is going to happen.
++		if (ret == LZMA_OK && init_format != FORMAT_RAW) {
++			strm.next_out = NULL;
++			strm.avail_out = 0;
++			ret = lzma_code(&strm, LZMA_RUN);
++		}
+ 	}
+ 
+ 	if (ret != LZMA_OK) {
+ 		message_error("%s: %s", pair->src_name, message_strm(ret));
++		if (ret == LZMA_MEMLIMIT_ERROR)
++			message_mem_needed(V_ERROR, lzma_memusage(&strm));
++
+ 		return CODER_INIT_ERROR;
+ 	}
+ 
+@@ -585,16 +598,14 @@ coder_passthru(file_pair *pair)
+ extern void
+ coder_run(const char *filename)
+ {
+-	// Try to open the input and output files.
+-	file_pair *pair = io_open(filename);
++	// Set and possibly print the filename for the progress message.
++	message_filename(filename);
++
++	// Try to open the input file.
++	file_pair *pair = io_open_src(filename);
+ 	if (pair == NULL)
+ 		return;
+ 
+-	// Initialize the progress indicator.
+-	const uint64_t in_size = pair->src_st.st_size <= (off_t)(0)
+-			? 0 : (uint64_t)(pair->src_st.st_size);
+-	message_progress_start(&strm, pair->src_name, in_size);
+-
+ 	// Assume that something goes wrong.
+ 	bool success = false;
+ 
+@@ -604,22 +615,35 @@ coder_run(const char *filename)
+ 	strm.avail_in = io_read(pair, &in_buf, IO_BUFFER_SIZE);
+ 
+ 	if (strm.avail_in != SIZE_MAX) {
+-		switch (coder_init(pair)) {
+-		case CODER_INIT_NORMAL:
+-			success = coder_normal(pair);
+-			break;
+-
+-		case CODER_INIT_PASSTHRU:
+-			success = coder_passthru(pair);
+-			break;
+-
+-		case CODER_INIT_ERROR:
+-			break;
++		// Initialize the coder. This will detect the file format
++		// and, in decompression or testing mode, check the memory
++		// usage of the first Block too. This way we don't try to
++		// open the destination file if we see that coding wouldn't
++		// work at all anyway. This also avoids deleting the old
++		// "target" file if --force was used.
++		const enum coder_init_ret init_ret = coder_init(pair);
++
++		if (init_ret != CODER_INIT_ERROR && !user_abort) {
++			// Don't open the destination file when --test
++			// is used.
++			if (opt_mode == MODE_TEST || !io_open_dest(pair)) {
++				// Initialize the progress indicator.
++				const uint64_t in_size
++						= pair->src_st.st_size <= 0
++						? 0 : pair->src_st.st_size;
++				message_progress_start(&strm, in_size);
++
++				// Do the actual coding or passthru.
++				if (init_ret == CODER_INIT_NORMAL)
++					success = coder_normal(pair);
++				else
++					success = coder_passthru(pair);
++
++				message_progress_end(success);
++			}
+ 		}
+ 	}
+ 
+-	message_progress_end(success);
+-
+ 	// Close the file pair. It needs to know if coding was successful to
+ 	// know if the source or target file should be unlinked.
+ 	io_close(pair, success);
+diff --git a/src/xz/file_io.c b/src/xz/file_io.c
+index 71461e7e..c1bca196 100644
+--- a/src/xz/file_io.c
++++ b/src/xz/file_io.c
+@@ -274,7 +274,7 @@ io_copy_attrs(const file_pair *pair)
+ 
+ /// Opens the source file. Returns false on success, true on error.
+ static bool
+-io_open_src(file_pair *pair)
++io_open_src_real(file_pair *pair)
+ {
+ 	// There's nothing to open when reading from stdin.
+ 	if (pair->src_name == stdin_filename) {
+@@ -495,6 +495,36 @@ error:
+ }
+ 
+ 
++extern file_pair *
++io_open_src(const char *src_name)
++{
++	if (is_empty_filename(src_name))
++		return NULL;
++
++	// Since we have only one file open at a time, we can use
++	// a statically allocated structure.
++	static file_pair pair;
++
++	pair = (file_pair){
++		.src_name = src_name,
++		.dest_name = NULL,
++		.src_fd = -1,
++		.dest_fd = -1,
++		.src_eof = false,
++		.dest_try_sparse = false,
++		.dest_pending_sparse = 0,
++	};
++
++	// Block the signals, for which we have a custom signal handler, so
++	// that we don't need to worry about EINTR.
++	signals_block();
++	const bool error = io_open_src_real(&pair);
++	signals_unblock();
++
++	return error ? NULL : &pair;
++}
++
++
+ /// \brief      Closes source file of the file_pair structure
+ ///
+ /// \param      pair    File whose src_fd should be closed
+@@ -528,7 +558,7 @@ io_close_src(file_pair *pair, bool success)
+ 
+ 
+ static bool
+-io_open_dest(file_pair *pair)
++io_open_dest_real(file_pair *pair)
+ {
+ 	if (opt_stdout || pair->src_fd == STDIN_FILENO) {
+ 		// We don't modify or free() this.
+@@ -557,12 +587,8 @@ io_open_dest(file_pair *pair)
+ 		pair->dest_fd = open(pair->dest_name, flags, mode);
+ 
+ 		if (pair->dest_fd == -1) {
+-			// Don't bother with error message if user requested
+-			// us to exit anyway.
+-			if (!user_abort)
+-				message_error("%s: %s", pair->dest_name,
+-						strerror(errno));
+-
++			message_error("%s: %s", pair->dest_name,
++					strerror(errno));
+ 			free(pair->dest_name);
+ 			return true;
+ 		}
+@@ -643,6 +669,16 @@ io_open_dest(file_pair *pair)
+ }
+ 
+ 
++extern bool
++io_open_dest(file_pair *pair)
++{
++	signals_block();
++	const bool ret = io_open_dest_real(pair);
++	signals_unblock();
++	return ret;
++}
++
++
+ /// \brief      Closes destination file of the file_pair structure
+ ///
+ /// \param      pair    File whose dest_fd should be closed
+@@ -650,7 +686,7 @@ io_open_dest(file_pair *pair)
+ ///
+ /// \return     Zero if closing succeeds. On error, -1 is returned and
+ ///             error message printed.
+-static int
++static bool
+ io_close_dest(file_pair *pair, bool success)
+ {
+ #ifndef TUKLIB_DOSLIKE
+@@ -665,13 +701,13 @@ io_close_dest(file_pair *pair, bool success)
+ 			message_error(_("Error restoring the O_APPEND flag "
+ 					"to standard output: %s"),
+ 					strerror(errno));
+-			return -1;
++			return true;
+ 		}
+ 	}
+ #endif
+ 
+ 	if (pair->dest_fd == -1 || pair->dest_fd == STDOUT_FILENO)
+-		return 0;
++		return false;
+ 
+ 	if (close(pair->dest_fd)) {
+ 		message_error(_("%s: Closing the file failed: %s"),
+@@ -681,7 +717,7 @@ io_close_dest(file_pair *pair, bool success)
+ 		// contents. Get rid of junk:
+ 		io_unlink(pair->dest_name, &pair->dest_st);
+ 		free(pair->dest_name);
+-		return -1;
++		return true;
+ 	}
+ 
+ 	// If the operation using this file wasn't successful, we git rid
+@@ -691,48 +727,7 @@ io_close_dest(file_pair *pair, bool success)
+ 
+ 	free(pair->dest_name);
+ 
+-	return 0;
+-}
+-
+-
+-extern file_pair *
+-io_open(const char *src_name)
+-{
+-	if (is_empty_filename(src_name))
+-		return NULL;
+-
+-	// Since we have only one file open at a time, we can use
+-	// a statically allocated structure.
+-	static file_pair pair;
+-
+-	pair = (file_pair){
+-		.src_name = src_name,
+-		.dest_name = NULL,
+-		.src_fd = -1,
+-		.dest_fd = -1,
+-		.src_eof = false,
+-		.dest_try_sparse = false,
+-		.dest_pending_sparse = 0,
+-	};
+-
+-	// Block the signals, for which we have a custom signal handler, so
+-	// that we don't need to worry about EINTR.
+-	signals_block();
+-
+-	file_pair *ret = NULL;
+-	if (!io_open_src(&pair)) {
+-		// io_open_src() may have unblocked the signals temporarily,
+-		// and thus user_abort may have got set even if open()
+-		// succeeded.
+-		if (user_abort || io_open_dest(&pair))
+-			io_close_src(&pair, false);
+-		else
+-			ret = &pair;
+-	}
+-
+-	signals_unblock();
+-
+-	return ret;
++	return false;
+ }
+ 
+ 
+@@ -764,7 +759,9 @@ io_close(file_pair *pair, bool success)
+ 
+ 	signals_block();
+ 
+-	if (success && pair->dest_fd != STDOUT_FILENO)
++	// Copy the file attributes. We need to skip this if destination
++	// file isn't open or it is standard output.
++	if (success && pair->dest_fd != -1 && pair->dest_fd != STDOUT_FILENO)
+ 		io_copy_attrs(pair);
+ 
+ 	// Close the destination first. If it fails, we must not remove
+diff --git a/src/xz/file_io.h b/src/xz/file_io.h
+index 94d4c174..967da868 100644
+--- a/src/xz/file_io.h
++++ b/src/xz/file_io.h
+@@ -72,8 +72,12 @@ extern void io_init(void);
+ extern void io_no_sparse(void);
+ 
+ 
+-/// \brief      Opens a file pair
+-extern file_pair *io_open(const char *src_name);
++/// \brief      Open the source file
++extern file_pair *io_open_src(const char *src_name);
++
++
++/// \brief      Open the destination file
++extern bool io_open_dest(file_pair *pair);
+ 
+ 
+ /// \brief      Closes the file descriptors and frees possible allocated memory
+diff --git a/src/xz/list.c b/src/xz/list.c
+index bb793e02..1e487b55 100644
+--- a/src/xz/list.c
++++ b/src/xz/list.c
+@@ -444,15 +444,7 @@ print_adv_helper(uint64_t stream_count, uint64_t block_count,
+ static void
+ print_info_adv(const lzma_index *idx, file_pair *pair)
+ {
+-	// Print an empty line between files.
+-	static bool first_filename_printed = false;
+-	if (!first_filename_printed)
+-		first_filename_printed = true;
+-	else
+-		putchar('\n');
+-
+-	// Print the filename and overall information.
+-	printf("%s (%" PRIu64 "):\n", pair->src_name, totals.files);
++	// Print the overall information.
+ 	print_adv_helper(lzma_index_stream_count(idx),
+ 			lzma_index_block_count(idx),
+ 			lzma_index_file_size(idx),
+@@ -708,21 +700,19 @@ list_file(const char *filename)
+ 		message_fatal(_("--list works only on .xz files "
+ 				"(--format=xz or --format=auto)"));
+ 
+-	if (strcmp(filename, "-") == 0) {
++	message_filename(filename);
++
++	if (filename == stdin_filename) {
+ 		message_error(_("--list does not support reading from "
+ 				"standard input"));
+ 		return;
+ 	}
+ 
+-	if (is_empty_filename(filename))
+-		return;
+-
+-	// Set opt_stdout so that io_open() won't create a new file.
+-	// Disable also sparse mode so that it doesn't remove O_APPEND
+-	// from stdout.
+-	opt_stdout = true;
+-	io_no_sparse();
+-	file_pair *pair = io_open(filename);
++	// Unset opt_stdout so that io_open_src() won't accept special files.
++	// Set opt_force so that io_open_src() will follow symlinks.
++	opt_stdout = false;
++	opt_force = true;
++	file_pair *pair = io_open_src(filename);
+ 	if (pair == NULL)
+ 		return;
+ 
+diff --git a/src/xz/message.c b/src/xz/message.c
+index 865f7599..ef583fa8 100644
+--- a/src/xz/message.c
++++ b/src/xz/message.c
+@@ -219,14 +219,15 @@ message_set_files(unsigned int files)
+ static void
+ print_filename(void)
+ {
+-	if (!current_filename_printed
+-			&& (files_total != 1 || filename != stdin_filename)) {
++	if (files_total != 1 || filename != stdin_filename) {
+ 		signals_block();
+ 
++		FILE *file = opt_mode == MODE_LIST ? stdout : stderr;
++
+ 		// If a file was already processed, put an empty line
+ 		// before the next filename to improve readability.
+ 		if (first_filename_printed)
+-			fputc('\n', stderr);
++			fputc('\n', file);
+ 
+ 		first_filename_printed = true;
+ 		current_filename_printed = true;
+@@ -234,10 +235,10 @@ print_filename(void)
+ 		// If we don't know how many files there will be due
+ 		// to usage of --files or --files0.
+ 		if (files_total == 0)
+-			fprintf(stderr, "%s (%u)\n", filename,
++			fprintf(file, "%s (%u)\n", filename,
+ 					files_pos);
+ 		else
+-			fprintf(stderr, "%s (%u/%u)\n", filename,
++			fprintf(file, "%s (%u/%u)\n", filename,
+ 					files_pos, files_total);
+ 
+ 		signals_unblock();
+@@ -248,8 +249,24 @@ print_filename(void)
+ 
+ 
+ extern void
+-message_progress_start(
+-		lzma_stream *strm, const char *src_name, uint64_t in_size)
++message_filename(const char *src_name)
++{
++	// Start numbering the files starting from one.
++	++files_pos;
++	filename = src_name;
++
++	if (verbosity >= V_VERBOSE
++			&& (progress_automatic || opt_mode == MODE_LIST))
++		print_filename();
++	else
++		current_filename_printed = false;
++
++	return;
++}
++
++
++extern void
++message_progress_start(lzma_stream *strm, uint64_t in_size)
+ {
+ 	// Store the pointer to the lzma_stream used to do the coding.
+ 	// It is needed to find out the position in the stream.
+@@ -260,27 +277,15 @@ message_progress_start(
+ 	// since it is possible that the user sends us a signal to show
+ 	// statistics, we need to have these available anyway.
+ 	start_time = my_time();
+-	filename = src_name;
+ 	expected_in_size = in_size;
+ 
+ 	// Indicate that progress info may need to be printed before
+ 	// printing error messages.
+ 	progress_started = true;
+ 
+-	// Indicate the name of this file hasn't been printed to
+-	// stderr yet.
+-	current_filename_printed = false;
+-
+-	// Start numbering the files starting from one.
+-	++files_pos;
+-
+ 	// If progress indicator is wanted, print the filename and possibly
+ 	// the file count now.
+ 	if (verbosity >= V_VERBOSE && progress_automatic) {
+-		// Print the filename to stderr if that is appropriate with
+-		// the current settings.
+-		print_filename();
+-
+ 		// Start the timer to display the first progress message
+ 		// after one second. An alternative would be to show the
+ 		// first message almost immediatelly, but delaying by one
+@@ -588,7 +593,8 @@ message_progress_update(void)
+ 	signals_block();
+ 
+ 	// Print the filename if it hasn't been printed yet.
+-	print_filename();
++	if (!current_filename_printed)
++		print_filename();
+ 
+ 	// Print the actual progress message. The idea is that there is at
+ 	// least three spaces between the fields in typical situations, but
+diff --git a/src/xz/message.h b/src/xz/message.h
+index 9edc403c..b894bcf3 100644
+--- a/src/xz/message.h
++++ b/src/xz/message.h
+@@ -37,11 +37,6 @@ extern void message_verbosity_decrease(void);
+ extern enum message_verbosity message_verbosity_get(void);
+ 
+ 
+-/// Set the total number of files to be processed (stdin is counted as a file
+-/// here). The default is one.
+-extern void message_set_files(unsigned int files);
+-
+-
+ /// \brief      Print a message if verbosity level is at least "verbosity"
+ ///
+ /// This doesn't touch the exit status.
+@@ -112,18 +107,34 @@ extern void message_version(void) lzma_attribute((noreturn));
+ extern void message_help(bool long_help) lzma_attribute((noreturn));
+ 
+ 
++/// \brief      Set the total number of files to be processed
++///
++/// Standard input is counted as a file here. This is used when printing
++/// the filename via message_filename().
++extern void message_set_files(unsigned int files);
++
++
++/// \brief      Set the name of the current file and possibly print it too
++///
++/// The name is printed immediatelly if --list was used or if --verbose
++/// was used and stderr is a terminal. Even when the filename isn't printed,
++/// it is stored so that it can be printed later if needed for progress
++/// messages.
++extern void message_filename(const char *src_name);
++
++
+ /// \brief      Start progress info handling
+ ///
++/// message_filename() must be called before this function to set
++/// the filename.
++///
+ /// This must be paired with a call to message_progress_end() before the
+ /// given *strm becomes invalid.
+ ///
+ /// \param      strm      Pointer to lzma_stream used for the coding.
+-/// \param      filename  Name of the input file. stdin_filename is
+-///                       handled specially.
+ /// \param      in_size   Size of the input file, or zero if unknown.
+ ///
+-extern void message_progress_start(
+-		lzma_stream *strm, const char *filename, uint64_t in_size);
++extern void message_progress_start(lzma_stream *strm, uint64_t in_size);
+ 
+ 
+ /// Update the progress info if in verbose mode and enough time has passed

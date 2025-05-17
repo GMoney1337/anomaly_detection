@@ -1,0 +1,140 @@
+diff --git a/configure.ac b/configure.ac
+index aa08c37e..cb6eaaa3 100644
+--- a/configure.ac
++++ b/configure.ac
+@@ -1015,11 +1015,15 @@ AC_CHECK_DECL([_mm_movemask_epi8],
+ #
+ # If everything above is supported, runtime detection will be used to keep the
+ # binaries working on systems that don't support the required extensions.
++#
++# NOTE: Use a check that links and not merely compiles to ensure that
++# missing intrinsics don't get accepted with compilers that allow
++# implicit function declarations.
+ AC_MSG_CHECKING([if _mm_clmulepi64_si128 is usable])
+ AS_IF([test "x$enable_clmul_crc" = xno], [
+ 	AC_MSG_RESULT([no, --disable-clmul-crc was used])
+ ], [
+-	AC_COMPILE_IFELSE([AC_LANG_SOURCE([[
++	AC_LINK_IFELSE([AC_LANG_SOURCE([[
+ #include <immintrin.h>
+ 
+ // CLMUL works on older E2K instruction set but it is slow due to emulation.
+@@ -1131,7 +1135,7 @@ AS_CASE([$enable_sandbox],
+ 		# A compile check is done here because some systems have
+ 		# linux/landlock.h, but do not have the syscalls defined
+ 		# in order to actually use Linux Landlock.
+-		AC_COMPILE_IFELSE([AC_LANG_SOURCE([[
++		AC_LINK_IFELSE([AC_LANG_SOURCE([[
+ 			#include <linux/landlock.h>
+ 			#include <sys/syscall.h>
+ 			#include <sys/prctl.h>
+diff --git a/m4/tuklib_cpucores.m4 b/m4/tuklib_cpucores.m4
+index a228a8fb..928ef344 100644
+--- a/m4/tuklib_cpucores.m4
++++ b/m4/tuklib_cpucores.m4
+@@ -71,7 +71,7 @@ main(void)
+ # -lfreebsd-glue when linking and thus in the current form this would
+ # fail on GNU/kFreeBSD. The above test for sched_getaffinity() matches
+ # on GNU/kFreeBSD so the test below should never run on that OS.
+-AC_COMPILE_IFELSE([AC_LANG_SOURCE([[
++AC_LINK_IFELSE([AC_LANG_SOURCE([[
+ #include <sys/param.h>
+ #include <sys/cpuset.h>
+ 
+@@ -92,7 +92,7 @@ main(void)
+ #
+ # We test sysctl() first and intentionally break the sysctl() test on QNX
+ # so that sysctl() is never used on QNX.
+-AC_COMPILE_IFELSE([AC_LANG_SOURCE([[
++AC_LINK_IFELSE([AC_LANG_SOURCE([[
+ #ifdef __QNX__
+ compile error
+ #endif
+@@ -116,7 +116,7 @@ main(void)
+ }
+ ]])], [tuklib_cv_cpucores_method=sysctl], [
+ 
+-AC_COMPILE_IFELSE([AC_LANG_SOURCE([[
++AC_LINK_IFELSE([AC_LANG_SOURCE([[
+ #include <unistd.h>
+ int
+ main(void)
+@@ -133,7 +133,7 @@ main(void)
+ }
+ ]])], [tuklib_cv_cpucores_method=sysconf], [
+ 
+-AC_COMPILE_IFELSE([AC_LANG_SOURCE([[
++AC_LINK_IFELSE([AC_LANG_SOURCE([[
+ #include <sys/param.h>
+ #include <sys/pstat.h>
+ 
+diff --git a/m4/tuklib_physmem.m4 b/m4/tuklib_physmem.m4
+index b5e0b1ad..4bffe858 100644
+--- a/m4/tuklib_physmem.m4
++++ b/m4/tuklib_physmem.m4
+@@ -65,6 +65,11 @@ compile error
+ # Look for AIX-specific solution before sysconf(), because the test
+ # for sysconf() will pass on AIX but won't actually work
+ # (sysconf(_SC_PHYS_PAGES) compiles but always returns -1 on AIX).
++#
++# NOTE: There is no need to link the check program because it's not calling
++# any functions and thus implicit function declarations aren't a problem.
++# The unused reference to _system_configuration.physmem might get optimized
++# away, and thus the linker might not see that symbol anyway.
+ AC_COMPILE_IFELSE([AC_LANG_SOURCE([[
+ #include <sys/systemcfg.h>
+ 
+@@ -76,7 +81,7 @@ main(void)
+ }
+ ]])], [tuklib_cv_physmem_method=aix], [
+ 
+-AC_COMPILE_IFELSE([AC_LANG_SOURCE([[
++AC_LINK_IFELSE([AC_LANG_SOURCE([[
+ #include <unistd.h>
+ int
+ main(void)
+@@ -88,7 +93,7 @@ main(void)
+ }
+ ]])], [tuklib_cv_physmem_method=sysconf], [
+ 
+-AC_COMPILE_IFELSE([AC_LANG_SOURCE([[
++AC_LINK_IFELSE([AC_LANG_SOURCE([[
+ #ifdef HAVE_SYS_PARAM_H
+ #	include <sys/param.h>
+ #endif
+@@ -104,7 +109,7 @@ main(void)
+ }
+ ]])], [tuklib_cv_physmem_method=sysctl], [
+ 
+-AC_COMPILE_IFELSE([AC_LANG_SOURCE([[
++AC_LINK_IFELSE([AC_LANG_SOURCE([[
+ #include <sys/sysinfo.h>
+ #include <machine/hal_sysinfo.h>
+ 
+@@ -118,7 +123,7 @@ main(void)
+ }
+ ]])], [tuklib_cv_physmem_method=getsysinfo],[
+ 
+-AC_COMPILE_IFELSE([AC_LANG_SOURCE([[
++AC_LINK_IFELSE([AC_LANG_SOURCE([[
+ #include <sys/param.h>
+ #include <sys/pstat.h>
+ 
+@@ -133,7 +138,7 @@ main(void)
+ }
+ ]])], [tuklib_cv_physmem_method=pstat_getstatic],[
+ 
+-AC_COMPILE_IFELSE([AC_LANG_SOURCE([[
++AC_LINK_IFELSE([AC_LANG_SOURCE([[
+ #include <invent.h>
+ int
+ main(void)
+@@ -150,7 +155,7 @@ main(void)
+ # different sysinfo() so we must check $host_os.
+ case $host_os in
+ 	linux*)
+-		AC_COMPILE_IFELSE([AC_LANG_SOURCE([[
++		AC_LINK_IFELSE([AC_LANG_SOURCE([[
+ #include <sys/sysinfo.h>
+ int
+ main(void)

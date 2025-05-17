@@ -1,0 +1,52 @@
+diff --git a/m4/lc_cpucores.m4 b/m4/lc_cpucores.m4
+index 2fae953a..52f7c985 100644
+--- a/m4/lc_cpucores.m4
++++ b/m4/lc_cpucores.m4
+@@ -43,7 +43,7 @@ main(void)
+ 	int name[2] = { CTL_HW, HW_NCPU };
+ 	int cpus;
+ 	size_t cpus_size = sizeof(cpus);
+-	sysctl(name, 2, &cpus, &cpus_size, NULL, NULL);
++	sysctl(name, 2, &cpus, &cpus_size, NULL, 0);
+ 	return 0;
+ }
+ ]])], [
+diff --git a/m4/lc_physmem.m4 b/m4/lc_physmem.m4
+index 78be1362..5d9581e1 100644
+--- a/m4/lc_physmem.m4
++++ b/m4/lc_physmem.m4
+@@ -45,7 +45,7 @@ main(void)
+ 	int name[2] = { CTL_HW, HW_PHYSMEM };
+ 	unsigned long mem;
+ 	size_t mem_ptr_size = sizeof(mem);
+-	sysctl(name, 2, &mem, &mem_ptr_size, NULL, NULL);
++	sysctl(name, 2, &mem, &mem_ptr_size, NULL, 0);
+ 	return 0;
+ }
+ ]])], [
+diff --git a/src/common/cpucores.h b/src/common/cpucores.h
+index 704d8a26..330cd9c9 100644
+--- a/src/common/cpucores.h
++++ b/src/common/cpucores.h
+@@ -40,7 +40,7 @@ cpucores(void)
+ 	int name[2] = { CTL_HW, HW_NCPU };
+ 	int cpus;
+ 	size_t cpus_size = sizeof(cpus);
+-	if (!sysctl(name, &cpus, &cpus_size, NULL, NULL)
++	if (!sysctl(name, 2, &cpus, &cpus_size, NULL, 0)
+ 			&& cpus_size == sizeof(cpus) && cpus > 0)
+ 		ret = (uint32_t)(cpus);
+ #endif
+diff --git a/src/common/physmem.h b/src/common/physmem.h
+index 63482c6c..0dc77e97 100644
+--- a/src/common/physmem.h
++++ b/src/common/physmem.h
+@@ -104,7 +104,7 @@ physmem(void)
+ 		uint64_t u64;
+ 	} mem;
+ 	size_t mem_ptr_size = sizeof(mem.u64);
+-	if (!sysctl(name, 2, &mem.u64, &mem_ptr_size, NULL, NULL)) {
++	if (!sysctl(name, 2, &mem.u64, &mem_ptr_size, NULL, 0)) {
+ 		// IIRC, 64-bit "return value" is possible on some 64-bit
+ 		// BSD systems even with HW_PHYSMEM (instead of HW_PHYSMEM64),
+ 		// so support both.

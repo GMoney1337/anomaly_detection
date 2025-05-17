@@ -1,0 +1,410 @@
+diff --git a/src/scripts/xzdiff.1 b/src/scripts/xzdiff.1
+index 21824118..5f556072 100644
+--- a/src/scripts/xzdiff.1
++++ b/src/scripts/xzdiff.1
+@@ -1,66 +1,89 @@
+-.\" SPDX-License-Identifier: GPL-2.0-or-later
++.\" SPDX-License-Identifier: 0BSD
+ .\"
+-.\" Original zdiff.1 for gzip: Jean-loup Gailly
++.\" Authors: Lasse Collin
++.\"          Jia Tan
+ .\"
+-.\" Modifications for XZ Utils: Lasse Collin
+-.\"                             Andrew Dudman
++.\" (Note that this file is not based on gzip's zdiff.1.)
+ .\"
+-.TH XZDIFF 1 "2021-06-04" "Tukaani" "XZ Utils"
++.TH XZDIFF 1 "2024-02-12" "Tukaani" "XZ Utils"
+ .SH NAME
+ xzcmp, xzdiff, lzcmp, lzdiff \- compare compressed files
++.
+ .SH SYNOPSIS
+ .B xzcmp
+-.RI [ cmp_options "] " file1 " [" file2 ]
++.RI [ option... ]
++.I file1
++.RI [ file2 ]
+ .br
+ .B xzdiff
+-.RI [ diff_options "] " file1 " [" file2 ]
++\&...
+ .br
+ .B lzcmp
+-.RI [ cmp_options "] " file1 " [" file2 ]
++\&...
+ .br
+ .B lzdiff
+-.RI [ diff_options "] " file1 " [" file2 ]
++\&...
++.
+ .SH DESCRIPTION
+ .B xzcmp
+ and
+ .B xzdiff
+-invoke
++compare uncompressed contents of two files.
++Uncompressed data and options are passed to
+ .BR cmp (1)
+ or
+ .BR diff (1)
+-on files compressed with
++unless
++.B \-\-help
++or
++.B \-\-version
++is specified.
++.PP
++If both
++.I file1
++and
++.I file2
++are specified, they can be uncompressed files or files in formats that
+ .BR xz (1),
+-.BR lzma (1),
+ .BR gzip (1),
+ .BR bzip2 (1),
+ .BR lzop (1),
+ or
+-.BR zstd (1).
+-All options specified are passed directly to
+-.BR cmp (1)
+-or
+-.BR diff (1).
+-If only one file is specified, then the files compared are
++.BR zstd (1)
++can decompress.
++The required decompression commands are determined from
++the filename suffixes of
+ .I file1
+-(which must have a suffix of a supported compression format) and
++and
++.IR file2 .
++A file with an unknown suffix is assumed to be either uncompressed
++or in a format that
++.BR xz (1)
++can decompress.
++.PP
++If only one filename is provided,
+ .I file1
+-from which the compression format suffix has been stripped.
+-If two files are specified,
+-then they are uncompressed if necessary and fed to
+-.BR cmp (1)
+-or
+-.BR diff (1).
+-The exit status from
+-.BR cmp (1)
+-or
+-.BR diff (1)
+-is preserved unless a decompression error occurs; then exit status is 2.
++must have a suffix of a supported compression format and the name for
++.I file2
++is assumed to be
++.I file1
++with the compression format suffix removed.
+ .PP
+-The names
++The commands
+ .B lzcmp
+ and
+ .B lzdiff
+ are provided for backward compatibility with LZMA Utils.
++.
++.SH EXIT STATUS
++If a decompression error occurs, the exit status is
++.BR 2 .
++Otherwise the exit status of
++.BR cmp (1)
++or
++.BR diff (1)
++is used.
++.
+ .SH "SEE ALSO"
+ .BR cmp (1),
+ .BR diff (1),
+@@ -68,11 +91,4 @@ are provided for backward compatibility with LZMA Utils.
+ .BR gzip (1),
+ .BR bzip2 (1),
+ .BR lzop (1),
+-.BR zstd (1),
+-.BR zdiff (1)
+-.SH BUGS
+-Messages from the
+-.BR cmp (1)
+-or
+-.BR diff (1)
+-programs refer to temporary filenames instead of those specified.
++.BR zstd (1)
+diff --git a/src/scripts/xzgrep.1 b/src/scripts/xzgrep.1
+index 0ace8502..d60a0516 100644
+--- a/src/scripts/xzgrep.1
++++ b/src/scripts/xzgrep.1
+@@ -1,18 +1,18 @@
+-.\" SPDX-License-Identifier: GPL-2.0-or-later
++.\" SPDX-License-Identifier: 0BSD
+ .\"
+-.\" Original zgrep.1 for gzip: Jean-loup Gailly
+-.\"                            Charles Levert <charles@comm.polymtl.ca>
++.\" Authors: Lasse Collin
++.\"          Jia Tan
+ .\"
+-.\" Modifications for XZ Utils: Lasse Collin
++.\" (Note that this file is not based on gzip's zgrep.1.)
+ .\"
+-.TH XZGREP 1 "2022-07-19" "Tukaani" "XZ Utils"
++.TH XZGREP 1 "2024-02-12" "Tukaani" "XZ Utils"
+ .SH NAME
+-xzgrep \- search compressed files for a regular expression
++xzgrep \- search possibly-compressed files for patterns
++.
+ .SH SYNOPSIS
+ .B xzgrep
+-.RI [ grep_options ]
+-.RB [ \-e ]
+-.I pattern
++.RI [ option... ]
++.RI [ pattern_list ]
+ .RI [ file... ]
+ .br
+ .B xzegrep
+@@ -29,54 +29,83 @@ xzgrep \- search compressed files for a regular expression
+ .br
+ .B lzfgrep
+ \&...
++.
+ .SH DESCRIPTION
+ .B xzgrep
+ invokes
+ .BR grep (1)
+-on
++on uncompressed contents of files.
++The formats of the
+ .I files
+-which may be either uncompressed or compressed with
++are determined from the filename suffixes.
++Any
++.I file
++with a suffix supported by
+ .BR xz (1),
+-.BR lzma (1),
+ .BR gzip (1),
+ .BR bzip2 (1),
+ .BR lzop (1),
+ or
+-.BR zstd (1).
+-All options specified are passed directly to
+-.BR grep (1).
++.BR zstd (1)
++will be decompressed;
++all other files are assumed to be uncompressed.
+ .PP
+ If no
++.I files
++are specified or
+ .I file
+-is specified, then standard input is decompressed if necessary
+-and fed to
+-.BR grep (1).
+-When reading from standard input,
+-.BR gzip (1),
+-.BR bzip2 (1),
+-.BR lzop (1),
+-and
+-.BR zstd (1)
+-compressed files are not supported.
++is
++.B \-
++then standard input is read.
++When reading from standard input, only files supported by
++.BR xz (1)
++are decompressed.
++Other files are assumed to be in uncompressed form already.
++.PP
++Most
++.I options
++of
++.BR grep (1)
++are supported.
++However, the following options are not supported:
++.IP "" 4
++.BR \-r ,
++.B \-\-recursive
++.IP "" 4
++.BR \-R ,
++.B \-\-dereference\-recursive
++.IP "" 4
++.BR \-d ,
++.BI \-\-directories= action
++.IP "" 4
++.BR \-Z ,
++.B \-\-null
++.IP "" 4
++.BR \-z ,
++.B \-\-null\-data
++.IP "" 4
++.BI \-\-include= glob
++.IP "" 4
++.BI \-\-exclude= glob
++.IP "" 4
++.BI \-\-exclude\-from= file
++.IP "" 4
++.BI \-\-exclude\-dir= glob
+ .PP
+-If
+-.B xzgrep
+-is invoked as
+ .B xzegrep
+-or
++is an alias for
++.BR "xzgrep \-E" .
+ .B xzfgrep
+-then
+-.B grep \-E
+-or
+-.B grep \-F
+-is used instead of
+-.BR grep (1).
+-The same applies to names
++is an alias for
++.BR "xzgrep \-F" .
++.PP
++The commands
+ .BR lzgrep ,
+ .BR lzegrep ,
+ and
+-.BR lzfgrep ,
+-which are provided for backward compatibility with LZMA Utils.
++.B lzfgrep
++are provided for backward compatibility with LZMA Utils.
++.
+ .SH EXIT STATUS
+ .TP
+ 0
+@@ -90,18 +119,19 @@ No errors occurred.
+ >1
+ One or more errors occurred.
+ It is unknown if matches were found.
++.
+ .SH ENVIRONMENT
+ .TP
+ .B GREP
+-If the
++If
+ .B GREP
+-environment variable is set,
+-.B xzgrep
+-uses it instead of
+-.BR grep (1),
++is set to a non-empty value,
++it is used instead of
++.BR "grep" ,
+ .BR "grep \-E" ,
+ or
+ .BR "grep \-F" .
++.
+ .SH "SEE ALSO"
+ .BR grep (1),
+ .BR xz (1),
+diff --git a/src/scripts/xzmore.1 b/src/scripts/xzmore.1
+index 8a402808..8099be35 100644
+--- a/src/scripts/xzmore.1
++++ b/src/scripts/xzmore.1
+@@ -1,52 +1,63 @@
+-.\" SPDX-License-Identifier: GPL-2.0-or-later
++.\" SPDX-License-Identifier: 0BSD
+ .\"
+-.\" Original zdiff.1 for gzip: Jean-loup Gailly
+-.\" Modifications for XZ Utils: Lasse Collin
++.\" Authors: Andrew Dudman
++.\"          Lasse Collin
+ .\"
+-.TH XZMORE 1 "2013-06-30" "Tukaani" "XZ Utils"
++.\" (Note that this file is based on xzless.1 instead of gzip's zmore.1.)
++.\"
++.TH XZMORE 1 "2024-02-12" "Tukaani" "XZ Utils"
+ .SH NAME
+ xzmore, lzmore \- view xz or lzma compressed (text) files
++.
+ .SH SYNOPSIS
+ .B xzmore
+-.RI [ file... ]
++.RI [ file ...]
+ .br
+ .B lzmore
+-.RI [ file... ]
++.RI [ file ...]
++.
+ .SH DESCRIPTION
+-.B  xzmore
+-is a filter which allows examination of
++.B xzmore
++displays text from compressed files to a terminal using
++.BR more (1).
++Files supported by
+ .BR xz (1)
+-or
+-.BR lzma (1)
+-compressed text files one screenful at a time
+-on a soft-copy terminal.
++are decompressed;
++other files are assumed to be in uncompressed form already.
++If no
++.I files
++are given,
++.B xzmore
++reads from standard input.
++See the
++.BR more (1)
++manual for the keyboard commands.
+ .PP
+-To use a pager other than the default
+-.B more,
+-set environment variable
+-.B PAGER
+-to the name of the desired program.
+-The name
++Note that scrolling backwards might not be possible
++depending on the implementation of
++.BR more (1).
++This is because
++.B xzmore
++uses a pipe to pass the decompressed data to
++.BR more (1).
++.BR xzless (1)
++uses
++.BR less (1)
++which provides more advanced features.
++.PP
++The command
+ .B lzmore
+ is provided for backward compatibility with LZMA Utils.
++.
++.SH ENVIRONMENT
+ .TP
+-.BR e " or " q
+-When the prompt \-\-More\-\-(Next file:
+-.IR file )
+-is printed, this command causes
+-.B xzmore
+-to exit.
+-.TP
+-.B s
+-When the prompt \-\-More\-\-(Next file:
+-.IR file )
+-is printed, this command causes
+-.B xzmore
+-to skip the next file and continue.
+-.PP
+-For list of keyboard commands supported while actually viewing the
+-content of a file, refer to manual of the pager you use, usually
++.B PAGER
++If
++.B PAGER
++is set,
++it's value is used as the pager instead of
+ .BR more (1).
++.
+ .SH "SEE ALSO"
+ .BR more (1),
+ .BR xz (1),

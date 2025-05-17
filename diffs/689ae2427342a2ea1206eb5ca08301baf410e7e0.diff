@@ -1,0 +1,405 @@
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+index 9a4b69c5..7df02024 100644
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -1099,85 +1099,6 @@ if(USE_WIN95_THREADS AND ENABLE_SMALL AND NOT HAVE_FUNC_ATTRIBUTE_CONSTRUCTOR)
+ endif()
+ 
+ 
+-# Check for __attribute__((__ifunc__())) support.
+-# Supported values for USE_ATTR_IFUNC:
+-#
+-# auto (default) - Detect ifunc support with a compile test.
+-# ON             - Always enable ifunc.
+-# OFF            - Disable ifunc usage.
+-set(USE_ATTR_IFUNC "auto" CACHE STRING "Use __attribute__((__ifunc__())).")
+-
+-set(SUPPORTED_USE_ATTR_IFUNC auto ON OFF)
+-
+-if(NOT USE_ATTR_IFUNC IN_LIST SUPPORTED_USE_ATTR_IFUNC)
+-    message(FATAL_ERROR "'${USE_ATTR_IFUNC}' is not a supported value for"
+-                        "USE_ATTR_IFUNC")
+-endif()
+-
+-# When USE_ATTR_IFUNC is 'auto', allow the use of __attribute__((__ifunc__()))
+-# if compiler support is detected and we are building for GNU/Linux (glibc)
+-# or FreeBSD. uClibc and musl don't support ifunc in their dynamic linkers
+-# but some compilers still accept the attribute when compiling for these
+-# C libraries, which results in broken binaries. That's why we need to
+-# check which libc is being used.
+-if(USE_ATTR_IFUNC STREQUAL "auto")
+-    cmake_push_check_state()
+-    set(CMAKE_REQUIRED_FLAGS "-Werror")
+-
+-    check_c_source_compiles("
+-            /*
+-             * Force a compilation error when not using glibc on Linux
+-             * or if we are not using FreeBSD. uClibc will define
+-             * __GLIBC__ but does not support ifunc, so we must have
+-             * an extra check to disable with uClibc.
+-             */
+-            #if defined(__linux__)
+-            #   include <features.h>
+-            #   if !defined(__GLIBC__) || defined(__UCLIBC__)
+-            compile error
+-            #   endif
+-            #elif !defined(__FreeBSD__)
+-            compile error
+-            #endif
+-
+-            static void func(void) { return; }
+-
+-            /*
+-            * The attribute __no_profile_instrument_function__ is
+-            * needed with GCC to prevent improper instrumentation in
+-            * the ifunc resolver.
+-            */
+-            __attribute__((__no_profile_instrument_function__))
+-            static void (*resolve_func(void)) (void) { return func; }
+-            void func_ifunc(void)
+-                    __attribute__((__ifunc__(\"resolve_func\")));
+-            int main(void) { return 0; }
+-            /*
+-             * 'clang -Wall' incorrectly warns that resolve_func is
+-             * unused (-Wunused-function). Correct assembly output is
+-             * still produced. This problem exists at least in Clang
+-             * versions 4 to 17. The following silences the bogus warning:
+-             */
+-            void make_clang_quiet(void);
+-            void make_clang_quiet(void) { resolve_func()(); }
+-        "
+-        SYSTEM_SUPPORTS_IFUNC)
+-
+-        cmake_pop_check_state()
+-endif()
+-
+-if(USE_ATTR_IFUNC STREQUAL "ON" OR SYSTEM_SUPPORTS_IFUNC)
+-    tuklib_add_definitions(liblzma HAVE_FUNC_ATTRIBUTE_IFUNC)
+-
+-    if(CMAKE_C_FLAGS MATCHES "-fsanitize=")
+-        message(SEND_ERROR
+-                "CMAKE_C_FLAGS or the environment variable CFLAGS "
+-                "contains '-fsanitize=' which is incompatible "
+-                "with ifunc. Use -DUSE_ATTR_IFUNC=OFF "
+-                "as an argument to 'cmake' when using '-fsanitize'.")
+-    endif()
+-endif()
+-
+ # cpuid.h
+ check_include_file(cpuid.h HAVE_CPUID_H)
+ tuklib_add_definition_if(liblzma HAVE_CPUID_H)
+diff --git a/INSTALL b/INSTALL
+index 6a990ef2..ad924fe5 100644
+--- a/INSTALL
++++ b/INSTALL
+@@ -518,14 +518,6 @@ XZ Utils Installation
+                                 calls any liblzma functions from more than
+                                 one thread, something bad may happen.
+ 
+-    --enable-ifunc
+-                Use __attribute__((__ifunc__())) in liblzma. This is
+-                enabled by default on GNU/Linux and FreeBSD.
+-
+-                The ifunc attribute is incompatible with
+-                -fsanitize=address. --disable-ifunc must be used
+-                if any -fsanitize= option is specified in CFLAGS.
+-
+     --enable-sandbox=METHOD
+                 There is limited sandboxing support in the xz and xzdec
+                 tools. If built with sandbox support, xz uses it
+diff --git a/configure.ac b/configure.ac
+index fb4f3d66..b6f9f8b7 100644
+--- a/configure.ac
++++ b/configure.ac
+@@ -893,85 +893,6 @@ if test "x$enable_small$enable_threads$have_func_attribute_constructor" \
+     __attribute__((__constructor__))])
+ fi
+ 
+-# __attribute__((__ifunc__())) can be used to choose between different
+-# implementations of the same function at runtime. This is slightly more
+-# efficient than using __attribute__((__constructor__)) and setting
+-# a function pointer.
+-AC_ARG_ENABLE([ifunc], [AS_HELP_STRING([--enable-ifunc],
+-		[Use __attribute__((__ifunc__())). Enabled by default on
+-		GNU/Linux (glibc) and FreeBSD.])],
+-	[], [enable_ifunc=auto])
+-
+-# When enable_ifunc is 'auto', allow the use of __attribute__((__ifunc__()))
+-# if compiler support is detected and we are building for GNU/Linux (glibc)
+-# or FreeBSD. uClibc and musl don't support ifunc in their dynamic linkers
+-# but some compilers still accept the attribute when compiling for these
+-# C libraries, which results in broken binaries. That's why we need to
+-# check which libc is being used.
+-if test "x$enable_ifunc" = xauto ; then
+-	OLD_CFLAGS="$CFLAGS"
+-	CFLAGS="$CFLAGS -Werror"
+-	AC_MSG_CHECKING([if __attribute__((__ifunc__())) can be used])
+-	AC_COMPILE_IFELSE([AC_LANG_SOURCE([[
+-		/*
+-		 * Force a compilation error when not using glibc on Linux
+-		 * or if we are not using FreeBSD. uClibc will define
+-		 * __GLIBC__ but does not support ifunc, so we must have
+-		 * an extra check to disable with uClibc.
+-		 */
+-		#if defined(__linux__)
+-		#	include <features.h>
+-		#	if !defined(__GLIBC__) || defined(__UCLIBC__)
+-				compile error
+-		#	endif
+-		#elif !defined(__FreeBSD__)
+-			compile error
+-		#endif
+-
+-		static void func(void) { return; }
+-
+-		/*
+-		 * The attribute __no_profile_instrument_function__ is
+-		 * needed with GCC to prevent improper instrumentation in
+-		 * the ifunc resolver.
+-		 */
+-		__attribute__((__no_profile_instrument_function__))
+-		static void (*resolve_func (void)) (void) { return func; }
+-		void func_ifunc (void)
+-				__attribute__((__ifunc__("resolve_func")));
+-		/*
+-		 * 'clang -Wall' incorrectly warns that resolve_func is
+-		 * unused (-Wunused-function). Correct assembly output is
+-		 * still produced. This problem exists at least in Clang
+-		 * versions 4 to 17. The following silences the bogus warning:
+-		 */
+-		void make_clang_quiet(void);
+-		void make_clang_quiet(void) { resolve_func()(); }
+-	]])], [
+-		enable_ifunc=yes
+-	], [
+-		enable_ifunc=no
+-	])
+-
+-	AC_MSG_RESULT([$enable_ifunc])
+-
+-	CFLAGS="$OLD_CFLAGS"
+-fi
+-
+-if test "x$enable_ifunc" = xyes ; then
+-	AC_DEFINE([HAVE_FUNC_ATTRIBUTE_IFUNC], [1],
+-			[Define to 1 if __attribute__((__ifunc__()))
+-			is supported for functions.])
+-
+-	# ifunc explicitly does not work with -fsanitize=address.
+-	# If configured, it will result in a liblzma build that will fail
+-	# when liblzma is loaded at runtime (when the ifunc resolver
+-	# executes).
+-	AS_CASE([$CFLAGS], [*-fsanitize=*], [AC_MSG_ERROR([
+-    CFLAGS contains '-fsanitize=' which is incompatible with ifunc.
+-    Use --disable-ifunc when using '-fsanitize'.])])
+-fi
+-
+ 
+ ###############################################################################
+ # Checks for library functions.
+diff --git a/src/liblzma/check/crc32_fast.c b/src/liblzma/check/crc32_fast.c
+index 079051f1..103da947 100644
+--- a/src/liblzma/check/crc32_fast.c
++++ b/src/liblzma/check/crc32_fast.c
+@@ -97,24 +97,14 @@ crc32_generic(const uint8_t *buf, size_t size, uint32_t crc)
+ // If both the generic and arch-optimized implementations are built, then
+ // the function to use is selected at runtime because the system running
+ // the binary might not have the arch-specific instruction set extension(s)
+-// available. The three dispatch methods in order of priority:
++// available. The dispatch methods in order of priority:
+ //
+-// 1. Indirect function (ifunc). This method is slightly more efficient
+-//    than the constructor method because it will change the entry in the
+-//    Procedure Linkage Table (PLT) for the function either at load time or
+-//    at the first call. This avoids having to call the function through a
+-//    function pointer and will treat the function call like a regular call
+-//    through the PLT. ifuncs are created by using
+-//    __attribute__((__ifunc__("resolver"))) on a function which has no
+-//    body. The "resolver" is the name of the function that chooses at
+-//    runtime which implementation to use.
+-//
+-// 2. Constructor. This method uses __attribute__((__constructor__)) to
++// 1. Constructor. This method uses __attribute__((__constructor__)) to
+ //    set crc32_func at load time. This avoids extra computation (and any
+ //    unlikely threading bugs) on the first call to lzma_crc32() to decide
+ //    which implementation should be used.
+ //
+-// 3. First Call Resolution. On the very first call to lzma_crc32(), the
++// 2. First Call Resolution. On the very first call to lzma_crc32(), the
+ //    call will be directed to crc32_dispatch() instead. This will set the
+ //    appropriate implementation function and will not be called again.
+ //    This method does not use any kind of locking but is safe because if
+@@ -124,22 +114,7 @@ crc32_generic(const uint8_t *buf, size_t size, uint32_t crc)
+ typedef uint32_t (*crc32_func_type)(
+ 		const uint8_t *buf, size_t size, uint32_t crc);
+ 
+-// Clang 16.0.0 and older has a bug where it marks the ifunc resolver
+-// function as unused since it is static and never used outside of
+-// __attribute__((__ifunc__())).
+-#if defined(CRC_USE_IFUNC) && defined(__clang__)
+-#	pragma GCC diagnostic push
+-#	pragma GCC diagnostic ignored "-Wunused-function"
+-#endif
+-
+-// This resolver is shared between all three dispatch methods. It serves as
+-// the ifunc resolver if ifunc is supported, otherwise it is called as a
+-// regular function by the constructor or first call resolution methods.
+-// The __no_profile_instrument_function__ attribute support is checked when
+-// determining if ifunc can be used, so it is safe to use here.
+-#ifdef CRC_USE_IFUNC
+-__attribute__((__no_profile_instrument_function__))
+-#endif
++// This resolver is shared between all dispatch methods.
+ static crc32_func_type
+ crc32_resolve(void)
+ {
+@@ -147,11 +122,6 @@ crc32_resolve(void)
+ 			? &crc32_arch_optimized : &crc32_generic;
+ }
+ 
+-#if defined(CRC_USE_IFUNC) && defined(__clang__)
+-#	pragma GCC diagnostic pop
+-#endif
+-
+-#ifndef CRC_USE_IFUNC
+ 
+ #ifdef HAVE_FUNC_ATTRIBUTE_CONSTRUCTOR
+ // Constructor method.
+@@ -176,8 +146,7 @@ crc32_set_func(void)
+ static uint32_t
+ crc32_dispatch(const uint8_t *buf, size_t size, uint32_t crc)
+ {
+-	// When __attribute__((__ifunc__(...))) and
+-	// __attribute__((__constructor__)) isn't supported, set the
++	// When __attribute__((__constructor__)) isn't supported, set the
+ 	// function pointer without any locking. If multiple threads run
+ 	// the detection code in parallel, they will all end up setting
+ 	// the pointer to the same value. This avoids the use of
+@@ -189,14 +158,8 @@ crc32_dispatch(const uint8_t *buf, size_t size, uint32_t crc)
+ 
+ #endif
+ #endif
+-#endif
+ 
+ 
+-#ifdef CRC_USE_IFUNC
+-extern LZMA_API(uint32_t)
+-lzma_crc32(const uint8_t *buf, size_t size, uint32_t crc)
+-		__attribute__((__ifunc__("crc32_resolve")));
+-#else
+ extern LZMA_API(uint32_t)
+ lzma_crc32(const uint8_t *buf, size_t size, uint32_t crc)
+ {
+@@ -239,4 +202,3 @@ lzma_crc32(const uint8_t *buf, size_t size, uint32_t crc)
+ 	return crc32_generic(buf, size, crc);
+ #endif
+ }
+-#endif
+diff --git a/src/liblzma/check/crc64_fast.c b/src/liblzma/check/crc64_fast.c
+index 5728b45e..1a1aedcb 100644
+--- a/src/liblzma/check/crc64_fast.c
++++ b/src/liblzma/check/crc64_fast.c
+@@ -93,14 +93,6 @@ crc64_generic(const uint8_t *buf, size_t size, uint64_t crc)
+ typedef uint64_t (*crc64_func_type)(
+ 		const uint8_t *buf, size_t size, uint64_t crc);
+ 
+-#if defined(CRC_USE_IFUNC) && defined(__clang__)
+-#	pragma GCC diagnostic push
+-#	pragma GCC diagnostic ignored "-Wunused-function"
+-#endif
+-
+-#ifdef CRC_USE_IFUNC
+-__attribute__((__no_profile_instrument_function__))
+-#endif
+ static crc64_func_type
+ crc64_resolve(void)
+ {
+@@ -108,12 +100,6 @@ crc64_resolve(void)
+ 			? &crc64_arch_optimized : &crc64_generic;
+ }
+ 
+-#if defined(CRC_USE_IFUNC) && defined(__clang__)
+-#	pragma GCC diagnostic pop
+-#endif
+-
+-#ifndef CRC_USE_IFUNC
+-
+ #ifdef HAVE_FUNC_ATTRIBUTE_CONSTRUCTOR
+ #	define CRC64_SET_FUNC_ATTR __attribute__((__constructor__))
+ static crc64_func_type crc64_func;
+@@ -142,14 +128,8 @@ crc64_dispatch(const uint8_t *buf, size_t size, uint64_t crc)
+ }
+ #endif
+ #endif
+-#endif
+ 
+ 
+-#ifdef CRC_USE_IFUNC
+-extern LZMA_API(uint64_t)
+-lzma_crc64(const uint8_t *buf, size_t size, uint64_t crc)
+-		__attribute__((__ifunc__("crc64_resolve")));
+-#else
+ extern LZMA_API(uint64_t)
+ lzma_crc64(const uint8_t *buf, size_t size, uint64_t crc)
+ {
+@@ -174,4 +154,3 @@ lzma_crc64(const uint8_t *buf, size_t size, uint64_t crc)
+ 	return crc64_generic(buf, size, crc);
+ #endif
+ }
+-#endif
+diff --git a/src/liblzma/check/crc_common.h b/src/liblzma/check/crc_common.h
+index 856665db..a700f03c 100644
+--- a/src/liblzma/check/crc_common.h
++++ b/src/liblzma/check/crc_common.h
+@@ -67,8 +67,6 @@
+ #undef CRC32_ARM64
+ #undef CRC64_ARM64_CLMUL
+ 
+-#undef CRC_USE_IFUNC
+-
+ #undef CRC_USE_GENERIC_FOR_SMALL_INPUTS
+ 
+ // ARM64 CRC32 instruction is only useful for CRC32. Currently, only
+@@ -109,9 +107,6 @@
+ #		define CRC64_ARCH_OPTIMIZED 1
+ #		define CRC_X86_CLMUL 1
+ 
+-#		ifdef HAVE_FUNC_ATTRIBUTE_IFUNC
+-#			define CRC_USE_IFUNC 1
+-#		endif
+ /*
+ 		// The generic code is much faster with 1-8-byte inputs and
+ 		// has similar performance up to 16 bytes  at least in
+@@ -121,9 +116,7 @@
+ 		// for bigger inputs. It saves a little in code size since
+ 		// the special cases for 0-16-byte inputs will be omitted
+ 		// from the CLMUL code.
+-#		ifndef CRC_USE_IFUNC
+-#			define CRC_USE_GENERIC_FOR_SMALL_INPUTS 1
+-#		endif
++#		define CRC_USE_GENERIC_FOR_SMALL_INPUTS 1
+ */
+ #	endif
+ #endif
+diff --git a/src/liblzma/check/crc_x86_clmul.h b/src/liblzma/check/crc_x86_clmul.h
+index ae66ca9f..f1254ece 100644
+--- a/src/liblzma/check/crc_x86_clmul.h
++++ b/src/liblzma/check/crc_x86_clmul.h
+@@ -385,15 +385,8 @@ crc64_arch_optimized(const uint8_t *buf, size_t size, uint64_t crc)
+ #endif // BUILDING_CRC64_CLMUL
+ 
+ 
+-// is_arch_extension_supported() must be inlined in this header file because
+-// the ifunc resolver function may not support calling a function in another
+-// translation unit. Depending on compiler-toolchain and flags, a call to
+-// a function defined in another translation unit could result in a
+-// reference to the PLT, which is unsafe to do in an ifunc resolver. The
+-// ifunc resolver runs very early when loading a shared library, so the PLT
+-// entries may not be setup at that time. Inlining this function duplicates
+-// the function body in crc32_resolve() and crc64_resolve(), but this is
+-// acceptable because the function results in very few instructions.
++// Inlining this function duplicates the function body in crc32_resolve() and
++// crc64_resolve(), but this is acceptable because this is a tiny function.
+ static inline bool
+ is_arch_extension_supported(void)
+ {

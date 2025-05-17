@@ -1,0 +1,13 @@
+diff --git a/build-aux/ci_build.sh b/build-aux/ci_build.sh
+index e6926d3e..e92d88c9 100755
+--- a/build-aux/ci_build.sh
++++ b/build-aux/ci_build.sh
+@@ -262,7 +262,7 @@ then
+ 	autotools)
+ 		cd "$DEST_DIR"
+ 		# If the tests fail, copy the test logs into the artifacts folder
+-		if make check LOG_COMPILER="$WRAPPER"
++		if make check VERBOSE=1 LOG_COMPILER="$WRAPPER"
+ 		then
+ 			:
+ 		else

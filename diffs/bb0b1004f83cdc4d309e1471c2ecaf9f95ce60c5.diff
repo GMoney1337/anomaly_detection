@@ -1,0 +1,1009 @@
+diff --git a/configure.ac b/configure.ac
+index e93e806e..8c61b5da 100644
+--- a/configure.ac
++++ b/configure.ac
+@@ -522,6 +522,7 @@ TUKLIB_PROGNAME
+ TUKLIB_INTEGER
+ TUKLIB_PHYSMEM
+ TUKLIB_CPUCORES
++TUKLIB_MBSTR
+ 
+ 
+ ###############################################################################
+diff --git a/m4/tuklib_mbstr.m4 b/m4/tuklib_mbstr.m4
+new file mode 100644
+index 00000000..991be9b9
+--- /dev/null
++++ b/m4/tuklib_mbstr.m4
+@@ -0,0 +1,30 @@
++#
++# SYNOPSIS
++#
++#   TUKLIB_MBSTR
++#
++# DESCRIPTION
++#
++#   Check if multibyte and wide character functionality is available
++#   for use by tuklib_mbstr_* functions. If not enough multibyte string
++#   support is available in the C library, the functions keep working
++#   with the assumption that all strings are a in single-byte character
++#   set without combining characters, e.g. US-ASCII or ISO-8859-*.
++#
++#   This .m4 file and tuklib_mbstr.h are common to all tuklib_mbstr_*
++#   functions, but each function is put into a separate .c file so
++#   that it is possible to pick only what is strictly needed.
++#
++# COPYING
++#
++#   Author: Lasse Collin
++#
++#   This file has been put into the public domain.
++#   You can do whatever you want with this file.
++#
++
++AC_DEFUN_ONCE([TUKLIB_MBSTR], [
++AC_REQUIRE([TUKLIB_COMMON])
++AC_FUNC_MBRTOWC
++AC_CHECK_FUNCS([wcwidth])
++])dnl
+diff --git a/src/common/tuklib_mbstr.h b/src/common/tuklib_mbstr.h
+new file mode 100644
+index 00000000..9f358355
+--- /dev/null
++++ b/src/common/tuklib_mbstr.h
+@@ -0,0 +1,66 @@
++///////////////////////////////////////////////////////////////////////////////
++//
++/// \file       tuklib_mstr.h
++/// \brief      Utility functions for handling multibyte strings
++///
++/// If not enough multibyte string support is available in the C library,
++/// these functions keep working with the assumption that all strings
++/// are in a single-byte character set without combining characters, e.g.
++/// US-ASCII or ISO-8859-*.
++//
++//  Author:     Lasse Collin
++//
++//  This file has been put into the public domain.
++//  You can do whatever you want with this file.
++//
++///////////////////////////////////////////////////////////////////////////////
++
++#ifndef TUKLIB_MBSTR_H
++#define TUKLIB_MBSTR_H
++
++#include "tuklib_common.h"
++TUKLIB_DECLS_BEGIN
++
++#define tuklib_mbstr_width TUKLIB_SYMBOL(tuklib_mbstr_width)
++extern size_t tuklib_mbstr_width(const char *str, size_t *bytes);
++///<
++/// \brief      Get the number of columns needed for the multibyte string
++///
++/// This is somewhat similar to wcswidth() but works on multibyte strings.
++///
++/// \param      str         String whose width is to be calculated. If the
++///                         current locale uses a multibyte character set
++///                         that has shift states, the string must begin
++///                         and end in the initial shift state.
++/// \param      bytes       If this is not NULL, *bytes is set to the
++///                         value returned by strlen(str) (even if an
++///                         error occurs when calculating the width).
++///
++/// \return     On success, the number of columns needed to display the
++///             string e.g. in a terminal emulator is returned. On error,
++///             (size_t)-1 is returned. Possible errors include invalid,
++///             partial, or non-printable multibyte character in str, or
++///             that str doesn't end in the initial shift state.
++
++#define tuklib_mbstr_fw TUKLIB_SYMBOL(tuklib_mbstr_fw)
++extern int tuklib_mbstr_fw(const char *str, int columns_min);
++///<
++/// \brief      Get the field width for printf() e.g. to align table columns
++///
++/// Printing simple tables to a terminal can be done using the field field
++/// feature in the printf() format string, but it works only with single-byte
++/// character sets. To do the same with multibyte strings, tuklib_mbstr_fw()
++/// can be used to calculate appropriate field width.
++///
++/// The behavior of this function is undefined, if
++///   - str is NULL or not terminated with '\0';
++///   - columns_min <= 0; or
++///   - the calculated field width exceeds INT_MAX.
++///
++/// \return     If tuklib_mbstr_width(str, NULL) fails, -1 is returned.
++///             If str needs more columns than columns_min, zero is returned.
++///             Otherwise a positive integer is returned, which can be
++///             used as the field width, e.g. printf("%*s", fw, str).
++
++TUKLIB_DECLS_END
++#endif
+diff --git a/src/common/tuklib_mbstr_fw.c b/src/common/tuklib_mbstr_fw.c
+new file mode 100644
+index 00000000..978a3fe1
+--- /dev/null
++++ b/src/common/tuklib_mbstr_fw.c
+@@ -0,0 +1,31 @@
++///////////////////////////////////////////////////////////////////////////////
++//
++/// \file       tuklib_mstr_fw.c
++/// \brief      Get the field width for printf() e.g. to align table columns
++//
++//  Author:     Lasse Collin
++//
++//  This file has been put into the public domain.
++//  You can do whatever you want with this file.
++//
++///////////////////////////////////////////////////////////////////////////////
++
++#include "tuklib_mbstr.h"
++
++
++extern int
++tuklib_mbstr_fw(const char *str, int columns_min)
++{
++	size_t len;
++	const size_t width = tuklib_mbstr_width(str, &len);
++	if (width == (size_t)-1)
++		return -1;
++
++	if (width > (size_t)columns_min)
++		return 0;
++
++	if (width < (size_t)columns_min)
++		len += (size_t)columns_min - width;
++
++	return len;
++}
+diff --git a/src/common/tuklib_mbstr_width.c b/src/common/tuklib_mbstr_width.c
+new file mode 100644
+index 00000000..3c38990f
+--- /dev/null
++++ b/src/common/tuklib_mbstr_width.c
+@@ -0,0 +1,64 @@
++///////////////////////////////////////////////////////////////////////////////
++//
++/// \file       tuklib_mstr_width.c
++/// \brief      Calculate width of a multibyte string
++//
++//  Author:     Lasse Collin
++//
++//  This file has been put into the public domain.
++//  You can do whatever you want with this file.
++//
++///////////////////////////////////////////////////////////////////////////////
++
++#include "tuklib_mbstr.h"
++
++#if defined(HAVE_MBRTOWC) && defined(HAVE_WCWIDTH)
++#	include <wchar.h>
++#endif
++
++
++extern size_t
++tuklib_mbstr_width(const char *str, size_t *bytes)
++{
++	const size_t len = strlen(str);
++	if (bytes != NULL)
++		*bytes = len;
++
++#if !(defined(HAVE_MBRTOWC) && defined(HAVE_WCWIDTH))
++	// In single-byte mode, the width of the string is the same
++	// as its length.
++	return len;
++
++#else
++	mbstate_t state;
++	memset(&state, 0, sizeof(state));
++
++	size_t width = 0;
++	size_t i = 0;
++
++	// Convert one multibyte character at a time to wchar_t
++	// and get its width using wcwidth().
++	while (i < len) {
++		wchar_t wc;
++		const size_t ret = mbrtowc(&wc, str + i, len - i, &state);
++		if (ret < 1 || ret > len)
++			return (size_t)-1;
++
++		i += ret;
++
++		const int wc_width = wcwidth(wc);
++		if (wc_width < 0)
++			return (size_t)-1;
++
++		width += wc_width;
++	}
++
++	// Require that the string ends in the initial shift state.
++	// This way the caller can be combine the string with other
++	// strings without needing to worry about the shift states.
++	if (!mbsinit(&state))
++		return (size_t)-1;
++
++	return width;
++#endif
++}
+diff --git a/src/xz/Makefile.am b/src/xz/Makefile.am
+index 4dbe0f26..da716dca 100644
+--- a/src/xz/Makefile.am
++++ b/src/xz/Makefile.am
+@@ -34,7 +34,9 @@ xz_SOURCES = \
+ 	$(top_srcdir)/src/common/tuklib_open_stdxxx.c \
+ 	$(top_srcdir)/src/common/tuklib_progname.c \
+ 	$(top_srcdir)/src/common/tuklib_exit.c \
+-	$(top_srcdir)/src/common/tuklib_cpucores.c
++	$(top_srcdir)/src/common/tuklib_cpucores.c \
++	$(top_srcdir)/src/common/tuklib_mbstr_width.c \
++	$(top_srcdir)/src/common/tuklib_mbstr_fw.c
+ 
+ if COND_W32
+ xz_SOURCES += xz_w32res.rc
+diff --git a/src/xz/list.c b/src/xz/list.c
+index e136cc2e..bd4aee4e 100644
+--- a/src/xz/list.c
++++ b/src/xz/list.c
+@@ -49,31 +49,43 @@ typedef struct {
+ 	uint64_t memusage;
+ 
+ 	/// The filter chain of this Block in human-readable form
+-	const char *filter_chain;
++	char filter_chain[FILTERS_STR_SIZE];
+ 
+ } block_header_info;
+ 
+ 
+ /// Check ID to string mapping
+ static const char check_names[LZMA_CHECK_ID_MAX + 1][12] = {
+-	"None",
++	// TRANSLATORS: Indicates that there is no integrity check.
++	// This string is used in tables, so the width must not
++	// exceed ten columns with a fixed-width font.
++	N_("None"),
+ 	"CRC32",
+-	"Unknown-2",
+-	"Unknown-3",
++	// TRANSLATORS: Indicates that integrity check name is not known,
++	// but the Check ID is known (here 2). This and other "Unknown-N"
++	// strings are used in tables, so the width must not exceed ten
++	// columns with a fixed-width font. It's OK to omit the dash if
++	// you need space for one extra letter.
++	N_("Unknown-2"),
++	N_("Unknown-3"),
+ 	"CRC64",
+-	"Unknown-5",
+-	"Unknown-6",
+-	"Unknown-7",
+-	"Unknown-8",
+-	"Unknown-9",
++	N_("Unknown-5"),
++	N_("Unknown-6"),
++	N_("Unknown-7"),
++	N_("Unknown-8"),
++	N_("Unknown-9"),
+ 	"SHA-256",
+-	"Unknown-11",
+-	"Unknown-12",
+-	"Unknown-13",
+-	"Unknown-14",
+-	"Unknown-15",
++	N_("Unknown-11"),
++	N_("Unknown-12"),
++	N_("Unknown-13"),
++	N_("Unknown-14"),
++	N_("Unknown-15"),
+ };
+ 
++/// Buffer size for get_check_names(). This may be a bit ridiculous,
++/// but at least it's enough if some language needs many multibyte chars.
++#define CHECKS_STR_SIZE 1024
++
+ 
+ /// Value of the Check field as hexadecimal string.
+ /// This is set by parse_check_value().
+@@ -442,7 +454,7 @@ parse_block_header(file_pair *pair, const lzma_index_iter *iter,
+ 		xfi->memusage_max = bhi->memusage;
+ 
+ 	// Convert the filter chain to human readable form.
+-	bhi->filter_chain = message_filters_to_str(filters, false);
++	message_filters_to_str(bhi->filter_chain, filters, false);
+ 
+ 	// Free the memory allocated by lzma_block_header_decode().
+ 	for (size_t i = 0; filters[i].id != LZMA_VLI_UNKNOWN; ++i)
+@@ -533,7 +545,7 @@ parse_details(file_pair *pair, const lzma_index_iter *iter,
+ 
+ /// \brief      Get the compression ratio
+ ///
+-/// This has slightly different format than that is used by in message.c.
++/// This has slightly different format than that is used in message.c.
+ static const char *
+ get_ratio(uint64_t compressed_size, uint64_t uncompressed_size)
+ {
+@@ -545,7 +557,7 @@ get_ratio(uint64_t compressed_size, uint64_t uncompressed_size)
+ 	if (ratio > 9.999)
+ 		return "---";
+ 
+-	static char buf[6];
++	static char buf[16];
+ 	snprintf(buf, sizeof(buf), "%.3f", ratio);
+ 	return buf;
+ }
+@@ -553,19 +565,22 @@ get_ratio(uint64_t compressed_size, uint64_t uncompressed_size)
+ 
+ /// \brief      Get a comma-separated list of Check names
+ ///
++/// The check names are translated with gettext except when in robot mode.
++///
++/// \param      buf     Buffer to hold the resulting string
+ /// \param      checks  Bit mask of Checks to print
+ /// \param      space_after_comma
+ ///                     It's better to not use spaces in table-like listings,
+ ///                     but in more verbose formats a space after a comma
+ ///                     is good for readability.
+-static const char *
+-get_check_names(uint32_t checks, bool space_after_comma)
++static void
++get_check_names(char buf[CHECKS_STR_SIZE],
++		uint32_t checks, bool space_after_comma)
+ {
+ 	assert(checks != 0);
+ 
+-	static char buf[sizeof(check_names)];
+ 	char *pos = buf;
+-	size_t left = sizeof(buf);
++	size_t left = CHECKS_STR_SIZE;
+ 
+ 	const char *sep = space_after_comma ? ", " : ",";
+ 	bool comma = false;
+@@ -573,12 +588,14 @@ get_check_names(uint32_t checks, bool space_after_comma)
+ 	for (size_t i = 0; i <= LZMA_CHECK_ID_MAX; ++i) {
+ 		if (checks & (UINT32_C(1) << i)) {
+ 			my_snprintf(&pos, &left, "%s%s",
+-					comma ? sep : "", check_names[i]);
++					comma ? sep : "",
++					opt_robot ? check_names[i]
++						: _(check_names[i]));
+ 			comma = true;
+ 		}
+ 	}
+ 
+-	return buf;
++	return;
+ }
+ 
+ 
+@@ -596,18 +613,29 @@ print_info_basic(const xz_file_info *xfi, file_pair *pair)
+ 				"Check   Filename"));
+ 	}
+ 
+-	printf("%5s %7s  %11s  %11s  %5s  %-7s %s\n",
+-			uint64_to_str(lzma_index_stream_count(xfi->idx), 0),
+-			uint64_to_str(lzma_index_block_count(xfi->idx), 1),
+-			uint64_to_nicestr(lzma_index_file_size(xfi->idx),
+-				NICESTR_B, NICESTR_TIB, false, 2),
+-			uint64_to_nicestr(
+-				lzma_index_uncompressed_size(xfi->idx),
+-				NICESTR_B, NICESTR_TIB, false, 3),
+-			get_ratio(lzma_index_file_size(xfi->idx),
+-				lzma_index_uncompressed_size(xfi->idx)),
+-			get_check_names(lzma_index_checks(xfi->idx), false),
+-			pair->src_name);
++	char checks[CHECKS_STR_SIZE];
++	get_check_names(checks, lzma_index_checks(xfi->idx), false);
++
++	const char *cols[7] = {
++		uint64_to_str(lzma_index_stream_count(xfi->idx), 0),
++		uint64_to_str(lzma_index_block_count(xfi->idx), 1),
++		uint64_to_nicestr(lzma_index_file_size(xfi->idx),
++			NICESTR_B, NICESTR_TIB, false, 2),
++		uint64_to_nicestr(lzma_index_uncompressed_size(xfi->idx),
++			NICESTR_B, NICESTR_TIB, false, 3),
++		get_ratio(lzma_index_file_size(xfi->idx),
++			lzma_index_uncompressed_size(xfi->idx)),
++		checks,
++		pair->src_name,
++	};
++	printf("%*s %*s  %*s  %*s  %*s  %-*s %s\n",
++			tuklib_mbstr_fw(cols[0], 5), cols[0],
++			tuklib_mbstr_fw(cols[1], 7), cols[1],
++			tuklib_mbstr_fw(cols[2], 11), cols[2],
++			tuklib_mbstr_fw(cols[3], 11), cols[3],
++			tuklib_mbstr_fw(cols[4], 5), cols[4],
++			tuklib_mbstr_fw(cols[5], 7), cols[5],
++			cols[6]);
+ 
+ 	return false;
+ }
+@@ -618,6 +646,9 @@ print_adv_helper(uint64_t stream_count, uint64_t block_count,
+ 		uint64_t compressed_size, uint64_t uncompressed_size,
+ 		uint32_t checks, uint64_t stream_padding)
+ {
++	char checks_str[CHECKS_STR_SIZE];
++	get_check_names(checks_str, checks, true);
++
+ 	printf(_("  Streams:            %s\n"),
+ 			uint64_to_str(stream_count, 0));
+ 	printf(_("  Blocks:             %s\n"),
+@@ -630,8 +661,7 @@ print_adv_helper(uint64_t stream_count, uint64_t block_count,
+ 				NICESTR_B, NICESTR_TIB, true, 0));
+ 	printf(_("  Ratio:              %s\n"),
+ 			get_ratio(compressed_size, uncompressed_size));
+-	printf(_("  Check:              %s\n"),
+-			get_check_names(checks, true));
++	printf(_("  Check:              %s\n"), checks_str);
+ 	printf(_("  Stream padding:     %s\n"),
+ 			uint64_to_nicestr(stream_padding,
+ 				NICESTR_B, NICESTR_TIB, true, 0));
+@@ -669,21 +699,32 @@ print_info_adv(xz_file_info *xfi, file_pair *pair)
+ 	lzma_index_iter_init(&iter, xfi->idx);
+ 
+ 	while (!lzma_index_iter_next(&iter, LZMA_INDEX_ITER_STREAM)) {
+-		printf("    %6s %9s %15s %15s ",
+-				uint64_to_str(iter.stream.number, 0),
+-				uint64_to_str(iter.stream.block_count, 1),
+-				uint64_to_str(
+-					iter.stream.compressed_offset, 2),
+-				uint64_to_str(
+-					iter.stream.uncompressed_offset, 3));
+-		printf("%15s %15s  %5s  %-10s %7s\n",
+-				uint64_to_str(iter.stream.compressed_size, 0),
+-				uint64_to_str(
+-					iter.stream.uncompressed_size, 1),
+-				get_ratio(iter.stream.compressed_size,
+-					iter.stream.uncompressed_size),
+-				check_names[iter.stream.flags->check],
+-				uint64_to_str(iter.stream.padding, 2));
++		const char *cols1[4] = {
++			uint64_to_str(iter.stream.number, 0),
++			uint64_to_str(iter.stream.block_count, 1),
++			uint64_to_str(iter.stream.compressed_offset, 2),
++			uint64_to_str(iter.stream.uncompressed_offset, 3),
++		};
++		printf("    %*s %*s %*s %*s ",
++				tuklib_mbstr_fw(cols1[0], 6), cols1[0],
++				tuklib_mbstr_fw(cols1[1], 9), cols1[1],
++				tuklib_mbstr_fw(cols1[2], 15), cols1[2],
++				tuklib_mbstr_fw(cols1[3], 15), cols1[3]);
++
++		const char *cols2[5] = {
++			uint64_to_str(iter.stream.compressed_size, 0),
++			uint64_to_str(iter.stream.uncompressed_size, 1),
++			get_ratio(iter.stream.compressed_size,
++				iter.stream.uncompressed_size),
++			_(check_names[iter.stream.flags->check]),
++			uint64_to_str(iter.stream.padding, 2),
++		};
++		printf("%*s %*s  %*s  %-*s %*s\n",
++				tuklib_mbstr_fw(cols2[0], 15), cols2[0],
++				tuklib_mbstr_fw(cols2[1], 15), cols2[1],
++				tuklib_mbstr_fw(cols2[2], 5), cols2[2],
++				tuklib_mbstr_fw(cols2[3], 10), cols2[3],
++				tuklib_mbstr_fw(cols2[4], 7), cols2[4]);
+ 
+ 		// Update the maximum Check size.
+ 		if (lzma_check_size(iter.stream.flags->check) > check_max)
+@@ -730,41 +771,63 @@ print_info_adv(xz_file_info *xfi, file_pair *pair)
+ 			if (detailed && parse_details(pair, &iter, &bhi, xfi))
+ 					return true;
+ 
+-			printf("    %6s %9s %15s %15s ",
++			const char *cols1[4] = {
+ 				uint64_to_str(iter.stream.number, 0),
+ 				uint64_to_str(
+ 					iter.block.number_in_stream, 1),
+ 				uint64_to_str(
+ 					iter.block.compressed_file_offset, 2),
+ 				uint64_to_str(
+-					iter.block.uncompressed_file_offset,
+-					3));
+-			printf("%15s %15s  %5s  %-*s",
++					iter.block.uncompressed_file_offset, 3)
++			};
++			printf("    %*s %*s %*s %*s ",
++				tuklib_mbstr_fw(cols1[0], 6), cols1[0],
++				tuklib_mbstr_fw(cols1[1], 9), cols1[1],
++				tuklib_mbstr_fw(cols1[2], 15), cols1[2],
++				tuklib_mbstr_fw(cols1[3], 15), cols1[3]);
++
++			const char *cols2[4] = {
+ 				uint64_to_str(iter.block.total_size, 0),
+ 				uint64_to_str(iter.block.uncompressed_size,
+ 						1),
+ 				get_ratio(iter.block.total_size,
+ 					iter.block.uncompressed_size),
+-				detailed ? 11 : 1,
+-				check_names[iter.stream.flags->check]);
++				_(check_names[iter.stream.flags->check])
++			};
++			printf("%*s %*s  %*s  %-*s",
++				tuklib_mbstr_fw(cols2[0], 15), cols2[0],
++				tuklib_mbstr_fw(cols2[1], 15), cols2[1],
++				tuklib_mbstr_fw(cols2[2], 5), cols2[2],
++				tuklib_mbstr_fw(cols2[3], detailed ? 11 : 1),
++					cols2[3]);
+ 
+ 			if (detailed) {
+-				// Show MiB for memory usage, because it
+-				// is the only size which is not in bytes.
+ 				const lzma_vli compressed_size
+ 						= iter.block.unpadded_size
+ 						- bhi.header_size
+ 						- lzma_check_size(
+ 						iter.stream.flags->check);
+-				printf("%-*s  %6s  %-5s %15s %7s MiB  %s",
+-					checkval_width, check_value,
++
++				const char *cols3[6] = {
++					check_value,
+ 					uint64_to_str(bhi.header_size, 0),
+ 					bhi.flags,
+ 					uint64_to_str(compressed_size, 1),
+ 					uint64_to_str(
+ 						round_up_to_mib(bhi.memusage),
+ 						2),
+-					bhi.filter_chain);
++					bhi.filter_chain
++				};
++				// Show MiB for memory usage, because it
++				// is the only size which is not in bytes.
++				printf("%-*s  %*s  %-5s %*s %*s MiB  %s",
++					checkval_width, cols3[0],
++					tuklib_mbstr_fw(cols3[1], 6), cols3[1],
++					cols3[2],
++					tuklib_mbstr_fw(cols3[3], 15),
++						cols3[3],
++					tuklib_mbstr_fw(cols3[4], 7), cols3[4],
++					cols3[5]);
+ 			}
+ 
+ 			putchar('\n');
+@@ -785,6 +848,9 @@ print_info_adv(xz_file_info *xfi, file_pair *pair)
+ static bool
+ print_info_robot(xz_file_info *xfi, file_pair *pair)
+ {
++	char checks[CHECKS_STR_SIZE];
++	get_check_names(checks, lzma_index_checks(xfi->idx), false);
++
+ 	printf("name\t%s\n", pair->src_name);
+ 
+ 	printf("file\t%" PRIu64 "\t%" PRIu64 "\t%" PRIu64 "\t%" PRIu64
+@@ -795,7 +861,7 @@ print_info_robot(xz_file_info *xfi, file_pair *pair)
+ 			lzma_index_uncompressed_size(xfi->idx),
+ 			get_ratio(lzma_index_file_size(xfi->idx),
+ 				lzma_index_uncompressed_size(xfi->idx)),
+-			get_check_names(lzma_index_checks(xfi->idx), false),
++			checks,
+ 			xfi->stream_padding);
+ 
+ 	if (message_verbosity_get() >= V_VERBOSE) {
+@@ -893,6 +959,10 @@ print_totals_basic(void)
+ 	line[sizeof(line) - 1] = '\0';
+ 	puts(line);
+ 
++	// Get the check names.
++	char checks[CHECKS_STR_SIZE];
++	get_check_names(checks, totals.checks, false);
++
+ 	// Print the totals except the file count, which needs
+ 	// special handling.
+ 	printf("%5s %7s  %11s  %11s  %5s  %-7s ",
+@@ -904,7 +974,7 @@ print_totals_basic(void)
+ 				NICESTR_B, NICESTR_TIB, false, 3),
+ 			get_ratio(totals.compressed_size,
+ 				totals.uncompressed_size),
+-			get_check_names(totals.checks, false));
++			checks);
+ 
+ 	// Since we print totals only when there are at least two files,
+ 	// the English message will always use "%s files". But some other
+@@ -947,6 +1017,9 @@ print_totals_adv(void)
+ static void
+ print_totals_robot(void)
+ {
++	char checks[CHECKS_STR_SIZE];
++	get_check_names(checks, totals.checks, false);
++
+ 	printf("totals\t%" PRIu64 "\t%" PRIu64 "\t%" PRIu64 "\t%" PRIu64
+ 			"\t%s\t%s\t%" PRIu64 "\t%" PRIu64,
+ 			totals.streams,
+@@ -955,7 +1028,7 @@ print_totals_robot(void)
+ 			totals.uncompressed_size,
+ 			get_ratio(totals.compressed_size,
+ 				totals.uncompressed_size),
+-			get_check_names(totals.checks, false),
++			checks,
+ 			totals.stream_padding,
+ 			totals.files);
+ 
+diff --git a/src/xz/message.c b/src/xz/message.c
+index 6dfa4aac..9c2dfbd8 100644
+--- a/src/xz/message.c
++++ b/src/xz/message.c
+@@ -321,7 +321,8 @@ progress_percentage(uint64_t in_pos)
+ 	double percentage = (double)(in_pos) / (double)(expected_in_size)
+ 			* 99.9;
+ 
+-	static char buf[sizeof("99.9 %")];
++	// Use big enough buffer to hold e.g. a multibyte decimal point.
++	static char buf[16];
+ 	snprintf(buf, sizeof(buf), "%.1f %%", percentage);
+ 
+ 	return buf;
+@@ -333,12 +334,8 @@ progress_percentage(uint64_t in_pos)
+ static const char *
+ progress_sizes(uint64_t compressed_pos, uint64_t uncompressed_pos, bool final)
+ {
+-	// This is enough to hold sizes up to about 99 TiB if thousand
+-	// separator is used, or about 1 PiB without thousand separator.
+-	// After that the progress indicator will look a bit silly, since
+-	// the compression ratio no longer fits with three decimal places.
+-	static char buf[36];
+-
++	// Use big enough buffer to hold e.g. a multibyte thousand separators.
++	static char buf[128];
+ 	char *pos = buf;
+ 	size_t left = sizeof(buf);
+ 
+@@ -402,7 +399,8 @@ progress_speed(uint64_t uncompressed_pos, uint64_t elapsed)
+ 	//  - 9.9 KiB/s
+ 	//  - 99 KiB/s
+ 	//  - 999 KiB/s
+-	static char buf[sizeof("999 GiB/s")];
++	// Use big enough buffer to hold e.g. a multibyte decimal point.
++	static char buf[16];
+ 	snprintf(buf, sizeof(buf), "%.*f %s",
+ 			speed > 9.9 ? 0 : 1, speed, unit[unit_index]);
+ 	return buf;
+@@ -588,12 +586,19 @@ message_progress_update(void)
+ 	// Print the actual progress message. The idea is that there is at
+ 	// least three spaces between the fields in typical situations, but
+ 	// even in rare situations there is at least one space.
+-	fprintf(stderr, "\r %6s %35s   %9s %10s   %10s\r",
++	const char *cols[5] = {
+ 		progress_percentage(in_pos),
+ 		progress_sizes(compressed_pos, uncompressed_pos, false),
+ 		progress_speed(uncompressed_pos, elapsed),
+ 		progress_time(elapsed),
+-		progress_remaining(in_pos, elapsed));
++		progress_remaining(in_pos, elapsed),
++	};
++	fprintf(stderr, "\r %*s %*s   %*s %10s   %10s\r",
++			tuklib_mbstr_fw(cols[0], 6), cols[0],
++			tuklib_mbstr_fw(cols[1], 35), cols[1],
++			tuklib_mbstr_fw(cols[2], 9), cols[2],
++			cols[3],
++			cols[4]);
+ 
+ #ifdef SIGALRM
+ 	// Updating the progress info was finished. Reset
+@@ -663,12 +668,19 @@ progress_flush(bool finished)
+ 	// statistics are printed in the same format as the progress
+ 	// indicator itself.
+ 	if (progress_automatic) {
+-		fprintf(stderr, "\r %6s %35s   %9s %10s   %10s\n",
++		const char *cols[5] = {
+ 			finished ? "100 %" : progress_percentage(in_pos),
+ 			progress_sizes(compressed_pos, uncompressed_pos, true),
+ 			progress_speed(uncompressed_pos, elapsed),
+ 			progress_time(elapsed),
+-			finished ? "" : progress_remaining(in_pos, elapsed));
++			finished ? "" : progress_remaining(in_pos, elapsed),
++		};
++		fprintf(stderr, "\r %*s %*s   %*s %10s   %10s\n",
++				tuklib_mbstr_fw(cols[0], 6), cols[0],
++				tuklib_mbstr_fw(cols[1], 35), cols[1],
++				tuklib_mbstr_fw(cols[2], 9), cols[2],
++				cols[3],
++				cols[4]);
+ 	} else {
+ 		// The filename is always printed.
+ 		fprintf(stderr, "%s: ", filename);
+@@ -848,8 +860,10 @@ message_mem_needed(enum message_verbosity v, uint64_t memusage)
+ 	// the user might need to +1 MiB to get high enough limit.)
+ 	memusage = round_up_to_mib(memusage);
+ 
++	// With US-ASCII:
+ 	// 2^64 with thousand separators + " MiB" suffix + '\0' = 26 + 4 + 1
+-	char memlimitstr[32];
++	// But there may be multibyte chars so reserve enough space.
++	char memlimitstr[128];
+ 
+ 	// Show the memory usage limit as MiB unless it is less than 1 MiB.
+ 	// This way it's easy to notice errors where one has typed
+@@ -895,13 +909,12 @@ uint32_to_optstr(uint32_t num)
+ }
+ 
+ 
+-extern const char *
+-message_filters_to_str(const lzma_filter *filters, bool all_known)
++extern void
++message_filters_to_str(char buf[FILTERS_STR_SIZE],
++		const lzma_filter *filters, bool all_known)
+ {
+-	static char buf[512];
+-
+ 	char *pos = buf;
+-	size_t left = sizeof(buf);
++	size_t left = FILTERS_STR_SIZE;
+ 
+ 	for (size_t i = 0; filters[i].id != LZMA_VLI_UNKNOWN; ++i) {
+ 		// Add the dashes for the filter option. A space is
+@@ -1025,7 +1038,7 @@ message_filters_to_str(const lzma_filter *filters, bool all_known)
+ 		}
+ 	}
+ 
+-	return buf;
++	return;
+ }
+ 
+ 
+@@ -1035,8 +1048,9 @@ message_filters_show(enum message_verbosity v, const lzma_filter *filters)
+ 	if (v > verbosity)
+ 		return;
+ 
+-	fprintf(stderr, _("%s: Filter chain: %s\n"), progname,
+-			message_filters_to_str(filters, true));
++	char buf[FILTERS_STR_SIZE];
++	message_filters_to_str(buf, filters, true);
++	fprintf(stderr, _("%s: Filter chain: %s\n"), progname, buf);
+ 	return;
+ }
+ 
+diff --git a/src/xz/message.h b/src/xz/message.h
+index dd5fa4d4..37e60821 100644
+--- a/src/xz/message.h
++++ b/src/xz/message.h
+@@ -86,15 +86,19 @@ extern const char *message_strm(lzma_ret code);
+ extern void message_mem_needed(enum message_verbosity v, uint64_t memusage);
+ 
+ 
++/// Buffer size for message_filters_to_str()
++#define FILTERS_STR_SIZE 512
++
++
+ /// \brief      Get the filter chain as a string
+ ///
++/// \param      buf         Pointer to caller allocated buffer to hold
++///                         the filter chain string
+ /// \param      filters     Pointer to the filter chain
+ /// \param      all_known   If true, all filter options are printed.
+ ///                         If false, only the options that get stored
+ ///                         into .xz headers are printed.
+-///
+-/// \return     Pointer to a statically allocated buffer.
+-extern const char *message_filters_to_str(
++extern void message_filters_to_str(char buf[FILTERS_STR_SIZE],
+ 		const lzma_filter *filters, bool all_known);
+ 
+ 
+diff --git a/src/xz/private.h b/src/xz/private.h
+index 15136bfe..6b01e513 100644
+--- a/src/xz/private.h
++++ b/src/xz/private.h
+@@ -25,6 +25,7 @@
+ #include "tuklib_gettext.h"
+ #include "tuklib_progname.h"
+ #include "tuklib_exit.h"
++#include "tuklib_mbstr.h"
+ 
+ #if defined(_WIN32) && !defined(__CYGWIN__)
+ #	define WIN32_LEAN_AND_MEAN
+diff --git a/src/xz/util.c b/src/xz/util.c
+index 19f5eee3..987b4430 100644
+--- a/src/xz/util.c
++++ b/src/xz/util.c
+@@ -14,6 +14,13 @@
+ #include <stdarg.h>
+ 
+ 
++/// Buffers for uint64_to_str() and uint64_to_nicestr()
++static char bufs[4][128];
++
++/// Thousand separator support in uint64_to_str() and uint64_to_nicestr()
++static enum { UNKNOWN, WORKS, BROKEN } thousand = UNKNOWN;
++
++
+ extern void *
+ xrealloc(void *ptr, size_t size)
+ {
+@@ -125,22 +132,28 @@ round_up_to_mib(uint64_t n)
+ }
+ 
+ 
+-extern const char *
+-uint64_to_str(uint64_t value, uint32_t slot)
++/// Check if thousand separator is supported. Run-time checking is easiest,
++/// because it seems to be sometimes lacking even on POSIXish system.
++static void
++check_thousand_sep(uint32_t slot)
+ {
+-	// 2^64 with thousand separators is 26 bytes plus trailing '\0'.
+-	static char bufs[4][32];
+-
+-	assert(slot < ARRAY_SIZE(bufs));
+-
+-	static enum { UNKNOWN, WORKS, BROKEN } thousand = UNKNOWN;
+ 	if (thousand == UNKNOWN) {
+ 		bufs[slot][0] = '\0';
+-		snprintf(bufs[slot], sizeof(bufs[slot]), "%'" PRIu64,
+-				UINT64_C(1));
++		snprintf(bufs[slot], sizeof(bufs[slot]), "%'u", 1U);
+ 		thousand = bufs[slot][0] == '1' ? WORKS : BROKEN;
+ 	}
+ 
++	return;
++}
++
++
++extern const char *
++uint64_to_str(uint64_t value, uint32_t slot)
++{
++	assert(slot < ARRAY_SIZE(bufs));
++
++	check_thousand_sep(slot);
++
+ 	if (thousand == WORKS)
+ 		snprintf(bufs[slot], sizeof(bufs[slot]), "%'" PRIu64, value);
+ 	else
+@@ -157,14 +170,21 @@ uint64_to_nicestr(uint64_t value, enum nicestr_unit unit_min,
+ {
+ 	assert(unit_min <= unit_max);
+ 	assert(unit_max <= NICESTR_TIB);
++	assert(slot < ARRAY_SIZE(bufs));
++
++	check_thousand_sep(slot);
+ 
+ 	enum nicestr_unit unit = NICESTR_B;
+-	const char *str;
++	char *pos = bufs[slot];
++	size_t left = sizeof(bufs[slot]);
+ 
+ 	if ((unit_min == NICESTR_B && value < 10000)
+ 			|| unit_max == NICESTR_B) {
+ 		// The value is shown as bytes.
+-		str = uint64_to_str(value, slot);
++		if (thousand == WORKS)
++			my_snprintf(&pos, &left, "%'u", (unsigned int)value);
++		else
++			my_snprintf(&pos, &left, "%u", (unsigned int)value);
+ 	} else {
+ 		// Scale the value to a nicer unit. Unless unit_min and
+ 		// unit_max limit us, we will show at most five significant
+@@ -175,49 +195,23 @@ uint64_to_nicestr(uint64_t value, enum nicestr_unit unit_min,
+ 			++unit;
+ 		} while (unit < unit_min || (d > 9999.9 && unit < unit_max));
+ 
+-		str = double_to_str(d);
++		if (thousand == WORKS)
++			my_snprintf(&pos, &left, "%'.1f", d);
++		else
++			my_snprintf(&pos, &left, "%.1f", d);
+ 	}
+ 
+ 	static const char suffix[5][4] = { "B", "KiB", "MiB", "GiB", "TiB" };
++	my_snprintf(&pos, &left, " %s", suffix[unit]);
+ 
+-	// Minimum buffer size:
+-	// 26   2^64 with thousand separators
+-	//  4   " KiB"
+-	//  2   " ("
+-	// 26   2^64 with thousand separators
+-	//  3   " B)"
+-	//  1   '\0'
+-	// 62   Total
+-	static char buf[4][64];
+-	char *pos = buf[slot];
+-	size_t left = sizeof(buf[slot]);
+-	my_snprintf(&pos, &left, "%s %s", str, suffix[unit]);
+-
+-	if (always_also_bytes && value >= 10000)
+-		snprintf(pos, left, " (%s B)", uint64_to_str(value, slot));
+-
+-	return buf[slot];
+-}
+-
+-
+-extern const char *
+-double_to_str(double value)
+-{
+-	static char buf[64];
+-
+-	static enum { UNKNOWN, WORKS, BROKEN } thousand = UNKNOWN;
+-	if (thousand == UNKNOWN) {
+-		buf[0] = '\0';
+-		snprintf(buf, sizeof(buf), "%'.1f", 2.0);
+-		thousand = buf[0] == '2' ? WORKS : BROKEN;
++	if (always_also_bytes && value >= 10000) {
++		if (thousand == WORKS)
++			snprintf(pos, left, " (%'" PRIu64 " B)", value);
++		else
++			snprintf(pos, left, " (%" PRIu64 " B)", value);
+ 	}
+ 
+-	if (thousand == WORKS)
+-		snprintf(buf, sizeof(buf), "%'.1f", value);
+-	else
+-		snprintf(buf, sizeof(buf), "%.1f", value);
+-
+-	return buf;
++	return bufs[slot];
+ }
+ 
+ 
+@@ -231,7 +225,10 @@ my_snprintf(char **pos, size_t *left, const char *fmt, ...)
+ 
+ 	// If an error occurred, we want the caller to think that the whole
+ 	// buffer was used. This way no more data will be written to the
+-	// buffer. We don't need better error handling here.
++	// buffer. We don't need better error handling here, although it
++	// is possible that the result looks garbage on the terminal if
++	// e.g. an UTF-8 character gets split. That shouldn't (easily)
++	// happen though, because the buffers used have some extra room.
+ 	if (len < 0 || (size_t)(len) >= *left) {
+ 		*left = 0;
+ 	} else {
+@@ -243,45 +240,6 @@ my_snprintf(char **pos, size_t *left, const char *fmt, ...)
+ }
+ 
+ 
+-/*
+-/// \brief      Simple quoting to get rid of ASCII control characters
+-///
+-/// This is not so cool and locale-dependent, but should be good enough
+-/// At least we don't print any control characters on the terminal.
+-///
+-extern char *
+-str_quote(const char *str)
+-{
+-	size_t dest_len = 0;
+-	bool has_ctrl = false;
+-
+-	while (str[dest_len] != '\0')
+-		if (*(unsigned char *)(str + dest_len++) < 0x20)
+-			has_ctrl = true;
+-
+-	char *dest = malloc(dest_len + 1);
+-	if (dest != NULL) {
+-		if (has_ctrl) {
+-			for (size_t i = 0; i < dest_len; ++i)
+-				if (*(unsigned char *)(str + i) < 0x20)
+-					dest[i] = '?';
+-				else
+-					dest[i] = str[i];
+-
+-			dest[dest_len] = '\0';
+-
+-		} else {
+-			// Usually there are no control characters,
+-			// so we can optimize.
+-			memcpy(dest, str, dest_len + 1);
+-		}
+-	}
+-
+-	return dest;
+-}
+-*/
+-
+-
+ extern bool
+ is_empty_filename(const char *filename)
+ {
+diff --git a/src/xz/util.h b/src/xz/util.h
+index 2e08b4a8..fea8cc66 100644
+--- a/src/xz/util.h
++++ b/src/xz/util.h
+@@ -96,13 +96,6 @@ extern const char *uint64_to_nicestr(uint64_t value,
+ 		bool always_also_bytes, uint32_t slot);
+ 
+ 
+-/// \brief      Convert double to a string with one decimal place
+-///
+-/// This is like uint64_to_str() except that this converts a double and
+-/// uses exactly one decimal place.
+-extern const char *double_to_str(double value);
+-
+-
+ /// \brief      Wrapper for snprintf() to help constructing a string in pieces
+ ///
+ /// A maximum of *left bytes is written starting from *pos. *pos and *left

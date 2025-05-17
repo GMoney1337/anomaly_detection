@@ -1,0 +1,448 @@
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+index 7c82f0a0..bd09d48f 100644
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -86,6 +86,7 @@ add_compile_definitions(
+     HAVE_DECODERS
+     HAVE_DECODER_ARM
+     HAVE_DECODER_ARMTHUMB
++    HAVE_DECODER_ARM64
+     HAVE_DECODER_DELTA
+     HAVE_DECODER_IA64
+     HAVE_DECODER_LZMA1
+@@ -96,6 +97,7 @@ add_compile_definitions(
+     HAVE_ENCODERS
+     HAVE_ENCODER_ARM
+     HAVE_ENCODER_ARMTHUMB
++    HAVE_ENCODER_ARM64
+     HAVE_ENCODER_DELTA
+     HAVE_ENCODER_IA64
+     HAVE_ENCODER_LZMA1
+@@ -331,6 +333,7 @@ add_library(liblzma
+     src/liblzma/rangecoder/range_encoder.h
+     src/liblzma/simple/arm.c
+     src/liblzma/simple/armthumb.c
++    src/liblzma/simple/arm64.c
+     src/liblzma/simple/ia64.c
+     src/liblzma/simple/powerpc.c
+     src/liblzma/simple/simple_coder.c
+diff --git a/configure.ac b/configure.ac
+index 57f60f69..0ac3b0f5 100644
+--- a/configure.ac
++++ b/configure.ac
+@@ -79,8 +79,8 @@ fi
+ # Filters #
+ ###########
+ 
+-m4_define([SUPPORTED_FILTERS], [lzma1,lzma2,delta,x86,powerpc,ia64,arm,armthumb,sparc])dnl
+-m4_define([SIMPLE_FILTERS], [x86,powerpc,ia64,arm,armthumb,sparc])
++m4_define([SUPPORTED_FILTERS], [lzma1,lzma2,delta,x86,powerpc,ia64,arm,armthumb,arm64,sparc])dnl
++m4_define([SIMPLE_FILTERS], [x86,powerpc,ia64,arm,armthumb,arm64,sparc])
+ m4_define([LZ_FILTERS], [lzma1,lzma2])
+ 
+ m4_foreach([NAME], [SUPPORTED_FILTERS],
+diff --git a/src/liblzma/api/lzma/bcj.h b/src/liblzma/api/lzma/bcj.h
+index 8e37538a..ba6cacb9 100644
+--- a/src/liblzma/api/lzma/bcj.h
++++ b/src/liblzma/api/lzma/bcj.h
+@@ -49,9 +49,16 @@
+ 	 * Filter for SPARC binaries.
+ 	 */
+ 
++#define LZMA_FILTER_ARM64       LZMA_VLI_C(0x3FDB87B33B27000B)
++       /**<
++        * Filter for ARM64 binaries.
++        *
++        * \note         Unlike the older filters above, this doesn't
++        *               support any options (must be NULL).
++        */
+ 
+ /**
+- * \brief       Options for BCJ filters
++ * \brief       Options for BCJ filters (except ARM64)
+  *
+  * The BCJ filters never change the size of the data. Specifying options
+  * for them is optional: if pointer to options is NULL, default value is
+@@ -88,3 +95,29 @@ typedef struct {
+ 	uint32_t start_offset;
+ 
+ } lzma_options_bcj;
++
++/**
++ * \brief       Options for the ARM64 filter
++ *
++ * This filter never changes the size of the data.
++ * Specifying options is mandatory.
++ */
++typedef struct {
++	/**
++	 * \brief       How wide range of relative addresses are converted
++	 *
++	 * The ARM64 BL instruction has 26-bit immediate field that encodes
++	 * a relative address as a multiple of four bytes, so the effective
++	 * range is 2^28 bytes (+/-128 MiB).
++	 *
++	 * If width is 28 bits (LZMA_ARM64_WIDTH_MAX), then all BL
++	 * instructions will be converted. This has a downside of some
++	 * false matches that make compression worse. The best value
++	 * depends on the input file and the differences can be significant;
++	 * with large executables the maximum value is sometimes the best.
++	 */
++	uint32_t width;
++#	define LZMA_ARM64_WIDTH_MIN     18
++#	define LZMA_ARM64_WIDTH_MAX     28
++#	define LZMA_ARM64_WIDTH_DEFAULT 26
++} lzma_options_arm64;
+diff --git a/src/liblzma/common/filter_common.c b/src/liblzma/common/filter_common.c
+index 590be730..52401aa9 100644
+--- a/src/liblzma/common/filter_common.c
++++ b/src/liblzma/common/filter_common.c
+@@ -97,6 +97,15 @@ static const struct {
+ 		.changes_size = false,
+ 	},
+ #endif
++#if defined(HAVE_ENCODER_ARM64) || defined(HAVE_DECODER_ARM64)
++       {
++               .id = LZMA_FILTER_ARM64,
++		.options_size = sizeof(lzma_options_arm64),
++               .non_last_ok = true,
++               .last_ok = false,
++               .changes_size = false,
++       },
++#endif
+ #if defined(HAVE_ENCODER_SPARC) || defined(HAVE_DECODER_SPARC)
+ 	{
+ 		.id = LZMA_FILTER_SPARC,
+diff --git a/src/liblzma/common/filter_decoder.c b/src/liblzma/common/filter_decoder.c
+index c75b0a89..37af0cc2 100644
+--- a/src/liblzma/common/filter_decoder.c
++++ b/src/liblzma/common/filter_decoder.c
+@@ -99,6 +99,14 @@ static const lzma_filter_decoder decoders[] = {
+ 		.props_decode = &lzma_simple_props_decode,
+ 	},
+ #endif
++#ifdef HAVE_DECODER_ARM64
++       {
++               .id = LZMA_FILTER_ARM64,
++               .init = &lzma_simple_arm64_decoder_init,
++               .memusage = NULL,
++               .props_decode = &lzma_arm64_props_decode,
++       },
++#endif
+ #ifdef HAVE_DECODER_SPARC
+ 	{
+ 		.id = LZMA_FILTER_SPARC,
+diff --git a/src/liblzma/common/filter_encoder.c b/src/liblzma/common/filter_encoder.c
+index c5d8f397..ec9e969d 100644
+--- a/src/liblzma/common/filter_encoder.c
++++ b/src/liblzma/common/filter_encoder.c
+@@ -126,6 +126,17 @@ static const lzma_filter_encoder encoders[] = {
+ 		.props_encode = &lzma_simple_props_encode,
+ 	},
+ #endif
++#ifdef HAVE_ENCODER_ARM64
++       {
++               .id = LZMA_FILTER_ARM64,
++               .init = &lzma_simple_arm64_encoder_init,
++               .memusage = NULL,
++               .block_size = NULL,
++               .props_size_get = NULL,
++               .props_size_fixed = 1,
++               .props_encode = &lzma_arm64_props_encode,
++       },
++#endif
+ #ifdef HAVE_ENCODER_SPARC
+ 	{
+ 		.id = LZMA_FILTER_SPARC,
+diff --git a/src/liblzma/simple/Makefile.inc b/src/liblzma/simple/Makefile.inc
+index 8a5e2d7f..dc092f95 100644
+--- a/src/liblzma/simple/Makefile.inc
++++ b/src/liblzma/simple/Makefile.inc
+@@ -42,6 +42,10 @@ if COND_FILTER_ARMTHUMB
+ liblzma_la_SOURCES += simple/armthumb.c
+ endif
+ 
++if COND_FILTER_ARM64
++liblzma_la_SOURCES += simple/arm64.c
++endif
++
+ if COND_FILTER_SPARC
+ liblzma_la_SOURCES += simple/sparc.c
+ endif
+diff --git a/src/liblzma/simple/arm64.c b/src/liblzma/simple/arm64.c
+new file mode 100644
+index 00000000..911e30c1
+--- /dev/null
++++ b/src/liblzma/simple/arm64.c
+@@ -0,0 +1,227 @@
++///////////////////////////////////////////////////////////////////////////////
++//
++/// \file       arm64.c
++/// \brief      Filter for ARM64 binaries
++///
++//  Authors:    Lasse Collin
++//              Jia Tan
++//
++//  This file has been put into the public domain.
++//  You can do whatever you want with this file.
++//
++///////////////////////////////////////////////////////////////////////////////
++
++#include "simple_private.h"
++
++#ifdef HAVE_ENCODER_ARM64
++#	include "simple_encoder.h"
++#endif
++
++#ifdef HAVE_DECODER_ARM64
++#	include "simple_decoder.h"
++#endif
++
++
++// In ARM64, there are two main branch instructions.
++// bl - branch and link: Calls a function and stores the return address.
++// b - branch: Jumps to a location, but does not store a return address.
++//
++// After some benchmarking, it was determined that only the bl instruction
++// is beneficial for compression. A majority of the jumps for the b
++// instruction are very small (+/- 0xFF). These are typical for loops
++// and if-statements. Encoding them to their absolute address reduces
++// redundancy since many of the small relative jump values are repeated,
++// but very few of the absolute addresses are.
++//
++// Thus, only the bl instruction will be encoded and decoded.
++// The bl instruction is 32 bits in size. The highest 6 bits contain
++// the opcode (10 0101 == 0x25) and the remaining 26 bits are
++// the immediate value. The immediate is a signed integer that
++// encodes the target address as a multiple of four bytes so
++// the range is +/-128 MiB.
++
++// The 6-bit op code for the bl instruction in ARM64
++#define ARM64_BL_OPCODE 0x25
++
++// Once the 26-bit immediate is multiple by four, the address is 28 bits
++// with the two lowest bits being zero. This mask is used to clear the
++// unwanted bits.
++#define ADDR28_MASK 0x0FFFFFFCU
++
++
++typedef struct {
++	uint32_t sign_bit;
++	uint32_t sign_mask;
++} lzma_simple_arm64;
++
++
++static size_t
++arm64_code(void *simple_ptr, uint32_t now_pos, bool is_encoder,
++		uint8_t *buffer, size_t size)
++{
++	const lzma_simple_arm64 *simple = simple_ptr;
++	const uint32_t sign_bit = simple->sign_bit;
++	const uint32_t sign_mask = simple->sign_mask;
++
++	size_t i;
++	for (i = 0; i + 4 <= size; i += 4) {
++		if ((buffer[i + 3] >> 2) == ARM64_BL_OPCODE) {
++			// Get the relative 28-bit address from
++			// the 26-bit immediate.
++			uint32_t src = read32le(buffer + i);
++			src <<= 2;
++			src &= ADDR28_MASK;
++
++			if ((src & sign_mask) != 0
++					&& (src & sign_mask) != sign_mask)
++				continue;
++
++			// Some files like static libraries or Linux kernel
++			// modules have the immediate value filled with
++			// zeros. Converting these placeholder values would
++			// make compression worse so don't touch them.
++			if (src == 0)
++				continue;
++
++			const uint32_t pc = now_pos + (uint32_t)(i);
++
++			uint32_t dest;
++			if (is_encoder)
++				dest = pc + src;
++			else
++				dest = src - pc;
++
++			dest &= ADDR28_MASK;
++
++			// Sign-extend negative values or unset sign bits
++			// from positive values.
++			if (dest & sign_bit)
++				dest |= sign_mask;
++			else
++				dest &= ~sign_mask;
++
++			assert((dest & sign_mask) == 0
++					|| (dest & sign_mask) == sign_mask);
++
++			// Since also the decoder will ignore src values
++			// of 0, we must ensure that nothing is ever encoded
++			// to 0. This is achieved by encoding such values
++			// as pc instead. When decoding, pc will be first
++			// converted to 0 which we will catch here and fix.
++			if (dest == 0) {
++				// We cannot get here if pc is zero because
++				// then src would need to be zero too but we
++				// already ensured that src != 0.
++				assert((pc & ADDR28_MASK) != 0);
++				dest = is_encoder ? pc : 0U - pc;
++				dest &= ADDR28_MASK;
++
++				if (dest & sign_bit)
++					dest |= sign_mask;
++				else
++					dest &= ~sign_mask;
++			}
++
++			assert((dest & sign_mask) == 0
++					|| (dest & sign_mask) == sign_mask);
++			assert((dest & ~ADDR28_MASK) == 0);
++
++			// Construct and store the modified 32-bit instruction.
++			dest >>= 2;
++			dest |= (uint32_t)ARM64_BL_OPCODE << 26;
++			write32le(buffer + i, dest);
++		}
++	}
++
++	return i;
++}
++
++
++#ifdef HAVE_ENCODER_ARM64
++extern lzma_ret
++lzma_arm64_props_encode(const void *options, uint8_t *out)
++{
++	const lzma_options_arm64 *const opt = options;
++
++	if (opt->width < LZMA_ARM64_WIDTH_MIN
++			|| opt->width > LZMA_ARM64_WIDTH_MAX)
++		return LZMA_OPTIONS_ERROR;
++
++	out[0] = (uint8_t)(opt->width - LZMA_ARM64_WIDTH_MIN);
++	return LZMA_OK;
++}
++#endif
++
++
++#ifdef HAVE_DECODER_ARM64
++extern lzma_ret
++lzma_arm64_props_decode(void **options, const lzma_allocator *allocator,
++		const uint8_t *props, size_t props_size)
++{
++	if (props_size != 1)
++		return LZMA_OPTIONS_ERROR;
++
++	if (props[0] > LZMA_ARM64_WIDTH_MAX - LZMA_ARM64_WIDTH_MIN)
++		return LZMA_OPTIONS_ERROR;
++
++	lzma_options_arm64 *opt = lzma_alloc(sizeof(lzma_options_arm64),
++			allocator);
++	if (opt == NULL)
++		return LZMA_MEM_ERROR;
++
++	opt->width = props[0] + LZMA_ARM64_WIDTH_MIN;
++	*options = opt;
++	return LZMA_OK;
++
++}
++#endif
++
++
++static lzma_ret
++arm64_coder_init(lzma_next_coder *next, const lzma_allocator *allocator,
++		const lzma_filter_info *filters, bool is_encoder)
++{
++	if (filters[0].options == NULL)
++		return LZMA_PROG_ERROR;
++
++	const lzma_options_arm64 *opt = filters[0].options;
++	if (opt->width < LZMA_ARM64_WIDTH_MIN
++			|| opt->width > LZMA_ARM64_WIDTH_MAX)
++		return LZMA_OPTIONS_ERROR;
++
++	const lzma_ret ret = lzma_simple_coder_init(next, allocator, filters,
++			&arm64_code, sizeof(lzma_simple_arm64), 4, 4,
++			is_encoder, false);
++
++	if (ret == LZMA_OK) {
++		lzma_simple_coder *coder = next->coder;
++		lzma_simple_arm64 *simple = coder->simple;
++
++		simple->sign_bit = UINT32_C(1) << (opt->width - 1);
++		simple->sign_mask = (UINT32_C(1) << 28) - simple->sign_bit;
++	}
++
++	return ret;
++}
++
++
++#ifdef HAVE_ENCODER_ARM64
++extern lzma_ret
++lzma_simple_arm64_encoder_init(lzma_next_coder *next,
++		const lzma_allocator *allocator,
++		const lzma_filter_info *filters)
++{
++	return arm64_coder_init(next, allocator, filters, true);
++}
++#endif
++
++
++#ifdef HAVE_DECODER_ARM64
++extern lzma_ret
++lzma_simple_arm64_decoder_init(lzma_next_coder *next,
++		const lzma_allocator *allocator,
++		const lzma_filter_info *filters)
++{
++	return arm64_coder_init(next, allocator, filters, false);
++}
++#endif
+diff --git a/src/liblzma/simple/simple_coder.h b/src/liblzma/simple/simple_coder.h
+index 19c2ee03..668a5092 100644
+--- a/src/liblzma/simple/simple_coder.h
++++ b/src/liblzma/simple/simple_coder.h
+@@ -61,6 +61,15 @@ extern lzma_ret lzma_simple_armthumb_decoder_init(lzma_next_coder *next,
+ 		const lzma_filter_info *filters);
+ 
+ 
++extern lzma_ret lzma_simple_arm64_encoder_init(lzma_next_coder *next,
++               const lzma_allocator *allocator,
++               const lzma_filter_info *filters);
++
++extern lzma_ret lzma_simple_arm64_decoder_init(lzma_next_coder *next,
++               const lzma_allocator *allocator,
++               const lzma_filter_info *filters);
++
++
+ extern lzma_ret lzma_simple_sparc_encoder_init(lzma_next_coder *next,
+ 		const lzma_allocator *allocator,
+ 		const lzma_filter_info *filters);
+diff --git a/src/liblzma/simple/simple_decoder.h b/src/liblzma/simple/simple_decoder.h
+index bed8d37a..188d8370 100644
+--- a/src/liblzma/simple/simple_decoder.h
++++ b/src/liblzma/simple/simple_decoder.h
+@@ -19,4 +19,8 @@ extern lzma_ret lzma_simple_props_decode(
+ 		void **options, const lzma_allocator *allocator,
+ 		const uint8_t *props, size_t props_size);
+ 
++extern lzma_ret lzma_arm64_props_decode(
++		void **options, const lzma_allocator *allocator,
++		const uint8_t *props, size_t props_size);
++
+ #endif
+diff --git a/src/liblzma/simple/simple_encoder.h b/src/liblzma/simple/simple_encoder.h
+index 1cee4823..10828f8f 100644
+--- a/src/liblzma/simple/simple_encoder.h
++++ b/src/liblzma/simple/simple_encoder.h
+@@ -20,4 +20,6 @@ extern lzma_ret lzma_simple_props_size(uint32_t *size, const void *options);
+ 
+ extern lzma_ret lzma_simple_props_encode(const void *options, uint8_t *out);
+ 
++extern lzma_ret lzma_arm64_props_encode(const void *options, uint8_t *out);
++
+ #endif

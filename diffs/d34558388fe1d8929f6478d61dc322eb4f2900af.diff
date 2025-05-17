@@ -1,0 +1,23 @@
+diff --git a/lib/Makefile.am b/lib/Makefile.am
+index 0dbd9c42..b6a3b161 100644
+--- a/lib/Makefile.am
++++ b/lib/Makefile.am
+@@ -21,7 +21,17 @@ libgnu_a_SOURCES =
+ libgnu_a_DEPENDENCIES = $(LIBOBJS)
+ libgnu_a_LIBADD = $(LIBOBJS)
+ 
+-EXTRA_DIST = getopt.in.h getopt.c getopt1.c getopt_int.h
++EXTRA_DIST = \
++	getopt.in.h \
++	getopt.c \
++	getopt1.c \
++	getopt_int.h \
++	getopt-cdefs.h \
++	getopt-core.h \
++	getopt-ext.h \
++	getopt-pfx-core.h \
++	getopt-pfx-ext.h
++
+ BUILT_SOURCES = $(GETOPT_H)
+ MOSTLYCLEANFILES = getopt.h getopt.h-t
+ 

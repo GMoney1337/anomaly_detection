@@ -1,0 +1,58 @@
+diff --git a/src/xz/hardware.c b/src/xz/hardware.c
+index c6948821..73bac4a9 100644
+--- a/src/xz/hardware.c
++++ b/src/xz/hardware.c
+@@ -15,7 +15,7 @@
+ 
+ /// Maximum number of worker threads. This can be set with
+ /// the --threads=NUM command line option.
+-static uint32_t threads_max = 1;
++static uint32_t threads_max;
+ 
+ /// True when the number of threads is automatically determined based
+ /// on the available hardware threads.
+@@ -334,5 +334,9 @@ hardware_init(void)
+ 		memlimit_mt_default = mem_ceiling;
+ #endif
+ 
++	// Enable threaded mode by default. xz 5.4.x and older
++	// used single-threaded mode by default.
++	hardware_threads_set(0);
++
+ 	return;
+ }
+diff --git a/src/xz/message.c b/src/xz/message.c
+index b94a0eba..7756b5b2 100644
+--- a/src/xz/message.c
++++ b/src/xz/message.c
+@@ -1022,8 +1022,8 @@ message_help(bool long_help)
+ "                      does not affect decompressor memory requirements"));
+ 
+ 	puts(_(
+-"  -T, --threads=NUM   use at most NUM threads; the default is 1; set to 0\n"
+-"                      to use as many threads as there are processor cores"));
++"  -T, --threads=NUM   use at most NUM threads; the default is 0 which uses\n"
++"                      as many threads as there are processor cores"));
+ 
+ 	if (long_help) {
+ 		puts(_(
+diff --git a/src/xz/xz.1 b/src/xz/xz.1
+index 3c09309b..950585f8 100644
+--- a/src/xz/xz.1
++++ b/src/xz/xz.1
+@@ -1303,6 +1303,15 @@ meet this condition,
+ but files compressed in single-threaded mode don't even if
+ .BI \-\-block\-size= size
+ has been used.
++.IP ""
++The default value for
++.I threads
++is
++.BR 0 .
++In
++.B xz
++5.4.x and older the default is
++.BR 1 .
+ .
+ .SS "Custom compressor filter chains"
+ A custom filter chain allows specifying

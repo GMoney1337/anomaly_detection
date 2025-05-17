@@ -1,0 +1,365 @@
+diff --git a/src/xz/args.c b/src/xz/args.c
+index 83706dbf..8043c98e 100644
+--- a/src/xz/args.c
++++ b/src/xz/args.c
+@@ -21,6 +21,7 @@
+ bool opt_stdout = false;
+ bool opt_force = false;
+ bool opt_keep_original = false;
++bool opt_synchronous = true;
+ bool opt_robot = false;
+ bool opt_ignore_check = false;
+ 
+@@ -217,6 +218,7 @@ parse_real(args_info *args, int argc, char **argv)
+ 		OPT_LZMA1,
+ 		OPT_LZMA2,
+ 
++		OPT_NO_SYNC,
+ 		OPT_SINGLE_STREAM,
+ 		OPT_NO_SPARSE,
+ 		OPT_FILES,
+@@ -249,6 +251,7 @@ parse_real(args_info *args, int argc, char **argv)
+ 		{ "force",        no_argument,       NULL,  'f' },
+ 		{ "stdout",       no_argument,       NULL,  'c' },
+ 		{ "to-stdout",    no_argument,       NULL,  'c' },
++		{ "no-sync",      no_argument,       NULL,  OPT_NO_SYNC },
+ 		{ "single-stream", no_argument,      NULL,  OPT_SINGLE_STREAM },
+ 		{ "no-sparse",    no_argument,       NULL,  OPT_NO_SPARSE },
+ 		{ "suffix",       required_argument, NULL,  'S' },
+@@ -658,6 +661,10 @@ parse_real(args_info *args, int argc, char **argv)
+ 					optarg, 0, UINT64_MAX);
+ 			break;
+ 
++		case OPT_NO_SYNC:
++			opt_synchronous = false;
++			break;
++
+ 		default:
+ 			message_try_help();
+ 			tuklib_exit(E_ERROR, E_ERROR, false);
+@@ -826,6 +833,13 @@ args_parse(args_info *args, int argc, char **argv)
+ 		opt_stdout = true;
+ 	}
+ 
++	// Don't use fsync() if --keep is specified or implied.
++	// However, don't document this as "--keep implies --no-sync"
++	// because if syncing support was added to --flush-timeout,
++	// it would sync even if --keep was specified.
++	if (opt_keep_original)
++		opt_synchronous = false;
++
+ 	// When compressing, if no --format flag was used, or it
+ 	// was --format=auto, we compress to the .xz format.
+ 	if (opt_mode == MODE_COMPRESS && opt_format == FORMAT_AUTO)
+diff --git a/src/xz/args.h b/src/xz/args.h
+index e693ecd6..7fdf37f1 100644
+--- a/src/xz/args.h
++++ b/src/xz/args.h
+@@ -34,7 +34,7 @@ typedef struct {
+ extern bool opt_stdout;
+ extern bool opt_force;
+ extern bool opt_keep_original;
+-// extern bool opt_recursive;
++extern bool opt_synchronous;
+ extern bool opt_robot;
+ extern bool opt_ignore_check;
+ 
+diff --git a/src/xz/file_io.c b/src/xz/file_io.c
+index 66458e97..9958b689 100644
+--- a/src/xz/file_io.c
++++ b/src/xz/file_io.c
+@@ -17,6 +17,7 @@
+ #	include <io.h>
+ #else
+ #	include <poll.h>
++#	include <libgen.h>
+ static bool warn_fchown;
+ #endif
+ 
+@@ -56,6 +57,10 @@ static bool warn_fchown;
+ #	define S_ISREG(m) (((m) & _S_IFMT) == _S_IFREG)
+ #endif
+ 
++#if defined(_WIN32) && !defined(__CYGWIN__)
++#	define fsync _commit
++#endif
++
+ #ifndef O_BINARY
+ #	define O_BINARY 0
+ #endif
+@@ -64,6 +69,14 @@ static bool warn_fchown;
+ #	define O_NOCTTY 0
+ #endif
+ 
++#ifndef O_SEARCH
++#	define O_SEARCH O_RDONLY
++#endif
++
++#ifndef O_DIRECTORY
++#	define O_DIRECTORY 0
++#endif
++
+ // Using this macro to silence a warning from gcc -Wlogical-op.
+ #if EAGAIN == EWOULDBLOCK
+ #	define IS_EAGAIN_OR_EWOULDBLOCK(e) ((e) == EAGAIN)
+@@ -450,6 +463,39 @@ io_copy_attrs(const file_pair *pair)
+ }
+ 
+ 
++/// \brief      Synchronizes the destination file to permanent storage
++///
++/// \param      pair    File pair having the destination file open for writing
++///
++/// \return     On success, false is returned. On error, error message
++///             is printed and true is returned.
++static bool
++io_sync_dest(file_pair *pair)
++{
++	assert(pair->dest_fd != -1);
++	assert(pair->dest_fd != STDOUT_FILENO);
++
++	if (fsync(pair->dest_fd)) {
++		message_error(_("%s: Synchronizing the file failed: %s"),
++				tuklib_mask_nonprint(pair->dest_name),
++				strerror(errno));
++		return true;
++	}
++
++#ifndef TUKLIB_DOSLIKE
++	if (fsync(pair->dir_fd)) {
++		message_error(_("%s: Synchronizing the directory of "
++				"the file failed: %s"),
++				tuklib_mask_nonprint(pair->dest_name),
++				strerror(errno));
++		return true;
++	}
++#endif
++
++	return false;
++}
++
++
+ /// Opens the source file. Returns false on success, true on error.
+ static bool
+ io_open_src_real(file_pair *pair)
+@@ -717,6 +763,9 @@ io_open_src(const char *src_name)
+ 		.dest_name = NULL,
+ 		.src_fd = -1,
+ 		.dest_fd = -1,
++#ifndef TUKLIB_DOSLIKE
++		.dir_fd = -1,
++#endif
+ 		.src_eof = false,
+ 		.src_has_seen_input = false,
+ 		.flush_needed = false,
+@@ -819,6 +868,56 @@ io_open_dest_real(file_pair *pair)
+ 		if (pair->dest_name == NULL)
+ 			return true;
+ 
++#ifndef TUKLIB_DOSLIKE
++		if (opt_synchronous) {
++			// Open the directory where the destination file will
++			// be created (the file descriptor is needed for
++			// fsync()). Do this before creating the destination
++			// file:
++			//
++			//   - We currently have no files to clean up if
++			//     opening the directory fails. (We aren't
++			//     reading from stdin so there are no stdin_flags
++			//     to restore either.)
++			//
++			//   - Allocating memory with xstrdup() is safe only
++			//     when we have nothing to clean up.
++			char *buf = xstrdup(pair->dest_name);
++			const char *dir_name = dirname(buf);
++
++			// O_NOCTTY and O_NONBLOCK are there in case
++			// O_DIRECTORY is 0 and dir_name doesn't refer
++			// to a directory. (We opened the source file
++			// already but directories might have been renamed
++			// after the source file was opened.)
++			pair->dir_fd = open(dir_name, O_SEARCH | O_DIRECTORY
++					| O_NOCTTY | O_NONBLOCK);
++			if (pair->dir_fd == -1) {
++				// Since we did open the source file
++				// successfully, we should rarely get here.
++				// Perhaps something has been renamed or
++				// had its permissions changed.
++				//
++				// In an odd case, the directory has write
++				// and search permissions but not read
++				// permission (d-wx------), and O_SEARCH is
++				// actually O_RDONLY. Then we would be able
++				// to create a new file and only the directory
++				// syncing would be impossible. But let's be
++				// strict about syncing and require users to
++				// explicitly disable it if they don't want it.
++				message_error(_("%s: Opening the directory "
++					"failed: %s"),
++					tuklib_mask_nonprint(dir_name),
++					strerror(errno));
++				free(buf);
++				goto error;
++			}
++
++			free(buf);
++		}
++#endif
++
+ #ifdef __DJGPP__
+ 		struct stat st;
+ 		if (stat(pair->dest_name, &st) == 0) {
+@@ -866,6 +965,10 @@ io_open_dest_real(file_pair *pair)
+ 					strerror(errno));
+ 			goto error;
+ 		}
++
++		// We could sync dir_fd now and close it. However, performance
++		// can be better if this is delayed until dest_fd has been
++		// synced in io_sync_dest().
+ 	}
+ 
+ 	if (fstat(pair->dest_fd, &pair->dest_st)) {
+@@ -971,6 +1074,14 @@ io_open_dest_real(file_pair *pair)
+ 	return false;
+ 
+ error:
++#ifndef TUKLIB_DOSLIKE
++	// io_close() closes pair->dir_fd but let's do it here anyway.
++	if (pair->dir_fd != -1) {
++		(void)close(pair->dir_fd);
++		pair->dir_fd = -1;
++	}
++#endif
++
+ 	free(pair->dest_name);
+ 	return true;
+ }
+@@ -1015,6 +1126,13 @@ io_close_dest(file_pair *pair, bool success)
+ 	if (pair->dest_fd == -1 || pair->dest_fd == STDOUT_FILENO)
+ 		return false;
+ 
++#ifndef TUKLIB_DOSLIKE
++	// dir_fd was only used for syncing the directory.
++	// Error checking was done when syncing.
++	if (pair->dir_fd != -1)
++		(void)close(pair->dir_fd);
++#endif
++
+ 	if (close(pair->dest_fd)) {
+ 		message_error(_("%s: Closing the file failed: %s"),
+ 				tuklib_mask_nonprint(pair->dest_name),
+@@ -1067,11 +1185,16 @@ io_close(file_pair *pair, bool success)
+ 
+ 	signals_block();
+ 
+-	// Copy the file attributes. We need to skip this if destination
+-	// file isn't open or it is standard output.
+-	if (success && pair->dest_fd != -1 && pair->dest_fd != STDOUT_FILENO)
++	if (success && pair->dest_fd != -1 && pair->dest_fd != STDOUT_FILENO) {
++		// Copy the file attributes. This may produce warnings but
++		// not errors so "success" isn't affected.
+ 		io_copy_attrs(pair);
+ 
++		// Synchronize the file and its directory if needed.
++		if (opt_synchronous)
++			success = !io_sync_dest(pair);
++	}
++
+ 	// Close the destination first. If it fails, we must not remove
+ 	// the source file!
+ 	if (io_close_dest(pair, success))
+diff --git a/src/xz/file_io.h b/src/xz/file_io.h
+index f7b2f49e..9903f5a0 100644
+--- a/src/xz/file_io.h
++++ b/src/xz/file_io.h
+@@ -55,6 +55,12 @@ typedef struct {
+ 	/// File descriptor of the target file
+ 	int dest_fd;
+ 
++#ifndef TUKLIB_DOSLIKE
++	/// File descriptor of the directory of the target file (which is
++	/// also the directory of the source file)
++	int dir_fd;
++#endif
++
+ 	/// True once end of the source file has been detected.
+ 	bool src_eof;
+ 
+diff --git a/src/xz/message.c b/src/xz/message.c
+index a1591943..7657e856 100644
+--- a/src/xz/message.c
++++ b/src/xz/message.c
+@@ -1011,11 +1011,14 @@ message_help(bool long_help)
+ 
+ 	if (long_help) {
+ 		e |= tuklib_wrapf(stdout, &wrap2,
++			"    --no-sync\v%s\r"
+ 			"    --single-stream\v%s\r"
+ 			"    --no-sparse\v%s\r"
+ 			"-S, --suffix=%s\v%s\r"
+ 			"    --files[=%s]\v%s\r"
+ 			"    --files0[=%s]\v%s\r",
++			W_("don't synchronize the output file to the storage "
++				"device before removing the input file"),
+ 			W_("decompress only the first stream, and silently "
+ 				"ignore possible remaining input data"),
+ 			W_("do not create sparse files when decompressing"),
+diff --git a/src/xz/sandbox.c b/src/xz/sandbox.c
+index 265d4bb7..f5576960 100644
+--- a/src/xz/sandbox.c
++++ b/src/xz/sandbox.c
+@@ -178,7 +178,10 @@ sandbox_init(void)
+ 	// rights because files are created with open() using O_EXCL and
+ 	// without O_TRUNC.
+ 	//
+-	// LANDLOCK_ACCESS_FS_READ_DIR is included here to get a clear error
++	// LANDLOCK_ACCESS_FS_READ_DIR is required to synchronize the
++	// directory before removing the source file.
++	//
++	// LANDLOCK_ACCESS_FS_READ_DIR is also helpful to show a clear error
+ 	// message if xz is given a directory name. Without this permission
+ 	// the message would be "Permission denied" but with this permission
+ 	// it's "Is a directory, skipping". It could be worked around with
+diff --git a/src/xz/xz.1 b/src/xz/xz.1
+index 803650d3..afa8877d 100644
+--- a/src/xz/xz.1
++++ b/src/xz/xz.1
+@@ -4,7 +4,7 @@
+ .\" Authors: Lasse Collin
+ .\"          Jia Tan
+ .\"
+-.TH XZ 1 "2025-01-04" "Tukaani" "XZ Utils"
++.TH XZ 1 "2025-01-05" "Tukaani" "XZ Utils"
+ .
+ .SH NAME
+ xz, unxz, xzcat, lzma, unlzma, lzcat \- Compress or decompress .xz and .lzma files
+@@ -1061,6 +1061,28 @@ is unsuitable for decompressing the stream in real time due to how
+ .B xz
+ does buffering.
+ .TP
++.B \-\-no\-sync
++Do not synchronize the target file and its directory
++to the storage device before removing the source file.
++This can improve performance if compressing or decompressing
++many small files.
++However, if the system crashes soon after the deletion,
++it is possible that the target file was not written
++to the storage device but the delete operation was.
++In that case neither the original source file
++nor the target file is available.
++.IP ""
++This option has an effect only when
++.B xz
++is going to remove the source file.
++In other cases synchronization is never done.
++.IP ""
++The synchronization and
++.B \-\-no\-sync
++were added in
++.B xz
++5.7.1alpha.
++.TP
+ .BI \-\-memlimit\-compress= limit
+ Set a memory usage limit for compression.
+ If this option is specified multiple times,

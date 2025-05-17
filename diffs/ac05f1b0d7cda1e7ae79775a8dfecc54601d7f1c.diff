@@ -1,0 +1,13 @@
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+index 37d1987c..61bf973f 100644
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -639,7 +639,7 @@ if(ENABLE_THREADS)
+             # liblzma-config.cmake later.
+             set(USE_POSIX_THREADS ON)
+ 
+-            target_link_libraries(liblzma Threads::Threads)
++            target_link_libraries(liblzma PRIVATE Threads::Threads)
+             add_compile_definitions(MYTHREAD_POSIX)
+ 
+             # Check if pthread_condattr_setclock() exists to

@@ -1,0 +1,63 @@
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+index ac426c44..0edd6276 100644
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -889,6 +889,26 @@ if(WIN32)
+ 
+         # Export the public API symbols with __declspec(dllexport).
+         target_compile_definitions(liblzma PRIVATE DLL_EXPORT)
++
++        if(NOT MSVC)
++            # Create a DEF file. The linker puts the ordinal numbers there
++            # too so the output from the linker isn't our final file.
++            target_link_options(liblzma PRIVATE
++                                "-Wl,--output-def,liblzma.def.in")
++
++            # Remove the ordinal numbers from the DEF file so that
++            # no one will create an import library that links by ordinal
++            # instead of by name. We don't maintain a DEF file so the
++            # ordinal numbers aren't stable.
++            add_custom_command(TARGET liblzma POST_BUILD
++                COMMAND "${CMAKE_COMMAND}"
++                    -DINPUT_FILE=liblzma.def.in
++                    -DOUTPUT_FILE=liblzma.def
++                    -P
++                    "${CMAKE_CURRENT_SOURCE_DIR}/cmake/remove-ordinals.cmake"
++                BYPRODUCTS "liblzma.def"
++                VERBATIM)
++        endif()
+     else()
+         # Disable __declspec(dllimport) when linking against static liblzma.
+         target_compile_definitions(liblzma INTERFACE LZMA_API_STATIC)
+diff --git a/cmake/remove-ordinals.cmake b/cmake/remove-ordinals.cmake
+new file mode 100644
+index 00000000..96419d52
+--- /dev/null
++++ b/cmake/remove-ordinals.cmake
+@@ -0,0 +1,26 @@
++#############################################################################
++#
++# remove-ordinals.cmake
++#
++# Removes the ordinal numbers from a DEF file that has been created by
++# GNU ld or LLVM lld option --output-def (when creating a Windows DLL).
++# This should be equivalent: sed 's/ \+@ *[0-9]\+//'
++#
++# Usage:
++#
++#     cmake -DINPUT_FILE=infile.def.in \
++#           -DOUTPUT_FILE=outfile.def \
++#           -P remove-ordinals.cmake
++#
++#############################################################################
++#
++# Author: Lasse Collin
++#
++# This file has been put into the public domain.
++# You can do whatever you want with this file.
++#
++#############################################################################
++
++file(READ "${INPUT_FILE}" STR)
++string(REGEX REPLACE " +@ *[0-9]+" "" STR "${STR}")
++file(WRITE "${OUTPUT_FILE}" "${STR}")

@@ -1,0 +1,47 @@
+diff --git a/configure.ac b/configure.ac
+index 1641ca1d..fa186e26 100644
+--- a/configure.ac
++++ b/configure.ac
+@@ -534,7 +534,7 @@ AC_TYPE_UINTPTR_T
+ AC_CHECK_SIZEOF([size_t])
+ 
+ # The command line tool can copy high resolution timestamps if such
+-# information is availabe in struct stat. Otherwise one second accuracy
++# information is available in struct stat. Otherwise one second accuracy
+ # is used.
+ AC_CHECK_MEMBERS([
+ 	struct stat.st_atim.tv_nsec,
+diff --git a/src/liblzma/check/sha256.c b/src/liblzma/check/sha256.c
+index 074cd744..77ff483d 100644
+--- a/src/liblzma/check/sha256.c
++++ b/src/liblzma/check/sha256.c
+@@ -6,7 +6,6 @@
+ /// \todo       Crypto++ has x86 ASM optimizations. They use SSE so if they
+ ///             are imported to liblzma, SSE instructions need to be used
+ ///             conditionally to keep the code working on older boxes.
+-///             We could also support using some external libary for SHA-256.
+ //
+ //  This code is based on the code found from 7-Zip, which has a modified
+ //  version of the SHA-256 found from Crypto++ <http://www.cryptopp.com/>.
+diff --git a/src/xz/xz.1 b/src/xz/xz.1
+index 9038f690..4a30cd9d 100644
+--- a/src/xz/xz.1
++++ b/src/xz/xz.1
+@@ -5,7 +5,7 @@
+ .\" This file has been put into the public domain.
+ .\" You can do whatever you want with this file.
+ .\"
+-.TH XZ 1 "2012-07-04" "Tukaani" "XZ Utils"
++.TH XZ 1 "2012-08-24" "Tukaani" "XZ Utils"
+ .
+ .SH NAME
+ xz, unxz, xzcat, lzma, unlzma, lzcat \- Compress or decompress .xz and .lzma files
+@@ -731,7 +731,7 @@ be dramatically higher than that of the single-threaded mode.
+ DecMem contains the decompressor memory requirements.
+ That is, the compression settings determine
+ the memory requirements of the decompressor.
+-The exact decompressor memory usage is slighly more than
++The exact decompressor memory usage is slightly more than
+ the LZMA2 dictionary size, but the values in the table
+ have been rounded up to the next full MiB.
+ .RE

@@ -1,0 +1,20 @@
+diff --git a/THANKS b/THANKS
+index b638ffd7..4bb05f93 100644
+--- a/THANKS
++++ b/THANKS
+@@ -51,6 +51,7 @@ has been important. :-) In alphabetical order:
+   - Denis Excoffier
+   - Vincent Fazio
+   - Michael Felt
++  - Sean Fenian
+   - Michael Fox
+   - Andres Freund
+   - Mike Frysinger
+@@ -117,6 +118,7 @@ has been important. :-) In alphabetical order:
+   - Martin Matuška
+   - Scott McAllister
+   - Chris McCrohan
++  - Derwin McGeary
+   - Ivan A. Melnikov
+   - Jim Meyering
+   - Arkadiusz Miskiewicz

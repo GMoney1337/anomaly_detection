@@ -1,0 +1,59 @@
+diff --git a/src/liblzma/common/common.c b/src/liblzma/common/common.c
+index baad3dd8..02a10641 100644
+--- a/src/liblzma/common/common.c
++++ b/src/liblzma/common/common.c
+@@ -35,7 +35,7 @@ lzma_version_string(void)
+ // Memory allocation //
+ ///////////////////////
+ 
+-extern void * lzma_attribute((__malloc__)) lzma_attr_alloc_size(1)
++extern void * lzma_attr_alloc_size(1)
+ lzma_alloc(size_t size, const lzma_allocator *allocator)
+ {
+ 	// Some malloc() variants return NULL if called with size == 0.
+@@ -53,7 +53,7 @@ lzma_alloc(size_t size, const lzma_allocator *allocator)
+ }
+ 
+ 
+-extern void * lzma_attribute((__malloc__)) lzma_attr_alloc_size(1)
++extern void * lzma_attr_alloc_size(1)
+ lzma_alloc_zero(size_t size, const lzma_allocator *allocator)
+ {
+ 	// Some calloc() variants return NULL if called with size == 0.
+diff --git a/src/liblzma/common/common.h b/src/liblzma/common/common.h
+index 4d9cab53..cea9f9b3 100644
+--- a/src/liblzma/common/common.h
++++ b/src/liblzma/common/common.h
+@@ -298,12 +298,12 @@ struct lzma_internal_s {
+ 
+ /// Allocates memory
+ extern void *lzma_alloc(size_t size, const lzma_allocator *allocator)
+-		lzma_attribute((__malloc__)) lzma_attr_alloc_size(1);
++		lzma_attr_alloc_size(1);
+ 
+ /// Allocates memory and zeroes it (like calloc()). This can be faster
+ /// than lzma_alloc() + memzero() while being backward compatible with
+ /// custom allocators.
+-extern void * lzma_attribute((__malloc__)) lzma_attr_alloc_size(1)
++extern void * lzma_attr_alloc_size(1)
+ 		lzma_alloc_zero(size_t size, const lzma_allocator *allocator);
+ 
+ /// Frees memory
+diff --git a/src/xz/util.h b/src/xz/util.h
+index 4a536f52..3fac8961 100644
+--- a/src/xz/util.h
++++ b/src/xz/util.h
+@@ -20,11 +20,11 @@
+ 
+ /// \brief      Safe realloc() that never returns NULL
+ extern void *xrealloc(void *ptr, size_t size)
+-		lzma_attribute((__malloc__)) lzma_attr_alloc_size(2);
++		lzma_attr_alloc_size(2);
+ 
+ 
+ /// \brief      Safe strdup() that never returns NULL
+-extern char *xstrdup(const char *src) lzma_attribute((__malloc__));
++extern char *xstrdup(const char *src);
+ 
+ 
+ /// \brief      Fancy version of strtoull()

@@ -1,0 +1,90 @@
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+index 5b7e0318..a02c4c48 100644
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -1306,12 +1306,6 @@ if(XZ_ARM64_CRC32)
+         check_symbol_exists(elf_aux_info sys/auxv.h HAVE_ELF_AUX_INFO)
+         tuklib_add_definition_if(liblzma HAVE_ELF_AUX_INFO)
+ 
+-        # OpenBSD has a sysctl() based method. The macro CPU_ID_AA64ISAR0
+-        # is used to detect when it's available.
+-        check_symbol_exists(CPU_ID_AA64ISAR0 machine/cpu.h
+-                            HAVE_CPU_ID_AA64ISAR0)
+-        tuklib_add_definition_if(liblzma HAVE_CPU_ID_AA64ISAR0)
+-
+         # sysctlbyname("hw.optional.armv8_crc32", ...) is supported on Darwin
+         # (macOS, iOS, etc.). Note that sysctlbyname() is supported on FreeBSD,
+         # NetBSD, and possibly others too but the string is specific to
+diff --git a/configure.ac b/configure.ac
+index 0ed30eb4..4a277242 100644
+--- a/configure.ac
++++ b/configure.ac
+@@ -1096,23 +1096,14 @@ int main(void)
+ ])
+ 
+ # Check for ARM64 CRC32 instruction runtime detection.
+-#
+ # getauxval() is supported on Linux, elf_aux_info() on FreeBSD, and
+ # sysctlbyname("hw.optional.armv8_crc32", ...) is supported on Darwin
+ # (macOS, iOS, etc.). Note that sysctlbyname() is supported on FreeBSD,
+ # NetBSD, and possibly others too but the string is specific to Apple OSes.
+ # The C code is responsible for checking defined(__APPLE__) before using
+ # sysctlbyname("hw.optional.armv8_crc32", ...).
+-#
+-# sysctl() with CPU_ID_AA64ISAR0 is used on OpenBSD.
+ AS_IF([test "x$enable_arm64_crc32" = xyes], [
+ 	AC_CHECK_FUNCS([getauxval elf_aux_info sysctlbyname], [break])
+-	AC_CHECK_DECL([CPU_ID_AA64ISAR0],
+-		[AC_DEFINE([HAVE_CPU_ID_AA64ISAR0], [1],
+-			[Define to 1 if CPU_ID_AA64ISAR0 is defined
+-			in <machine/cpu.h>.])],
+-		[],
+-		[#include <machine/cpu.h>])
+ ])
+ 
+ 
+diff --git a/src/liblzma/check/crc32_arm64.h b/src/liblzma/check/crc32_arm64.h
+index c0609c36..50bac6c7 100644
+--- a/src/liblzma/check/crc32_arm64.h
++++ b/src/liblzma/check/crc32_arm64.h
+@@ -26,11 +26,6 @@
+ #if defined(CRC32_GENERIC) && defined(CRC32_ARCH_OPTIMIZED)
+ #	if defined(HAVE_GETAUXVAL) || defined(HAVE_ELF_AUX_INFO)
+ #		include <sys/auxv.h>
+-#	elif defined(HAVE_CPU_ID_AA64ISAR0)
+-#		include <sys/types.h>
+-#		include <sys/sysctl.h>
+-#		include <machine/cpu.h>
+-#		include <machine/armreg.h>
+ #	elif defined(_WIN32)
+ #		include <processthreadsapi.h>
+ #	elif defined(__APPLE__) && defined(HAVE_SYSCTLBYNAME)
+@@ -120,16 +115,6 @@ is_arch_extension_supported(void)
+ 
+ 	return (feature_flags & HWCAP_CRC32) != 0;
+ 
+-#elif defined(HAVE_CPU_ID_AA64ISAR0)
+-	const int isar0_mib[] = { CTL_MACHDEP, CPU_ID_AA64ISAR0 };
+-	uint64_t isar0;
+-	size_t len = sizeof(isar0);
+-
+-	if (sysctl(isar0_mib, 2, &isar0, &len, NULL, 0) == -1)
+-		return false;
+-
+-	return ID_AA64ISAR0_CRC32(isar0) >= ID_AA64ISAR0_CRC32_BASE;
+-
+ #elif defined(_WIN32)
+ 	return IsProcessorFeaturePresent(
+ 			PF_ARM_V8_CRC32_INSTRUCTIONS_AVAILABLE);
+diff --git a/src/liblzma/check/crc_common.h b/src/liblzma/check/crc_common.h
+index afb551a8..abf56927 100644
+--- a/src/liblzma/check/crc_common.h
++++ b/src/liblzma/check/crc_common.h
+@@ -92,7 +92,6 @@ extern const uint64_t lzma_crc64_table[4][256];
+ // Keep this in sync with changes to crc32_arm64.h
+ #if defined(_WIN32) || defined(HAVE_GETAUXVAL) \
+ 		|| defined(HAVE_ELF_AUX_INFO) \
+-		|| defined(HAVE_CPU_ID_AA64ISAR0) \
+ 		|| (defined(__APPLE__) && defined(HAVE_SYSCTLBYNAME))
+ #	define CRC_ARM64_RUNTIME_DETECTION 1
+ #endif

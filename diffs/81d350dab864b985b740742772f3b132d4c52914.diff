@@ -1,0 +1,81 @@
+diff --git a/src/xz/args.c b/src/xz/args.c
+index 141347e4..d63760ec 100644
+--- a/src/xz/args.c
++++ b/src/xz/args.c
+@@ -92,6 +92,12 @@ parse_block_list(const char *str_const)
+ 	free(opt_block_list);
+ 	opt_block_list = xmalloc((count + 1) * sizeof(block_list_entry));
+ 
++	// Clear the bitmask of filter chains in use.
++	block_list_chain_mask = 0;
++
++	// Reset the largest Block size found in --block-list.
++	block_list_largest = 0;
++
+ 	for (size_t i = 0; i < count; ++i) {
+ 		// Locate the next comma and replace it with \0.
+ 		char *p = strchr(str, ',');
+@@ -128,7 +134,11 @@ parse_block_list(const char *str_const)
+ 
+ 			const uint32_t filter_num = (uint32_t)(str[0] - '0');
+ 			opt_block_list[i].filters_index = filter_num;
++			block_list_chain_mask |= 1U << filter_num;
+ 			str += 2;
++		} else {
++			// This Block uses the default filter chain.
++			block_list_chain_mask |= 1U << 0;
+ 		}
+ 
+ 		if (str[0] == '\0') {
+@@ -152,6 +162,14 @@ parse_block_list(const char *str_const)
+ 
+ 				opt_block_list[i].size = UINT64_MAX;
+ 			}
++
++			// Remember the largest Block size in the list.
++			//
++			// NOTE: Do this after handling the special value 0
++			// because when 0 is used, we don't want to reduce
++			// the Block size of the multithreaded encoder.
++			if (block_list_largest < opt_block_list[i].size)
++				block_list_largest = opt_block_list[i].size;
+ 		}
+ 
+ 		// Be standards compliant: p + 1 is undefined behavior
+diff --git a/src/xz/coder.c b/src/xz/coder.c
+index 6743849d..dee7d20a 100644
+--- a/src/xz/coder.c
++++ b/src/xz/coder.c
+@@ -27,6 +27,8 @@ bool opt_auto_adjust = true;
+ bool opt_single_stream = false;
+ uint64_t opt_block_size = 0;
+ block_list_entry *opt_block_list = NULL;
++uint64_t block_list_largest;
++uint32_t block_list_chain_mask;
+ 
+ /// Stream used to communicate with liblzma
+ static lzma_stream strm = LZMA_STREAM_INIT;
+diff --git a/src/xz/coder.h b/src/xz/coder.h
+index a7feeb9c..7eeb0ba6 100644
+--- a/src/xz/coder.h
++++ b/src/xz/coder.h
+@@ -65,6 +65,19 @@ extern uint64_t opt_block_size;
+ /// List of block size and filter chain pointer pairs.
+ extern block_list_entry *opt_block_list;
+ 
++/// Size of the largest Block that was specified in --block-list.
++/// This is used to limit the block_size option of multithreaded encoder.
++/// It's waste of memory to specify a too large block_size and reducing
++/// it might even allow using more threads in some cases.
++///
++/// NOTE: If the last entry in --block-list is the special value of 0
++/// (which gets converted to UINT64_MAX), it counts here as UINT64_MAX too.
++/// This way the multithreaded encoder's Block size won't be reduced.
++extern uint64_t block_list_largest;
++
++/// Bitmask indicating which filter chains we specified in --block-list.
++extern uint32_t block_list_chain_mask;
++
+ /// Set the integrity check type used when compressing
+ extern void coder_set_check(lzma_check check);
+ 

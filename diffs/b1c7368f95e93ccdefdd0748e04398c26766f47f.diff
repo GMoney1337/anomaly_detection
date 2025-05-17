@@ -1,0 +1,215 @@
+diff --git a/configure.ac b/configure.ac
+index 5809c69a..df9d9126 100644
+--- a/configure.ac
++++ b/configure.ac
+@@ -369,6 +369,44 @@ AC_DEFINE_UNQUOTED([ASSUME_RAM], [$enable_assume_ram],
+ 		be determined.])
+ 
+ 
++#########################
++# Components to install #
++#########################
++
++AC_ARG_ENABLE([xz], [AC_HELP_STRING([--disable-xz],
++		[do not build the xz tool])],
++	[], [enable_xz=yes])
++AM_CONDITIONAL([COND_XZ], [test x$enable_xz != xno])
++
++AC_ARG_ENABLE([xzdec], [AC_HELP_STRING([--disable-xzdec],
++		[do not build xzdec])],
++	[], [enable_xzdec=yes])
++AM_CONDITIONAL([COND_XZDEC], [test x$enable_xzdec != xno])
++
++AC_ARG_ENABLE([lzmadec], [AC_HELP_STRING([--disable-lzmadec],
++		[do not build lzmadec
++		(it exists primarily for LZMA Utils compatibility)])],
++	[], [enable_lzmadec=yes])
++AM_CONDITIONAL([COND_LZMADEC], [test x$enable_lzmadec != xno])
++
++AC_ARG_ENABLE([lzmainfo], [AC_HELP_STRING([--disable-lzmainfo],
++		[do not build lzmainfo
++		(it exists primarily for LZMA Utils compatibility)])],
++	[], [enable_lzmainfo=yes])
++AM_CONDITIONAL([COND_LZMAINFO], [test x$enable_lzmainfo != xno])
++
++AC_ARG_ENABLE([lzma-links], [AC_HELP_STRING([--disable-lzma-links],
++		[do not create symlinks for LZMA Utils compatibility])],
++	[], [enable_lzma_links=yes])
++AM_CONDITIONAL([COND_LZMALINKS], [test x$enable_lzma_links != xno])
++
++AC_ARG_ENABLE([scripts], [AC_HELP_STRING([--disable-scripts],
++		[do not install the scripts xzdiff, xzgrep, xzless, xzmore,
++		and their symlinks])],
++	[], [enable_scripts=yes])
++AM_CONDITIONAL([COND_SCRIPTS], [test x$enable_scripts != xno])
++
++
+ ###############################################################################
+ # Checks for programs.
+ ###############################################################################
+diff --git a/src/Makefile.am b/src/Makefile.am
+index f03f5a3d..9fb4caad 100644
+--- a/src/Makefile.am
++++ b/src/Makefile.am
+@@ -5,5 +5,18 @@
+ ## You can do whatever you want with this file.
+ ##
+ 
+-SUBDIRS = liblzma xz xzdec lzmainfo scripts
++SUBDIRS = liblzma xzdec
++
++if COND_XZ
++SUBDIRS += xz
++endif
++
++if COND_LZMAINFO
++SUBDIRS += lzmainfo
++endif
++
++if COND_SCRIPTS
++SUBDIRS += scripts
++endif
++
+ EXTRA_DIST = common
+diff --git a/src/scripts/Makefile.am b/src/scripts/Makefile.am
+index 86f27388..29bdbcd7 100644
+--- a/src/scripts/Makefile.am
++++ b/src/scripts/Makefile.am
+@@ -8,58 +8,48 @@
+ nodist_bin_SCRIPTS = xzdiff xzgrep xzmore xzless
+ dist_man_MANS = xzdiff.1 xzgrep.1 xzmore.1 xzless.1
+ 
++links = \
++	xzdiff-xzcmp \
++	xzgrep-xzegrep \
++	xzgrep-xzfgrep
++
++if COND_LZMALINKS
++links += \
++	xzdiff-lzdiff \
++	xzdiff-lzcmp \
++	xzgrep-lzgrep \
++	xzgrep-lzegrep \
++	xzgrep-lzfgrep \
++	xzmore-lzmore \
++	xzless-lzless
++endif
++
+ install-exec-hook:
+ 	cd $(DESTDIR)$(bindir) && \
+-	target=`echo xzdiff | sed '$(transform)'` && \
+-	for name in xzcmp lzdiff lzcmp; do \
+-		link=`echo $$name | sed '$(transform)'` && \
+-		rm -f $$link && \
+-		$(LN_S) $$target $$link; \
+-	done && \
+-	target=`echo xzgrep | sed '$(transform)'` && \
+-	for name in xzegrep xzfgrep lzgrep lzegrep lzfgrep; do \
+-		link=`echo $$name | sed '$(transform)'` && \
+-		rm -f $$link && \
+-		$(LN_S) $$target $$link; \
+-	done && \
+-	for name in xzmore xzless; do \
+-		target=`echo $$name | sed '$(transform)'` && \
+-		link=`echo $$name | sed 's/xz/lz/;$(transform)'` && \
++	for pair in $(links); do \
++		target=`echo $$pair | sed 's/-.*$$//' | sed '$(transform)'` && \
++		link=`echo $$pair | sed 's/^.*-//' | sed '$(transform)'` && \
+ 		rm -f $$link && \
+ 		$(LN_S) $$target $$link; \
+ 	done
+ 
+ install-data-hook:
+ 	cd $(DESTDIR)$(mandir)/man1 && \
+-	target=`echo xzdiff | sed '$(transform)'` && \
+-	for name in xzcmp lzdiff lzcmp; do \
+-		link=`echo $$name | sed '$(transform)'` && \
+-		rm -f $$link.1 && \
+-		$(LN_S) $$target.1 $$link.1; \
+-	done && \
+-	target=`echo xzgrep | sed '$(transform)'` && \
+-	for name in xzegrep xzfgrep lzgrep lzegrep lzfgrep; do \
+-		link=`echo $$name | sed '$(transform)'` && \
+-		rm -f $$link.1 && \
+-		$(LN_S) $$target.1 $$link.1; \
+-	done && \
+-	for name in xzmore xzless; do \
+-		target=`echo $$name | sed '$(transform)'` && \
+-		link=`echo $$name | sed 's/xz/lz/;$(transform)'` && \
++	for pair in $(links); do \
++		target=`echo $$pair | sed 's/-.*$$//' | sed '$(transform)'` && \
++		link=`echo $$pair | sed 's/^.*-//' | sed '$(transform)'` && \
+ 		rm -f $$link.1 && \
+ 		$(LN_S) $$target.1 $$link.1; \
+ 	done
+ 
+ uninstall-hook:
+ 	cd $(DESTDIR)$(bindir) && \
+-	for name in xzcmp lzdiff lzcmp xzegrep xzfgrep \
+-			lzgrep lzegrep lzfgrep lzmore lzless; do \
+-		link=`echo $$name | sed '$(transform)'` && \
++	for pair in $(links); do \
++		link=`echo $$pair | sed 's/^.*-//' | sed '$(transform)'` && \
+ 		rm -f $$link; \
+ 	done
+ 	cd $(DESTDIR)$(mandir)/man1 && \
+-	for name in xzcmp lzdiff lzcmp xzegrep xzfgrep \
+-			lzgrep lzegrep lzfgrep lzmore lzless; do \
+-		link=`echo $$name | sed '$(transform)'` && \
++	for pair in $(links); do \
++		link=`echo $$pair | sed 's/^.*-//' | sed '$(transform)'` && \
+ 		rm -f $$link.1; \
+ 	done
+diff --git a/src/xz/Makefile.am b/src/xz/Makefile.am
+index e4ed59cf..10ceee75 100644
+--- a/src/xz/Makefile.am
++++ b/src/xz/Makefile.am
+@@ -69,7 +69,11 @@ dist_man_MANS = xz.1
+ 
+ ## Create symlinks for unxz and xzcat for convenience. Create symlinks also
+ ## for lzma, unlzma, and lzcat for compatibility with LZMA Utils 4.32.x.
+-xzlinks = unxz xzcat lzma unlzma lzcat
++xzlinks = unxz xzcat
++
++if COND_LZMALINKS
++xzlinks += lzma unlzma lzcat
++endif
+ 
+ install-exec-hook:
+ 	cd $(DESTDIR)$(bindir) && \
+diff --git a/src/xzdec/Makefile.am b/src/xzdec/Makefile.am
+index c31a30a7..2348e4e6 100644
+--- a/src/xzdec/Makefile.am
++++ b/src/xzdec/Makefile.am
+@@ -12,8 +12,6 @@
+ 		$(xzdec_CPPFLAGS) $(CPPFLAGS) $(RCFLAGS) -i $< -o $@
+ 
+ 
+-bin_PROGRAMS = xzdec lzmadec
+-
+ xzdec_SOURCES = \
+ 	xzdec.c \
+ 	$(top_srcdir)/src/common/tuklib_progname.c \
+@@ -51,8 +49,17 @@ lzmadec_LDFLAGS = $(xzdec_LDFLAGS)
+ lzmadec_LDADD = $(xzdec_LDADD)
+ 
+ 
++bin_PROGRAMS =
++
++if COND_XZDEC
++bin_PROGRAMS += xzdec
+ dist_man_MANS = xzdec.1
++endif
+ 
++if COND_LZMADEC
++bin_PROGRAMS += lzmadec
++
++# FIXME: If xzdec is disabled, this will create a dangling symlink.
+ install-data-hook:
+ 	cd $(DESTDIR)$(mandir)/man1 && \
+ 	target=`echo xzdec | sed '$(transform)'` && \
+@@ -64,3 +71,4 @@ uninstall-hook:
+ 	cd $(DESTDIR)$(mandir)/man1 && \
+ 	link=`echo lzmadec | sed '$(transform)'` && \
+ 	rm -f $$link.1
++endif

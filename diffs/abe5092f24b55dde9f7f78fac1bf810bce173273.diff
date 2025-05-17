@@ -1,0 +1,296 @@
+diff --git a/po/ka.po b/po/ka.po
+index e4940119..2c2db24a 100644
+--- a/po/ka.po
++++ b/po/ka.po
+@@ -1,13 +1,15 @@
++# SPDX-License-Identifier: 0BSD
++#
+ # xz translation to Georgian.
+-# This file is put in the public domain.
+-# Temuri Doghonadze <temuri.doghonadze@gmail.com>, 2022-2024.
++# This file is published under the BSD Zero Clause License.
++# Temuri Doghonadze <temuri.doghonadze@gmail.com>, 2024.
+ #
+ msgid ""
+ msgstr ""
+-"Project-Id-Version: xz 5.7.1alpha\n"
++"Project-Id-Version: xz 5.7.1-dev1\n"
+ "Report-Msgid-Bugs-To: xz@tukaani.org\n"
+-"POT-Creation-Date: 2024-12-18 11:32+0200\n"
+-"PO-Revision-Date: 2024-10-23 14:53+0200\n"
++"POT-Creation-Date: 2025-01-23 12:05+0200\n"
++"PO-Revision-Date: 2025-01-25 03:12+0100\n"
+ "Last-Translator: Temuri Doghonadze <temuri.doghonadze@gmail.com>\n"
+ "Language-Team: Georgian <(nothing)>\n"
+ "Language: ka\n"
+@@ -54,7 +56,8 @@ msgstr "'--files' ან '--files0' -თან ერთად, მხოლო
+ #. TRANSLATORS: This is a translatable
+ #. string because French needs a space
+ #. before the colon ("%s : %s").
+-#: src/xz/args.c src/xz/coder.c src/xz/file_io.c src/xz/list.c
++#: src/xz/args.c src/xz/coder.c src/xz/file_io.c src/xz/list.c src/xz/options.c
++#: src/xz/util.c
+ #, c-format
+ msgid "%s: %s"
+ msgstr "%s: %s"
+@@ -221,6 +224,16 @@ msgstr "%s: ფაილის ჯგუფის დაყენების 
+ msgid "%s: Cannot set the file permissions: %s"
+ msgstr "%s: ფაილის წვდომების დაყენების შეცდომა: %s"
+ 
++#: src/xz/file_io.c
++#, c-format
++msgid "%s: Synchronizing the file failed: %s"
++msgstr "%s: ფაილის სინქრონიზაციის შეცდომა: %s"
++
++#: src/xz/file_io.c
++#, c-format
++msgid "%s: Synchronizing the directory of the file failed: %s"
++msgstr "%s: ფაილის საქაღალდის სინქრონიზაციის შეცდომა: %s"
++
+ #: src/xz/file_io.c
+ #, c-format
+ msgid "Error getting the file status flags from standard input: %s"
+@@ -270,6 +283,16 @@ msgstr "სტატუსის ალმების აღდგენის
+ msgid "Error getting the file status flags from standard output: %s"
+ msgstr "ფაილის სტატუსის ალმების მიღების შეცდომა სტანრარტული გამოტანიდან: %s"
+ 
++#: src/xz/file_io.c
++#, c-format
++msgid "%s: Opening the directory failed: %s"
++msgstr "%s: საქაღალდის გახსნის შეცდომა: %s"
++
++#: src/xz/file_io.c
++#, c-format
++msgid "%s: Destination is not a regular file"
++msgstr "%s: სამიზნე ჩვეულებრივი ფაილი არაა"
++
+ #: src/xz/file_io.c
+ #, c-format
+ msgid "Error restoring the O_APPEND flag to standard output: %s"
+@@ -532,10 +555,8 @@ msgid "No"
+ msgstr "არა"
+ 
+ #: src/xz/list.c
+-#, fuzzy
+-#| msgid "  Minimum XZ Utils version: %s\n"
+ msgid "Minimum XZ Utils version:"
+-msgstr "  XZ-ის პროგრამების მინიმალური ვერსია: %s\n"
++msgstr "მინიმალური XZ Utils ვერსია:"
+ 
+ #. TRANSLATORS: %s is an integer. Only the plural form of this
+ #. message is used (e.g. "2 files"). Test with "xz -l foo.xz bar.xz".
+@@ -653,7 +674,7 @@ msgstr "მეტი ინფორმაციისთვის სცად
+ #: src/xz/message.c
+ #, c-format
+ msgid "Error printing the help text (error code %d)"
+-msgstr "დახმარების ტექსტის დაბეჭდვის შეცდომა (შეცდომის კოდი %d)"
++msgstr "დახმარების ტექსტის გამოტანის შეცდომა (შეცდომის კოდია %d)"
+ 
+ #: src/xz/message.c
+ #, c-format
+@@ -715,6 +736,11 @@ msgstr "გამოტანის ფაილის თავზე გად
+ msgid "write to standard output and don't delete input files"
+ msgstr "სტანდარტულ გამოტანაზე ჩაწერა და შეყვანილი ფაილები არ წაიშლება"
+ 
++#. This is word wrapped at spaces. The Unicode character U+00A0 works as a non-breaking space. Tab (\t) is interpret as a zero-width space (the tab itself is not displayed); U+200B is NOT supported. Manual word wrapping with \n is supported but requires care.
++#: src/xz/message.c
++msgid "don't synchronize the output file to the storage device before removing the input file"
++msgstr "გამოტანის ფაილის საცავის მოწყობილობასთან სინქრონიზაცია შეყვანის ფაილის წაშლამდე არ მოხდება"
++
+ #. This is word wrapped at spaces. The Unicode character U+00A0 works as a non-breaking space. Tab (\t) is interpret as a zero-width space (the tab itself is not displayed); U+200B is NOT supported. Manual word wrapping with \n is supported but requires care.
+ #: src/xz/message.c
+ msgid "decompress only the first stream, and silently ignore possible remaining input data"
+@@ -790,7 +816,7 @@ msgstr "CPU-ის მეტი დატვირთვის ხარჯზ
+ #. wider than 5 columns makes --long-help a few lines longer.
+ #: src/xz/message.c
+ msgid "NUM"
+-msgstr "რიცხვი"
++msgstr "NUM"
+ 
+ #. This is word wrapped at spaces. The Unicode character U+00A0 works as a non-breaking space. Tab (\t) is interpret as a zero-width space (the tab itself is not displayed); U+200B is NOT supported. Manual word wrapping with \n is supported but requires care.
+ #: src/xz/message.c
+@@ -817,10 +843,8 @@ msgstr "დაიწყება ახალი .xz ბლოკი მით
+ 
+ #. This is word wrapped at spaces. The Unicode character U+00A0 works as a non-breaking space. Tab (\t) is interpret as a zero-width space (the tab itself is not displayed); U+200B is NOT supported. Manual word wrapping with \n is supported but requires care.
+ #: src/xz/message.c
+-#, fuzzy
+-#| msgid "when compressing, if more than TIMEOUT milliseconds has passed since the previous flush and reading more input would block, all pending data is flushed out"
+ msgid "when compressing, if more than NUM milliseconds has passed since the previous flush and reading more input would block, all pending data is flushed out"
+-msgstr "შეკუმშვისას, თუ გავა მოლოდინის დროზე მეტი მილიწამი მონაცემების ბუფერის გასუფთავებასა და მეტი ინფორმაციის წაკითხვის დაბლოკვის შემდეგ, ყველა დარჩენილი მონაცემი გასუფთავდება ბუფერიდან"
++msgstr "კომპრესიის დროს, თუ NUM მილიწამზე მეტი გავიდა მას შემდეგ, რაც წინა ფლეში და მეტი შეყვანის წაკითხვა დაბლოკავს, ყველა მომლოდინე მონაცემი ამოიწურა"
+ 
+ #: src/xz/message.c
+ msgid "LIMIT"
+@@ -839,10 +863,8 @@ msgstr "თუ შეკუმშვის პარამეტრი გად
+ 
+ #. This is word wrapped at spaces. The Unicode character U+00A0 works as a non-breaking space. Tab (\t) is interpret as a zero-width space (the tab itself is not displayed); U+200B is NOT supported. Manual word wrapping with \n is supported but requires care.
+ #: src/xz/message.c
+-#, fuzzy
+-#| msgid "Custom filter chain for compression (alternative for using presets):"
+ msgid "Custom filter chain for compression (an alternative to using presets):"
+-msgstr "მორგებული ფილტრის ჯაჭვი შეკუმშვისთვის (პრესეტების გამოყენების ალტერნატივა):"
++msgstr "მომხმარებლის ფილტრის ჯაჭვი შეკუმშვისთვის (პრესეტების გამოყენების ალტერნატივა):"
+ 
+ #: src/xz/message.c
+ msgid "FILTERS"
+@@ -860,15 +882,13 @@ msgstr "დამატებითი ფილტრის ჯაჭვებ
+ 
+ #. This is word wrapped at spaces. The Unicode character U+00A0 works as a non-breaking space. Tab (\t) is interpret as a zero-width space (the tab itself is not displayed); U+200B is NOT supported. Manual word wrapping with \n is supported but requires care.
+ #: src/xz/message.c
+-#, fuzzy
+-#| msgid "display more information about the liblzma filter string syntax and exit."
+ msgid "display more information about the liblzma filter string syntax and exit"
+-msgstr "მეტი ინფორმაციის გამოტანა liblzma ფილტრის სტრიქონის სინტაქის შესახებ და გასვლა."
++msgstr "მეტი ინფორმაციის გამოტანა liblzma ფილტრის სტრიქონის სინტაქის შესახებ და გასვლა"
+ 
+ #. TRANSLATORS: Short for OPTIONS.
+ #: src/xz/message.c
+ msgid "OPTS"
+-msgstr "OPTS"
++msgstr "პარამ-ები"
+ 
+ #. TRANSLATORS: Use semicolon (or its fullwidth form)
+ #. in "(valid values; default)" even if it is weird in
+@@ -885,7 +905,7 @@ msgstr "LZMA1 ან LZMA2. OPTS მძიმით გამოყოფილ
+ #. one line longer.
+ #: src/xz/message.c
+ msgid "PRE"
+-msgstr "PRE"
++msgstr "პრე"
+ 
+ #. This is word wrapped at spaces. The Unicode character U+00A0 works as a non-breaking space. Tab (\t) is interpret as a zero-width space (the tab itself is not displayed); U+200B is NOT supported. Manual word wrapping with \n is supported but requires care.
+ #: src/xz/message.c
+@@ -904,17 +924,17 @@ msgstr "ლექსიკონის ზომა"
+ #. This is word wrapped at spaces. The Unicode character U+00A0 works as a non-breaking space. Tab (\t) is interpret as a zero-width space (the tab itself is not displayed); U+200B is NOT supported. Manual word wrapping with \n is supported but requires care.
+ #: src/xz/message.c
+ msgid "number of literal context bits"
+-msgstr ""
++msgstr "ლიტერალის კონტექსტის ბიტების რაოდენობა"
+ 
+ #. This is word wrapped at spaces. The Unicode character U+00A0 works as a non-breaking space. Tab (\t) is interpret as a zero-width space (the tab itself is not displayed); U+200B is NOT supported. Manual word wrapping with \n is supported but requires care.
+ #: src/xz/message.c
+ msgid "number of literal position bits"
+-msgstr ""
++msgstr "ლიტერალის მდებარეობის ბიტების რაოდენობა"
+ 
+ #. This is word wrapped at spaces. The Unicode character U+00A0 works as a non-breaking space. Tab (\t) is interpret as a zero-width space (the tab itself is not displayed); U+200B is NOT supported. Manual word wrapping with \n is supported but requires care.
+ #: src/xz/message.c
+ msgid "number of position bits"
+-msgstr "პოზიციის ბიტების რაოდენობა"
++msgstr "მდებარეობის ბიტების რაოდენობა"
+ 
+ #: src/xz/message.c
+ msgid "MODE"
+@@ -1094,27 +1114,25 @@ msgstr "ფილტრის ჯაჭვების დაყენება
+ msgid "The supported filters and their options are:"
+ msgstr "მხარდაჭერელი ფილტრები და მათ პარამეტრებია:"
+ 
+-#: src/xz/options.c
+-#, c-format
+-msgid "%s: Options must be 'name=value' pairs separated with commas"
+-msgstr "%s: პარამეტრები უნდა წარმოადგენდეს \"სახელი=მნიშვნელობა\" ტიპის წყვილებს, მძიმეებით გამოყოფილს"
++#: src/xz/options.c src/liblzma/common/string_conversion.c
++msgid "Options must be 'name=value' pairs separated with commas"
++msgstr "პარამეტრები უნდა წარმოადგენდეს \"სახელი=მნიშვნელობა\" ტიპის წყვილებს, მძიმეებით გამოყოფილს"
+ 
+ #: src/xz/options.c
+ #, c-format
+ msgid "%s: Invalid option name"
+ msgstr "%s: არასწორი პარამეტრის სახელი"
+ 
+-#: src/xz/options.c
+-#, c-format
+-msgid "%s: Invalid option value"
+-msgstr "%s: არასწორი პარამეტრის მნიშვნელობა"
++#: src/xz/options.c src/liblzma/common/string_conversion.c
++msgid "Invalid option value"
++msgstr "არასწორი პარამეტრის მნიშვნელობა"
+ 
+ #: src/xz/options.c
+ #, c-format
+ msgid "Unsupported LZMA1/LZMA2 preset: %s"
+ msgstr "მხარდაუჭერელი LZMA1/LZMA2 პრესეტი: %s"
+ 
+-#: src/xz/options.c
++#: src/xz/options.c src/liblzma/common/string_conversion.c
+ msgid "The sum of lc and lp must not exceed 4"
+ msgstr "\"lc\" და \"lp\"-ის ჯამი 4-ზე მეტი არ უნდა იყო"
+ 
+@@ -1133,10 +1151,9 @@ msgstr "%s: ფაილს სუფიქსი `%s' უკვე გააჩ
+ msgid "%s: Invalid filename suffix"
+ msgstr "%s: ფაილის სახელის არასწორი სუფიქსი"
+ 
+-#: src/xz/util.c
+-#, c-format
+-msgid "%s: Value is not a non-negative decimal integer"
+-msgstr "%s: მნიშვნელობა არა-უარყოფით მთელ რიცხვს არ წარმოადგენს"
++#: src/xz/util.c src/liblzma/common/string_conversion.c
++msgid "Value is not a non-negative decimal integer"
++msgstr "მნიშვნელობა არაუარყოფით მთელ რიცხვს არ წარმოადგენს"
+ 
+ #: src/xz/util.c
+ #, c-format
+@@ -1184,3 +1201,63 @@ msgstr "სტანდარტული გამოტანაში ჩა
+ #: src/common/tuklib_exit.c
+ msgid "Unknown error"
+ msgstr "უცნობი შეცდომა"
++
++#: src/liblzma/common/string_conversion.c
++msgid "Unsupported preset"
++msgstr "მხარდაუჭერელი პრესეტი"
++
++#: src/liblzma/common/string_conversion.c
++msgid "Unsupported flag in the preset"
++msgstr "მხარდაუჭერელი ალამი პრესეტში"
++
++#: src/liblzma/common/string_conversion.c
++msgid "Unknown option name"
++msgstr "უცნობი პარამეტრის სახელი"
++
++#: src/liblzma/common/string_conversion.c
++msgid "Option value cannot be empty"
++msgstr "პარამეტრი ცარიელი ვერ იქნება"
++
++#: src/liblzma/common/string_conversion.c
++msgid "Value out of range"
++msgstr "მნიშვნელობა დიაპაზონს გარეთაა"
++
++#: src/liblzma/common/string_conversion.c
++msgid "This option does not support any multiplier suffixes"
++msgstr "ამ პარამეტრს გამამრავლებელი სუფიქსების მხარდაჭერა არ გააჩნია"
++
++#. TRANSLATORS: Don't translate the
++#. suffixes "KiB", "MiB", or "GiB"
++#. because a user can only specify
++#. untranslated suffixes.
++#: src/liblzma/common/string_conversion.c
++msgid "Invalid multiplier suffix (KiB, MiB, or GiB)"
++msgstr "არასწორი მულტიპლიკატორის სუფიქსი (KiB, MiB ან GiB)"
++
++#: src/liblzma/common/string_conversion.c
++msgid "Unknown filter name"
++msgstr "ფილტრის უცნობი სახელი"
++
++#: src/liblzma/common/string_conversion.c
++msgid "This filter cannot be used in the .xz format"
++msgstr "ამ ფილტრს .xz ფორმატში ვერ გამოიყენებთ"
++
++#: src/liblzma/common/string_conversion.c
++msgid "Memory allocation failed"
++msgstr "მეხსიერების გამოყოფის შეცდომა"
++
++#: src/liblzma/common/string_conversion.c
++msgid "Empty string is not allowed, try '6' if a default value is needed"
++msgstr "ცარიელი სტრიქონი დაუშვებელია. სცადეთ '6', თუ ნაგულისხმევი მნიშვნელობა გჭირდებათ"
++
++#: src/liblzma/common/string_conversion.c
++msgid "The maximum number of filters is four"
++msgstr "ფილტრების მაქსიმალური რაოდენობა ოთხის ტოლია"
++
++#: src/liblzma/common/string_conversion.c
++msgid "Filter name is missing"
++msgstr "ფილტრის სახელი მითითებული არაა"
++
++#: src/liblzma/common/string_conversion.c
++msgid "Invalid filter chain ('lzma2' missing at the end?)"
++msgstr "არასწორი ფილტრის ჯაჭვი (ბოლოში აკლია 'lzma2'?)"

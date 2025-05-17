@@ -1,0 +1,71 @@
+diff --git a/AUTHORS b/AUTHORS
+index 5012d0e0..5eff238a 100644
+--- a/AUTHORS
++++ b/AUTHORS
+@@ -2,8 +2,8 @@
+ Authors of XZ Utils
+ ===================
+ 
+-    XZ Utils is developed and maintained by Lasse Collin
+-    <lasse.collin@tukaani.org> and Jia Tan <jiat0218@gmail.com>.
++    XZ Utils is developed and maintained by
++    Lasse Collin <lasse.collin@tukaani.org>.
+ 
+     Major parts of liblzma are based on code written by Igor Pavlov,
+     specifically the LZMA SDK <https://7-zip.org/sdk.html>. Without
+@@ -30,6 +30,11 @@ Authors of XZ Utils
+       - Jonathan Nieder
+       - Joachim Henke
+ 
++    Special author: Jia Tan was a co-maintainer in 2022-2024. He and
++    the team behind him inserted a backdoor (CVE-2024-3094) into
++    XZ Utils 5.6.0 and 5.6.1 releases. He suddenly disappeared when
++    this was discovered.
++
+     Many people have contributed improvements or reported bugs.
+     Most of these people are mentioned in the file THANKS.
+ 
+diff --git a/README b/README
+index def70d08..0f848e55 100644
+--- a/README
++++ b/README
+@@ -300,11 +300,7 @@ XZ Utils
+ 6. Contact information
+ ----------------------
+ 
+-    If you have questions, bug reports, patches etc. related to XZ Utils,
+-    the project maintainers Lasse Collin and Jia Tan can be reached via
+-    <xz@tukaani.org>.
+-
+-    You might find Lasse also from #tukaani on Libera Chat (IRC).
+-    The nick is Larhzu. The channel tends to be pretty quiet,
+-    so just ask your question and someone might wake up.
++    Email: Lasse Collin <lasse.collin@tukaani.org>
++    IRC: Larhzu on #tukaani on Libera Chat
++    GitHub: https://github.com/tukaani-project/xz
+ 
+diff --git a/THANKS b/THANKS
+index f1a2f264..7d2d4fe8 100644
+--- a/THANKS
++++ b/THANKS
+@@ -152,7 +152,6 @@ has been important. :-) In alphabetical order:
+   - Martin Storsjö
+   - Jonathan Stott
+   - Dan Stromberg
+-  - Jia Tan
+   - Vincent Torri
+   - Alexey Tourbin
+   - Paul Townsend
+diff --git a/src/liblzma/api/lzma.h b/src/liblzma/api/lzma.h
+index 1bdea878..6ca6e503 100644
+--- a/src/liblzma/api/lzma.h
++++ b/src/liblzma/api/lzma.h
+@@ -12,7 +12,7 @@
+  *
+  * liblzma is part of XZ Utils <https://tukaani.org/xz/>. XZ Utils
+  * includes a gzip-like command line tool named xz and some other tools.
+- * XZ Utils is developed and maintained by Lasse Collin and Jia Tan.
++ * XZ Utils is developed and maintained by Lasse Collin.
+  *
+  * Major parts of liblzma are based on code written by Igor Pavlov,
+  * specifically the LZMA SDK <https://7-zip.org/sdk.html>.

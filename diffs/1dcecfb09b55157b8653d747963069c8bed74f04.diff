@@ -1,0 +1,2215 @@
+diff --git a/configure.ac b/configure.ac
+index 88aca89a..fbe023a3 100644
+--- a/configure.ac
++++ b/configure.ac
+@@ -102,9 +102,9 @@ AM_CONDITIONAL(COND_MAIN_DECODER, test "x$enable_decoder" = xyes)
+ # Filters #
+ ###########
+ 
+-m4_define([SUPPORTED_FILTERS], [lzma,lzma2,subblock,delta,x86,powerpc,ia64,arm,armthumb,sparc])dnl
++m4_define([SUPPORTED_FILTERS], [lzma1,lzma2,subblock,delta,x86,powerpc,ia64,arm,armthumb,sparc])dnl
+ m4_define([SIMPLE_FILTERS], [x86,powerpc,ia64,arm,armthumb,sparc])
+-m4_define([LZ_FILTERS], [lzma,lzma2])
++m4_define([LZ_FILTERS], [lzma1,lzma2])
+ 
+ m4_foreach([NAME], [SUPPORTED_FILTERS],
+ [enable_filter_[]NAME=no
+@@ -165,16 +165,16 @@ else
+ 		esac
+ 	done
+ 
+-	# LZMA2 requires that LZMA is enabled.
+-	test "x$enable_encoder_lzma2" = xyes && enable_encoder_lzma=yes
+-	test "x$enable_decoder_lzma2" = xyes && enable_decoder_lzma=yes
++	# LZMA2 requires that LZMA1 is enabled.
++	test "x$enable_encoder_lzma2" = xyes && enable_encoder_lzma1=yes
++	test "x$enable_decoder_lzma2" = xyes && enable_decoder_lzma1=yes
+ 
+ 	AC_MSG_RESULT([$enable_decoders])
+ fi
+ 
+-if test "x$enable_encoder_lzma2$enable_encoder_lzma" = xyesno \
+-		|| test "x$enable_decoder_lzma2$enable_decoder_lzma" = xyesno; then
+-	AC_MSG_ERROR([LZMA2 requires that LZMA is also enabled.])
++if test "x$enable_encoder_lzma2$enable_encoder_lzma1" = xyesno \
++		|| test "x$enable_decoder_lzma2$enable_decoder_lzma1" = xyesno; then
++	AC_MSG_ERROR([LZMA2 requires that LZMA1 is also enabled.])
+ fi
+ 
+ m4_foreach([NAME], [SUPPORTED_FILTERS],
+@@ -224,7 +224,7 @@ AC_MSG_CHECKING([which match finders to build])
+ AC_ARG_ENABLE(match-finders, AC_HELP_STRING([--enable-match-finders=LIST],
+ 		[Comma-separated list of match finders to build. Default=all.
+ 		At least one match finder is required for encoding with
+-		the LZMA filter. Available match finders:]
++		the LZMA1 and LZMA2 filters. Available match finders:]
+ 		m4_translit(m4_defn([SUPPORTED_MATCH_FINDERS]), [,], [ ])), [],
+ 	[enable_match_finders=SUPPORTED_MATCH_FINDERS])
+ enable_match_finders=`echo "$enable_match_finders" | sed 's/,/ /g'`
+diff --git a/debug/full_flush.c b/debug/full_flush.c
+index 50725360..3c914549 100644
+--- a/debug/full_flush.c
++++ b/debug/full_flush.c
+@@ -74,9 +74,14 @@ main(int argc, char **argv)
+ 
+ 
+ 	// Config
++	lzma_options_lzma opt_lzma;
++	if (lzma_lzma_preset(&opt_lzma, 0)) {
++		fprintf(stderr, "preset failed\n");
++		exit(1);
++	}
+ 	lzma_filter filters[LZMA_BLOCK_FILTERS_MAX + 1];
+ 	filters[0].id = LZMA_FILTER_LZMA2;
+-	filters[0].options = (void *)&lzma_preset_lzma[0];
++	filters[0].options = &opt_lzma;
+ 	filters[1].id = LZMA_VLI_UNKNOWN;
+ 
+ 	// Init
+diff --git a/debug/known_sizes.c b/debug/known_sizes.c
+index beb05fde..ef7472de 100644
+--- a/debug/known_sizes.c
++++ b/debug/known_sizes.c
+@@ -47,10 +47,14 @@ main(void)
+ 	const size_t in_size = fread(in, 1, BUFFER_SIZE, stdin);
+ 
+ 	// Filter setup
++	lzma_options_lzma opt_lzma;
++	if (lzma_lzma_preset(&opt_lzma, 0))
++		return 1;
++	
+ 	lzma_filter filters[] = {
+ 		{
+ 			.id = LZMA_FILTER_LZMA2,
+-			.options = (void *)(&lzma_preset_lzma[0])
++			.options = &opt_lzma
+ 		},
+ 		{
+ 			.id = LZMA_VLI_UNKNOWN
+diff --git a/debug/memusage.c b/debug/memusage.c
+index eaf81f95..2dbb39e0 100644
+--- a/debug/memusage.c
++++ b/debug/memusage.c
+@@ -26,27 +26,27 @@ main(void)
+ 	lzma_init();
+ 
+ 	lzma_options_lzma lzma = {
+-		.dictionary_size = (1 << 27) + (1 << 26),
+-		.literal_context_bits = 3,
+-		.literal_pos_bits = 0,
+-		.pos_bits = 2,
+-		.preset_dictionary = NULL,
+-		.preset_dictionary_size = 0,
++		.dict_size = (1U << 27) + (1U << 26),
++		.lc = 3,
++		.lp = 0,
++		.pb = 2,
++		.preset_dict = NULL,
++		.preset_dict_size = 0,
+ 		.mode = LZMA_MODE_NORMAL,
+-		.fast_bytes = 48,
+-		.match_finder = LZMA_MF_BT4,
+-		.match_finder_cycles = 0,
++		.nice_len = 48,
++		.mf = LZMA_MF_BT4,
++		.depth = 0,
+ 	};
+ 
+ /*
+ 	lzma_options_filter filters[] = {
+-		{ LZMA_FILTER_LZMA,
++		{ LZMA_FILTER_LZMA1,
+ 			(lzma_options_lzma *)&lzma_preset_lzma[6 - 1] },
+ 		{ UINT64_MAX, NULL }
+ 	};
+ */
+ 	lzma_filter filters[] = {
+-		{ LZMA_FILTER_LZMA, &lzma },
++		{ LZMA_FILTER_LZMA1, &lzma },
+ 		{ UINT64_MAX, NULL }
+ 	};
+ 
+diff --git a/debug/sync_flush.c b/debug/sync_flush.c
+index 9e140fb6..a161ca31 100644
+--- a/debug/sync_flush.c
++++ b/debug/sync_flush.c
+@@ -74,16 +74,16 @@ main(int argc, char **argv)
+ 
+ 	// Config
+ 	lzma_options_lzma opt_lzma = {
+-		.dictionary_size = 1 << 16,
+-		.literal_context_bits = LZMA_LITERAL_CONTEXT_BITS_DEFAULT,
+-		.literal_pos_bits = LZMA_LITERAL_POS_BITS_DEFAULT,
+-		.pos_bits = LZMA_POS_BITS_DEFAULT,
+-		.preset_dictionary = NULL,
++		.dict_size = 1U << 16,
++		.lc = LZMA_LC_DEFAULT,
++		.lp = LZMA_LP_DEFAULT,
++		.pb = LZMA_PB_DEFAULT,
++		.preset_dict = NULL,
+ 		.persistent = true,
+ 		.mode = LZMA_MODE_NORMAL,
+-		.fast_bytes = 32,
+-		.match_finder = LZMA_MF_HC3,
+-		.match_finder_cycles = 0,
++		.nice_len = 32,
++		.mf = LZMA_MF_HC3,
++		.depth = 0,
+ 	};
+ 
+ 	lzma_options_delta opt_delta = {
+@@ -97,7 +97,7 @@ main(int argc, char **argv)
+ 		.rle = 1, // LZMA_SUBBLOCK_RLE_OFF,
+ 		.subfilter_mode = LZMA_SUBFILTER_SET,
+ 	};
+-	opt_subblock.subfilter_options.id = LZMA_FILTER_LZMA;
++	opt_subblock.subfilter_options.id = LZMA_FILTER_LZMA1;
+ 	opt_subblock.subfilter_options.options = &opt_lzma;
+ 	opt_subblock.subfilter_options.id = LZMA_FILTER_DELTA;
+ 	opt_subblock.subfilter_options.options = &opt_delta;
+diff --git a/src/liblzma/Makefile.am b/src/liblzma/Makefile.am
+index a234bfd5..46a80835 100644
+--- a/src/liblzma/Makefile.am
++++ b/src/liblzma/Makefile.am
+@@ -27,7 +27,7 @@ SUBDIRS += lz
+ liblzma_la_LIBADD += lz/liblz.la
+ endif
+ 
+-if COND_FILTER_LZMA
++if COND_FILTER_LZMA1
+ SUBDIRS += lzma rangecoder
+ liblzma_la_LIBADD += \
+ 	lzma/liblzma2.la \
+diff --git a/src/liblzma/api/lzma/delta.h b/src/liblzma/api/lzma/delta.h
+index 740de97c..bdb5b926 100644
+--- a/src/liblzma/api/lzma/delta.h
++++ b/src/liblzma/api/lzma/delta.h
+@@ -60,9 +60,9 @@ typedef struct {
+ 	 *  - 16-bit stereo audio: distance = 4 bytes
+ 	 *  - 24-bit RGB image data: distance = 3 bytes
+ 	 */
+-	uint32_t distance;
+-#	define LZMA_DELTA_DISTANCE_MIN 1
+-#	define LZMA_DELTA_DISTANCE_MAX 256
++	uint32_t dist;
++#	define LZMA_DELTA_DIST_MIN 1
++#	define LZMA_DELTA_DIST_MAX 256
+ 
+ 	/**
+ 	 * \brief       Reserved space for possible future extensions
+@@ -73,6 +73,8 @@ typedef struct {
+ 	 */
+ 	uint32_t reserved_int1;
+ 	uint32_t reserved_int2;
++	uint32_t reserved_int3;
++	uint32_t reserved_int4;
+ 	void *reserved_ptr1;
+ 	void *reserved_ptr2;
+ 
+diff --git a/src/liblzma/api/lzma/lzma.h b/src/liblzma/api/lzma/lzma.h
+index c4d5dbfa..094667eb 100644
+--- a/src/liblzma/api/lzma/lzma.h
++++ b/src/liblzma/api/lzma/lzma.h
+@@ -1,6 +1,6 @@
+ /**
+  * \file        lzma/lzma.h
+- * \brief       LZMA filter
++ * \brief       LZMA1 and LZMA2 filters
+  *
+  * \author      Copyright (C) 1999-2006 Igor Pavlov
+  * \author      Copyright (C) 2007 Lasse Collin
+@@ -22,12 +22,22 @@
+ 
+ 
+ /**
+- * \brief       Filter ID
++ * \brief       LZMA1 Filter ID
+  *
+- * Filter ID of the LZMA filter. This is used as lzma_filter.id.
++ * LZMA1 is the very same thing as what was called just LZMA in earlier
++ * LZMA Utils, 7-Zip, and LZMA SDK. It's called LZMA1 here to prevent
++ * developers from accidentally using LZMA when they actually want LZMA2.
+  */
+-#define LZMA_FILTER_LZMA        LZMA_VLI_C(0x20)
++#define LZMA_FILTER_LZMA1       LZMA_VLI_C(0x4000000000000001)
+ 
++/**
++ * \brief       LZMA2 Filter ID
++ *
++ * Usually you want this instead of LZMA1. Compared to LZMA1, LZMA2 adds
++ * support for LZMA_SYNC_FLUSH, uncompressed chunks (expands uncompressible
++ * data less), possibility to change lc/lp/pb in the middle of encoding, and
++ * some other internal improvements.
++ */
+ #define LZMA_FILTER_LZMA2       LZMA_VLI_C(0x21)
+ 
+ 
+@@ -36,55 +46,60 @@
+  *
+  * Match finder has major effect on both speed and compression ratio.
+  * Usually hash chains are faster than binary trees.
++ *
++ * The memory usage formulas are only rough estimates, which are closest to
++ * reality when dict_size is a power of two. The formulas are  more complex
++ * in reality, and can also change a little between liblzma versions. Use
++ * lzma_memusage_encoder() to get more accurate estimate of memory usage.
+  */
+ typedef enum {
+ 	LZMA_MF_HC3     = 0x03,
+ 		/**<
+-		 * \brief       Hash Chain with 3 bytes hashing
++		 * \brief       Hash Chain with 2- and 3-byte hashing
+ 		 *
+-		 * \todo Memory requirements
++		 * Minimum nice_len: 3
+ 		 *
+-		 * \note        It's possible that this match finder gets
+-		 *              removed in future. The definition will stay
+-		 *              in this header, but liblzma may return
+-		 *              LZMA_OPTIONS_ERROR if it is specified (just
+-		 *              like it would if the match finder had been
+-		 *              disabled at compile time).
++		 * Memory usage:
++		 *  - dict_size <= 16 MiB: dict_size * 7.5
++		 *  - dict_size > 16 MiB: dict_size * 5.5 + 64 MiB
+ 		 */
+ 
+ 	LZMA_MF_HC4     = 0x04,
+ 		/**<
+-		 * \brief       Hash Chain with 4 bytes hashing
++		 * \brief       Hash Chain with 2-, 3-, and 4-byte hashing
+ 		 *
+-		 * Memory requirements: 7.5 * dictionary_size + 4 MiB
++		 * Minimum nice_len: 4
+ 		 *
+-		 * \note        It's possible that this match finder gets
+-		 *              removed in future. The definition will stay
+-		 *              in this header, but liblzma may return
+-		 *              LZMA_OPTIONS_ERROR if it is specified (just
+-		 *              like it would if the match finder had been
+-		 *              disabled at compile time).
++		 * Memory usage: dict_size * 7.5
+ 		 */
+ 
+ 	LZMA_MF_BT2     = 0x12,
+ 		/**<
+-		 * \brief       Binary Tree with 2 bytes hashing
++		 * \brief       Binary Tree with 2-byte hashing
++		 *
++		 * Minimum nice_len: 2
+ 		 *
+-		 * Memory requirements: 9.5 * dictionary_size + 4 MiB
++		 * Memory usage: dict_size * 9.5
+ 		 */
+ 
+ 	LZMA_MF_BT3     = 0x13,
+ 		/**<
+-		 * \brief       Binary Tree with 3 bytes hashing
++		 * \brief       Binary Tree with 2- and 3-byte hashing
++		 *
++		 * Minimum nice_len: 3
+ 		 *
+-		 * Memory requirements: 11.5 * dictionary_size + 4 MiB
++		 * Memory usage:
++		 *  - dict_size <= 16 MiB: dict_size * 11.5
++		 *  - dict_size > 16 MiB: dict_size * 9.5 + 64 MiB
+ 		 */
+ 
+ 	LZMA_MF_BT4     = 0x14
+ 		/**<
+-		 * \brief       Binary Tree with 4 bytes hashing
++		 * \brief       Binary Tree with 2-, 3-, and 4-byte hashing
+ 		 *
+-		 * Memory requirements: 11.5 * dictionary_size + 4 MiB
++		 * Minimum nice_len: 4
++		 *
++		 * Memory usage: dict_size * 11.5
+ 		 */
+ } lzma_match_finder;
+ 
+@@ -114,7 +129,7 @@ extern lzma_bool lzma_mf_is_supported(lzma_match_finder match_finder)
+  * finder.
+  */
+ typedef enum {
+-	LZMA_MODE_FAST = 0,
++	LZMA_MODE_FAST = 1,
+ 		/**<
+ 		 * \brief       Fast compression
+ 		 *
+@@ -122,7 +137,7 @@ typedef enum {
+ 		 * a hash chain match finder.
+ 		 */
+ 
+-	LZMA_MODE_NORMAL = 1
++	LZMA_MODE_NORMAL = 2
+ 		/**<
+ 		 * \brief       Normal compression
+ 		 *
+@@ -149,7 +164,7 @@ extern lzma_bool lzma_mode_is_available(lzma_mode mode) lzma_attr_const;
+ 
+ 
+ /**
+- * \brief       Options specific to the LZMA method handler
++ * \brief       Options specific to the LZMA1 and LZMA2 filters
+  */
+ typedef struct {
+ 	/**********************************
+@@ -167,14 +182,30 @@ typedef struct {
+ 	 * indicate what data to repeat from the dictionary buffer. Thus,
+ 	 * the bigger the dictionary, the better compression ratio usually is.
+ 	 *
+-	 * Raw decoding: Too big dictionary does no other harm than
+-	 * wasting memory. This value is ignored by lzma_raw_decode_buffer(),
+-	 * because it uses the target buffer as the dictionary.
++	 * Maximum size of the dictionary depends on multiple things:
++	 *  - Memory usage limit
++	 *  - Available address space (not a problem on 64-bit systems)
++	 *  - Selected match finder (encoder only)
++	 *
++	 * Currently the maximum dictionary size for encoding is 1.5 GiB
++	 * (i.e. (UINT32_C(1) << 30) + (UINT32_C(1) << 29)) even on 64-bit
++	 * systems for certain match finder implementation reasons. In future,
++	 * there may be match finders that support bigger dictionaries (3 GiB
++	 * will probably be the maximum).
++	 *
++	 * Decoder already supports dictionaries up to 4 GiB - 1 B (i.e.
++	 * UINT32_MAX), so increasing the maximum dictionary size of the
++	 * encoder won't cause problems for old decoders.
++	 *
++	 * Because extremely small dictionaries sizes would have unneeded
++	 * overhead in the decoder, the minimum dictionary size is 4096 bytes.
++	 *
++	 * \note        When decoding, too big dictionary does no other harm
++	 *              than wasting memory.
+ 	 */
+-	uint32_t dictionary_size;
+-#	define LZMA_DICTIONARY_SIZE_MIN            (UINT32_C(1) << 12)
+-#	define LZMA_DICTIONARY_SIZE_MAX            (UINT32_C(1) << 30)
+-#	define LZMA_DICTIONARY_SIZE_DEFAULT        (UINT32_C(1) << 23)
++	uint32_t dict_size;
++#	define LZMA_DICT_SIZE_MIN       UINT32_C(4096)
++#	define LZMA_DICT_SIZE_DEFAULT   (UINT32_C(1) << 23)
+ 
+ 	/**
+ 	 * \brief       Pointer to an initial dictionary
+@@ -201,18 +232,17 @@ typedef struct {
+ 	 *
+ 	 * \todo        This feature is not implemented yet.
+ 	 */
+-	const uint8_t *preset_dictionary;
++	const uint8_t *preset_dict;
+ 
+ 	/**
+ 	 * \brief       Size of the preset dictionary
+ 	 *
+ 	 * Specifies the size of the preset dictionary. If the size is
+-	 * bigger than dictionary_size, only the last dictionary_size
+-	 * bytes are processed.
++	 * bigger than dict_size, only the last dict_size bytes are processed.
+ 	 *
+-	 * This variable is read only when preset_dictionary is not NULL.
++	 * This variable is read only when preset_dict is not NULL.
+ 	 */
+-	uint32_t preset_dictionary_size;
++	uint32_t preset_dict_size;
+ 
+ 	/**
+ 	 * \brief       Number of literal context bits
+@@ -222,11 +252,21 @@ typedef struct {
+ 	 * account when predicting the bits of the next literal.
+ 	 *
+ 	 * \todo        Example
++	 *
++	 * There is a limit that applies to literal context bits and literal
++	 * position bits together: lc + lp <= 4. Without this limit the
++	 * decoding could become very slow, which could have security related
++	 * results in some cases like email servers doing virus scanning.
++	 * This limit also simplifies the internal implementation in liblzma.
++	 *
++	 * There may be LZMA streams that have lc + lp > 4 (maximum lc
++	 * possible would be 8). It is not possible to decode such streams
++	 * with liblzma.
+ 	 */
+-	uint32_t literal_context_bits;
+-#	define LZMA_LITERAL_CONTEXT_BITS_MIN       0
+-#	define LZMA_LITERAL_CONTEXT_BITS_MAX       4
+-#	define LZMA_LITERAL_CONTEXT_BITS_DEFAULT   3
++	uint32_t lc;
++#	define LZMA_LCLP_MIN    0
++#	define LZMA_LCLP_MAX    4
++#	define LZMA_LC_DEFAULT  3
+ 
+ 	/**
+ 	 * \brief       Number of literal position bits
+@@ -238,10 +278,8 @@ typedef struct {
+ 	 *
+ 	 * \todo        Example
+ 	 */
+-	uint32_t literal_pos_bits;
+-#	define LZMA_LITERAL_POS_BITS_MIN           0
+-#	define LZMA_LITERAL_POS_BITS_MAX           4
+-#	define LZMA_LITERAL_POS_BITS_DEFAULT       0
++	uint32_t lp;
++#	define LZMA_LP_DEFAULT  0
+ 
+ 	/**
+ 	 * \brief       Number of position bits
+@@ -252,14 +290,13 @@ typedef struct {
+ 	 * which a matching sequence is found from the dictionary and
+ 	 * thus can be stored as distance-length pair.
+ 	 *
+-	 * Example: If most of the matches occur at byte positions
+-	 * of 8 * n + 3, that is, 3, 11, 19, ... set pos_bits to 3,
+-	 * because 2**3 == 8.
++	 * Example: If most of the matches occur at byte positions of
++	 * 8 * n + 3, that is, 3, 11, 19, ... set pb to 3, because 2**3 == 8.
+ 	 */
+-	uint32_t pos_bits;
+-#	define LZMA_POS_BITS_MIN                   0
+-#	define LZMA_POS_BITS_MAX                   4
+-#	define LZMA_POS_BITS_DEFAULT               2
++	uint32_t pb;
++#	define LZMA_PB_MIN      0
++#	define LZMA_PB_MAX      4
++#	define LZMA_PB_DEFAULT  2
+ 
+ 	/******************************************
+ 	 * LZMA options needed only when encoding *
+@@ -274,7 +311,7 @@ typedef struct {
+ 	 * in the middle of the encoding process without resetting the encoder.
+ 	 *
+ 	 * This option is used only by LZMA2. LZMA1 ignores this and it is
+-	 * safeto not initialize this when encoding with LZMA1.
++	 * safe to not initialize this when encoding with LZMA1.
+ 	 */
+ 	lzma_bool persistent;
+ 
+@@ -282,31 +319,56 @@ typedef struct {
+ 	lzma_mode mode;
+ 
+ 	/**
+-	 * \brief       Number of fast bytes
++	 * \brief       Nice length of a match
++	 *
++	 * This determines how many bytes the encoder compares from the match
++	 * candidates when looking for the best match. Once a match of at
++	 * least nice_len bytes long is found, the encoder stops looking for
++	 * better condidates and encodes the match. (Naturally, if the found
++	 * match is actually longer than nice_len, the actual length is
++	 * encoded; it's not truncated to nice_len.)
+ 	 *
+-	 * Number of fast bytes determines how many bytes the encoder
+-	 * compares from the match candidates when looking for the best
+-	 * match. Bigger fast bytes value usually increase both compression
+-	 * ratio and time.
++	 * Bigger values usually increase the compression ratio and
++	 * compression time. For most files, 30 to 100 is a good value,
++	 * which gives very good compression ratio at good speed.
++	 *
++	 * The exact minimum value depends on the match finder. The maximum is
++	 * 273, which is the maximum length of a match that LZMA can encode.
+ 	 */
+-	uint32_t fast_bytes;
+-#	define LZMA_FAST_BYTES_MIN                 5
+-#	define LZMA_FAST_BYTES_MAX                 273
+-#	define LZMA_FAST_BYTES_DEFAULT             128
++	uint32_t nice_len;
+ 
+ 	/** Match finder ID */
+-	lzma_match_finder match_finder;
++	lzma_match_finder mf;
+ 
+ 	/**
+-	 * \brief       Match finder cycles
++	 * \brief       Maximum search depth in the match finder
++	 *
++	 * For every input byte, match finder searches through the hash chain
++	 * or binary tree in a loop, each iteration going one step deeper in
++	 * the chain or tree. The searching stops if
++	 *  - a match of at least nice_len bytes long is found;
++	 *  - all match candidates from the hash chain or binary tree have
++	 *    been checked; or
++	 *  - maximum search depth is reached.
++	 *
++	 * Maximum search depth is needed to prevent the match finder from
++	 * wasting too much time in case there are lots of short match
++	 * candidates. On the other hand, stopping the search before all
++	 * candidates have been checked can reduce compression ratio.
+ 	 *
+-	 * Higher values give slightly better compression ratio but
+-	 * decrease speed. Use special value 0 to let liblzma use
+-	 * match-finder-dependent default value.
++	 * Setting depth to zero tells liblzma to use an automatic default
++	 * value, that depends on the selected match finder and nice_len.
++	 * The default is in the range [10, 200] or so (it may vary between
++	 * liblzma versions).
+ 	 *
+-	 * \todo        Write much better description.
++	 * Using a bigger depth value than the default can increase
++	 * compression ratio in some cases. There is no strict maximum value,
++	 * but high values (thousands or millions) should be used with care:
++	 * the encoder could remain fast enough with typical input, but
++	 * malicious input could cause the match finder to slow down
++	 * dramatically, possibly creating a denial of service attack.
+ 	 */
+-	uint32_t match_finder_cycles;
++	uint32_t depth;
+ 
+ 	/**
+ 	 * \brief       Reserved space for possible future extensions
+@@ -319,6 +381,10 @@ typedef struct {
+ 	uint32_t reserved_int2;
+ 	uint32_t reserved_int3;
+ 	uint32_t reserved_int4;
++	uint32_t reserved_int5;
++	uint32_t reserved_int6;
++	uint32_t reserved_int7;
++	uint32_t reserved_int8;
+ 	void *reserved_ptr1;
+ 	void *reserved_ptr2;
+ 
+@@ -326,21 +392,13 @@ typedef struct {
+ 
+ 
+ /**
+- * \brief       Maximum sum of literal_context_bits and literal_pos_bits
+- *
+- * literal_context_bits + literal_pos_bits <= LZMA_LITERAL_BITS_MAX
+- */
+-#define LZMA_LITERAL_BITS_MAX 4
+-
+-
+-/**
+- * \brief       Table of presets for the LZMA filter
++ * \brief       Set a compression level preset to lzma_options_lzma structure
+  *
+- * lzma_preset_lzma[0] is the fastest and lzma_preset_lzma[8] is the slowest.
+- * These presets match the switches -1 .. -9 of the lzma command line tool
++ * level = 0 is the fastest and level = 8 is the slowest. These presets match
++ * the switches -1 .. -9 of the command line tool.
+  *
+  * The preset values are subject to changes between liblzma versions.
+  *
+- * This variable is available only if LZMA encoder has been enabled.
++ * This function is available only if LZMA encoder has been enabled.
+  */
+-extern const lzma_options_lzma lzma_preset_lzma[9];
++extern lzma_bool lzma_lzma_preset(lzma_options_lzma *options, uint32_t level);
+diff --git a/src/liblzma/common/alignment.c b/src/liblzma/common/alignment.c
+index cfd515e6..ff38062e 100644
+--- a/src/liblzma/common/alignment.c
++++ b/src/liblzma/common/alignment.c
+@@ -50,10 +50,9 @@ lzma_alignment_input(const lzma_filter *filters, uint32_t guess)
+ 		case LZMA_FILTER_IA64:
+ 			return 16;
+ 
+-		case LZMA_FILTER_LZMA: {
++		case LZMA_FILTER_LZMA1: {
+ 			const lzma_options_lzma *lzma = filters[i].options;
+-			return 1 << MAX(lzma->pos_bits,
+-					lzma->literal_pos_bits);
++			return 1 << MAX(lzma->pb, lzma->lp);
+ 		}
+ 
+ 		default:
+@@ -91,7 +90,7 @@ lzma_alignment_output(const lzma_filter *filters, uint32_t guess)
+ 					filters[i].options))->alignment;
+ 
+ 		case LZMA_FILTER_X86:
+-		case LZMA_FILTER_LZMA:
++		case LZMA_FILTER_LZMA1:
+ 			return 1;
+ 
+ 		case LZMA_FILTER_ARMTHUMB:
+diff --git a/src/liblzma/common/alone_decoder.c b/src/liblzma/common/alone_decoder.c
+index 45cb54e5..7ff29289 100644
+--- a/src/liblzma/common/alone_decoder.c
++++ b/src/liblzma/common/alone_decoder.c
+@@ -68,12 +68,11 @@ alone_decode(lzma_coder *coder,
+ 		break;
+ 
+ 	case SEQ_DICTIONARY_SIZE:
+-		coder->options.dictionary_size
++		coder->options.dict_size
+ 				|= (size_t)(in[*in_pos]) << (coder->pos * 8);
+ 
+ 		if (++coder->pos == 4) {
+-			if (coder->options.dictionary_size
+-					> LZMA_DICTIONARY_SIZE_MAX)
++			if (coder->options.dict_size > (UINT32_C(1) << 30))
+ 				return LZMA_FORMAT_ERROR;
+ 
+ 			// A hack to ditch tons of false positives: We allow
+@@ -81,7 +80,7 @@ alone_decode(lzma_coder *coder,
+ 			// LZMA_Alone created only files with 2^n, but accepts
+ 			// any dictionary size. If someone complains, this
+ 			// will be reconsidered.
+-			uint32_t d = coder->options.dictionary_size - 1;
++			uint32_t d = coder->options.dict_size - 1;
+ 			d |= d >> 2;
+ 			d |= d >> 3;
+ 			d |= d >> 4;
+@@ -89,7 +88,7 @@ alone_decode(lzma_coder *coder,
+ 			d |= d >> 16;
+ 			++d;
+ 
+-			if (d != coder->options.dictionary_size)
++			if (d != coder->options.dict_size)
+ 				return LZMA_FORMAT_ERROR;
+ 
+ 			coder->pos = 0;
+@@ -199,7 +198,7 @@ lzma_alone_decoder_init(lzma_next_coder *next, lzma_allocator *allocator,
+ 
+ 	next->coder->sequence = SEQ_PROPERTIES;
+ 	next->coder->pos = 0;
+-	next->coder->options.dictionary_size = 0;
++	next->coder->options.dict_size = 0;
+ 	next->coder->uncompressed_size = 0;
+ 	next->coder->memlimit = memlimit;
+ 
+diff --git a/src/liblzma/common/alone_encoder.c b/src/liblzma/common/alone_encoder.c
+index 7fb11570..41fb6162 100644
+--- a/src/liblzma/common/alone_encoder.c
++++ b/src/liblzma/common/alone_encoder.c
+@@ -106,9 +106,10 @@ alone_encoder_init(lzma_next_coder *next, lzma_allocator *allocator,
+ 	if (lzma_lzma_lclppb_encode(options, next->coder->header))
+ 		return LZMA_PROG_ERROR;
+ 
+-	// - Dictionary size (4 bytes)
+-	if (options->dictionary_size < LZMA_DICTIONARY_SIZE_MIN
+-			|| options->dictionary_size > LZMA_DICTIONARY_SIZE_MAX)
++	// - Dictionary size (4 bytes); limit to 1 GiB since that's what
++	//   LZMA SDK currently does for encoding.
++	if (options->dict_size < LZMA_DICT_SIZE_MIN
++			|| options->dict_size > (UINT32_C(1) << 30))
+ 		return LZMA_PROG_ERROR;
+ 
+ 	// Round up to to the next 2^n or 2^n + 2^(n - 1) depending on which
+@@ -118,7 +119,7 @@ alone_encoder_init(lzma_next_coder *next, lzma_allocator *allocator,
+ 	//
+ 	// FIXME Maybe LZMA_Alone needs some lower limit for maximum
+ 	// dictionary size? Must check decoders from old LZMA SDK version.
+-	uint32_t d = options->dictionary_size - 1;
++	uint32_t d = options->dict_size - 1;
+ 	d |= d >> 2;
+ 	d |= d >> 3;
+ 	d |= d >> 4;
+diff --git a/src/liblzma/common/chunk_size.c b/src/liblzma/common/chunk_size.c
+index 74d4a6f4..33276b28 100644
+--- a/src/liblzma/common/chunk_size.c
++++ b/src/liblzma/common/chunk_size.c
+@@ -55,7 +55,7 @@ lzma_chunk_size(const lzma_options_filter *filters)
+ 			// splitting the data in smaller blocks.
+ 			break;
+ 
+-		case LZMA_FILTER_LZMA:
++		case LZMA_FILTER_LZMA1:
+ 			// The block sizes of the possible next filters in
+ 			// the chain are irrelevant after the LZMA filter.
+ 			return ((lzma_options_lzma *)(filters->options))
+diff --git a/src/liblzma/common/easy.c b/src/liblzma/common/easy.c
+index 7446bc79..d5e19525 100644
+--- a/src/liblzma/common/easy.c
++++ b/src/liblzma/common/easy.c
+@@ -23,6 +23,9 @@
+ struct lzma_coder_s {
+ 	lzma_next_coder stream_encoder;
+ 
++	/// Options for LZMA2
++	lzma_options_lzma opt_lzma;
++
+ 	/// We need to keep the filters array available in case
+ 	/// LZMA_FULL_FLUSH is used.
+ 	lzma_filter filters[5];
+@@ -30,7 +33,7 @@ struct lzma_coder_s {
+ 
+ 
+ static bool
+-easy_set_filters(lzma_filter *filters, uint32_t level)
++easy_set_filters(lzma_coder *coder, uint32_t level)
+ {
+ 	bool error = false;
+ 
+@@ -40,9 +43,10 @@ easy_set_filters(lzma_filter *filters, uint32_t level)
+ 
+ #ifdef HAVE_ENCODER_LZMA2
+ 	} else if (level <= 9) {
+-		filters[0].id = LZMA_FILTER_LZMA2;
+-		filters[0].options = (void *)(&lzma_preset_lzma[level - 1]);
+-		filters[1].id = LZMA_VLI_UNKNOWN;
++		error = lzma_lzma_preset(&coder->opt_lzma, level - 1);
++		coder->filters[0].id = LZMA_FILTER_LZMA2;
++		coder->filters[0].options = &coder->opt_lzma;
++		coder->filters[1].id = LZMA_VLI_UNKNOWN;
+ #endif
+ 
+ 	} else {
+@@ -91,7 +95,7 @@ easy_encoder_init(lzma_next_coder *next, lzma_allocator *allocator,
+ 		next->coder->stream_encoder = LZMA_NEXT_CODER_INIT;
+ 	}
+ 
+-	if (easy_set_filters(next->coder->filters, level))
++	if (easy_set_filters(next->coder, level))
+ 		return LZMA_OPTIONS_ERROR;
+ 
+ 	return lzma_stream_encoder_init(&next->coder->stream_encoder,
+@@ -116,9 +120,9 @@ lzma_easy_encoder(lzma_stream *strm, lzma_easy_level level)
+ extern LZMA_API uint64_t
+ lzma_easy_memory_usage(lzma_easy_level level)
+ {
+-	lzma_filter filters[5];
+-	if (easy_set_filters(filters, level))
++	lzma_coder coder;
++	if (easy_set_filters(&coder, level))
+ 		return UINT32_MAX;
+ 
+-	return lzma_memusage_encoder(filters);
++	return lzma_memusage_encoder(coder.filters);
+ }
+diff --git a/src/liblzma/common/filter_common.c b/src/liblzma/common/filter_common.c
+index 7097ce51..71ceeca0 100644
+--- a/src/liblzma/common/filter_common.c
++++ b/src/liblzma/common/filter_common.c
+@@ -38,9 +38,9 @@ static const struct {
+ 	bool changes_size;
+ 
+ } features[] = {
+-#if defined (HAVE_ENCODER_LZMA) || defined(HAVE_DECODER_LZMA)
++#if defined (HAVE_ENCODER_LZMA1) || defined(HAVE_DECODER_LZMA1)
+ 	{
+-		.id = LZMA_FILTER_LZMA,
++		.id = LZMA_FILTER_LZMA1,
+ 		.non_last_ok = false,
+ 		.last_ok = true,
+ 		.changes_size = true,
+diff --git a/src/liblzma/common/filter_decoder.c b/src/liblzma/common/filter_decoder.c
+index 8b7e532f..241b272d 100644
+--- a/src/liblzma/common/filter_decoder.c
++++ b/src/liblzma/common/filter_decoder.c
+@@ -51,9 +51,9 @@ typedef struct {
+ 
+ 
+ static const lzma_filter_decoder decoders[] = {
+-#ifdef HAVE_DECODER_LZMA
++#ifdef HAVE_DECODER_LZMA1
+ 	{
+-		.id = LZMA_FILTER_LZMA,
++		.id = LZMA_FILTER_LZMA1,
+ 		.init = &lzma_lzma_decoder_init,
+ 		.memusage = &lzma_lzma_decoder_memusage,
+ 		.props_decode = &lzma_lzma_props_decode,
+diff --git a/src/liblzma/common/filter_encoder.c b/src/liblzma/common/filter_encoder.c
+index 550d5483..a839fe70 100644
+--- a/src/liblzma/common/filter_encoder.c
++++ b/src/liblzma/common/filter_encoder.c
+@@ -62,9 +62,9 @@ typedef struct {
+ 
+ 
+ static const lzma_filter_encoder encoders[] = {
+-#ifdef HAVE_ENCODER_LZMA
++#ifdef HAVE_ENCODER_LZMA1
+ 	{
+-		.id = LZMA_FILTER_LZMA,
++		.id = LZMA_FILTER_LZMA1,
+ 		.init = &lzma_lzma_encoder_init,
+ 		.memusage = &lzma_lzma_encoder_memusage,
+ 		.chunk_size = NULL, // FIXME
+diff --git a/src/liblzma/common/init_encoder.c b/src/liblzma/common/init_encoder.c
+index c5f12a91..1130e6b8 100644
+--- a/src/liblzma/common/init_encoder.c
++++ b/src/liblzma/common/init_encoder.c
+@@ -31,7 +31,7 @@ lzma_init_encoder(void)
+ 
+ 	lzma_init_check();
+ 
+-#if defined(HAVE_SMALL) && defined(HAVE_ENCODER_LZMA)
++#if defined(HAVE_SMALL) && defined(HAVE_ENCODER_LZMA1)
+ 	lzma_rc_init();
+ #endif
+ 
+diff --git a/src/liblzma/delta/delta_common.c b/src/liblzma/delta/delta_common.c
+index 86ef33be..90b5552b 100644
+--- a/src/liblzma/delta/delta_common.c
++++ b/src/liblzma/delta/delta_common.c
+@@ -50,17 +50,17 @@ lzma_delta_coder_init(lzma_next_coder *next, lzma_allocator *allocator,
+ 	// Set the delta distance.
+ 	if (filters[0].options == NULL)
+ 		return LZMA_PROG_ERROR;
+-	next->coder->distance = ((lzma_options_delta *)(filters[0].options))
+-			->distance;
+-	if (next->coder->distance < LZMA_DELTA_DISTANCE_MIN
+-			|| next->coder->distance > LZMA_DELTA_DISTANCE_MAX)
++	next->coder->distance
++			= ((lzma_options_delta *)(filters[0].options))->dist;
++	if (next->coder->distance < LZMA_DELTA_DIST_MIN
++			|| next->coder->distance > LZMA_DELTA_DIST_MAX)
+ 		return LZMA_OPTIONS_ERROR;
+ 
+ 	// Initialize the rest of the variables.
+ 	next->coder->pos = 0;
+-	memzero(next->coder->history, LZMA_DELTA_DISTANCE_MAX);
++	memzero(next->coder->history, LZMA_DELTA_DIST_MAX);
+ 
+ 	// Initialize the next decoder in the chain, if any.
+ 	return lzma_next_filter_init(&next->coder->next,
+-				allocator, filters + 1);
++			allocator, filters + 1);
+ }
+diff --git a/src/liblzma/delta/delta_common.h b/src/liblzma/delta/delta_common.h
+index 1d58899d..e7b3eeda 100644
+--- a/src/liblzma/delta/delta_common.h
++++ b/src/liblzma/delta/delta_common.h
+@@ -33,7 +33,7 @@ struct lzma_coder_s {
+ 	uint8_t pos;
+ 
+ 	/// Buffer to hold history of the original data
+-	uint8_t history[LZMA_DELTA_DISTANCE_MAX];
++	uint8_t history[LZMA_DELTA_DIST_MAX];
+ };
+ 
+ 
+diff --git a/src/liblzma/delta/delta_decoder.c b/src/liblzma/delta/delta_decoder.c
+index 80ef173a..26dc40fe 100644
+--- a/src/liblzma/delta/delta_decoder.c
++++ b/src/liblzma/delta/delta_decoder.c
+@@ -74,7 +74,7 @@ lzma_delta_props_decode(void **options, lzma_allocator *allocator,
+ 		return LZMA_MEM_ERROR;
+ 
+ 	opt->type = LZMA_DELTA_TYPE_BYTE;
+-	opt->distance = props[0] + 1;
++	opt->dist = props[0] + 1;
+ 
+ 	*options = opt;
+ 
+diff --git a/src/liblzma/delta/delta_encoder.c b/src/liblzma/delta/delta_encoder.c
+index 56afa90a..bb772a6c 100644
+--- a/src/liblzma/delta/delta_encoder.c
++++ b/src/liblzma/delta/delta_encoder.c
+@@ -109,11 +109,11 @@ lzma_delta_props_encode(const void *options, uint8_t *out)
+ 	// It's possible that newer liblzma versions will support larger
+ 	// distance values.
+ 	if (opt->type != LZMA_DELTA_TYPE_BYTE
+-			|| opt->distance < LZMA_DELTA_DISTANCE_MIN
+-			|| opt->distance > LZMA_DELTA_DISTANCE_MAX)
++			|| opt->dist < LZMA_DELTA_DIST_MIN
++			|| opt->dist > LZMA_DELTA_DIST_MAX)
+ 		return LZMA_OPTIONS_ERROR;
+ 
+-	out[0] = opt->distance - LZMA_DELTA_DISTANCE_MIN;
++	out[0] = opt->dist - LZMA_DELTA_DIST_MIN;
+ 
+ 	return LZMA_OK;
+ }
+diff --git a/src/liblzma/lz/lz_encoder.c b/src/liblzma/lz/lz_encoder.c
+index 159080ee..d598f71a 100644
+--- a/src/liblzma/lz/lz_encoder.c
++++ b/src/liblzma/lz/lz_encoder.c
+@@ -189,15 +189,13 @@ lz_encoder_prepare(lzma_mf *mf, lzma_allocator *allocator,
+ 	// For now, the dictionary size is limited to 1.5 GiB. This may grow
+ 	// in the future if needed, but it needs a little more work than just
+ 	// changing this check.
+-	if (lz_options->dictionary_size < LZMA_DICTIONARY_SIZE_MIN
+-			|| lz_options->dictionary_size
++	if (lz_options->dict_size < LZMA_DICT_SIZE_MIN
++			|| lz_options->dict_size
+ 				> (UINT32_C(1) << 30) + (UINT32_C(1) << 29)
+-			|| lz_options->find_len_max
+-				> lz_options->match_len_max)
++			|| lz_options->nice_len > lz_options->match_len_max)
+ 		return true;
+ 
+-	mf->keep_size_before = lz_options->before_size
+-			+ lz_options->dictionary_size;
++	mf->keep_size_before = lz_options->before_size + lz_options->dict_size;
+ 
+ 	mf->keep_size_after = lz_options->after_size
+ 			+ lz_options->match_len_max;
+@@ -213,7 +211,7 @@ lz_encoder_prepare(lzma_mf *mf, lzma_allocator *allocator,
+ 	//     to size_t.
+ 	//   - Memory usage calculation needs something too, e.g. use uint64_t
+ 	//     for mf->size.
+-	uint32_t reserve = lz_options->dictionary_size / 2;
++	uint32_t reserve = lz_options->dict_size / 2;
+ 	if (reserve > (UINT32_C(1) << 30))
+ 		reserve /= 2;
+ 
+@@ -232,7 +230,7 @@ lz_encoder_prepare(lzma_mf *mf, lzma_allocator *allocator,
+ 
+ 	// Match finder options
+ 	mf->match_len_max = lz_options->match_len_max;
+-	mf->find_len_max = lz_options->find_len_max;
++	mf->nice_len = lz_options->nice_len;
+ 
+ 	// cyclic_size has to stay smaller than 2 Gi. Note that this doesn't
+ 	// mean limitting dictionary size to less than 2 GiB. With a match
+@@ -249,7 +247,7 @@ lz_encoder_prepare(lzma_mf *mf, lzma_allocator *allocator,
+ 	// memory to keep the code simpler. The current way is simple and
+ 	// still allows pretty big dictionaries, so I don't expect these
+ 	// limits to change.
+-	mf->cyclic_size = lz_options->dictionary_size + 1;
++	mf->cyclic_size = lz_options->dict_size + 1;
+ 
+ 	// Validate the match finder ID and setup the function pointers.
+ 	switch (lz_options->match_finder) {
+@@ -289,9 +287,9 @@ lz_encoder_prepare(lzma_mf *mf, lzma_allocator *allocator,
+ 	}
+ 
+ 	// Calculate the sizes of mf->hash and mf->son and check that
+-	// find_len_max is big enough for the selected match finder.
++	// nice_len is big enough for the selected match finder.
+ 	const uint32_t hash_bytes = lz_options->match_finder & 0x0F;
+-	if (hash_bytes > mf->find_len_max)
++	if (hash_bytes > mf->nice_len)
+ 		return true;
+ 
+ 	const bool is_bt = (lz_options->match_finder & 0x10) != 0;
+@@ -302,7 +300,7 @@ lz_encoder_prepare(lzma_mf *mf, lzma_allocator *allocator,
+ 	} else {
+ 		// Round dictionary size up to the next 2^n - 1 so it can
+ 		// be used as a hash mask.
+-		hs = lz_options->dictionary_size - 1;
++		hs = lz_options->dict_size - 1;
+ 		hs |= hs >> 1;
+ 		hs |= hs >> 2;
+ 		hs |= hs >> 4;
+@@ -353,11 +351,11 @@ lz_encoder_prepare(lzma_mf *mf, lzma_allocator *allocator,
+ 	}
+ 
+ 	// Maximum number of match finder cycles
+-	mf->loops = lz_options->match_finder_cycles;
+-	if (mf->loops == 0) {
+-		mf->loops = 16 + (mf->find_len_max / 2);
++	mf->depth = lz_options->depth;
++	if (mf->depth == 0) {
++		mf->depth = 16 + (mf->nice_len / 2);
+ 		if (!is_bt)
+-			mf->loops /= 2;
++			mf->depth /= 2;
+ 	}
+ 
+ 	return false;
+diff --git a/src/liblzma/lz/lz_encoder.h b/src/liblzma/lz/lz_encoder.h
+index 373cc01b..44880d77 100644
+--- a/src/liblzma/lz/lz_encoder.h
++++ b/src/liblzma/lz/lz_encoder.h
+@@ -110,13 +110,13 @@ struct lzma_mf_s {
+ 	uint32_t hash_mask;
+ 
+ 	/// Maximum number of loops in the match finder
+-	uint32_t loops;
++	uint32_t depth;
+ 
+ 	/// Maximum length of a match that the match finder will try to find.
+-	uint32_t find_len_max;
++	uint32_t nice_len;
+ 
+ 	/// Maximum length of a match supported by the LZ-based encoder.
+-	/// If the longest match found by the match finder is find_len_max,
++	/// If the longest match found by the match finder is nice_len,
+ 	/// mf_find() tries to expand it up to match_len_max bytes.
+ 	uint32_t match_len_max;
+ 
+@@ -139,40 +139,40 @@ typedef struct {
+ 	size_t before_size;
+ 
+ 	/// Size of the history buffer
+-	size_t dictionary_size;
++	size_t dict_size;
+ 
+ 	/// Extra amount of data to keep available after the "actual"
+ 	/// dictionary.
+ 	size_t after_size;
+ 
+ 	/// Maximum length of a match that the LZ-based encoder can accept.
+-	/// This is used to extend matches of length find_len_max to the
++	/// This is used to extend matches of length nice_len to the
+ 	/// maximum possible length.
+ 	size_t match_len_max;
+ 
+ 	/// Match finder will search matches of at maximum of this length.
+ 	/// This must be less than or equal to match_len_max.
+-	size_t find_len_max;
++	size_t nice_len;
+ 
+ 	/// Type of the match finder to use
+ 	lzma_match_finder match_finder;
+ 
+-	/// TODO: Comment
+-	uint32_t match_finder_cycles;
++	/// Maximum search depth
++	uint32_t depth;
+ 
+ 	/// TODO: Comment
+-	const uint8_t *preset_dictionary;
++	const uint8_t *preset_dict;
+ 
+-	uint32_t preset_dictionary_size;
++	uint32_t preset_dict_size;
+ 
+ } lzma_lz_options;
+ 
+ 
+ // The total usable buffer space at any moment outside the match finder:
+-// before_size + dictionary_size + after_size + match_len_max
++// before_size + dict_size + after_size + match_len_max
+ //
+ // In reality, there's some extra space allocated to prevent the number of
+-// memmove() calls reasonable. The bigger the dictionary_size is, the bigger
++// memmove() calls reasonable. The bigger the dict_size is, the bigger
+ // this extra buffer will be since with bigger dictionaries memmove() would
+ // also take longer.
+ //
+@@ -181,7 +181,7 @@ typedef struct {
+ // In other words, a single encoder loop may advance lzma_mf.read_pos at
+ // maximum of after_size times. Since matches are looked up to
+ // lzma_mf.buffer[lzma_mf.read_pos + match_len_max - 1], the total
+-// amount of extra buffer needed after dictionary_size becomes
++// amount of extra buffer needed after dict_size becomes
+ // after_size + match_len_max.
+ //
+ // before_size has two uses. The first one is to keep literals available
+diff --git a/src/liblzma/lz/lz_encoder_mf.c b/src/liblzma/lz/lz_encoder_mf.c
+index d82681b3..9d50e91d 100644
+--- a/src/liblzma/lz/lz_encoder_mf.c
++++ b/src/liblzma/lz/lz_encoder_mf.c
+@@ -42,7 +42,7 @@ lzma_mf_find(lzma_mf *mf, uint32_t *count_ptr, lzma_match *matches)
+ #ifndef NDEBUG
+ 		// Validate the matches.
+ 		for (uint32_t i = 0; i < count; ++i) {
+-			assert(matches[i].len <= mf->find_len_max);
++			assert(matches[i].len <= mf->nice_len);
+ 			assert(matches[i].dist < mf->read_pos);
+ 			assert(memcmp(mf_ptr(mf) - 1,
+ 				mf_ptr(mf) - matches[i].dist - 2,
+@@ -56,7 +56,7 @@ lzma_mf_find(lzma_mf *mf, uint32_t *count_ptr, lzma_match *matches)
+ 
+ 		// If a match of maximum search length was found, try to
+ 		// extend the match to maximum possible length.
+-		if (len_best == mf->find_len_max) {
++		if (len_best == mf->nice_len) {
+ 			// The limit for the match length is either the
+ 			// maximum match length supported by the LZ-based
+ 			// encoder or the number of bytes left in the
+@@ -90,7 +90,7 @@ lzma_mf_find(lzma_mf *mf, uint32_t *count_ptr, lzma_match *matches)
+ 
+ 
+ /// Hash value to indicate unused element in the hash. Since we start the
+-/// positions from dictionary_size + 1, zero is always too far to qualify
++/// positions from dict_size + 1, zero is always too far to qualify
+ /// as usable match position.
+ #define EMPTY_HASH_VALUE 0
+ 
+@@ -166,7 +166,7 @@ move_pos(lzma_mf *mf)
+ }
+ 
+ 
+-/// When flushing, we cannot run the match finder unless there is find_len_max
++/// When flushing, we cannot run the match finder unless there is nice_len
+ /// bytes available in the dictionary. Instead, we skip running the match
+ /// finder (indicating that no match was found), and count how many bytes we
+ /// have ignored this way.
+@@ -196,8 +196,8 @@ move_pending(lzma_mf *mf)
+ /// in them.
+ #define header(is_bt, len_min, ret_op) \
+ 	uint32_t len_limit = mf_avail(mf); \
+-	if (mf->find_len_max <= len_limit) { \
+-		len_limit = mf->find_len_max; \
++	if (mf->nice_len <= len_limit) { \
++		len_limit = mf->nice_len; \
+ 	} else if (len_limit < (len_min) \
+ 			|| (is_bt && mf->action == LZMA_SYNC_FLUSH)) { \
+ 		assert(mf->action != LZMA_RUN); \
+@@ -226,7 +226,7 @@ move_pending(lzma_mf *mf)
+ /// of matches found.
+ #define call_find(func, len_best) \
+ do { \
+-	matches_count = func(len_limit, pos, cur, cur_match, mf->loops, \
++	matches_count = func(len_limit, pos, cur, cur_match, mf->depth, \
+ 				mf->son, mf->cyclic_pos, mf->cyclic_size, \
+ 				matches + matches_count, len_best) \
+ 			- matches; \
+@@ -246,7 +246,7 @@ do { \
+ /// \param      pos             lzma_mf.read_pos + lzma_mf.offset
+ /// \param      cur             Pointer to current byte (mf_ptr(mf))
+ /// \param      cur_match       Start position of the current match candidate
+-/// \param      loops           Maximum length of the hash chain
++/// \param      depth           Maximum length of the hash chain
+ /// \param      son             lzma_mf.son (contains the hash chain)
+ /// \param      cyclic_pos
+ /// \param      cyclic_size
+@@ -258,7 +258,7 @@ hc_find_func(
+ 		const uint32_t pos,
+ 		const uint8_t *const cur,
+ 		uint32_t cur_match,
+-		uint32_t loops,
++		uint32_t depth,
+ 		uint32_t *const son,
+ 		const uint32_t cyclic_pos,
+ 		const uint32_t cyclic_size,
+@@ -269,7 +269,7 @@ hc_find_func(
+ 
+ 	while (true) {
+ 		const uint32_t delta = pos - cur_match;
+-		if (loops-- == 0 || delta >= cyclic_size)
++		if (depth-- == 0 || delta >= cyclic_size)
+ 			return matches;
+ 
+ 		const uint8_t *const pb = cur - delta;
+@@ -463,7 +463,7 @@ bt_find_func(
+ 		const uint32_t pos,
+ 		const uint8_t *const cur,
+ 		uint32_t cur_match,
+-		uint32_t loops,
++		uint32_t depth,
+ 		uint32_t *const son,
+ 		const uint32_t cyclic_pos,
+ 		const uint32_t cyclic_size,
+@@ -478,7 +478,7 @@ bt_find_func(
+ 
+ 	while (true) {
+ 		const uint32_t delta = pos - cur_match;
+-		if (loops-- == 0 || delta >= cyclic_size) {
++		if (depth-- == 0 || delta >= cyclic_size) {
+ 			*ptr0 = EMPTY_HASH_VALUE;
+ 			*ptr1 = EMPTY_HASH_VALUE;
+ 			return matches;
+@@ -531,7 +531,7 @@ bt_skip_func(
+ 		const uint32_t pos,
+ 		const uint8_t *const cur,
+ 		uint32_t cur_match,
+-		uint32_t loops,
++		uint32_t depth,
+ 		uint32_t *const son,
+ 		const uint32_t cyclic_pos,
+ 		const uint32_t cyclic_size)
+@@ -544,7 +544,7 @@ bt_skip_func(
+ 
+ 	while (true) {
+ 		const uint32_t delta = pos - cur_match;
+-		if (loops-- == 0 || delta >= cyclic_size) {
++		if (depth-- == 0 || delta >= cyclic_size) {
+ 			*ptr0 = EMPTY_HASH_VALUE;
+ 			*ptr1 = EMPTY_HASH_VALUE;
+ 			return;
+@@ -588,7 +588,7 @@ bt_skip_func(
+ 
+ #define bt_skip() \
+ do { \
+-	bt_skip_func(len_limit, pos, cur, cur_match, mf->loops, \
++	bt_skip_func(len_limit, pos, cur, cur_match, mf->depth, \
+ 			mf->son, mf->cyclic_pos, \
+ 			mf->cyclic_size); \
+ 	move_pos(mf); \
+diff --git a/src/liblzma/lzma/Makefile.am b/src/liblzma/lzma/Makefile.am
+index bcc1fdc6..ec6b7b27 100644
+--- a/src/liblzma/lzma/Makefile.am
++++ b/src/liblzma/lzma/Makefile.am
+@@ -24,7 +24,7 @@ liblzma2_la_CPPFLAGS = \
+ 
+ liblzma2_la_SOURCES = lzma_common.h
+ 
+-if COND_ENCODER_LZMA
++if COND_ENCODER_LZMA1
+ liblzma2_la_SOURCES += \
+ 	fastpos.h \
+ 	lzma_encoder.h \
+@@ -39,7 +39,7 @@ liblzma2_la_SOURCES += fastpos_table.c
+ endif
+ endif
+ 
+-if COND_DECODER_LZMA
++if COND_DECODER_LZMA1
+ liblzma2_la_SOURCES += \
+ 	lzma_decoder.c \
+ 	lzma_decoder.h
+diff --git a/src/liblzma/lzma/lzma2_decoder.c b/src/liblzma/lzma/lzma2_decoder.c
+index 88e73fb6..af1da746 100644
+--- a/src/liblzma/lzma/lzma2_decoder.c
++++ b/src/liblzma/lzma/lzma2_decoder.c
+@@ -303,14 +303,14 @@ lzma_lzma2_props_decode(void **options, lzma_allocator *allocator,
+ 		return LZMA_MEM_ERROR;
+ 
+ 	if (props[0] == 40) {
+-		opt->dictionary_size = UINT32_MAX;
++		opt->dict_size = UINT32_MAX;
+ 	} else {
+-		opt->dictionary_size = 2 | (props[0] & 1);
+-		opt->dictionary_size <<= props[0] / 2 + 11;
++		opt->dict_size = 2 | (props[0] & 1);
++		opt->dict_size <<= props[0] / 2 + 11;
+ 	}
+ 
+-	opt->preset_dictionary = NULL;
+-	opt->preset_dictionary_size = 0;
++	opt->preset_dict = NULL;
++	opt->preset_dict_size = 0;
+ 
+ 	*options = opt;
+ 
+diff --git a/src/liblzma/lzma/lzma2_encoder.c b/src/liblzma/lzma/lzma2_encoder.c
+index b2cd176b..757b871d 100644
+--- a/src/liblzma/lzma/lzma2_encoder.c
++++ b/src/liblzma/lzma/lzma2_encoder.c
+@@ -178,19 +178,13 @@ lzma2_encode(lzma_coder *restrict coder, lzma_mf *restrict mf,
+ 		// Look if there are new options. At least for now,
+ 		// only lc/lp/pb can be changed.
+ 		if (coder->opt_new != NULL
+-				&& (coder->opt_cur.literal_context_bits
+-					!= coder->opt_new->literal_context_bits
+-				|| coder->opt_cur.literal_pos_bits
+-					!= coder->opt_new->literal_pos_bits
+-				|| coder->opt_cur.pos_bits
+-					!= coder->opt_new->pos_bits)) {
++				&& (coder->opt_cur.lc != coder->opt_new->lc
++				|| coder->opt_cur.lp != coder->opt_new->lp
++				|| coder->opt_cur.pb != coder->opt_new->pb)) {
+ 			// Options have been changed, copy them to opt_cur.
+-			coder->opt_cur.literal_context_bits
+-					= coder->opt_new->literal_context_bits;
+-			coder->opt_cur.literal_pos_bits
+-					= coder->opt_new->literal_pos_bits;
+-			coder->opt_cur.pos_bits
+-					= coder->opt_new->pos_bits;
++			coder->opt_cur.lc = coder->opt_new->lc;
++			coder->opt_cur.lp = coder->opt_new->lp;
++			coder->opt_cur.pb = coder->opt_new->pb;
+ 
+ 			// We need to write the new options and reset
+ 			// the encoder state.
+@@ -352,10 +346,9 @@ lzma2_encoder_init(lzma_lz_encoder *lz, lzma_allocator *allocator,
+ 	// compressed size of a chunk is not smaller than the uncompressed
+ 	// size, so we need to have at least LZMA2_COMPRESSED_MAX bytes
+ 	// history available.
+-	if (lz_options->before_size + lz_options->dictionary_size
+-			< LZMA2_CHUNK_MAX)
+-		lz_options->before_size = LZMA2_CHUNK_MAX
+-				- lz_options->dictionary_size;
++	if (lz_options->before_size + lz_options->dict_size < LZMA2_CHUNK_MAX)
++		lz_options->before_size
++				= LZMA2_CHUNK_MAX - lz_options->dict_size;
+ 
+ 	return LZMA_OK;
+ }
+@@ -385,7 +378,7 @@ extern lzma_ret
+ lzma_lzma2_props_encode(const void *options, uint8_t *out)
+ {
+ 	const lzma_options_lzma *const opt = options;
+-	uint32_t d = MAX(opt->dictionary_size, LZMA_DICTIONARY_SIZE_MIN);
++	uint32_t d = MAX(opt->dict_size, LZMA_DICT_SIZE_MIN);
+ 
+ 	// Round up to to the next 2^n - 1 or 2^n + 2^(n - 1) - 1 depending
+ 	// on which one is the next:
+diff --git a/src/liblzma/lzma/lzma_common.h b/src/liblzma/lzma/lzma_common.h
+index 6909969b..546bf89e 100644
+--- a/src/liblzma/lzma/lzma_common.h
++++ b/src/liblzma/lzma/lzma_common.h
+@@ -32,20 +32,16 @@
+ /// Maximum number of position states. A position state is the lowest pos bits
+ /// number of bits of the current uncompressed offset. In some places there
+ /// are different sets of probabilities for different pos states.
+-#define POS_STATES_MAX (1 << LZMA_POS_BITS_MAX)
++#define POS_STATES_MAX (1 << LZMA_PB_MAX)
+ 
+ 
+-/// Validates literal_context_bits, literal_pos_bits, and pos_bits.
++/// Validates lc, lp, and pb.
+ static inline bool
+ is_lclppb_valid(const lzma_options_lzma *options)
+ {
+-	return options->literal_context_bits <= LZMA_LITERAL_CONTEXT_BITS_MAX
+-			&& options->literal_pos_bits
+-				<= LZMA_LITERAL_POS_BITS_MAX
+-			&& options->literal_context_bits
+-					+ options->literal_pos_bits
+-				<= LZMA_LITERAL_BITS_MAX
+-			&& options->pos_bits <= LZMA_POS_BITS_MAX;
++	return options->lc <= LZMA_LCLP_MAX && options->lp <= LZMA_LCLP_MAX
++			&& options->lc + options->lp <= LZMA_LCLP_MAX
++			&& options->pb <= LZMA_PB_MAX;
+ }
+ 
+ 
+@@ -126,7 +122,7 @@ typedef enum {
+ #define LITERAL_CODER_SIZE 0x300
+ 
+ /// Maximum number of literal coders
+-#define LITERAL_CODERS_MAX (1 << LZMA_LITERAL_BITS_MAX)
++#define LITERAL_CODERS_MAX (1 << LZMA_LCLP_MAX)
+ 
+ /// Locate the literal coder for the next literal byte. The choice depends on
+ ///   - the lowest literal_pos_bits bits of the position of the current
+@@ -138,13 +134,11 @@ typedef enum {
+ 
+ static inline void
+ literal_init(probability (*probs)[LITERAL_CODER_SIZE],
+-		uint32_t literal_context_bits, uint32_t literal_pos_bits)
++		uint32_t lc, uint32_t lp)
+ {
+-	assert(literal_context_bits + literal_pos_bits
+-			<= LZMA_LITERAL_BITS_MAX);
++	assert(lc + lp <= LZMA_LCLP_MAX);
+ 
+-	const uint32_t coders
+-			= 1U << (literal_context_bits + literal_pos_bits);
++	const uint32_t coders = 1U << (lc + lp);
+ 
+ 	for (uint32_t i = 0; i < coders; ++i)
+ 		for (uint32_t j = 0; j < LITERAL_CODER_SIZE; ++j)
+@@ -219,7 +213,7 @@ literal_init(probability (*probs)[LITERAL_CODER_SIZE],
+ // fastpos.h to understand why).
+ #define END_POS_MODEL_INDEX 14
+ 
+-// Seven-bit distances use the full FIXME
++// Pos slots that indicate a distance <= 127.
+ #define FULL_DISTANCES_BITS (END_POS_MODEL_INDEX / 2)
+ #define FULL_DISTANCES (1 << FULL_DISTANCES_BITS)
+ 
+diff --git a/src/liblzma/lzma/lzma_decoder.c b/src/liblzma/lzma/lzma_decoder.c
+index 0fa62c66..df3371e2 100644
+--- a/src/liblzma/lzma/lzma_decoder.c
++++ b/src/liblzma/lzma/lzma_decoder.c
+@@ -231,7 +231,7 @@ struct lzma_coder_s {
+ 	uint32_t rep2;      ///< Distance of third latest match
+ 	uint32_t rep3;      ///< Distance of fourth latest match
+ 
+-	uint32_t pos_mask; // (1U << pos_bits) - 1
++	uint32_t pos_mask; // (1U << pb) - 1
+ 	uint32_t literal_context_bits;
+ 	uint32_t literal_pos_mask;
+ 
+@@ -866,14 +866,13 @@ lzma_decoder_reset(lzma_coder *coder, const void *opt)
+ 	// FIXME?
+ 
+ 	// Calculate pos_mask. We don't need pos_bits as is for anything.
+-	coder->pos_mask = (1U << options->pos_bits) - 1;
++	coder->pos_mask = (1U << options->pb) - 1;
+ 
+ 	// Initialize the literal decoder.
+-	literal_init(coder->literal, options->literal_context_bits,
+-				options->literal_pos_bits);
++	literal_init(coder->literal, options->lc, options->lp);
+ 
+-	coder->literal_context_bits = options->literal_context_bits;
+-	coder->literal_pos_mask = (1 << options->literal_pos_bits) - 1;
++	coder->literal_context_bits = options->lc;
++	coder->literal_pos_mask = (1U << options->lp) - 1;
+ 
+ 	// State
+ 	coder->state = STATE_LIT_LIT;
+@@ -881,7 +880,7 @@ lzma_decoder_reset(lzma_coder *coder, const void *opt)
+ 	coder->rep1 = 0;
+ 	coder->rep2 = 0;
+ 	coder->rep3 = 0;
+-	coder->pos_mask = (1 << options->pos_bits) - 1;
++	coder->pos_mask = (1U << options->pb) - 1;
+ 
+ 	// Range decoder
+ 	rc_reset(coder->rc);
+@@ -908,7 +907,7 @@ lzma_decoder_reset(lzma_coder *coder, const void *opt)
+ 	bittree_reset(coder->pos_align, ALIGN_BITS);
+ 
+ 	// Len decoders (also bit/bittree)
+-	const uint32_t num_pos_states = 1 << options->pos_bits;
++	const uint32_t num_pos_states = 1U << options->pb;
+ 	bit_reset(coder->match_len_decoder.choice);
+ 	bit_reset(coder->match_len_decoder.choice2);
+ 	bit_reset(coder->rep_len_decoder.choice);
+@@ -957,7 +956,7 @@ lzma_lzma_decoder_create(lzma_lz_decoder *lz, lzma_allocator *allocator,
+ 	// All dictionary sizes are OK here. LZ decoder will take care of
+ 	// the special cases.
+ 	const lzma_options_lzma *options = opt;
+-	*dict_size = options->dictionary_size;
++	*dict_size = options->dict_size;
+ 
+ 	return LZMA_OK;
+ }
+@@ -1003,13 +1002,12 @@ lzma_lzma_lclppb_decode(lzma_options_lzma *options, uint8_t byte)
+ 		return true;
+ 
+ 	// See the file format specification to understand this.
+-	options->pos_bits = byte / (9 * 5);
+-	byte -= options->pos_bits * 9 * 5;
+-	options->literal_pos_bits = byte / 9;
+-	options->literal_context_bits = byte - options->literal_pos_bits * 9;
++	options->pb = byte / (9 * 5);
++	byte -= options->pb * 9 * 5;
++	options->lp = byte / 9;
++	options->lc = byte - options->lp * 9;
+ 
+-	return options->literal_context_bits + options->literal_pos_bits
+-			> LZMA_LITERAL_BITS_MAX;
++	return options->lc + options->lp > LZMA_LCLP_MAX;
+ }
+ 
+ 
+@@ -1017,8 +1015,7 @@ extern uint64_t
+ lzma_lzma_decoder_memusage(const void *options)
+ {
+ 	const lzma_options_lzma *const opt = options;
+-	const uint64_t lz_memusage
+-			= lzma_lz_decoder_memusage(opt->dictionary_size);
++	const uint64_t lz_memusage = lzma_lz_decoder_memusage(opt->dict_size);
+ 	if (lz_memusage == UINT64_MAX)
+ 		return UINT64_MAX;
+ 
+@@ -1044,10 +1041,10 @@ lzma_lzma_props_decode(void **options, lzma_allocator *allocator,
+ 	// All dictionary sizes are accepted, including zero. LZ decoder
+ 	// will automatically use a dictionary at least a few KiB even if
+ 	// a smaller dictionary is requested.
+-	opt->dictionary_size = integer_read_32(props + 1);
++	opt->dict_size = integer_read_32(props + 1);
+ 
+-	opt->preset_dictionary = NULL;
+-	opt->preset_dictionary_size = 0;
++	opt->preset_dict = NULL;
++	opt->preset_dict_size = 0;
+ 
+ 	*options = opt;
+ 
+diff --git a/src/liblzma/lzma/lzma_encoder.c b/src/liblzma/lzma/lzma_encoder.c
+index 02b7d19a..2f81bedc 100644
+--- a/src/liblzma/lzma/lzma_encoder.c
++++ b/src/liblzma/lzma/lzma_encoder.c
+@@ -428,14 +428,14 @@ set_lz_options(lzma_lz_options *lz_options, const lzma_options_lzma *options)
+ 	// LZ encoder initialization does the validation, also when just
+ 	// calculating memory usage, so we don't need to validate here.
+ 	lz_options->before_size = OPTS;
+-	lz_options->dictionary_size = options->dictionary_size;
++	lz_options->dict_size = options->dict_size;
+ 	lz_options->after_size = LOOP_INPUT_MAX;
+ 	lz_options->match_len_max = MATCH_LEN_MAX;
+-	lz_options->find_len_max = options->fast_bytes;
+-	lz_options->match_finder = options->match_finder;
+-	lz_options->match_finder_cycles = options->match_finder_cycles;
+-	lz_options->preset_dictionary = options->preset_dictionary;
+-	lz_options->preset_dictionary_size = options->preset_dictionary_size;
++	lz_options->nice_len = options->nice_len;
++	lz_options->match_finder = options->mf;
++	lz_options->depth = options->depth;
++	lz_options->preset_dict = options->preset_dict;
++	lz_options->preset_dict_size = options->preset_dict_size;
+ }
+ 
+ 
+@@ -467,9 +467,9 @@ lzma_lzma_encoder_reset(lzma_coder *coder, const lzma_options_lzma *options)
+ {
+ 	assert(!coder->is_flushed);
+ 
+-	coder->pos_mask = (1U << options->pos_bits) - 1;
+-	coder->literal_context_bits = options->literal_context_bits;
+-	coder->literal_pos_mask = (1U << options->literal_pos_bits) - 1;
++	coder->pos_mask = (1U << options->pb) - 1;
++	coder->literal_context_bits = options->lc;
++	coder->literal_pos_mask = (1U << options->lp) - 1;
+ 
+ 	// Range coder
+ 	rc_reset(&coder->rc);
+@@ -479,8 +479,7 @@ lzma_lzma_encoder_reset(lzma_coder *coder, const lzma_options_lzma *options)
+ 	for (size_t i = 0; i < REP_DISTANCES; ++i)
+ 		coder->reps[i] = 0;
+ 
+-	literal_init(coder->literal, options->literal_context_bits,
+-			options->literal_pos_bits);
++	literal_init(coder->literal, options->lc, options->lp);
+ 
+ 	// Bit encoders
+ 	for (size_t i = 0; i < STATES; ++i) {
+@@ -506,10 +505,10 @@ lzma_lzma_encoder_reset(lzma_coder *coder, const lzma_options_lzma *options)
+ 
+ 	// Length encoders
+ 	length_encoder_reset(&coder->match_len_encoder,
+-			1U << options->pos_bits, coder->fast_mode);
++			1U << options->pb, coder->fast_mode);
+ 
+ 	length_encoder_reset(&coder->rep_len_encoder,
+-			1U << options->pos_bits, coder->fast_mode);
++			1U << options->pb, coder->fast_mode);
+ 
+ 	// Price counts are incremented every time appropriate probabilities
+ 	// are changed. price counts are set to zero when the price tables
+@@ -546,8 +545,8 @@ lzma_lzma_encoder_create(lzma_coder **coder_ptr, lzma_allocator *allocator,
+ 
+ 	// Validate some of the options. LZ encoder validates fast_bytes too
+ 	// but we need a valid value here earlier.
+-	if (!is_lclppb_valid(options) || options->fast_bytes < MATCH_LEN_MIN
+-			|| options->fast_bytes > MATCH_LEN_MAX)
++	if (!is_lclppb_valid(options) || options->nice_len < MATCH_LEN_MIN
++			|| options->nice_len > MATCH_LEN_MAX)
+ 		return LZMA_OPTIONS_ERROR;
+ 
+ 	// Set compression mode.
+@@ -562,17 +561,16 @@ lzma_lzma_encoder_create(lzma_coder **coder_ptr, lzma_allocator *allocator,
+ 			// Set dist_table_size.
+ 			// Round the dictionary size up to next 2^n.
+ 			uint32_t log_size = 0;
+-			while ((UINT32_C(1) << log_size)
+-					< options->dictionary_size)
++			while ((UINT32_C(1) << log_size) < options->dict_size)
+ 				++log_size;
+ 
+ 			coder->dist_table_size = log_size * 2;
+ 
+ 			// Length encoders' price table size
+ 			coder->match_len_encoder.table_size
+-				= options->fast_bytes + 1 - MATCH_LEN_MIN;
++				= options->nice_len + 1 - MATCH_LEN_MIN;
+ 			coder->rep_len_encoder.table_size
+-				= options->fast_bytes + 1 - MATCH_LEN_MIN;
++				= options->nice_len + 1 - MATCH_LEN_MIN;
+ 			break;
+ 		}
+ 
+@@ -627,24 +625,17 @@ lzma_lzma_encoder_memusage(const void *options)
+ extern bool
+ lzma_lzma_lclppb_encode(const lzma_options_lzma *options, uint8_t *byte)
+ {
+-	if (options->literal_context_bits > LZMA_LITERAL_CONTEXT_BITS_MAX
+-			|| options->literal_pos_bits
+-				> LZMA_LITERAL_POS_BITS_MAX
+-			|| options->pos_bits > LZMA_POS_BITS_MAX
+-			|| options->literal_context_bits
+-					+ options->literal_pos_bits
+-				> LZMA_LITERAL_BITS_MAX)
++	if (!is_lclppb_valid(options))
+ 		return true;
+ 
+-	*byte = (options->pos_bits * 5 + options->literal_pos_bits) * 9
+-			+ options->literal_context_bits;
++	*byte = (options->pb * 5 + options->lp) * 9 + options->lc;
+ 	assert(*byte <= (4 * 5 + 4) * 9 + 8);
+ 
+ 	return false;
+ }
+ 
+ 
+-#ifdef HAVE_ENCODER_LZMA
++#ifdef HAVE_ENCODER_LZMA1
+ extern lzma_ret
+ lzma_lzma_props_encode(const void *options, uint8_t *out)
+ {
+@@ -653,7 +644,7 @@ lzma_lzma_props_encode(const void *options, uint8_t *out)
+ 	if (lzma_lzma_lclppb_encode(opt, out))
+ 		return LZMA_PROG_ERROR;
+ 
+-	integer_write_32(out + 1, opt->dictionary_size);
++	integer_write_32(out + 1, opt->dict_size);
+ 
+ 	return LZMA_OK;
+ }
+diff --git a/src/liblzma/lzma/lzma_encoder_optimum_fast.c b/src/liblzma/lzma/lzma_encoder_optimum_fast.c
+index 9da7e79e..4e8e26a2 100644
+--- a/src/liblzma/lzma/lzma_encoder_optimum_fast.c
++++ b/src/liblzma/lzma/lzma_encoder_optimum_fast.c
+@@ -38,7 +38,7 @@ extern void
+ lzma_lzma_optimum_fast(lzma_coder *restrict coder, lzma_mf *restrict mf,
+ 		uint32_t *restrict back_res, uint32_t *restrict len_res)
+ {
+-	const uint32_t fast_bytes = mf->find_len_max;
++	const uint32_t nice_len = mf->nice_len;
+ 
+ 	uint32_t len_main;
+ 	uint32_t matches_count;
+@@ -79,8 +79,8 @@ lzma_lzma_optimum_fast(lzma_coder *restrict coder, lzma_mf *restrict mf,
+ 				&& buf[len] == buf_back[len]; ++len) ;
+ 
+ 		// If we have found a repeated match that is at least
+-		// fast_bytes long, return it immediatelly.
+-		if (len >= fast_bytes) {
++		// nice_len long, return it immediatelly.
++		if (len >= nice_len) {
+ 			*back_res = i;
+ 			*len_res = len;
+ 			mf_skip(mf, len - 1);
+@@ -94,8 +94,8 @@ lzma_lzma_optimum_fast(lzma_coder *restrict coder, lzma_mf *restrict mf,
+ 	}
+ 
+ 	// We didn't find a long enough repeated match. Encode it as a normal
+-	// match if the match length is at least fast_bytes.
+-	if (len_main >= fast_bytes) {
++	// match if the match length is at least nice_len.
++	if (len_main >= nice_len) {
+ 		*back_res = coder->matches[matches_count - 1].dist
+ 				+ REP_DISTANCES;
+ 		*len_res = len_main;
+diff --git a/src/liblzma/lzma/lzma_encoder_optimum_normal.c b/src/liblzma/lzma/lzma_encoder_optimum_normal.c
+index f0dd92c9..7071a433 100644
+--- a/src/liblzma/lzma/lzma_encoder_optimum_normal.c
++++ b/src/liblzma/lzma/lzma_encoder_optimum_normal.c
+@@ -281,7 +281,7 @@ helper1(lzma_coder *restrict coder, lzma_mf *restrict mf,
+ 		uint32_t *restrict back_res, uint32_t *restrict len_res,
+ 		uint32_t position)
+ {
+-	const uint32_t fast_bytes = mf->find_len_max;
++	const uint32_t nice_len = mf->nice_len;
+ 
+ 	uint32_t len_main;
+ 	uint32_t matches_count;
+@@ -324,7 +324,7 @@ helper1(lzma_coder *restrict coder, lzma_mf *restrict mf,
+ 			rep_max_index = i;
+ 	}
+ 
+-	if (rep_lens[rep_max_index] >= fast_bytes) {
++	if (rep_lens[rep_max_index] >= nice_len) {
+ 		*back_res = rep_max_index;
+ 		*len_res = rep_lens[rep_max_index];
+ 		mf_skip(mf, *len_res - 1);
+@@ -332,7 +332,7 @@ helper1(lzma_coder *restrict coder, lzma_mf *restrict mf,
+ 	}
+ 
+ 
+-	if (len_main >= fast_bytes) {
++	if (len_main >= nice_len) {
+ 		*back_res = coder->matches[matches_count - 1].dist
+ 				+ REP_DISTANCES;
+ 		*len_res = len_main;
+@@ -457,7 +457,7 @@ helper1(lzma_coder *restrict coder, lzma_mf *restrict mf,
+ static inline uint32_t
+ helper2(lzma_coder *coder, uint32_t *reps, const uint8_t *buf,
+ 		uint32_t len_end, uint32_t position, const uint32_t cur,
+-		const uint32_t fast_bytes, const uint32_t buf_avail_full)
++		const uint32_t nice_len, const uint32_t buf_avail_full)
+ {
+ 	uint32_t matches_count = coder->matches_count;
+ 	uint32_t new_len = coder->longest_match_length;
+@@ -572,12 +572,12 @@ helper2(lzma_coder *coder, uint32_t *reps, const uint8_t *buf,
+ 	if (buf_avail_full < 2)
+ 		return len_end;
+ 
+-	const uint32_t buf_avail = MIN(buf_avail_full, fast_bytes);
++	const uint32_t buf_avail = MIN(buf_avail_full, nice_len);
+ 
+ 	if (!next_is_literal && match_byte != current_byte) { // speed optimization
+ 		// try literal + rep0
+ 		const uint8_t *const buf_back = buf - reps[0] - 1;
+-		const uint32_t limit = MIN(buf_avail_full, fast_bytes + 1);
++		const uint32_t limit = MIN(buf_avail_full, nice_len + 1);
+ 
+ 		uint32_t len_test = 1;
+ 		while (len_test < limit && buf[len_test] == buf_back[len_test])
+@@ -656,7 +656,7 @@ helper2(lzma_coder *coder, uint32_t *reps, const uint8_t *buf,
+ 
+ 		uint32_t len_test_2 = len_test + 1;
+ 		const uint32_t limit = MIN(buf_avail_full,
+-				len_test_2 + fast_bytes);
++				len_test_2 + nice_len);
+ 		for (; len_test_2 < limit
+ 				&& buf[len_test_2] == buf_back[len_test_2];
+ 				++len_test_2) ;
+@@ -751,7 +751,7 @@ helper2(lzma_coder *coder, uint32_t *reps, const uint8_t *buf,
+ 				const uint8_t *const buf_back = buf - cur_back - 1;
+ 				uint32_t len_test_2 = len_test + 1;
+ 				const uint32_t limit = MIN(buf_avail_full,
+-						len_test_2 + fast_bytes);
++						len_test_2 + nice_len);
+ 
+ 				for (; len_test_2 < limit &&
+ 						buf[len_test_2] == buf_back[len_test_2];
+@@ -862,11 +862,11 @@ lzma_lzma_optimum_normal(lzma_coder *restrict coder, lzma_mf *restrict mf,
+ 		coder->longest_match_length = mf_find(
+ 				mf, &coder->matches_count, coder->matches);
+ 
+-		if (coder->longest_match_length >= mf->find_len_max)
++		if (coder->longest_match_length >= mf->nice_len)
+ 			break;
+ 
+ 		len_end = helper2(coder, reps, mf_ptr(mf) - 1, len_end,
+-				position + cur, cur, mf->find_len_max,
++				position + cur, cur, mf->nice_len,
+ 				MIN(mf_avail(mf) + 1, OPTS - 1 - cur));
+ 	}
+ 
+diff --git a/src/liblzma/lzma/lzma_encoder_presets.c b/src/liblzma/lzma/lzma_encoder_presets.c
+index 08f339e9..7ef3509e 100644
+--- a/src/liblzma/lzma/lzma_encoder_presets.c
++++ b/src/liblzma/lzma/lzma_encoder_presets.c
+@@ -20,10 +20,11 @@
+ #include "common.h"
+ 
+ 
++/*
+ #define pow2(e) (UINT32_C(1) << (e))
+ 
+ 
+-LZMA_API const lzma_options_lzma lzma_preset_lzma[9] = {
++static const lzma_options_lzma presets[9] = {
+ // dict           lc lp pb           mode              fb   mf          mfc
+ { pow2(16), NULL, 0, 3, 0, 2, false, LZMA_MODE_FAST,    64, LZMA_MF_HC3, 0, 0, 0, 0, 0, NULL, NULL },
+ { pow2(20), NULL, 0, 3, 0, 0, false, LZMA_MODE_FAST,    64, LZMA_MF_HC4, 0, 0, 0, 0, 0, NULL, NULL },
+@@ -37,30 +38,43 @@ LZMA_API const lzma_options_lzma lzma_preset_lzma[9] = {
+ };
+ 
+ 
+-/*
+ extern LZMA_API lzma_bool
+-lzma_preset_lzma(lzma_options_lzma *options, uint32_t level)
++lzma_lzma_preset(lzma_options_lzma *options, uint32_t level)
+ {
+-	*options = (lzma_options_lzma){
++	if (level >= ARRAY_SIZE(presetes))
++		return true;
+ 
+-	};
++	*options = presets[level];
++	return false;
++}
++*/
+ 
+-	options->literal_context_bits = LZMA_LITERAL_CONTEXT_BITS_DEFAULT
+-	options->literal_pos_bits = LZMA_LITERAL_POS_BITS_DEFAULT;
+-	options->pos_bits = LZMA_POS_BITS_DEFAULT;
+-	options->preset_dictionary = NULL;
+-	options->preset_dictionary_size = 0;
+-	options->persistent = false;
+ 
+-	options->mode = level <= 2 ? LZMA_MODE_FAST : LZMA_MODE_NORMAL;
+-	options->fast_bytes = level <=
++extern LZMA_API lzma_bool
++lzma_lzma_preset(lzma_options_lzma *options, uint32_t level)
++{
++	if (level >= 9)
++		return true;
++
++	memzero(options, sizeof(*options));
+ 
+-	options->match_finder = level == 1 ? LZMA_MF_HC3
+-			: (level == 2 ? LZMA_MF_HC4 : LZMA_MF_BT4);
+-	options->match_finder_cycles = 0;
++	static const uint8_t shift[9] = { 16, 20, 19, 20, 21, 22, 23, 24, 25 };
++	options->dict_size = UINT32_C(1) << shift[level];
+ 
++	options->preset_dict = NULL;
++	options->preset_dict_size = 0;
+ 
++	options->lc = LZMA_LC_DEFAULT;
++	options->lp = LZMA_LP_DEFAULT;
++	options->pb = LZMA_PB_DEFAULT;
+ 
+-	options->dictionary_size =
++	options->persistent = false;
++	options->mode = level <= 2 ? LZMA_MODE_FAST : LZMA_MODE_NORMAL;
++
++	options->nice_len = level <= 5 ? 32 : 64;
++	options->mf = level <= 1 ? LZMA_MF_HC3 : level <= 2 ? LZMA_MF_HC4
++			: LZMA_MF_BT4;
++	options->depth = 0;
++
++	return false;
+ }
+-*/
+diff --git a/src/liblzma/rangecoder/Makefile.am b/src/liblzma/rangecoder/Makefile.am
+index f6824292..b2e62d4a 100644
+--- a/src/liblzma/rangecoder/Makefile.am
++++ b/src/liblzma/rangecoder/Makefile.am
+@@ -21,7 +21,7 @@ librangecoder_la_CPPFLAGS = \
+ 	-I@top_srcdir@/src/liblzma/api \
+ 	-I@top_srcdir@/src/liblzma/common
+ 
+-if COND_ENCODER_LZMA
++if COND_ENCODER_LZMA1
+ librangecoder_la_SOURCES += \
+ 	range_encoder.h \
+ 	price.h
+@@ -32,6 +32,6 @@ librangecoder_la_SOURCES += price_table.c
+ endif
+ endif
+ 
+-if COND_DECODER_LZMA
++if COND_DECODER_LZMA1
+ librangecoder_la_SOURCES += range_decoder.h
+ endif
+diff --git a/src/liblzma/subblock/subblock_decoder.c b/src/liblzma/subblock/subblock_decoder.c
+index 41dbe389..7cf06988 100644
+--- a/src/liblzma/subblock/subblock_decoder.c
++++ b/src/liblzma/subblock/subblock_decoder.c
+@@ -291,7 +291,7 @@ decode_buffer(lzma_coder *coder, lzma_allocator *allocator,
+ 
+ 		// Optimization: We know that LZMA uses End of Payload Marker
+ 		// (not End of Input), so we can omit the helper filter.
+-		if (filters[0].id == LZMA_FILTER_LZMA)
++		if (filters[0].id == LZMA_FILTER_LZMA1)
+ 			filters[1].id = LZMA_VLI_UNKNOWN;
+ 
+ 		return_if_error(lzma_raw_decoder_init(
+diff --git a/src/lzma/args.c b/src/lzma/args.c
+index 2ddb93ed..ddaa0f91 100644
+--- a/src/lzma/args.c
++++ b/src/lzma/args.c
+@@ -124,7 +124,7 @@ static const struct option long_opts[] = {
+ static void
+ add_filter(lzma_vli id, const char *opt_str)
+ {
+-	if (filter_count == 7) {
++	if (filter_count == LZMA_BLOCK_FILTERS_MAX) {
+ 		errmsg(V_ERROR, _("Maximum number of filters is seven"));
+ 		my_exit(ERROR);
+ 	}
+@@ -142,7 +142,7 @@ add_filter(lzma_vli id, const char *opt_str)
+ 				= parse_options_delta(opt_str);
+ 		break;
+ 
+-	case LZMA_FILTER_LZMA:
++	case LZMA_FILTER_LZMA1:
+ 	case LZMA_FILTER_LZMA2:
+ 		opt_filters[filter_count].options
+ 				= parse_options_lzma(opt_str);
+@@ -301,7 +301,7 @@ parse_real(int argc, char **argv)
+ 			break;
+ 
+ 		case OPT_LZMA1:
+-			add_filter(LZMA_FILTER_LZMA, optarg);
++			add_filter(LZMA_FILTER_LZMA1, optarg);
+ 			break;
+ 
+ 		case OPT_LZMA2:
+@@ -452,11 +452,17 @@ parse_environment(void)
+ static void
+ set_compression_settings(void)
+ {
++	static lzma_options_lzma opt_lzma;
++
+ 	if (filter_count == 0) {
++		if (lzma_lzma_preset(&opt_lzma, preset_number)) {
++			errmsg(V_ERROR, _("Internal error (bug)"));
++			my_exit(ERROR);
++		}
++
+ 		opt_filters[0].id = opt_header == HEADER_ALONE
+-				? LZMA_FILTER_LZMA : LZMA_FILTER_LZMA2;
+-		opt_filters[0].options = (lzma_options_lzma *)(
+-				lzma_preset_lzma + preset_number);
++				? LZMA_FILTER_LZMA1 : LZMA_FILTER_LZMA2;
++		opt_filters[0].options = &opt_lzma;
+ 		filter_count = 1;
+ 	}
+ 
+@@ -466,12 +472,14 @@ set_compression_settings(void)
+ 	// If we are using the LZMA_Alone format, allow exactly one filter
+ 	// which has to be LZMA.
+ 	if (opt_header == HEADER_ALONE && (filter_count != 1
+-			|| opt_filters[0].id != LZMA_FILTER_LZMA)) {
+-		errmsg(V_ERROR, _("With --format=alone only the LZMA filter "
++			|| opt_filters[0].id != LZMA_FILTER_LZMA1)) {
++		errmsg(V_ERROR, _("With --format=alone only the LZMA1 filter "
+ 				"is supported"));
+ 		my_exit(ERROR);
+ 	}
+ 
++	// TODO: liblzma probably needs an API to validate the filter chain.
++
+ 	// If using --format=raw, we can be decoding.
+ 	uint64_t memory_usage = opt_mode == MODE_COMPRESS
+ 			? lzma_memusage_encoder(opt_filters)
+@@ -488,10 +496,11 @@ set_compression_settings(void)
+ 				my_exit(ERROR);
+ 			}
+ 
+-			--preset_number;
+-			opt_filters[0].options = (lzma_options_lzma *)(
+-					lzma_preset_lzma
+-					+ preset_number);
++			if (lzma_lzma_preset(&opt_lzma, --preset_number)) {
++				errmsg(V_ERROR, _("Internal error (bug)"));
++				my_exit(ERROR);
++			}
++
+ 			memory_usage = lzma_memusage_encoder(opt_filters);
+ 		}
+ 	} else {
+diff --git a/src/lzma/help.c b/src/lzma/help.c
+index d4888653..0b530ff5 100644
+--- a/src/lzma/help.c
++++ b/src/lzma/help.c
+@@ -82,13 +82,13 @@ show_help(void)
+ "  --lzma1=[OPTS]      LZMA1 or LZMA2; OPTS is a comma-separated list of zero or\n"
+ "  --lzma2=[OPTS]      more of the following options (valid values; default):\n"
+ "                        dict=NUM   dictionary size in bytes (1 - 1GiB; 8MiB)\n"
+-"                        lc=NUM     number of literal context bits (0-8; 3)\n"
++"                        lc=NUM     number of literal context bits (0-4; 3)\n"
+ "                        lp=NUM     number of literal position bits (0-4; 0)\n"
+ "                        pb=NUM     number of position bits (0-4; 2)\n"
+ "                        mode=MODE  compression mode (`fast' or `best'; `best')\n"
+-"                        fb=NUM     number of fast bytes (5-273; 128)\n"
++"                        nice=NUM   nice length of a match (2-273; 64)\n"
+ "                        mf=NAME    match finder (hc3, hc4, bt2, bt3, bt4; bt4)\n"
+-"                        mfc=NUM    match finder cycles; 0=automatic (default)\n"
++"                        depth=NUM  maximum search depth; 0=automatic (default)\n"
+ "\n"
+ "  --x86               x86 filter (sometimes called BCJ filter)\n"
+ "  --powerpc           PowerPC (big endian) filter\n"
+@@ -98,14 +98,13 @@ show_help(void)
+ "  --sparc             SPARC filter\n"
+ "\n"
+ "  --delta=[OPTS]      Delta filter; valid OPTS (valid values; default):\n"
+-"                        distance=NUM  Distance between bytes being\n"
+-"                                      subtracted from each other (1-256; 1)\n"
++"                        dist=NUM   distance between bytes being subtracted\n"
++"                                   from each other (1-256; 1)\n"
+ "\n"
+-"  --copy              No filtering (useful only when specified alone)\n"
+ "  --subblock=[OPTS]   Subblock filter; valid OPTS (valid values; default):\n"
+-"                        size=NUM    number of bytes of data per subblock\n"
+-"                                    (1 - 256Mi; 4Ki)\n"
+-"                        rle=NUM     run-length encoder chunk size (0-256; 0)\n"
++"                        size=NUM   number of bytes of data per subblock\n"
++"                                   (1 - 256Mi; 4Ki)\n"
++"                        rle=NUM    run-length encoder chunk size (0-256; 0)\n"
+ ));
+ 
+ 	puts(_(
+diff --git a/src/lzma/options.c b/src/lzma/options.c
+index b2ec200e..f5ebdd8e 100644
+--- a/src/lzma/options.c
++++ b/src/lzma/options.c
+@@ -81,8 +81,7 @@ parse_options(const char *str, const option_map *opts,
+ 
+ 		if (value == NULL || value[0] == '\0') {
+ 			errmsg(V_ERROR, _("%s: Options must be `name=value' "
+-					"pairs separated with commas"),
+-					str);
++					"pairs separated with commas"), str);
+ 			my_exit(ERROR);
+ 		}
+ 
+@@ -201,7 +200,7 @@ parse_options_subblock(const char *str)
+ ///////////
+ 
+ enum {
+-	OPT_DISTANCE,
++	OPT_DIST,
+ };
+ 
+ 
+@@ -210,8 +209,8 @@ set_delta(void *options, uint32_t key, uint64_t value)
+ {
+ 	lzma_options_delta *opt = options;
+ 	switch (key) {
+-	case OPT_DISTANCE:
+-		opt->distance = value;
++	case OPT_DIST:
++		opt->dist = value;
+ 		break;
+ 	}
+ }
+@@ -221,15 +220,16 @@ extern lzma_options_delta *
+ parse_options_delta(const char *str)
+ {
+ 	static const option_map opts[] = {
+-		{ "distance", NULL,  LZMA_DELTA_DISTANCE_MIN,
+-		                     LZMA_DELTA_DISTANCE_MAX },
++		{ "dist",     NULL,  LZMA_DELTA_DIST_MIN,
++		                     LZMA_DELTA_DIST_MAX },
+ 		{ NULL,       NULL,  0, 0 }
+ 	};
+ 
+ 	lzma_options_delta *options = xmalloc(sizeof(lzma_options_subblock));
+ 	*options = (lzma_options_delta){
+ 		// It's hard to give a useful default for this.
+-		.distance = LZMA_DELTA_DISTANCE_MIN,
++		.type = LZMA_DELTA_TYPE_BYTE,
++		.dist = LZMA_DELTA_DIST_MIN,
+ 	};
+ 
+ 	parse_options(str, opts, &set_delta, options);
+@@ -248,9 +248,9 @@ enum {
+ 	OPT_LP,
+ 	OPT_PB,
+ 	OPT_MODE,
+-	OPT_FB,
++	OPT_NICE,
+ 	OPT_MF,
+-	OPT_MC
++	OPT_DEPTH,
+ };
+ 
+ 
+@@ -261,35 +261,35 @@ set_lzma(void *options, uint32_t key, uint64_t value)
+ 
+ 	switch (key) {
+ 	case OPT_DICT:
+-		opt->dictionary_size = value;
++		opt->dict_size = value;
+ 		break;
+ 
+ 	case OPT_LC:
+-		opt->literal_context_bits = value;
++		opt->lc = value;
+ 		break;
+ 
+ 	case OPT_LP:
+-		opt->literal_pos_bits = value;
++		opt->lp = value;
+ 		break;
+ 
+ 	case OPT_PB:
+-		opt->pos_bits = value;
++		opt->pb = value;
+ 		break;
+ 
+ 	case OPT_MODE:
+ 		opt->mode = value;
+ 		break;
+ 
+-	case OPT_FB:
+-		opt->fast_bytes = value;
++	case OPT_NICE:
++		opt->nice_len = value;
+ 		break;
+ 
+ 	case OPT_MF:
+-		opt->match_finder = value;
++		opt->mf = value;
+ 		break;
+ 
+-	case OPT_MC:
+-		opt->match_finder_cycles = value;
++	case OPT_DEPTH:
++		opt->depth = value;
+ 		break;
+ 	}
+ }
+@@ -314,35 +314,49 @@ parse_options_lzma(const char *str)
+ 	};
+ 
+ 	static const option_map opts[] = {
+-		{ "dict", NULL,   LZMA_DICTIONARY_SIZE_MIN,
+-				LZMA_DICTIONARY_SIZE_MAX },
+-		{ "lc",   NULL,   LZMA_LITERAL_CONTEXT_BITS_MIN,
+-				LZMA_LITERAL_CONTEXT_BITS_MAX },
+-		{ "lp",   NULL,   LZMA_LITERAL_POS_BITS_MIN,
+-				LZMA_LITERAL_POS_BITS_MAX },
+-		{ "pb",   NULL,   LZMA_POS_BITS_MIN, LZMA_POS_BITS_MAX },
+-		{ "mode", modes,  0, 0 },
+-		{ "fb",   NULL,   LZMA_FAST_BYTES_MIN, LZMA_FAST_BYTES_MAX },
+-		{ "mf",   mfs,    0, 0 },
+-		{ "mc",   NULL,   0, UINT32_MAX },
+-		{ NULL,   NULL,   0, 0 }
++		{ "dict",   NULL,   LZMA_DICT_SIZE_MIN,
++				(UINT32_C(1) << 30) + (UINT32_C(1) << 29) },
++		{ "lc",     NULL,   LZMA_LCLP_MIN, LZMA_LCLP_MAX },
++		{ "lp",     NULL,   LZMA_LCLP_MIN, LZMA_LCLP_MAX },
++		{ "pb",     NULL,   LZMA_PB_MIN, LZMA_PB_MAX },
++		{ "mode",   modes,  0, 0 },
++		{ "nice",   NULL,   2, 273 },
++		{ "mf",     mfs,    0, 0 },
++		{ "depth",  NULL,   0, UINT32_MAX },
++		{ NULL,     NULL,   0, 0 }
+ 	};
+ 
++	// TODO There should be a way to take some preset as the base for
++	// custom settings.
+ 	lzma_options_lzma *options = xmalloc(sizeof(lzma_options_lzma));
+ 	*options = (lzma_options_lzma){
+-		.dictionary_size = LZMA_DICTIONARY_SIZE_DEFAULT,
+-		.literal_context_bits = LZMA_LITERAL_CONTEXT_BITS_DEFAULT,
+-		.literal_pos_bits = LZMA_LITERAL_POS_BITS_DEFAULT,
+-		.pos_bits = LZMA_POS_BITS_DEFAULT,
+-		.preset_dictionary =  NULL,
++		.dict_size = LZMA_DICT_SIZE_DEFAULT,
++		.preset_dict =  NULL,
++		.preset_dict_size = 0,
++		.lc = LZMA_LC_DEFAULT,
++		.lp = LZMA_LP_DEFAULT,
++		.pb = LZMA_PB_DEFAULT,
+ 		.persistent = false,
+ 		.mode = LZMA_MODE_NORMAL,
+-		.fast_bytes = LZMA_FAST_BYTES_DEFAULT,
+-		.match_finder = LZMA_MF_BT4,
+-		.match_finder_cycles = 0,
++		.nice_len = 64,
++		.mf = LZMA_MF_BT4,
++		.depth = 0,
+ 	};
+ 
+ 	parse_options(str, opts, &set_lzma, options);
+ 
++	if (options->lc + options->lp > LZMA_LCLP_MAX) {
++		errmsg(V_ERROR, "The sum of lc and lp must be at "
++				"maximum of 4");
++		exit(ERROR);
++	}
++
++	const uint32_t nice_len_min = options->mf & 0x0F;
++	if (options->nice_len < nice_len_min) {
++		errmsg(V_ERROR, "The selected match finder requires at "
++				"least nice=%" PRIu32, nice_len_min);
++		exit(ERROR);
++	}
++
+ 	return options;
+ }
+diff --git a/tests/test_block_header.c b/tests/test_block_header.c
+index 1d8e9d39..7f94d837 100644
+--- a/tests/test_block_header.c
++++ b/tests/test_block_header.c
+@@ -24,6 +24,8 @@ static uint8_t buf[LZMA_BLOCK_HEADER_SIZE_MAX];
+ static lzma_block known_options;
+ static lzma_block decoded_options;
+ 
++static lzma_options_lzma opt_lzma;
++
+ static lzma_filter filters_none[1] = {
+ 	{
+ 		.id = LZMA_VLI_UNKNOWN,
+@@ -34,7 +36,7 @@ static lzma_filter filters_none[1] = {
+ static lzma_filter filters_one[2] = {
+ 	{
+ 		.id = LZMA_FILTER_LZMA2,
+-		.options = (void *)(&lzma_preset_lzma[0]),
++		.options = &opt_lzma,
+ 	}, {
+ 		.id = LZMA_VLI_UNKNOWN,
+ 	}
+@@ -53,7 +55,7 @@ static lzma_filter filters_four[5] = {
+ 		.options = NULL,
+ 	}, {
+ 		.id = LZMA_FILTER_LZMA2,
+-		.options = (void *)(&lzma_preset_lzma[0]),
++		.options = &opt_lzma,
+ 	}, {
+ 		.id = LZMA_VLI_UNKNOWN,
+ 	}
+@@ -75,7 +77,7 @@ static lzma_filter filters_five[6] = {
+ 		.options = NULL,
+ 	}, {
+ 		.id = LZMA_FILTER_LZMA2,
+-		.options = (void *)(&lzma_preset_lzma[0]),
++		.options = &opt_lzma,
+ 	}, {
+ 		.id = LZMA_VLI_UNKNOWN,
+ 	}
+@@ -230,6 +232,7 @@ int
+ main(void)
+ {
+ 	lzma_init();
++	succeed(lzma_lzma_preset(&opt_lzma, 0));
+ 
+ 	test1();
+ 	test2();
+diff --git a/tests/test_compress.sh b/tests/test_compress.sh
+index 49f3fd50..05668191 100755
+--- a/tests/test_compress.sh
++++ b/tests/test_compress.sh
+@@ -121,8 +121,8 @@ do
+ 		--armthumb \
+ 		--sparc
+ 	do
+-		test_lzma $ARGS --lzma2=dict=64KiB,fb=32,mode=fast
+-		test_lzma --subblock $ARGS --lzma2=dict=64KiB,fb=32,mode=fast
++		test_lzma $ARGS --lzma2=dict=64KiB,nice=32,mode=fast
++		test_lzma --subblock $ARGS --lzma2=dict=64KiB,nice=32,mode=fast
+ 	done
+ 
+ 	echo
+diff --git a/tests/test_filter_flags.c b/tests/test_filter_flags.c
+index 585138d1..2b53a688 100644
+--- a/tests/test_filter_flags.c
++++ b/tests/test_filter_flags.c
+@@ -200,7 +200,7 @@ static void
+ test_lzma(void)
+ {
+ 	// Test 1
+-	known_flags.id = LZMA_FILTER_LZMA;
++	known_flags.id = LZMA_FILTER_LZMA1;
+ 	known_flags.options = NULL;
+ 	expect(encode(99));
+ 

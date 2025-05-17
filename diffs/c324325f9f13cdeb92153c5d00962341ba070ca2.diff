@@ -1,0 +1,59 @@
+diff --git a/src/liblzma/check/crc32_table.c b/src/liblzma/check/crc32_table.c
+index f1cc0daf..4fcebc2b 100644
+--- a/src/liblzma/check/crc32_table.c
++++ b/src/liblzma/check/crc32_table.c
+@@ -11,7 +11,7 @@
+ //
+ ///////////////////////////////////////////////////////////////////////////////
+ 
+-#include "sysdefs.h"
++#include "common.h"
+ 
+ #ifdef WORDS_BIGENDIAN
+ #	include "crc32_table_be.h"
+diff --git a/src/liblzma/check/crc64_table.c b/src/liblzma/check/crc64_table.c
+index 2f227319..983ed31f 100644
+--- a/src/liblzma/check/crc64_table.c
++++ b/src/liblzma/check/crc64_table.c
+@@ -11,7 +11,7 @@
+ //
+ ///////////////////////////////////////////////////////////////////////////////
+ 
+-#include "sysdefs.h"
++#include "common.h"
+ 
+ #ifdef WORDS_BIGENDIAN
+ #	include "crc64_table_be.h"
+diff --git a/src/liblzma/common/Makefile.am b/src/liblzma/common/Makefile.am
+index dad80ecd..c650a34c 100644
+--- a/src/liblzma/common/Makefile.am
++++ b/src/liblzma/common/Makefile.am
+@@ -23,7 +23,6 @@ libcommon_la_CPPFLAGS = \
+ 	-I@top_srcdir@/src/liblzma/rangecoder
+ libcommon_la_SOURCES = \
+ 	common.h \
+-	sysdefs.h \
+ 	bsr.h \
+ 	allocator.c \
+ 	block_private.h \
+diff --git a/src/liblzma/common/common.h b/src/liblzma/common/common.h
+index ca9c2f23..5dd7a87f 100644
+--- a/src/liblzma/common/common.h
++++ b/src/liblzma/common/common.h
+@@ -20,7 +20,7 @@
+ #ifndef LZMA_COMMON_H
+ #define LZMA_COMMON_H
+ 
+-#include "sysdefs.h"
++#include "../../common/sysdefs.h"
+ 
+ // Don't use ifdef...
+ #if HAVE_VISIBILITY
+diff --git a/src/liblzma/common/sysdefs.h b/src/liblzma/common/sysdefs.h
+deleted file mode 120000
+index c6cb6768..00000000
+--- a/src/liblzma/common/sysdefs.h
++++ /dev/null
+@@ -1 +0,0 @@
+-../../common/sysdefs.h
+\ No newline at end of file

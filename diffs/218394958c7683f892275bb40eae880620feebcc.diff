@@ -1,0 +1,206 @@
+diff --git a/src/liblzma/common/alone_decoder.c b/src/liblzma/common/alone_decoder.c
+index c4d96cda..5c4d60b1 100644
+--- a/src/liblzma/common/alone_decoder.c
++++ b/src/liblzma/common/alone_decoder.c
+@@ -132,6 +132,7 @@ alone_decode(void *coder_ptr, const lzma_allocator *allocator,
+ 
+ 		lzma_filter_info filters[2] = {
+ 			{
++				.id = LZMA_FILTER_LZMA1,
+ 				.init = &lzma_lzma_decoder_init,
+ 				.options = &coder->options,
+ 			}, {
+diff --git a/src/liblzma/common/alone_encoder.c b/src/liblzma/common/alone_encoder.c
+index 96c1db70..c9392f37 100644
+--- a/src/liblzma/common/alone_encoder.c
++++ b/src/liblzma/common/alone_encoder.c
+@@ -129,6 +129,7 @@ alone_encoder_init(lzma_next_coder *next, const lzma_allocator *allocator,
+ 	// Initialize the LZMA encoder.
+ 	const lzma_filter_info filters[2] = {
+ 		{
++			.id = LZMA_FILTER_LZMA1,
+ 			.init = &lzma_lzma_encoder_init,
+ 			.options = (void *)(options),
+ 		}, {
+diff --git a/src/liblzma/common/common.h b/src/liblzma/common/common.h
+index b3a624c6..01841de0 100644
+--- a/src/liblzma/common/common.h
++++ b/src/liblzma/common/common.h
+@@ -162,8 +162,11 @@ typedef void (*lzma_end_function)(
+ /// an array of lzma_filter_info structures. This array is used with
+ /// lzma_next_filter_init to initialize the filter chain.
+ struct lzma_filter_info_s {
+-	/// Filter ID. This is used only by the encoder
+-	/// with lzma_filters_update().
++	/// Filter ID. This can be used to share the same initiazation
++	/// function *and* data structures with different Filter IDs
++	/// (LZMA_FILTER_LZMA1EXT does it), and also by the encoder
++	/// with lzma_filters_update() if filter chain is updated
++	/// in the middle of a raw stream or Block (LZMA_SYNC_FLUSH).
+ 	lzma_vli id;
+ 
+ 	/// Pointer to function used to initialize the filter.
+diff --git a/src/liblzma/common/lzip_decoder.c b/src/liblzma/common/lzip_decoder.c
+index 29c83cfa..20794f94 100644
+--- a/src/liblzma/common/lzip_decoder.c
++++ b/src/liblzma/common/lzip_decoder.c
+@@ -231,6 +231,7 @@ lzip_decode(void *coder_ptr, const lzma_allocator *allocator,
+ 
+ 		const lzma_filter_info filters[2] = {
+ 			{
++				.id = LZMA_FILTER_LZMA1,
+ 				.init = &lzma_lzma_decoder_init,
+ 				.options = &coder->options,
+ 			}, {
+diff --git a/src/liblzma/common/microlzma_decoder.c b/src/liblzma/common/microlzma_decoder.c
+index d6337816..ba2f10ad 100644
+--- a/src/liblzma/common/microlzma_decoder.c
++++ b/src/liblzma/common/microlzma_decoder.c
+@@ -95,6 +95,7 @@ microlzma_decode(void *coder_ptr, const lzma_allocator *allocator,
+ 		options.dict_size = coder->dict_size;
+ 		lzma_filter_info filters[2] = {
+ 			{
++				.id = LZMA_FILTER_LZMA1,
+ 				.init = &lzma_lzma_decoder_init,
+ 				.options = &options,
+ 			}, {
+diff --git a/src/liblzma/common/microlzma_encoder.c b/src/liblzma/common/microlzma_encoder.c
+index 072b500f..d3ef0632 100644
+--- a/src/liblzma/common/microlzma_encoder.c
++++ b/src/liblzma/common/microlzma_encoder.c
+@@ -116,6 +116,7 @@ microlzma_encoder_init(lzma_next_coder *next, const lzma_allocator *allocator,
+ 	// Initialize the LZMA encoder.
+ 	const lzma_filter_info filters[2] = {
+ 		{
++			.id = LZMA_FILTER_LZMA1,
+ 			.init = &lzma_lzma_encoder_init,
+ 			.options = (void *)(options),
+ 		}, {
+diff --git a/src/liblzma/lz/lz_decoder.c b/src/liblzma/lz/lz_decoder.c
+index ab6af0dd..4a62db76 100644
+--- a/src/liblzma/lz/lz_decoder.c
++++ b/src/liblzma/lz/lz_decoder.c
+@@ -212,7 +212,8 @@ extern lzma_ret
+ lzma_lz_decoder_init(lzma_next_coder *next, const lzma_allocator *allocator,
+ 		const lzma_filter_info *filters,
+ 		lzma_ret (*lz_init)(lzma_lz_decoder *lz,
+-			const lzma_allocator *allocator, const void *options,
++			const lzma_allocator *allocator,
++			lzma_vli id, const void *options,
+ 			lzma_lz_options *lz_options))
+ {
+ 	// Allocate the base structure if it isn't already allocated.
+@@ -236,7 +237,7 @@ lzma_lz_decoder_init(lzma_next_coder *next, const lzma_allocator *allocator,
+ 	// us the dictionary size.
+ 	lzma_lz_options lz_options;
+ 	return_if_error(lz_init(&coder->lz, allocator,
+-			filters[0].options, &lz_options));
++			filters[0].id, filters[0].options, &lz_options));
+ 
+ 	// If the dictionary size is very small, increase it to 4096 bytes.
+ 	// This is to prevent constant wrapping of the dictionary, which
+diff --git a/src/liblzma/lz/lz_decoder.h b/src/liblzma/lz/lz_decoder.h
+index e6d7ab2a..8e68ac8a 100644
+--- a/src/liblzma/lz/lz_decoder.h
++++ b/src/liblzma/lz/lz_decoder.h
+@@ -87,7 +87,8 @@ extern lzma_ret lzma_lz_decoder_init(lzma_next_coder *next,
+ 		const lzma_allocator *allocator,
+ 		const lzma_filter_info *filters,
+ 		lzma_ret (*lz_init)(lzma_lz_decoder *lz,
+-			const lzma_allocator *allocator, const void *options,
++			const lzma_allocator *allocator,
++			lzma_vli id, const void *options,
+ 			lzma_lz_options *lz_options));
+ 
+ extern uint64_t lzma_lz_decoder_memusage(size_t dictionary_size);
+diff --git a/src/liblzma/lz/lz_encoder.c b/src/liblzma/lz/lz_encoder.c
+index 702582ce..5489085a 100644
+--- a/src/liblzma/lz/lz_encoder.c
++++ b/src/liblzma/lz/lz_encoder.c
+@@ -544,7 +544,8 @@ extern lzma_ret
+ lzma_lz_encoder_init(lzma_next_coder *next, const lzma_allocator *allocator,
+ 		const lzma_filter_info *filters,
+ 		lzma_ret (*lz_init)(lzma_lz_encoder *lz,
+-			const lzma_allocator *allocator, const void *options,
++			const lzma_allocator *allocator,
++			lzma_vli id, const void *options,
+ 			lzma_lz_options *lz_options))
+ {
+ #if defined(HAVE_SMALL) && !defined(HAVE_FUNC_ATTRIBUTE_CONSTRUCTOR)
+@@ -585,7 +586,7 @@ lzma_lz_encoder_init(lzma_next_coder *next, const lzma_allocator *allocator,
+ 	// Initialize the LZ-based encoder.
+ 	lzma_lz_options lz_options;
+ 	return_if_error(lz_init(&coder->lz, allocator,
+-			filters[0].options, &lz_options));
++			filters[0].id, filters[0].options, &lz_options));
+ 
+ 	// Setup the size information into coder->mf and deallocate
+ 	// old buffers if they have wrong size.
+diff --git a/src/liblzma/lz/lz_encoder.h b/src/liblzma/lz/lz_encoder.h
+index 41439408..7950a2f4 100644
+--- a/src/liblzma/lz/lz_encoder.h
++++ b/src/liblzma/lz/lz_encoder.h
+@@ -311,7 +311,8 @@ extern lzma_ret lzma_lz_encoder_init(
+ 		lzma_next_coder *next, const lzma_allocator *allocator,
+ 		const lzma_filter_info *filters,
+ 		lzma_ret (*lz_init)(lzma_lz_encoder *lz,
+-			const lzma_allocator *allocator, const void *options,
++			const lzma_allocator *allocator,
++			lzma_vli id, const void *options,
+ 			lzma_lz_options *lz_options));
+ 
+ 
+diff --git a/src/liblzma/lzma/lzma2_decoder.c b/src/liblzma/lzma/lzma2_decoder.c
+index 105a28dc..567df490 100644
+--- a/src/liblzma/lzma/lzma2_decoder.c
++++ b/src/liblzma/lzma/lzma2_decoder.c
+@@ -226,7 +226,8 @@ lzma2_decoder_end(void *coder_ptr, const lzma_allocator *allocator)
+ 
+ static lzma_ret
+ lzma2_decoder_init(lzma_lz_decoder *lz, const lzma_allocator *allocator,
+-		const void *opt, lzma_lz_options *lz_options)
++		lzma_vli id lzma_attribute((__unused__)), const void *opt,
++		lzma_lz_options *lz_options)
+ {
+ 	lzma_lzma2_coder *coder = lz->coder;
+ 	if (coder == NULL) {
+diff --git a/src/liblzma/lzma/lzma2_encoder.c b/src/liblzma/lzma/lzma2_encoder.c
+index 6914f279..f1252c57 100644
+--- a/src/liblzma/lzma/lzma2_encoder.c
++++ b/src/liblzma/lzma/lzma2_encoder.c
+@@ -310,7 +310,8 @@ lzma2_encoder_options_update(void *coder_ptr, const lzma_filter *filter)
+ 
+ static lzma_ret
+ lzma2_encoder_init(lzma_lz_encoder *lz, const lzma_allocator *allocator,
+-		const void *options, lzma_lz_options *lz_options)
++		lzma_vli id lzma_attribute((__unused__)), const void *options,
++		lzma_lz_options *lz_options)
+ {
+ 	if (options == NULL)
+ 		return LZMA_PROG_ERROR;
+diff --git a/src/liblzma/lzma/lzma_decoder.c b/src/liblzma/lzma/lzma_decoder.c
+index f56ccaf7..69507f51 100644
+--- a/src/liblzma/lzma/lzma_decoder.c
++++ b/src/liblzma/lzma/lzma_decoder.c
+@@ -1014,7 +1014,7 @@ lzma_lzma_decoder_create(lzma_lz_decoder *lz, const lzma_allocator *allocator,
+ /// the LZ initialization).
+ static lzma_ret
+ lzma_decoder_init(lzma_lz_decoder *lz, const lzma_allocator *allocator,
+-		const void *options, lzma_lz_options *lz_options)
++		lzma_vli id, const void *options, lzma_lz_options *lz_options)
+ {
+ 	if (!is_lclppb_valid(options))
+ 		return LZMA_PROG_ERROR;
+diff --git a/src/liblzma/lzma/lzma_encoder.c b/src/liblzma/lzma/lzma_encoder.c
+index 9a64b71f..e2dbbc03 100644
+--- a/src/liblzma/lzma/lzma_encoder.c
++++ b/src/liblzma/lzma/lzma_encoder.c
+@@ -680,7 +680,7 @@ lzma_lzma_encoder_create(void **coder_ptr,
+ 
+ static lzma_ret
+ lzma_encoder_init(lzma_lz_encoder *lz, const lzma_allocator *allocator,
+-		const void *options, lzma_lz_options *lz_options)
++		lzma_vli id, const void *options, lzma_lz_options *lz_options)
+ {
+ 	lz->code = &lzma_encode;
+ 	lz->set_out_limit = &lzma_lzma_set_out_limit;

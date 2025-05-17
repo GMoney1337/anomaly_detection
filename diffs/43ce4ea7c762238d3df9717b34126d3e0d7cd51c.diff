@@ -1,0 +1,161 @@
+diff --git a/INSTALL b/INSTALL
+index da116be4..c29dd091 100644
+--- a/INSTALL
++++ b/INSTALL
+@@ -123,8 +123,11 @@ XZ Utils Installation
+     as an argument to the configure script.
+ 
+     test_scripts.sh in "make check" may fail if good enough tools are
+-    missing from PATH (/usr/xpg4/bin or /usr/xpg6/bin). See sections
+-    4.5 and 3.2 for more information.
++    missing from PATH (/usr/xpg4/bin or /usr/xpg6/bin). Nowadays
++    /usr/xpg4/bin is added to the script PATH by default on Solaris
++    (see --enable-path-for-scripts=PREFIX in section 2), but old xz
++    releases needed extra steps. See sections 4.5 and 3.2 for more
++    information.
+ 
+ 
+ 1.2.6. Tru64
+@@ -438,6 +441,23 @@ XZ Utils Installation
+                 and should work on most systems. This has no effect on the
+                 resulting binaries.
+ 
++    --enable-path-for-scripts=PREFIX
++                If PREFIX isn't empty, PATH=PREFIX:$PATH will be set in
++                the beginning of the scripts (xzgrep and others).
++                The default is empty except on Solaris the default is
++                /usr/xpg4/bin.
++
++                This can be useful if the default PATH doesn't contain
++                modern POSIX tools (as can be the case on Solaris) or if
++                one wants to ensure that the correct xz binary is in the
++                PATH for the scripts. Note that the latter use can break
++                "make check" if the prefixed PATH causes a wrong xz binary
++                (other than the one that was just built) to be used.
++
++                Older xz releases support a different method for setting
++                the PATH for the scripts. It is described in section 3.2
++                and is supported in this xz version too.
++
+ 
+ 2.1. Static vs. dynamic linking of liblzma
+ 
+@@ -510,11 +530,17 @@ XZ Utils Installation
+ 
+ 3.2. PATH
+ 
++    The method described below is supported by older xz releases.
++    It is supported by the current version too, but the newer
++    --enable-path-for-scripts=PREFIX described in section 2 may be
++    more convenient.
++
+     The scripts assume that the required tools (standard POSIX utilities,
+-    mktemp, and xz) are in PATH; the scripts don't set the PATH themselves.
+-    Some people like this while some think this is a bug. Those in the
+-    latter group can easily patch the scripts before running the configure
+-    script by taking advantage of a placeholder line in the scripts.
++    mktemp, and xz) are in PATH; the scripts don't set the PATH themselves
++    (except as described for --enable-path-for-scripts=PREFIX). Some
++    people like this while some think this is a bug. Those in the latter
++    group can easily patch the scripts before running the configure script
++    by taking advantage of a placeholder line in the scripts.
+ 
+     For example, to make the scripts prefix /usr/bin:/bin to PATH:
+ 
+@@ -588,8 +614,9 @@ XZ Utils Installation
+     some tools are missing from the current PATH or the tools lack
+     support for some POSIX features. This can happen at least on
+     Solaris where the tools in /bin may be ancient but good enough
+-    tools are available in /usr/xpg4/bin or /usr/xpg6/bin. One fix
+-    for this problem is described in section 3.2 of this file.
++    tools are available in /usr/xpg4/bin or /usr/xpg6/bin. For possible
++    fixes, see --enable-path-for-scripts=PREFIX in section 2 and the
++    older alternative method described in section 3.2 of this file.
+ 
+     If tests other than test_scripts.sh fail, a likely reason is that
+     libtool links the test programs against an installed version of
+diff --git a/configure.ac b/configure.ac
+index 5cd9ca6e..d14fa40d 100644
+--- a/configure.ac
++++ b/configure.ac
+@@ -516,6 +516,32 @@ case $enable_sandbox in
+ esac
+ 
+ 
++###########################
++# PATH prefix for scripts #
++###########################
++
++# The scripts can add a prefix to the search PATH so that POSIX tools
++# or the xz binary is always in the PATH.
++AC_ARG_ENABLE([path-for-scripts],
++	[AS_HELP_STRING([--enable-path-for-scripts=PREFIX],
++		[If PREFIX isn't empty, PATH=PREFIX:$PATH will be set in
++		the beginning of the scripts (xzgrep and others).
++		The default is empty except on Solaris the default is
++		/usr/xpg4/bin.])],
++	[], [
++		case $host_os in
++			solaris*) enable_path_for_scripts=/usr/xpg4/bin ;;
++			*)        enable_path_for_scripts= ;;
++		esac
++	])
++if test -n "$enable_path_for_scripts" && test "x$enable_path_for_scripts" != xno ; then
++	enable_path_for_scripts="PATH=$enable_path_for_scripts:\$PATH"
++else
++	enable_path_for_scripts=
++fi
++AC_SUBST([enable_path_for_scripts])
++
++
+ ###############################################################################
+ # Checks for programs.
+ ###############################################################################
+diff --git a/src/scripts/xzdiff.in b/src/scripts/xzdiff.in
+index 6aa6b989..eb7825c1 100644
+--- a/src/scripts/xzdiff.in
++++ b/src/scripts/xzdiff.in
+@@ -15,6 +15,7 @@
+ # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ # GNU General Public License for more details.
+ 
++@enable_path_for_scripts@
+ #SET_PATH - This line is a placeholder to ease patching this script.
+ 
+ # Instead of unsetting XZ_OPT, just make sure that xz will use file format
+diff --git a/src/scripts/xzgrep.in b/src/scripts/xzgrep.in
+index a570a905..9db5c3a8 100644
+--- a/src/scripts/xzgrep.in
++++ b/src/scripts/xzgrep.in
+@@ -18,6 +18,7 @@
+ # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ # GNU General Public License for more details.
+ 
++@enable_path_for_scripts@
+ #SET_PATH - This line is a placeholder to ease patching this script.
+ 
+ # Instead of unsetting XZ_OPT, just make sure that xz will use file format
+diff --git a/src/scripts/xzless.in b/src/scripts/xzless.in
+index 1b85ad6f..cf61ab29 100644
+--- a/src/scripts/xzless.in
++++ b/src/scripts/xzless.in
+@@ -15,6 +15,7 @@
+ # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ # GNU General Public License for more details.
+ 
++@enable_path_for_scripts@
+ #SET_PATH - This line is a placeholder to ease patching this script.
+ 
+ # Instead of unsetting XZ_OPT, just make sure that xz will use file format
+diff --git a/src/scripts/xzmore.in b/src/scripts/xzmore.in
+index 940d6614..ea832a30 100644
+--- a/src/scripts/xzmore.in
++++ b/src/scripts/xzmore.in
+@@ -15,6 +15,7 @@
+ # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ # GNU General Public License for more details.
+ 
++@enable_path_for_scripts@
+ #SET_PATH - This line is a placeholder to ease patching this script.
+ 
+ # Instead of unsetting XZ_OPT, just make sure that xz will use file format

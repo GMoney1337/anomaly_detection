@@ -1,0 +1,14 @@
+diff --git a/windows/build.bash b/windows/build.bash
+index 9bcc28b4..e27e9ec9 100644
+--- a/windows/build.bash
++++ b/windows/build.bash
+@@ -228,8 +228,8 @@ do
+ 	[ -x "$SEVENZ" ] && break
+ done
+ 
++VER=$(sh build-aux/version.sh)
+ if [ -x "$SEVENZ" ]; then
+-	VER=$(sh build-aux/version.sh)
+ 	cd pkg
+ 	"$SEVENZ" a -tzip ../xz-$VER-windows.zip *
+ 	"$SEVENZ" a ../xz-$VER-windows.7z *

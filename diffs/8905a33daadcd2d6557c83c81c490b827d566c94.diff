@@ -1,0 +1,12 @@
+diff --git a/THANKS b/THANKS
+index 6a61927b..a3943fbf 100644
+--- a/THANKS
++++ b/THANKS
+@@ -15,6 +15,7 @@ has been important. :-) In alphabetical order:
+   - İsmail Dönmez
+   - Robert Elz
+   - Mike Frysinger
++  - Peter Ivanov
+   - Per Øyvind Karlsen
+   - Thomas Klausner
+   - Richard Koch

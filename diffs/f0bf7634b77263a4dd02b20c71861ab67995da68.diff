@@ -1,0 +1,26 @@
+diff --git a/src/liblzma/api/lzma/filter.h b/src/liblzma/api/lzma/filter.h
+index c3a20998..c4bc69d3 100644
+--- a/src/liblzma/api/lzma/filter.h
++++ b/src/liblzma/api/lzma/filter.h
+@@ -121,7 +121,7 @@ extern LZMA_API(lzma_bool) lzma_filter_decoder_is_supported(lzma_vli id)
+  *                is not NULL.
+  *              - LZMA_PROG_ERROR: src or dest is NULL.
+  */
+-extern LZMA_API(lzma_ret) lzma_filters_dup(const lzma_filter *src,
++extern LZMA_API(lzma_ret) lzma_filters_copy(const lzma_filter *src,
+ 		lzma_filter *dest, lzma_allocator *allocator);
+ 
+ 
+diff --git a/src/liblzma/common/filter_common.c b/src/liblzma/common/filter_common.c
+index c839e231..055093f7 100644
+--- a/src/liblzma/common/filter_common.c
++++ b/src/liblzma/common/filter_common.c
+@@ -131,7 +131,7 @@ static const struct {
+ 
+ 
+ extern LZMA_API(lzma_ret)
+-lzma_filters_dup(const lzma_filter *src, lzma_filter *dest,
++lzma_filters_copy(const lzma_filter *src, lzma_filter *dest,
+ 		lzma_allocator *allocator)
+ {
+ 	if (src == NULL || dest == NULL)

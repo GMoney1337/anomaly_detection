@@ -1,0 +1,49 @@
+diff --git a/configure.ac b/configure.ac
+index 3df43486..81abce58 100644
+--- a/configure.ac
++++ b/configure.ac
+@@ -672,7 +672,7 @@ AC_C_BIGENDIAN
+ gl_GETOPT
+ 
+ # Find the best function to set timestamps.
+-AC_CHECK_FUNCS([futimens futimes futimesat utimes utime], [break])
++AC_CHECK_FUNCS([futimens futimes futimesat utimes _futime utime], [break])
+ 
+ # This is nice to have but not mandatory.
+ AC_CHECK_FUNCS([posix_fadvise])
+diff --git a/src/xz/file_io.c b/src/xz/file_io.c
+index 2ca188bd..c01f4e8b 100644
+--- a/src/xz/file_io.c
++++ b/src/xz/file_io.c
+@@ -23,6 +23,8 @@ static bool warn_fchown;
+ 
+ #if defined(HAVE_FUTIMES) || defined(HAVE_FUTIMESAT) || defined(HAVE_UTIMES)
+ #	include <sys/time.h>
++#elif defined(HAVE__FUTIME)
++#	include <sys/utime.h>
+ #elif defined(HAVE_UTIME)
+ #	include <utime.h>
+ #endif
+@@ -457,6 +459,22 @@ io_copy_attrs(const file_pair *pair)
+ 	(void)utimes(pair->dest_name, tv);
+ #	endif
+ 
++#elif defined(HAVE__FUTIME)
++	// Use one-second precision with Windows-specific _futime().
++	// We could use utime() too except that for some reason the
++	// timestamp will get reset at close(). With _futime() it works.
++	// This struct cannot be const as _futime() takes a non-const pointer.
++	struct _utimbuf buf = {
++		.actime = pair->src_st.st_atime,
++		.modtime = pair->src_st.st_mtime,
++	};
++
++	// Avoid warnings.
++	(void)atime_nsec;
++	(void)mtime_nsec;
++
++	(void)_futime(pair->dest_fd, &buf);
++
+ #elif defined(HAVE_UTIME)
+ 	// Use one-second precision. utime() doesn't support using file
+ 	// descriptor either. Some systems have broken utime() prototype

@@ -1,0 +1,13 @@
+diff --git a/src/xz/file_io.c b/src/xz/file_io.c
+index 71b5377e..1a7dac13 100644
+--- a/src/xz/file_io.c
++++ b/src/xz/file_io.c
+@@ -238,6 +238,8 @@ capsicum_error:
+ 	// implement the capability system calls, then the capsicum system
+ 	// calls will fail and set errno to ENOSYS.
+ 	if (errno == ENOSYS) {
++		message_warning(_("%s: Cannot enable the sandbox"),
++				strerror(errno));
+ 		sandbox_allowed = false;
+ 		return;
+ 	}

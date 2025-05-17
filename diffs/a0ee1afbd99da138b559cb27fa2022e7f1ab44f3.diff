@@ -1,0 +1,12 @@
+diff --git a/THANKS b/THANKS
+index ee86a149..a8d5c754 100644
+--- a/THANKS
++++ b/THANKS
+@@ -56,6 +56,7 @@ has been important. :-) In alphabetical order:
+   - Andraž 'ruskie' Levstik
+   - Cary Lewis
+   - Wim Lewis
++  - Eric Lindblad
+   - Lorenzo De Liso
+   - Bela Lubkin
+   - Gregory Margo

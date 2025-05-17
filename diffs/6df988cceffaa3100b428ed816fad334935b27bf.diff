@@ -1,0 +1,3033 @@
+diff --git a/windows/INSTALL-MSVC.txt b/windows/INSTALL-MSVC.txt
+index 2fdd1e7b..d9574388 100644
+--- a/windows/INSTALL-MSVC.txt
++++ b/windows/INSTALL-MSVC.txt
+@@ -5,41 +5,28 @@ Building XZ Utils with Microsoft Visual Studio
+ Introduction
+ ------------
+ 
++    liblzma got MSVC support in XZ Utils 5.2.0, and the xz and xzdec
++    command line tools in XZ Utils 5.6.0.
++
++        Note: xz and xzdec depend on the the included GNU getopt
++        which is licensed under the GNU LGPLv2.1.
++
+     MSVC 2013 update 2 and later have enough C99 support to build
+     liblzma from XZ Utils 5.2.0 and later without modifications.
+-    Older MSVC versions would require a large number of changes to
+-    the XZ Utils code and thus the old MSVC versions aren't supported.
+ 
+-    As of 2015-06-19, some work has been done to get xz.exe and other
+-    command line tools built with MSVC, but it's not complete enough
+-    to be included in XZ Utils.
++    Visual Studio 2015 or later is required to build the command line
++    tools.
+ 
+ 
+ Building
+ --------
+ 
+     It is recommended to use CMake to generate build files for MSVC.
+-    The project files in vs201x directories will be removed in the
+-    future (5.4.x releases will include them still).
+-
+-    Descriptions of the files in the vs201x directories:
+-
+-        config.h              liblzma configuration #defines for MSVC.
+-        liblzma.vcxproj       This builds static liblzma.
+-        liblzma_dll.vcxproj   This builds liblzma.dll.
+-        xz_win.sln            Solution using the above project files.
+-
+-    The projects have x86 and x86-64 platform configurations, as well
+-    as a Debug, Release, and ReleaseMT configuration -- MT is the
+-    compiler switch to link to the CRT statically, so it will not
+-    have any other DLL dependencies.
+-
+-    The VS2017 project files don't set <WindowsTargetPlatformVersion>.
+-    This means that you may need to either install Windows SDK 8.1 or
+-    you may need to set the target platform version before building.
++    Visual Studio project files are no longer provided (XZ Utils 5.4.x
++    were the last versions to include the project files).
+ 
+-    Currently no test programs are built or run under MSVC from the
+-    project files. CMake-based builds include tests too.
++    CMake-based build includes tests for liblzma but not for the
++    command line tools.
+ 
+ 
+ Notes
+diff --git a/windows/vs2013/config.h b/windows/vs2013/config.h
+deleted file mode 100644
+index 1a78b9b5..00000000
+--- a/windows/vs2013/config.h
++++ /dev/null
+@@ -1,157 +0,0 @@
+-/* config.h for compiling liblzma (*not* the whole XZ Utils) with MSVC 2013 */
+-
+-/* Prefix for symbols exported by tuklib_*.c files */
+-#define TUKLIB_SYMBOL_PREFIX lzma_
+-
+-/* How many MiB of RAM to assume if the real amount cannot be determined. */
+-#define ASSUME_RAM 128
+-
+-/* Define to 1 if crc32 integrity check is enabled. */
+-#define HAVE_CHECK_CRC32 1
+-
+-/* Define to 1 if crc64 integrity check is enabled. */
+-#define HAVE_CHECK_CRC64 1
+-
+-/* Define to 1 if sha256 integrity check is enabled. */
+-#define HAVE_CHECK_SHA256 1
+-
+-/* Define to 1 if any of HAVE_DECODER_foo have been defined. */
+-#define HAVE_DECODERS 1
+-
+-/* Define to 1 if arm decoder is enabled. */
+-#define HAVE_DECODER_ARM 1
+-
+-/* Define to 1 if arm64 decoder is enabled. */
+-#define HAVE_DECODER_ARM64 1
+-
+-/* Define to 1 if armthumb decoder is enabled. */
+-#define HAVE_DECODER_ARMTHUMB 1
+-
+-/* Define to 1 if delta decoder is enabled. */
+-#define HAVE_DECODER_DELTA 1
+-
+-/* Define to 1 if ia64 decoder is enabled. */
+-#define HAVE_DECODER_IA64 1
+-
+-/* Define to 1 if lzma1 decoder is enabled. */
+-#define HAVE_DECODER_LZMA1 1
+-
+-/* Define to 1 if lzma2 decoder is enabled. */
+-#define HAVE_DECODER_LZMA2 1
+-
+-/* Define to 1 if powerpc decoder is enabled. */
+-#define HAVE_DECODER_POWERPC 1
+-
+-/* Define to 1 if sparc decoder is enabled. */
+-#define HAVE_DECODER_SPARC 1
+-
+-/* Define to 1 if x86 decoder is enabled. */
+-#define HAVE_DECODER_X86 1
+-
+-/* Define to 1 if any of HAVE_ENCODER_foo have been defined. */
+-#define HAVE_ENCODERS 1
+-
+-/* Define to 1 if arm encoder is enabled. */
+-#define HAVE_ENCODER_ARM 1
+-
+-/* Define to 1 if arm64 encoder is enabled. */
+-#define HAVE_ENCODER_ARM64 1
+-
+-/* Define to 1 if armthumb encoder is enabled. */
+-#define HAVE_ENCODER_ARMTHUMB 1
+-
+-/* Define to 1 if delta encoder is enabled. */
+-#define HAVE_ENCODER_DELTA 1
+-
+-/* Define to 1 if ia64 encoder is enabled. */
+-#define HAVE_ENCODER_IA64 1
+-
+-/* Define to 1 if lzma1 encoder is enabled. */
+-#define HAVE_ENCODER_LZMA1 1
+-
+-/* Define to 1 if lzma2 encoder is enabled. */
+-#define HAVE_ENCODER_LZMA2 1
+-
+-/* Define to 1 if powerpc encoder is enabled. */
+-#define HAVE_ENCODER_POWERPC 1
+-
+-/* Define to 1 if sparc encoder is enabled. */
+-#define HAVE_ENCODER_SPARC 1
+-
+-/* Define to 1 if x86 encoder is enabled. */
+-#define HAVE_ENCODER_X86 1
+-
+-/* Define to 1 if you have the <inttypes.h> header file. */
+-#define HAVE_INTTYPES_H 1
+-
+-/* Define to 1 if you have the <limits.h> header file. */
+-#define HAVE_LIMITS_H 1
+-
+-/* Define to 1 if .lz (lzip) decompression support is enabled. */
+-#define HAVE_LZIP_DECODER 1
+-
+-/* Define to 1 to enable bt2 match finder. */
+-#define HAVE_MF_BT2 1
+-
+-/* Define to 1 to enable bt3 match finder. */
+-#define HAVE_MF_BT3 1
+-
+-/* Define to 1 to enable bt4 match finder. */
+-#define HAVE_MF_BT4 1
+-
+-/* Define to 1 to enable hc3 match finder. */
+-#define HAVE_MF_HC3 1
+-
+-/* Define to 1 to enable hc4 match finder. */
+-#define HAVE_MF_HC4 1
+-
+-/* Define to 1 if stdbool.h conforms to C99. */
+-#define HAVE_STDBOOL_H 1
+-
+-/* Define to 1 if you have the <stdint.h> header file. */
+-#define HAVE_STDINT_H 1
+-
+-/* Define to 1 if you have the <stdlib.h> header file. */
+-#define HAVE_STDLIB_H 1
+-
+-/* Define to 1 if you have the <string.h> header file. */
+-#define HAVE_STRING_H 1
+-
+-/* Define to 1 or 0, depending whether the compiler supports simple visibility
+-   declarations. */
+-#define HAVE_VISIBILITY 0
+-
+-/* Define to 1 if the system has the type `_Bool'. */
+-#define HAVE__BOOL 1
+-
+-#ifdef _M_IX86
+-/* Define to 1 when using Windows 95 (and thus XP) compatible threads. This
+-   avoids use of features that were added in Windows Vista.
+-   This is used for 32-bit x86 builds for compatibility reasons since it
+-   makes no measurable difference in performance compared to Vista threads. */
+-#define MYTHREAD_WIN95 1
+-#else
+-/* Define to 1 when using Windows Vista compatible threads. This uses features
+-   that are not available on Windows XP. */
+-#define MYTHREAD_VISTA 1
+-#endif
+-
+-/* Define to 1 to disable debugging code. */
+-#define NDEBUG 1
+-
+-/* Define to the full name of this package. */
+-#define PACKAGE_NAME "XZ Utils"
+-
+-/* Define to the home page for this package. */
+-#define PACKAGE_URL "https://tukaani.org/xz/"
+-
+-/* The size of `size_t', as computed by sizeof. */
+-#ifdef _WIN64
+-#define SIZEOF_SIZE_T 8
+-#else
+-#define SIZEOF_SIZE_T 4
+-#endif
+-
+-/* Define to 1 if the system supports fast unaligned access to 16-bit and
+-   32-bit integers. */
+-#define TUKLIB_FAST_UNALIGNED_ACCESS 1
+diff --git a/windows/vs2013/liblzma.vcxproj b/windows/vs2013/liblzma.vcxproj
+deleted file mode 100644
+index 0e9b8b16..00000000
+--- a/windows/vs2013/liblzma.vcxproj
++++ /dev/null
+@@ -1,363 +0,0 @@
+-﻿<?xml version="1.0" encoding="utf-8"?>
+-<Project DefaultTargets="Build" ToolsVersion="12.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+-  <ItemGroup Label="ProjectConfigurations">
+-    <ProjectConfiguration Include="Debug|Win32">
+-      <Configuration>Debug</Configuration>
+-      <Platform>Win32</Platform>
+-    </ProjectConfiguration>
+-    <ProjectConfiguration Include="Debug|x64">
+-      <Configuration>Debug</Configuration>
+-      <Platform>x64</Platform>
+-    </ProjectConfiguration>
+-    <ProjectConfiguration Include="ReleaseMT|Win32">
+-      <Configuration>ReleaseMT</Configuration>
+-      <Platform>Win32</Platform>
+-    </ProjectConfiguration>
+-    <ProjectConfiguration Include="ReleaseMT|x64">
+-      <Configuration>ReleaseMT</Configuration>
+-      <Platform>x64</Platform>
+-    </ProjectConfiguration>
+-    <ProjectConfiguration Include="Release|Win32">
+-      <Configuration>Release</Configuration>
+-      <Platform>Win32</Platform>
+-    </ProjectConfiguration>
+-    <ProjectConfiguration Include="Release|x64">
+-      <Configuration>Release</Configuration>
+-      <Platform>x64</Platform>
+-    </ProjectConfiguration>
+-  </ItemGroup>
+-  <PropertyGroup Label="Globals">
+-    <ProjectGuid>{12728250-16EC-4DC6-94D7-E21DD88947F8}</ProjectGuid>
+-    <Keyword>Win32Proj</Keyword>
+-  </PropertyGroup>
+-  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
+-  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
+-    <ConfigurationType>StaticLibrary</ConfigurationType>
+-    <UseDebugLibraries>true</UseDebugLibraries>
+-    <PlatformToolset>v120</PlatformToolset>
+-  </PropertyGroup>
+-  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="Configuration">
+-    <ConfigurationType>StaticLibrary</ConfigurationType>
+-    <UseDebugLibraries>true</UseDebugLibraries>
+-    <PlatformToolset>v120</PlatformToolset>
+-  </PropertyGroup>
+-  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'" Label="Configuration">
+-    <ConfigurationType>StaticLibrary</ConfigurationType>
+-    <UseDebugLibraries>false</UseDebugLibraries>
+-    <PlatformToolset>v120</PlatformToolset>
+-  </PropertyGroup>
+-  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="Configuration">
+-    <ConfigurationType>StaticLibrary</ConfigurationType>
+-    <UseDebugLibraries>false</UseDebugLibraries>
+-    <PlatformToolset>v120</PlatformToolset>
+-  </PropertyGroup>
+-  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='ReleaseMT|Win32'" Label="Configuration">
+-    <ConfigurationType>StaticLibrary</ConfigurationType>
+-    <UseDebugLibraries>false</UseDebugLibraries>
+-    <PlatformToolset>v120</PlatformToolset>
+-  </PropertyGroup>
+-  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='ReleaseMT|x64'" Label="Configuration">
+-    <ConfigurationType>StaticLibrary</ConfigurationType>
+-    <UseDebugLibraries>false</UseDebugLibraries>
+-    <PlatformToolset>v120</PlatformToolset>
+-  </PropertyGroup>
+-  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
+-  <ImportGroup Label="ExtensionSettings">
+-  </ImportGroup>
+-  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+-    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+-  </ImportGroup>
+-  <ImportGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="PropertySheets">
+-    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+-  </ImportGroup>
+-  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
+-    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+-  </ImportGroup>
+-  <ImportGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="PropertySheets">
+-    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+-  </ImportGroup>
+-  <ImportGroup Condition="'$(Configuration)|$(Platform)'=='ReleaseMT|Win32'" Label="PropertySheets">
+-    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+-  </ImportGroup>
+-  <ImportGroup Condition="'$(Configuration)|$(Platform)'=='ReleaseMT|x64'" Label="PropertySheets">
+-    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+-  </ImportGroup>
+-  <PropertyGroup Label="UserMacros" />
+-  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+-    <LinkIncremental>true</LinkIncremental>
+-    <OutDir>$(SolutionDir)$(Configuration)\$(Platform)\$(ProjectName)\</OutDir>
+-    <IntDir>$(Configuration)\$(Platform)\$(ProjectName)\</IntDir>
+-  </PropertyGroup>
+-  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+-    <LinkIncremental>true</LinkIncremental>
+-    <OutDir>$(SolutionDir)$(Configuration)\$(Platform)\$(ProjectName)\</OutDir>
+-    <IntDir>$(Configuration)\$(Platform)\$(ProjectName)\</IntDir>
+-  </PropertyGroup>
+-  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
+-    <LinkIncremental>true</LinkIncremental>
+-    <OutDir>$(SolutionDir)$(Configuration)\$(Platform)\$(ProjectName)\</OutDir>
+-    <IntDir>$(Configuration)\$(Platform)\$(ProjectName)\</IntDir>
+-  </PropertyGroup>
+-  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+-    <LinkIncremental>true</LinkIncremental>
+-    <OutDir>$(SolutionDir)$(Configuration)\$(Platform)\$(ProjectName)\</OutDir>
+-    <IntDir>$(Configuration)\$(Platform)\$(ProjectName)\</IntDir>
+-  </PropertyGroup>
+-  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='ReleaseMT|Win32'">
+-    <LinkIncremental>true</LinkIncremental>
+-    <OutDir>$(SolutionDir)$(Configuration)\$(Platform)\$(ProjectName)\</OutDir>
+-    <IntDir>$(Configuration)\$(Platform)\$(ProjectName)\</IntDir>
+-  </PropertyGroup>
+-  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='ReleaseMT|x64'">
+-    <LinkIncremental>true</LinkIncremental>
+-    <OutDir>$(SolutionDir)$(Configuration)\$(Platform)\$(ProjectName)\</OutDir>
+-    <IntDir>$(Configuration)\$(Platform)\$(ProjectName)\</IntDir>
+-  </PropertyGroup>
+-  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+-    <ClCompile>
+-      <PreprocessorDefinitions>WIN32;HAVE_CONFIG_H;_DEBUG;_LIB;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+-      <RuntimeLibrary>MultiThreadedDebugDLL</RuntimeLibrary>
+-      <WarningLevel>Level3</WarningLevel>
+-      <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
+-      <Optimization>Disabled</Optimization>
+-      <AdditionalIncludeDirectories>./;../../src/liblzma/common;../../src/common;../../src/liblzma/api;../../src/liblzma/check;../../src/liblzma/delta;../../src/liblzma/lz;../../src/liblzma/lzma;../../src/liblzma/rangecoder;../../src/liblzma/simple</AdditionalIncludeDirectories>
+-    </ClCompile>
+-    <Link>
+-      <TargetMachine>MachineX86</TargetMachine>
+-      <GenerateDebugInformation>true</GenerateDebugInformation>
+-      <SubSystem>Windows</SubSystem>
+-    </Link>
+-  </ItemDefinitionGroup>
+-  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+-    <ClCompile>
+-      <PreprocessorDefinitions>WIN32;HAVE_CONFIG_H;_DEBUG;_LIB;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+-      <RuntimeLibrary>MultiThreadedDebugDLL</RuntimeLibrary>
+-      <WarningLevel>Level3</WarningLevel>
+-      <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
+-      <Optimization>Disabled</Optimization>
+-      <AdditionalIncludeDirectories>./;../../src/liblzma/common;../../src/common;../../src/liblzma/api;../../src/liblzma/check;../../src/liblzma/delta;../../src/liblzma/lz;../../src/liblzma/lzma;../../src/liblzma/rangecoder;../../src/liblzma/simple</AdditionalIncludeDirectories>
+-    </ClCompile>
+-    <Link>
+-      <GenerateDebugInformation>true</GenerateDebugInformation>
+-      <SubSystem>Windows</SubSystem>
+-    </Link>
+-  </ItemDefinitionGroup>
+-  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
+-    <ClCompile>
+-      <PreprocessorDefinitions>WIN32;HAVE_CONFIG_H;NDEBUG;_LIB;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+-      <RuntimeLibrary>MultiThreadedDLL</RuntimeLibrary>
+-      <WarningLevel>Level3</WarningLevel>
+-      <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
+-      <AdditionalIncludeDirectories>./;../../src/liblzma/common;../../src/common;../../src/liblzma/api;../../src/liblzma/check;../../src/liblzma/delta;../../src/liblzma/lz;../../src/liblzma/lzma;../../src/liblzma/rangecoder;../../src/liblzma/simple</AdditionalIncludeDirectories>
+-    </ClCompile>
+-    <Link>
+-      <TargetMachine>MachineX86</TargetMachine>
+-      <GenerateDebugInformation>true</GenerateDebugInformation>
+-      <SubSystem>Windows</SubSystem>
+-      <EnableCOMDATFolding>true</EnableCOMDATFolding>
+-      <OptimizeReferences>true</OptimizeReferences>
+-    </Link>
+-  </ItemDefinitionGroup>
+-  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+-    <ClCompile>
+-      <PreprocessorDefinitions>WIN32;HAVE_CONFIG_H;NDEBUG;_LIB;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+-      <RuntimeLibrary>MultiThreadedDLL</RuntimeLibrary>
+-      <WarningLevel>Level3</WarningLevel>
+-      <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
+-      <AdditionalIncludeDirectories>./;../../src/liblzma/common;../../src/common;../../src/liblzma/api;../../src/liblzma/check;../../src/liblzma/delta;../../src/liblzma/lz;../../src/liblzma/lzma;../../src/liblzma/rangecoder;../../src/liblzma/simple</AdditionalIncludeDirectories>
+-    </ClCompile>
+-    <Link>
+-      <GenerateDebugInformation>true</GenerateDebugInformation>
+-      <SubSystem>Windows</SubSystem>
+-      <EnableCOMDATFolding>true</EnableCOMDATFolding>
+-      <OptimizeReferences>true</OptimizeReferences>
+-    </Link>
+-  </ItemDefinitionGroup>
+-  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='ReleaseMT|Win32'">
+-    <ClCompile>
+-      <PreprocessorDefinitions>WIN32;HAVE_CONFIG_H;NDEBUG;_LIB;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+-      <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
+-      <WarningLevel>Level3</WarningLevel>
+-      <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
+-      <AdditionalIncludeDirectories>./;../../src/liblzma/common;../../src/common;../../src/liblzma/api;../../src/liblzma/check;../../src/liblzma/delta;../../src/liblzma/lz;../../src/liblzma/lzma;../../src/liblzma/rangecoder;../../src/liblzma/simple</AdditionalIncludeDirectories>
+-    </ClCompile>
+-    <Link>
+-      <TargetMachine>MachineX86</TargetMachine>
+-      <GenerateDebugInformation>true</GenerateDebugInformation>
+-      <SubSystem>Windows</SubSystem>
+-      <EnableCOMDATFolding>true</EnableCOMDATFolding>
+-      <OptimizeReferences>true</OptimizeReferences>
+-    </Link>
+-  </ItemDefinitionGroup>
+-  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='ReleaseMT|x64'">
+-    <ClCompile>
+-      <PreprocessorDefinitions>WIN32;HAVE_CONFIG_H;NDEBUG;_LIB;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+-      <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
+-      <WarningLevel>Level3</WarningLevel>
+-      <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
+-      <AdditionalIncludeDirectories>./;../../src/liblzma/common;../../src/common;../../src/liblzma/api;../../src/liblzma/check;../../src/liblzma/delta;../../src/liblzma/lz;../../src/liblzma/lzma;../../src/liblzma/rangecoder;../../src/liblzma/simple</AdditionalIncludeDirectories>
+-    </ClCompile>
+-    <Link>
+-      <GenerateDebugInformation>true</GenerateDebugInformation>
+-      <SubSystem>Windows</SubSystem>
+-      <EnableCOMDATFolding>true</EnableCOMDATFolding>
+-      <OptimizeReferences>true</OptimizeReferences>
+-    </Link>
+-  </ItemDefinitionGroup>
+-  <ItemGroup>
+-    <ClCompile Include="..\..\src\common\tuklib_cpucores.c" />
+-    <ClCompile Include="..\..\src\common\tuklib_physmem.c" />
+-    <ClCompile Include="..\..\src\liblzma\check\check.c" />
+-    <ClCompile Include="..\..\src\liblzma\check\crc32_fast.c" />
+-    <ClCompile Include="..\..\src\liblzma\check\crc32_table.c" />
+-    <ClCompile Include="..\..\src\liblzma\check\crc64_fast.c" />
+-    <ClCompile Include="..\..\src\liblzma\check\crc64_table.c" />
+-    <ClCompile Include="..\..\src\liblzma\check\sha256.c" />
+-    <ClCompile Include="..\..\src\liblzma\common\alone_decoder.c" />
+-    <ClCompile Include="..\..\src\liblzma\common\alone_encoder.c" />
+-    <ClCompile Include="..\..\src\liblzma\common\auto_decoder.c" />
+-    <ClCompile Include="..\..\src\liblzma\common\block_buffer_decoder.c" />
+-    <ClCompile Include="..\..\src\liblzma\common\block_buffer_encoder.c" />
+-    <ClCompile Include="..\..\src\liblzma\common\block_decoder.c" />
+-    <ClCompile Include="..\..\src\liblzma\common\block_encoder.c" />
+-    <ClCompile Include="..\..\src\liblzma\common\block_header_decoder.c" />
+-    <ClCompile Include="..\..\src\liblzma\common\block_header_encoder.c" />
+-    <ClCompile Include="..\..\src\liblzma\common\block_util.c" />
+-    <ClCompile Include="..\..\src\liblzma\common\common.c" />
+-    <ClCompile Include="..\..\src\liblzma\common\easy_buffer_encoder.c" />
+-    <ClCompile Include="..\..\src\liblzma\common\easy_decoder_memusage.c" />
+-    <ClCompile Include="..\..\src\liblzma\common\easy_encoder.c" />
+-    <ClCompile Include="..\..\src\liblzma\common\easy_encoder_memusage.c" />
+-    <ClCompile Include="..\..\src\liblzma\common\easy_preset.c" />
+-    <ClCompile Include="..\..\src\liblzma\common\file_info.c" />
+-    <ClCompile Include="..\..\src\liblzma\common\filter_buffer_decoder.c" />
+-    <ClCompile Include="..\..\src\liblzma\common\filter_buffer_encoder.c" />
+-    <ClCompile Include="..\..\src\liblzma\common\filter_common.c" />
+-    <ClCompile Include="..\..\src\liblzma\common\filter_decoder.c" />
+-    <ClCompile Include="..\..\src\liblzma\common\filter_encoder.c" />
+-    <ClCompile Include="..\..\src\liblzma\common\filter_flags_decoder.c" />
+-    <ClCompile Include="..\..\src\liblzma\common\filter_flags_encoder.c" />
+-    <ClCompile Include="..\..\src\liblzma\common\hardware_cputhreads.c" />
+-    <ClCompile Include="..\..\src\liblzma\common\hardware_physmem.c" />
+-    <ClCompile Include="..\..\src\liblzma\common\index.c" />
+-    <ClCompile Include="..\..\src\liblzma\common\index_decoder.c" />
+-    <ClCompile Include="..\..\src\liblzma\common\index_encoder.c" />
+-    <ClCompile Include="..\..\src\liblzma\common\index_hash.c" />
+-    <ClCompile Include="..\..\src\liblzma\common\lzip_decoder.c" />
+-    <ClCompile Include="..\..\src\liblzma\common\microlzma_decoder.c" />
+-    <ClCompile Include="..\..\src\liblzma\common\microlzma_encoder.c" />
+-    <ClCompile Include="..\..\src\liblzma\common\outqueue.c" />
+-    <ClCompile Include="..\..\src\liblzma\common\stream_buffer_decoder.c" />
+-    <ClCompile Include="..\..\src\liblzma\common\stream_buffer_encoder.c" />
+-    <ClCompile Include="..\..\src\liblzma\common\stream_decoder.c" />
+-    <ClCompile Include="..\..\src\liblzma\common\stream_decoder_mt.c" />
+-    <ClCompile Include="..\..\src\liblzma\common\stream_encoder.c" />
+-    <ClCompile Include="..\..\src\liblzma\common\stream_encoder_mt.c" />
+-    <ClCompile Include="..\..\src\liblzma\common\stream_flags_common.c" />
+-    <ClCompile Include="..\..\src\liblzma\common\stream_flags_decoder.c" />
+-    <ClCompile Include="..\..\src\liblzma\common\stream_flags_encoder.c" />
+-    <ClCompile Include="..\..\src\liblzma\common\string_conversion.c" />
+-    <ClCompile Include="..\..\src\liblzma\common\vli_decoder.c" />
+-    <ClCompile Include="..\..\src\liblzma\common\vli_encoder.c" />
+-    <ClCompile Include="..\..\src\liblzma\common\vli_size.c" />
+-    <ClCompile Include="..\..\src\liblzma\delta\delta_common.c" />
+-    <ClCompile Include="..\..\src\liblzma\delta\delta_decoder.c" />
+-    <ClCompile Include="..\..\src\liblzma\delta\delta_encoder.c" />
+-    <ClCompile Include="..\..\src\liblzma\lzma\fastpos_table.c" />
+-    <ClCompile Include="..\..\src\liblzma\lzma\lzma2_decoder.c" />
+-    <ClCompile Include="..\..\src\liblzma\lzma\lzma2_encoder.c" />
+-    <ClCompile Include="..\..\src\liblzma\lzma\lzma_decoder.c" />
+-    <ClCompile Include="..\..\src\liblzma\lzma\lzma_encoder.c" />
+-    <ClCompile Include="..\..\src\liblzma\lzma\lzma_encoder_optimum_fast.c" />
+-    <ClCompile Include="..\..\src\liblzma\lzma\lzma_encoder_optimum_normal.c" />
+-    <ClCompile Include="..\..\src\liblzma\lzma\lzma_encoder_presets.c" />
+-    <ClCompile Include="..\..\src\liblzma\lz\lz_decoder.c" />
+-    <ClCompile Include="..\..\src\liblzma\lz\lz_encoder.c" />
+-    <ClCompile Include="..\..\src\liblzma\lz\lz_encoder_mf.c" />
+-    <ClCompile Include="..\..\src\liblzma\rangecoder\price_table.c" />
+-    <ClCompile Include="..\..\src\liblzma\simple\arm.c" />
+-    <ClCompile Include="..\..\src\liblzma\simple\arm64.c" />
+-    <ClCompile Include="..\..\src\liblzma\simple\armthumb.c" />
+-    <ClCompile Include="..\..\src\liblzma\simple\ia64.c" />
+-    <ClCompile Include="..\..\src\liblzma\simple\powerpc.c" />
+-    <ClCompile Include="..\..\src\liblzma\simple\simple_coder.c" />
+-    <ClCompile Include="..\..\src\liblzma\simple\simple_decoder.c" />
+-    <ClCompile Include="..\..\src\liblzma\simple\simple_encoder.c" />
+-    <ClCompile Include="..\..\src\liblzma\simple\sparc.c" />
+-    <ClCompile Include="..\..\src\liblzma\simple\x86.c" />
+-  </ItemGroup>
+-  <ItemGroup>
+-    <ClInclude Include="..\..\src\common\mythread.h" />
+-    <ClInclude Include="..\..\src\common\sysdefs.h" />
+-    <ClInclude Include="..\..\src\common\tuklib_common.h" />
+-    <ClInclude Include="..\..\src\common\tuklib_config.h" />
+-    <ClInclude Include="..\..\src\common\tuklib_cpucores.h" />
+-    <ClInclude Include="..\..\src\common\tuklib_integer.h" />
+-    <ClInclude Include="..\..\src\common\tuklib_physmem.h" />
+-    <ClInclude Include="..\..\src\liblzma\api\lzma.h" />
+-    <ClInclude Include="..\..\src\liblzma\api\lzma\base.h" />
+-    <ClInclude Include="..\..\src\liblzma\api\lzma\bcj.h" />
+-    <ClInclude Include="..\..\src\liblzma\api\lzma\block.h" />
+-    <ClInclude Include="..\..\src\liblzma\api\lzma\check.h" />
+-    <ClInclude Include="..\..\src\liblzma\api\lzma\container.h" />
+-    <ClInclude Include="..\..\src\liblzma\api\lzma\delta.h" />
+-    <ClInclude Include="..\..\src\liblzma\api\lzma\filter.h" />
+-    <ClInclude Include="..\..\src\liblzma\api\lzma\hardware.h" />
+-    <ClInclude Include="..\..\src\liblzma\api\lzma\index.h" />
+-    <ClInclude Include="..\..\src\liblzma\api\lzma\index_hash.h" />
+-    <ClInclude Include="..\..\src\liblzma\api\lzma\lzma12.h" />
+-    <ClInclude Include="..\..\src\liblzma\api\lzma\stream_flags.h" />
+-    <ClInclude Include="..\..\src\liblzma\api\lzma\version.h" />
+-    <ClInclude Include="..\..\src\liblzma\api\lzma\vli.h" />
+-    <ClInclude Include="..\..\src\liblzma\check\check.h" />
+-    <ClInclude Include="..\..\src\liblzma\check\crc32_table_be.h" />
+-    <ClInclude Include="..\..\src\liblzma\check\crc32_table_le.h" />
+-    <ClInclude Include="..\..\src\liblzma\check\crc64_table_be.h" />
+-    <ClInclude Include="..\..\src\liblzma\check\crc64_table_le.h" />
+-    <ClInclude Include="..\..\src\liblzma\check\crc_macros.h" />
+-    <ClInclude Include="..\..\src\liblzma\common\alone_decoder.h" />
+-    <ClInclude Include="..\..\src\liblzma\common\block_buffer_encoder.h" />
+-    <ClInclude Include="..\..\src\liblzma\common\block_decoder.h" />
+-    <ClInclude Include="..\..\src\liblzma\common\block_encoder.h" />
+-    <ClInclude Include="..\..\src\liblzma\common\common.h" />
+-    <ClInclude Include="..\..\src\liblzma\common\easy_preset.h" />
+-    <ClInclude Include="..\..\src\liblzma\common\filter_common.h" />
+-    <ClInclude Include="..\..\src\liblzma\common\filter_decoder.h" />
+-    <ClInclude Include="..\..\src\liblzma\common\filter_encoder.h" />
+-    <ClInclude Include="..\..\src\liblzma\common\index.h" />
+-    <ClInclude Include="..\..\src\liblzma\common\index_decoder.h" />
+-    <ClInclude Include="..\..\src\liblzma\common\index_encoder.h" />
+-    <ClInclude Include="..\..\src\liblzma\common\memcmplen.h" />
+-    <ClInclude Include="..\..\src\liblzma\common\lzip_decoder.h" />
+-    <ClInclude Include="..\..\src\liblzma\common\outqueue.h" />
+-    <ClInclude Include="..\..\src\liblzma\common\stream_decoder.h" />
+-    <ClInclude Include="..\..\src\liblzma\common\stream_flags_common.h" />
+-    <ClInclude Include="..\..\src\liblzma\delta\delta_common.h" />
+-    <ClInclude Include="..\..\src\liblzma\delta\delta_decoder.h" />
+-    <ClInclude Include="..\..\src\liblzma\delta\delta_encoder.h" />
+-    <ClInclude Include="..\..\src\liblzma\delta\delta_private.h" />
+-    <ClInclude Include="..\..\src\liblzma\lzma\fastpos.h" />
+-    <ClInclude Include="..\..\src\liblzma\lzma\lzma2_decoder.h" />
+-    <ClInclude Include="..\..\src\liblzma\lzma\lzma2_encoder.h" />
+-    <ClInclude Include="..\..\src\liblzma\lzma\lzma_common.h" />
+-    <ClInclude Include="..\..\src\liblzma\lzma\lzma_decoder.h" />
+-    <ClInclude Include="..\..\src\liblzma\lzma\lzma_encoder.h" />
+-    <ClInclude Include="..\..\src\liblzma\lzma\lzma_encoder_private.h" />
+-    <ClInclude Include="..\..\src\liblzma\lz\lz_decoder.h" />
+-    <ClInclude Include="..\..\src\liblzma\lz\lz_encoder.h" />
+-    <ClInclude Include="..\..\src\liblzma\lz\lz_encoder_hash.h" />
+-    <ClInclude Include="..\..\src\liblzma\lz\lz_encoder_hash_table.h" />
+-    <ClInclude Include="..\..\src\liblzma\rangecoder\price.h" />
+-    <ClInclude Include="..\..\src\liblzma\rangecoder\range_common.h" />
+-    <ClInclude Include="..\..\src\liblzma\rangecoder\range_decoder.h" />
+-    <ClInclude Include="..\..\src\liblzma\rangecoder\range_encoder.h" />
+-    <ClInclude Include="..\..\src\liblzma\simple\simple_coder.h" />
+-    <ClInclude Include="..\..\src\liblzma\simple\simple_decoder.h" />
+-    <ClInclude Include="..\..\src\liblzma\simple\simple_encoder.h" />
+-    <ClInclude Include="..\..\src\liblzma\simple\simple_private.h" />
+-    <ClInclude Include="config.h" />
+-  </ItemGroup>
+-  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
+-  <ImportGroup Label="ExtensionTargets">
+-  </ImportGroup>
+-</Project>
+diff --git a/windows/vs2013/liblzma_dll.vcxproj b/windows/vs2013/liblzma_dll.vcxproj
+deleted file mode 100644
+index c2c34988..00000000
+--- a/windows/vs2013/liblzma_dll.vcxproj
++++ /dev/null
+@@ -1,398 +0,0 @@
+-﻿<?xml version="1.0" encoding="utf-8"?>
+-<Project DefaultTargets="Build" ToolsVersion="12.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+-  <ItemGroup Label="ProjectConfigurations">
+-    <ProjectConfiguration Include="Debug|Win32">
+-      <Configuration>Debug</Configuration>
+-      <Platform>Win32</Platform>
+-    </ProjectConfiguration>
+-    <ProjectConfiguration Include="Debug|x64">
+-      <Configuration>Debug</Configuration>
+-      <Platform>x64</Platform>
+-    </ProjectConfiguration>
+-    <ProjectConfiguration Include="ReleaseMT|Win32">
+-      <Configuration>ReleaseMT</Configuration>
+-      <Platform>Win32</Platform>
+-    </ProjectConfiguration>
+-    <ProjectConfiguration Include="ReleaseMT|x64">
+-      <Configuration>ReleaseMT</Configuration>
+-      <Platform>x64</Platform>
+-    </ProjectConfiguration>
+-    <ProjectConfiguration Include="Release|Win32">
+-      <Configuration>Release</Configuration>
+-      <Platform>Win32</Platform>
+-    </ProjectConfiguration>
+-    <ProjectConfiguration Include="Release|x64">
+-      <Configuration>Release</Configuration>
+-      <Platform>x64</Platform>
+-    </ProjectConfiguration>
+-  </ItemGroup>
+-  <PropertyGroup Label="Globals">
+-    <ProjectGuid>{E0F247DB-EF12-4755-8DF9-F74BCD1348F7}</ProjectGuid>
+-    <Keyword>Win32Proj</Keyword>
+-  </PropertyGroup>
+-  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
+-  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
+-    <ConfigurationType>DynamicLibrary</ConfigurationType>
+-    <UseDebugLibraries>true</UseDebugLibraries>
+-    <PlatformToolset>v120</PlatformToolset>
+-  </PropertyGroup>
+-  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="Configuration">
+-    <ConfigurationType>DynamicLibrary</ConfigurationType>
+-    <UseDebugLibraries>true</UseDebugLibraries>
+-    <PlatformToolset>v120</PlatformToolset>
+-  </PropertyGroup>
+-  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'" Label="Configuration">
+-    <ConfigurationType>DynamicLibrary</ConfigurationType>
+-    <UseDebugLibraries>false</UseDebugLibraries>
+-    <PlatformToolset>v120</PlatformToolset>
+-  </PropertyGroup>
+-  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="Configuration">
+-    <ConfigurationType>DynamicLibrary</ConfigurationType>
+-    <UseDebugLibraries>false</UseDebugLibraries>
+-    <PlatformToolset>v120</PlatformToolset>
+-  </PropertyGroup>
+-  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='ReleaseMT|Win32'" Label="Configuration">
+-    <ConfigurationType>DynamicLibrary</ConfigurationType>
+-    <UseDebugLibraries>false</UseDebugLibraries>
+-    <PlatformToolset>v120</PlatformToolset>
+-  </PropertyGroup>
+-  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='ReleaseMT|x64'" Label="Configuration">
+-    <ConfigurationType>DynamicLibrary</ConfigurationType>
+-    <UseDebugLibraries>false</UseDebugLibraries>
+-    <PlatformToolset>v120</PlatformToolset>
+-  </PropertyGroup>
+-  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
+-  <ImportGroup Label="ExtensionSettings">
+-  </ImportGroup>
+-  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+-    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+-  </ImportGroup>
+-  <ImportGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="PropertySheets">
+-    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+-  </ImportGroup>
+-  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
+-    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+-  </ImportGroup>
+-  <ImportGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="PropertySheets">
+-    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+-  </ImportGroup>
+-  <ImportGroup Condition="'$(Configuration)|$(Platform)'=='ReleaseMT|Win32'" Label="PropertySheets">
+-    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+-  </ImportGroup>
+-  <ImportGroup Condition="'$(Configuration)|$(Platform)'=='ReleaseMT|x64'" Label="PropertySheets">
+-    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+-  </ImportGroup>
+-  <PropertyGroup Label="UserMacros" />
+-  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+-    <LinkIncremental>true</LinkIncremental>
+-    <OutDir>$(SolutionDir)$(Configuration)\$(Platform)\$(ProjectName)\</OutDir>
+-    <IntDir>$(Configuration)\$(Platform)\$(ProjectName)\</IntDir>
+-    <TargetName>liblzma</TargetName>
+-  </PropertyGroup>
+-  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+-    <LinkIncremental>true</LinkIncremental>
+-    <OutDir>$(SolutionDir)$(Configuration)\$(Platform)\$(ProjectName)\</OutDir>
+-    <IntDir>$(Configuration)\$(Platform)\$(ProjectName)\</IntDir>
+-    <TargetName>liblzma</TargetName>
+-  </PropertyGroup>
+-  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
+-    <LinkIncremental>
+-    </LinkIncremental>
+-    <OutDir>$(SolutionDir)$(Configuration)\$(Platform)\$(ProjectName)\</OutDir>
+-    <IntDir>$(Configuration)\$(Platform)\$(ProjectName)\</IntDir>
+-    <TargetName>liblzma</TargetName>
+-  </PropertyGroup>
+-  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+-    <LinkIncremental />
+-    <OutDir>$(SolutionDir)$(Configuration)\$(Platform)\$(ProjectName)\</OutDir>
+-    <IntDir>$(Configuration)\$(Platform)\$(ProjectName)\</IntDir>
+-    <TargetName>liblzma</TargetName>
+-  </PropertyGroup>
+-  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='ReleaseMT|Win32'">
+-    <LinkIncremental>
+-    </LinkIncremental>
+-    <OutDir>$(SolutionDir)$(Configuration)\$(Platform)\$(ProjectName)\</OutDir>
+-    <IntDir>$(Configuration)\$(Platform)\$(ProjectName)\</IntDir>
+-    <TargetName>liblzma</TargetName>
+-  </PropertyGroup>
+-  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='ReleaseMT|x64'">
+-    <LinkIncremental />
+-    <OutDir>$(SolutionDir)$(Configuration)\$(Platform)\$(ProjectName)\</OutDir>
+-    <IntDir>$(Configuration)\$(Platform)\$(ProjectName)\</IntDir>
+-    <TargetName>liblzma</TargetName>
+-  </PropertyGroup>
+-  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+-    <ClCompile>
+-      <PreprocessorDefinitions>WIN32;HAVE_CONFIG_H;DLL_EXPORT;_DEBUG;_WINDOWS;_USRDLL;LIBLZMADLL_EXPORTS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+-      <RuntimeLibrary>MultiThreadedDebugDLL</RuntimeLibrary>
+-      <WarningLevel>Level3</WarningLevel>
+-      <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
+-      <Optimization>Disabled</Optimization>
+-      <AdditionalIncludeDirectories>./;../../src/liblzma/common;../../src/common;../../src/liblzma/api;../../src/liblzma/check;../../src/liblzma/delta;../../src/liblzma/lz;../../src/liblzma/lzma;../../src/liblzma/rangecoder;../../src/liblzma/simple</AdditionalIncludeDirectories>
+-    </ClCompile>
+-    <Link>
+-      <TargetMachine>MachineX86</TargetMachine>
+-      <GenerateDebugInformation>true</GenerateDebugInformation>
+-      <SubSystem>Windows</SubSystem>
+-    </Link>
+-    <ResourceCompile>
+-      <AdditionalIncludeDirectories>./;../../src/liblzma/common;../../src/common;../../src/liblzma/api;</AdditionalIncludeDirectories>
+-      <PreprocessorDefinitions>HAVE_CONFIG_H</PreprocessorDefinitions>
+-    </ResourceCompile>
+-  </ItemDefinitionGroup>
+-  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+-    <ClCompile>
+-      <PreprocessorDefinitions>WIN32;HAVE_CONFIG_H;DLL_EXPORT;_DEBUG;_WINDOWS;_USRDLL;LIBLZMADLL_EXPORTS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+-      <RuntimeLibrary>MultiThreadedDebugDLL</RuntimeLibrary>
+-      <WarningLevel>Level3</WarningLevel>
+-      <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
+-      <Optimization>Disabled</Optimization>
+-      <AdditionalIncludeDirectories>./;../../src/liblzma/common;../../src/common;../../src/liblzma/api;../../src/liblzma/check;../../src/liblzma/delta;../../src/liblzma/lz;../../src/liblzma/lzma;../../src/liblzma/rangecoder;../../src/liblzma/simple</AdditionalIncludeDirectories>
+-    </ClCompile>
+-    <Link>
+-      <GenerateDebugInformation>true</GenerateDebugInformation>
+-      <SubSystem>Windows</SubSystem>
+-    </Link>
+-    <ResourceCompile>
+-      <AdditionalIncludeDirectories>./;../../src/liblzma/common;../../src/common;../../src/liblzma/api;</AdditionalIncludeDirectories>
+-      <PreprocessorDefinitions>HAVE_CONFIG_H</PreprocessorDefinitions>
+-    </ResourceCompile>
+-  </ItemDefinitionGroup>
+-  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
+-    <ClCompile>
+-      <PreprocessorDefinitions>WIN32;HAVE_CONFIG_H;DLL_EXPORT;NDEBUG;_WINDOWS;_USRDLL;LIBLZMADLL_EXPORTS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+-      <RuntimeLibrary>MultiThreadedDLL</RuntimeLibrary>
+-      <WarningLevel>Level3</WarningLevel>
+-      <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
+-      <AdditionalIncludeDirectories>./;../../src/liblzma/common;../../src/common;../../src/liblzma/api;../../src/liblzma/check;../../src/liblzma/delta;../../src/liblzma/lz;../../src/liblzma/lzma;../../src/liblzma/rangecoder;../../src/liblzma/simple</AdditionalIncludeDirectories>
+-    </ClCompile>
+-    <Link>
+-      <TargetMachine>MachineX86</TargetMachine>
+-      <GenerateDebugInformation>true</GenerateDebugInformation>
+-      <SubSystem>Windows</SubSystem>
+-      <EnableCOMDATFolding>true</EnableCOMDATFolding>
+-      <OptimizeReferences>true</OptimizeReferences>
+-    </Link>
+-    <ResourceCompile>
+-      <AdditionalIncludeDirectories>./;../../src/liblzma/common;../../src/common;../../src/liblzma/api;</AdditionalIncludeDirectories>
+-      <PreprocessorDefinitions>HAVE_CONFIG_H</PreprocessorDefinitions>
+-    </ResourceCompile>
+-  </ItemDefinitionGroup>
+-  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+-    <ClCompile>
+-      <PreprocessorDefinitions>WIN32;HAVE_CONFIG_H;DLL_EXPORT;NDEBUG;_WINDOWS;_USRDLL;LIBLZMADLL_EXPORTS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+-      <RuntimeLibrary>MultiThreadedDLL</RuntimeLibrary>
+-      <WarningLevel>Level3</WarningLevel>
+-      <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
+-      <AdditionalIncludeDirectories>./;../../src/liblzma/common;../../src/common;../../src/liblzma/api;../../src/liblzma/check;../../src/liblzma/delta;../../src/liblzma/lz;../../src/liblzma/lzma;../../src/liblzma/rangecoder;../../src/liblzma/simple</AdditionalIncludeDirectories>
+-    </ClCompile>
+-    <Link>
+-      <GenerateDebugInformation>true</GenerateDebugInformation>
+-      <SubSystem>Windows</SubSystem>
+-      <EnableCOMDATFolding>true</EnableCOMDATFolding>
+-      <OptimizeReferences>true</OptimizeReferences>
+-    </Link>
+-    <ResourceCompile>
+-      <AdditionalIncludeDirectories>./;../../src/liblzma/common;../../src/common;../../src/liblzma/api;</AdditionalIncludeDirectories>
+-      <PreprocessorDefinitions>HAVE_CONFIG_H</PreprocessorDefinitions>
+-    </ResourceCompile>
+-  </ItemDefinitionGroup>
+-  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='ReleaseMT|Win32'">
+-    <ClCompile>
+-      <PreprocessorDefinitions>WIN32;HAVE_CONFIG_H;DLL_EXPORT;NDEBUG;_WINDOWS;_USRDLL;LIBLZMADLL_EXPORTS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+-      <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
+-      <WarningLevel>Level3</WarningLevel>
+-      <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
+-      <AdditionalIncludeDirectories>./;../../src/liblzma/common;../../src/common;../../src/liblzma/api;../../src/liblzma/check;../../src/liblzma/delta;../../src/liblzma/lz;../../src/liblzma/lzma;../../src/liblzma/rangecoder;../../src/liblzma/simple</AdditionalIncludeDirectories>
+-    </ClCompile>
+-    <Link>
+-      <TargetMachine>MachineX86</TargetMachine>
+-      <GenerateDebugInformation>true</GenerateDebugInformation>
+-      <SubSystem>Windows</SubSystem>
+-      <EnableCOMDATFolding>true</EnableCOMDATFolding>
+-      <OptimizeReferences>true</OptimizeReferences>
+-    </Link>
+-    <ResourceCompile>
+-      <AdditionalIncludeDirectories>./;../../src/liblzma/common;../../src/common;../../src/liblzma/api;</AdditionalIncludeDirectories>
+-      <PreprocessorDefinitions>HAVE_CONFIG_H</PreprocessorDefinitions>
+-    </ResourceCompile>
+-  </ItemDefinitionGroup>
+-  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='ReleaseMT|x64'">
+-    <ClCompile>
+-      <PreprocessorDefinitions>WIN32;HAVE_CONFIG_H;DLL_EXPORT;NDEBUG;_WINDOWS;_USRDLL;LIBLZMADLL_EXPORTS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+-      <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
+-      <WarningLevel>Level3</WarningLevel>
+-      <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
+-      <AdditionalIncludeDirectories>./;../../src/liblzma/common;../../src/common;../../src/liblzma/api;../../src/liblzma/check;../../src/liblzma/delta;../../src/liblzma/lz;../../src/liblzma/lzma;../../src/liblzma/rangecoder;../../src/liblzma/simple</AdditionalIncludeDirectories>
+-    </ClCompile>
+-    <Link>
+-      <GenerateDebugInformation>true</GenerateDebugInformation>
+-      <SubSystem>Windows</SubSystem>
+-      <EnableCOMDATFolding>true</EnableCOMDATFolding>
+-      <OptimizeReferences>true</OptimizeReferences>
+-    </Link>
+-    <ResourceCompile>
+-      <AdditionalIncludeDirectories>./;../../src/liblzma/common;../../src/common;../../src/liblzma/api;</AdditionalIncludeDirectories>
+-      <PreprocessorDefinitions>HAVE_CONFIG_H</PreprocessorDefinitions>
+-    </ResourceCompile>
+-  </ItemDefinitionGroup>
+-  <ItemGroup>
+-    <ClCompile Include="..\..\src\common\tuklib_cpucores.c" />
+-    <ClCompile Include="..\..\src\common\tuklib_physmem.c" />
+-    <ClCompile Include="..\..\src\liblzma\check\check.c" />
+-    <ClCompile Include="..\..\src\liblzma\check\crc32_fast.c" />
+-    <ClCompile Include="..\..\src\liblzma\check\crc32_table.c" />
+-    <ClCompile Include="..\..\src\liblzma\check\crc64_fast.c" />
+-    <ClCompile Include="..\..\src\liblzma\check\crc64_table.c" />
+-    <ClCompile Include="..\..\src\liblzma\check\sha256.c" />
+-    <ClCompile Include="..\..\src\liblzma\common\alone_decoder.c" />
+-    <ClCompile Include="..\..\src\liblzma\common\alone_encoder.c" />
+-    <ClCompile Include="..\..\src\liblzma\common\auto_decoder.c" />
+-    <ClCompile Include="..\..\src\liblzma\common\block_buffer_decoder.c" />
+-    <ClCompile Include="..\..\src\liblzma\common\block_buffer_encoder.c" />
+-    <ClCompile Include="..\..\src\liblzma\common\block_decoder.c" />
+-    <ClCompile Include="..\..\src\liblzma\common\block_encoder.c" />
+-    <ClCompile Include="..\..\src\liblzma\common\block_header_decoder.c" />
+-    <ClCompile Include="..\..\src\liblzma\common\block_header_encoder.c" />
+-    <ClCompile Include="..\..\src\liblzma\common\block_util.c" />
+-    <ClCompile Include="..\..\src\liblzma\common\common.c" />
+-    <ClCompile Include="..\..\src\liblzma\common\easy_buffer_encoder.c" />
+-    <ClCompile Include="..\..\src\liblzma\common\easy_decoder_memusage.c" />
+-    <ClCompile Include="..\..\src\liblzma\common\easy_encoder.c" />
+-    <ClCompile Include="..\..\src\liblzma\common\easy_encoder_memusage.c" />
+-    <ClCompile Include="..\..\src\liblzma\common\easy_preset.c" />
+-    <ClCompile Include="..\..\src\liblzma\common\file_info.c" />
+-    <ClCompile Include="..\..\src\liblzma\common\filter_buffer_decoder.c" />
+-    <ClCompile Include="..\..\src\liblzma\common\filter_buffer_encoder.c" />
+-    <ClCompile Include="..\..\src\liblzma\common\filter_common.c" />
+-    <ClCompile Include="..\..\src\liblzma\common\filter_decoder.c" />
+-    <ClCompile Include="..\..\src\liblzma\common\filter_encoder.c" />
+-    <ClCompile Include="..\..\src\liblzma\common\filter_flags_decoder.c" />
+-    <ClCompile Include="..\..\src\liblzma\common\filter_flags_encoder.c" />
+-    <ClCompile Include="..\..\src\liblzma\common\hardware_cputhreads.c" />
+-    <ClCompile Include="..\..\src\liblzma\common\hardware_physmem.c" />
+-    <ClCompile Include="..\..\src\liblzma\common\index.c" />
+-    <ClCompile Include="..\..\src\liblzma\common\index_decoder.c" />
+-    <ClCompile Include="..\..\src\liblzma\common\index_encoder.c" />
+-    <ClCompile Include="..\..\src\liblzma\common\index_hash.c" />
+-    <ClCompile Include="..\..\src\liblzma\common\lzip_decoder.c" />
+-    <ClCompile Include="..\..\src\liblzma\common\microlzma_decoder.c" />
+-    <ClCompile Include="..\..\src\liblzma\common\microlzma_encoder.c" />
+-    <ClCompile Include="..\..\src\liblzma\common\outqueue.c" />
+-    <ClCompile Include="..\..\src\liblzma\common\stream_buffer_decoder.c" />
+-    <ClCompile Include="..\..\src\liblzma\common\stream_buffer_encoder.c" />
+-    <ClCompile Include="..\..\src\liblzma\common\stream_decoder.c" />
+-    <ClCompile Include="..\..\src\liblzma\common\stream_decoder_mt.c" />
+-    <ClCompile Include="..\..\src\liblzma\common\stream_encoder.c" />
+-    <ClCompile Include="..\..\src\liblzma\common\stream_encoder_mt.c" />
+-    <ClCompile Include="..\..\src\liblzma\common\stream_flags_common.c" />
+-    <ClCompile Include="..\..\src\liblzma\common\stream_flags_decoder.c" />
+-    <ClCompile Include="..\..\src\liblzma\common\stream_flags_encoder.c" />
+-    <ClCompile Include="..\..\src\liblzma\common\string_conversion.c" />
+-    <ClCompile Include="..\..\src\liblzma\common\vli_decoder.c" />
+-    <ClCompile Include="..\..\src\liblzma\common\vli_encoder.c" />
+-    <ClCompile Include="..\..\src\liblzma\common\vli_size.c" />
+-    <ClCompile Include="..\..\src\liblzma\delta\delta_common.c" />
+-    <ClCompile Include="..\..\src\liblzma\delta\delta_decoder.c" />
+-    <ClCompile Include="..\..\src\liblzma\delta\delta_encoder.c" />
+-    <ClCompile Include="..\..\src\liblzma\lzma\fastpos_table.c" />
+-    <ClCompile Include="..\..\src\liblzma\lzma\lzma2_decoder.c" />
+-    <ClCompile Include="..\..\src\liblzma\lzma\lzma2_encoder.c" />
+-    <ClCompile Include="..\..\src\liblzma\lzma\lzma_decoder.c" />
+-    <ClCompile Include="..\..\src\liblzma\lzma\lzma_encoder.c" />
+-    <ClCompile Include="..\..\src\liblzma\lzma\lzma_encoder_optimum_fast.c" />
+-    <ClCompile Include="..\..\src\liblzma\lzma\lzma_encoder_optimum_normal.c" />
+-    <ClCompile Include="..\..\src\liblzma\lzma\lzma_encoder_presets.c" />
+-    <ClCompile Include="..\..\src\liblzma\lz\lz_decoder.c" />
+-    <ClCompile Include="..\..\src\liblzma\lz\lz_encoder.c" />
+-    <ClCompile Include="..\..\src\liblzma\lz\lz_encoder_mf.c" />
+-    <ClCompile Include="..\..\src\liblzma\rangecoder\price_table.c" />
+-    <ClCompile Include="..\..\src\liblzma\simple\arm.c" />
+-    <ClCompile Include="..\..\src\liblzma\simple\arm64.c" />
+-    <ClCompile Include="..\..\src\liblzma\simple\armthumb.c" />
+-    <ClCompile Include="..\..\src\liblzma\simple\ia64.c" />
+-    <ClCompile Include="..\..\src\liblzma\simple\powerpc.c" />
+-    <ClCompile Include="..\..\src\liblzma\simple\simple_coder.c" />
+-    <ClCompile Include="..\..\src\liblzma\simple\simple_decoder.c" />
+-    <ClCompile Include="..\..\src\liblzma\simple\simple_encoder.c" />
+-    <ClCompile Include="..\..\src\liblzma\simple\sparc.c" />
+-    <ClCompile Include="..\..\src\liblzma\simple\x86.c" />
+-  </ItemGroup>
+-  <ItemGroup>
+-    <ClInclude Include="..\..\src\common\mythread.h" />
+-    <ClInclude Include="..\..\src\common\sysdefs.h" />
+-    <ClInclude Include="..\..\src\common\tuklib_common.h" />
+-    <ClInclude Include="..\..\src\common\tuklib_config.h" />
+-    <ClInclude Include="..\..\src\common\tuklib_cpucores.h" />
+-    <ClInclude Include="..\..\src\common\tuklib_integer.h" />
+-    <ClInclude Include="..\..\src\common\tuklib_physmem.h" />
+-    <ClInclude Include="..\..\src\liblzma\api\lzma.h" />
+-    <ClInclude Include="..\..\src\liblzma\api\lzma\base.h" />
+-    <ClInclude Include="..\..\src\liblzma\api\lzma\bcj.h" />
+-    <ClInclude Include="..\..\src\liblzma\api\lzma\block.h" />
+-    <ClInclude Include="..\..\src\liblzma\api\lzma\check.h" />
+-    <ClInclude Include="..\..\src\liblzma\api\lzma\container.h" />
+-    <ClInclude Include="..\..\src\liblzma\api\lzma\delta.h" />
+-    <ClInclude Include="..\..\src\liblzma\api\lzma\filter.h" />
+-    <ClInclude Include="..\..\src\liblzma\api\lzma\hardware.h" />
+-    <ClInclude Include="..\..\src\liblzma\api\lzma\index.h" />
+-    <ClInclude Include="..\..\src\liblzma\api\lzma\index_hash.h" />
+-    <ClInclude Include="..\..\src\liblzma\api\lzma\lzma12.h" />
+-    <ClInclude Include="..\..\src\liblzma\api\lzma\stream_flags.h" />
+-    <ClInclude Include="..\..\src\liblzma\api\lzma\version.h" />
+-    <ClInclude Include="..\..\src\liblzma\api\lzma\vli.h" />
+-    <ClInclude Include="..\..\src\liblzma\check\check.h" />
+-    <ClInclude Include="..\..\src\liblzma\check\crc32_table_be.h" />
+-    <ClInclude Include="..\..\src\liblzma\check\crc32_table_le.h" />
+-    <ClInclude Include="..\..\src\liblzma\check\crc64_table_be.h" />
+-    <ClInclude Include="..\..\src\liblzma\check\crc64_table_le.h" />
+-    <ClInclude Include="..\..\src\liblzma\check\crc_macros.h" />
+-    <ClInclude Include="..\..\src\liblzma\common\alone_decoder.h" />
+-    <ClInclude Include="..\..\src\liblzma\common\block_buffer_encoder.h" />
+-    <ClInclude Include="..\..\src\liblzma\common\block_decoder.h" />
+-    <ClInclude Include="..\..\src\liblzma\common\block_encoder.h" />
+-    <ClInclude Include="..\..\src\liblzma\common\common.h" />
+-    <ClInclude Include="..\..\src\liblzma\common\easy_preset.h" />
+-    <ClInclude Include="..\..\src\liblzma\common\filter_common.h" />
+-    <ClInclude Include="..\..\src\liblzma\common\filter_decoder.h" />
+-    <ClInclude Include="..\..\src\liblzma\common\filter_encoder.h" />
+-    <ClInclude Include="..\..\src\liblzma\common\index.h" />
+-    <ClInclude Include="..\..\src\liblzma\common\index_decoder.h" />
+-    <ClInclude Include="..\..\src\liblzma\common\index_encoder.h" />
+-    <ClInclude Include="..\..\src\liblzma\common\memcmplen.h" />
+-    <ClInclude Include="..\..\src\liblzma\common\lzip_decoder.h" />
+-    <ClInclude Include="..\..\src\liblzma\common\outqueue.h" />
+-    <ClInclude Include="..\..\src\liblzma\common\stream_decoder.h" />
+-    <ClInclude Include="..\..\src\liblzma\common\stream_flags_common.h" />
+-    <ClInclude Include="..\..\src\liblzma\delta\delta_common.h" />
+-    <ClInclude Include="..\..\src\liblzma\delta\delta_decoder.h" />
+-    <ClInclude Include="..\..\src\liblzma\delta\delta_encoder.h" />
+-    <ClInclude Include="..\..\src\liblzma\delta\delta_private.h" />
+-    <ClInclude Include="..\..\src\liblzma\lzma\fastpos.h" />
+-    <ClInclude Include="..\..\src\liblzma\lzma\lzma2_decoder.h" />
+-    <ClInclude Include="..\..\src\liblzma\lzma\lzma2_encoder.h" />
+-    <ClInclude Include="..\..\src\liblzma\lzma\lzma_common.h" />
+-    <ClInclude Include="..\..\src\liblzma\lzma\lzma_decoder.h" />
+-    <ClInclude Include="..\..\src\liblzma\lzma\lzma_encoder.h" />
+-    <ClInclude Include="..\..\src\liblzma\lzma\lzma_encoder_private.h" />
+-    <ClInclude Include="..\..\src\liblzma\lz\lz_decoder.h" />
+-    <ClInclude Include="..\..\src\liblzma\lz\lz_encoder.h" />
+-    <ClInclude Include="..\..\src\liblzma\lz\lz_encoder_hash.h" />
+-    <ClInclude Include="..\..\src\liblzma\lz\lz_encoder_hash_table.h" />
+-    <ClInclude Include="..\..\src\liblzma\rangecoder\price.h" />
+-    <ClInclude Include="..\..\src\liblzma\rangecoder\range_common.h" />
+-    <ClInclude Include="..\..\src\liblzma\rangecoder\range_decoder.h" />
+-    <ClInclude Include="..\..\src\liblzma\rangecoder\range_encoder.h" />
+-    <ClInclude Include="..\..\src\liblzma\simple\simple_coder.h" />
+-    <ClInclude Include="..\..\src\liblzma\simple\simple_decoder.h" />
+-    <ClInclude Include="..\..\src\liblzma\simple\simple_encoder.h" />
+-    <ClInclude Include="..\..\src\liblzma\simple\simple_private.h" />
+-    <ClInclude Include="config.h" />
+-  </ItemGroup>
+-  <ItemGroup>
+-    <ResourceCompile Include="..\..\src\liblzma\liblzma_w32res.rc" />
+-  </ItemGroup>
+-  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
+-  <ImportGroup Label="ExtensionTargets">
+-  </ImportGroup>
+-</Project>
+diff --git a/windows/vs2013/xz_win.sln b/windows/vs2013/xz_win.sln
+deleted file mode 100644
+index 3d25291c..00000000
+--- a/windows/vs2013/xz_win.sln
++++ /dev/null
+@@ -1,48 +0,0 @@
+-﻿
+-Microsoft Visual Studio Solution File, Format Version 12.00
+-# Visual Studio 2013
+-VisualStudioVersion = 12.0.31101.0
+-MinimumVisualStudioVersion = 10.0.40219.1
+-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "liblzma", "liblzma.vcxproj", "{12728250-16EC-4DC6-94D7-E21DD88947F8}"
+-EndProject
+-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "liblzma_dll", "liblzma_dll.vcxproj", "{E0F247DB-EF12-4755-8DF9-F74BCD1348F7}"
+-EndProject
+-Global
+-	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+-		Debug|Win32 = Debug|Win32
+-		Debug|x64 = Debug|x64
+-		Release|Win32 = Release|Win32
+-		Release|x64 = Release|x64
+-		ReleaseMT|Win32 = ReleaseMT|Win32
+-		ReleaseMT|x64 = ReleaseMT|x64
+-	EndGlobalSection
+-	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+-		{12728250-16EC-4DC6-94D7-E21DD88947F8}.Debug|Win32.ActiveCfg = Debug|Win32
+-		{12728250-16EC-4DC6-94D7-E21DD88947F8}.Debug|Win32.Build.0 = Debug|Win32
+-		{12728250-16EC-4DC6-94D7-E21DD88947F8}.Debug|x64.ActiveCfg = Debug|x64
+-		{12728250-16EC-4DC6-94D7-E21DD88947F8}.Debug|x64.Build.0 = Debug|x64
+-		{12728250-16EC-4DC6-94D7-E21DD88947F8}.Release|Win32.ActiveCfg = Release|Win32
+-		{12728250-16EC-4DC6-94D7-E21DD88947F8}.Release|Win32.Build.0 = Release|Win32
+-		{12728250-16EC-4DC6-94D7-E21DD88947F8}.Release|x64.ActiveCfg = Release|x64
+-		{12728250-16EC-4DC6-94D7-E21DD88947F8}.Release|x64.Build.0 = Release|x64
+-		{12728250-16EC-4DC6-94D7-E21DD88947F8}.ReleaseMT|Win32.ActiveCfg = ReleaseMT|Win32
+-		{12728250-16EC-4DC6-94D7-E21DD88947F8}.ReleaseMT|Win32.Build.0 = ReleaseMT|Win32
+-		{12728250-16EC-4DC6-94D7-E21DD88947F8}.ReleaseMT|x64.ActiveCfg = ReleaseMT|x64
+-		{12728250-16EC-4DC6-94D7-E21DD88947F8}.ReleaseMT|x64.Build.0 = ReleaseMT|x64
+-		{E0F247DB-EF12-4755-8DF9-F74BCD1348F7}.Debug|Win32.ActiveCfg = Debug|Win32
+-		{E0F247DB-EF12-4755-8DF9-F74BCD1348F7}.Debug|Win32.Build.0 = Debug|Win32
+-		{E0F247DB-EF12-4755-8DF9-F74BCD1348F7}.Debug|x64.ActiveCfg = Debug|x64
+-		{E0F247DB-EF12-4755-8DF9-F74BCD1348F7}.Debug|x64.Build.0 = Debug|x64
+-		{E0F247DB-EF12-4755-8DF9-F74BCD1348F7}.Release|Win32.ActiveCfg = Release|Win32
+-		{E0F247DB-EF12-4755-8DF9-F74BCD1348F7}.Release|Win32.Build.0 = Release|Win32
+-		{E0F247DB-EF12-4755-8DF9-F74BCD1348F7}.Release|x64.ActiveCfg = Release|x64
+-		{E0F247DB-EF12-4755-8DF9-F74BCD1348F7}.Release|x64.Build.0 = Release|x64
+-		{E0F247DB-EF12-4755-8DF9-F74BCD1348F7}.ReleaseMT|Win32.ActiveCfg = ReleaseMT|Win32
+-		{E0F247DB-EF12-4755-8DF9-F74BCD1348F7}.ReleaseMT|Win32.Build.0 = ReleaseMT|Win32
+-		{E0F247DB-EF12-4755-8DF9-F74BCD1348F7}.ReleaseMT|x64.ActiveCfg = ReleaseMT|x64
+-		{E0F247DB-EF12-4755-8DF9-F74BCD1348F7}.ReleaseMT|x64.Build.0 = ReleaseMT|x64
+-	EndGlobalSection
+-	GlobalSection(SolutionProperties) = preSolution
+-		HideSolutionNode = FALSE
+-	EndGlobalSection
+-EndGlobal
+diff --git a/windows/vs2017/config.h b/windows/vs2017/config.h
+deleted file mode 100644
+index 06da83c9..00000000
+--- a/windows/vs2017/config.h
++++ /dev/null
+@@ -1,157 +0,0 @@
+-/* config.h for compiling liblzma (*not* the whole XZ Utils) with MSVC 2017 */
+-
+-/* Prefix for symbols exported by tuklib_*.c files */
+-#define TUKLIB_SYMBOL_PREFIX lzma_
+-
+-/* How many MiB of RAM to assume if the real amount cannot be determined. */
+-#define ASSUME_RAM 128
+-
+-/* Define to 1 if crc32 integrity check is enabled. */
+-#define HAVE_CHECK_CRC32 1
+-
+-/* Define to 1 if crc64 integrity check is enabled. */
+-#define HAVE_CHECK_CRC64 1
+-
+-/* Define to 1 if sha256 integrity check is enabled. */
+-#define HAVE_CHECK_SHA256 1
+-
+-/* Define to 1 if any of HAVE_DECODER_foo have been defined. */
+-#define HAVE_DECODERS 1
+-
+-/* Define to 1 if arm decoder is enabled. */
+-#define HAVE_DECODER_ARM 1
+-
+-/* Define to 1 if arm64 decoder is enabled. */
+-#define HAVE_DECODER_ARM64 1
+-
+-/* Define to 1 if armthumb decoder is enabled. */
+-#define HAVE_DECODER_ARMTHUMB 1
+-
+-/* Define to 1 if delta decoder is enabled. */
+-#define HAVE_DECODER_DELTA 1
+-
+-/* Define to 1 if ia64 decoder is enabled. */
+-#define HAVE_DECODER_IA64 1
+-
+-/* Define to 1 if lzma1 decoder is enabled. */
+-#define HAVE_DECODER_LZMA1 1
+-
+-/* Define to 1 if lzma2 decoder is enabled. */
+-#define HAVE_DECODER_LZMA2 1
+-
+-/* Define to 1 if powerpc decoder is enabled. */
+-#define HAVE_DECODER_POWERPC 1
+-
+-/* Define to 1 if sparc decoder is enabled. */
+-#define HAVE_DECODER_SPARC 1
+-
+-/* Define to 1 if x86 decoder is enabled. */
+-#define HAVE_DECODER_X86 1
+-
+-/* Define to 1 if any of HAVE_ENCODER_foo have been defined. */
+-#define HAVE_ENCODERS 1
+-
+-/* Define to 1 if arm encoder is enabled. */
+-#define HAVE_ENCODER_ARM 1
+-
+-/* Define to 1 if arm64 encoder is enabled. */
+-#define HAVE_ENCODER_ARM64 1
+-
+-/* Define to 1 if armthumb encoder is enabled. */
+-#define HAVE_ENCODER_ARMTHUMB 1
+-
+-/* Define to 1 if delta encoder is enabled. */
+-#define HAVE_ENCODER_DELTA 1
+-
+-/* Define to 1 if ia64 encoder is enabled. */
+-#define HAVE_ENCODER_IA64 1
+-
+-/* Define to 1 if lzma1 encoder is enabled. */
+-#define HAVE_ENCODER_LZMA1 1
+-
+-/* Define to 1 if lzma2 encoder is enabled. */
+-#define HAVE_ENCODER_LZMA2 1
+-
+-/* Define to 1 if powerpc encoder is enabled. */
+-#define HAVE_ENCODER_POWERPC 1
+-
+-/* Define to 1 if sparc encoder is enabled. */
+-#define HAVE_ENCODER_SPARC 1
+-
+-/* Define to 1 if x86 encoder is enabled. */
+-#define HAVE_ENCODER_X86 1
+-
+-/* Define to 1 if you have the <inttypes.h> header file. */
+-#define HAVE_INTTYPES_H 1
+-
+-/* Define to 1 if you have the <limits.h> header file. */
+-#define HAVE_LIMITS_H 1
+-
+-/* Define to 1 if .lz (lzip) decompression support is enabled. */
+-#define HAVE_LZIP_DECODER 1
+-
+-/* Define to 1 to enable bt2 match finder. */
+-#define HAVE_MF_BT2 1
+-
+-/* Define to 1 to enable bt3 match finder. */
+-#define HAVE_MF_BT3 1
+-
+-/* Define to 1 to enable bt4 match finder. */
+-#define HAVE_MF_BT4 1
+-
+-/* Define to 1 to enable hc3 match finder. */
+-#define HAVE_MF_HC3 1
+-
+-/* Define to 1 to enable hc4 match finder. */
+-#define HAVE_MF_HC4 1
+-
+-/* Define to 1 if stdbool.h conforms to C99. */
+-#define HAVE_STDBOOL_H 1
+-
+-/* Define to 1 if you have the <stdint.h> header file. */
+-#define HAVE_STDINT_H 1
+-
+-/* Define to 1 if you have the <stdlib.h> header file. */
+-#define HAVE_STDLIB_H 1
+-
+-/* Define to 1 if you have the <string.h> header file. */
+-#define HAVE_STRING_H 1
+-
+-/* Define to 1 or 0, depending whether the compiler supports simple visibility
+-   declarations. */
+-#define HAVE_VISIBILITY 0
+-
+-/* Define to 1 if the system has the type `_Bool'. */
+-#define HAVE__BOOL 1
+-
+-#ifdef _M_IX86
+-/* Define to 1 when using Windows 95 (and thus XP) compatible threads. This
+-   avoids use of features that were added in Windows Vista.
+-   This is used for 32-bit x86 builds for compatibility reasons since it
+-   makes no measurable difference in performance compared to Vista threads. */
+-#define MYTHREAD_WIN95 1
+-#else
+-/* Define to 1 when using Windows Vista compatible threads. This uses features
+-   that are not available on Windows XP. */
+-#define MYTHREAD_VISTA 1
+-#endif
+-
+-/* Define to 1 to disable debugging code. */
+-#define NDEBUG 1
+-
+-/* Define to the full name of this package. */
+-#define PACKAGE_NAME "XZ Utils"
+-
+-/* Define to the home page for this package. */
+-#define PACKAGE_URL "https://tukaani.org/xz/"
+-
+-/* The size of `size_t', as computed by sizeof. */
+-#ifdef _WIN64
+-#define SIZEOF_SIZE_T 8
+-#else
+-#define SIZEOF_SIZE_T 4
+-#endif
+-
+-/* Define to 1 if the system supports fast unaligned access to 16-bit and
+-   32-bit integers. */
+-#define TUKLIB_FAST_UNALIGNED_ACCESS 1
+diff --git a/windows/vs2017/liblzma.vcxproj b/windows/vs2017/liblzma.vcxproj
+deleted file mode 100644
+index f9241a2d..00000000
+--- a/windows/vs2017/liblzma.vcxproj
++++ /dev/null
+@@ -1,363 +0,0 @@
+-﻿<?xml version="1.0" encoding="utf-8"?>
+-<Project DefaultTargets="Build" ToolsVersion="15.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+-  <ItemGroup Label="ProjectConfigurations">
+-    <ProjectConfiguration Include="Debug|Win32">
+-      <Configuration>Debug</Configuration>
+-      <Platform>Win32</Platform>
+-    </ProjectConfiguration>
+-    <ProjectConfiguration Include="Debug|x64">
+-      <Configuration>Debug</Configuration>
+-      <Platform>x64</Platform>
+-    </ProjectConfiguration>
+-    <ProjectConfiguration Include="ReleaseMT|Win32">
+-      <Configuration>ReleaseMT</Configuration>
+-      <Platform>Win32</Platform>
+-    </ProjectConfiguration>
+-    <ProjectConfiguration Include="ReleaseMT|x64">
+-      <Configuration>ReleaseMT</Configuration>
+-      <Platform>x64</Platform>
+-    </ProjectConfiguration>
+-    <ProjectConfiguration Include="Release|Win32">
+-      <Configuration>Release</Configuration>
+-      <Platform>Win32</Platform>
+-    </ProjectConfiguration>
+-    <ProjectConfiguration Include="Release|x64">
+-      <Configuration>Release</Configuration>
+-      <Platform>x64</Platform>
+-    </ProjectConfiguration>
+-  </ItemGroup>
+-  <PropertyGroup Label="Globals">
+-    <ProjectGuid>{12728250-16EC-4DC6-94D7-E21DD88947F8}</ProjectGuid>
+-    <Keyword>Win32Proj</Keyword>
+-  </PropertyGroup>
+-  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
+-  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
+-    <ConfigurationType>StaticLibrary</ConfigurationType>
+-    <UseDebugLibraries>true</UseDebugLibraries>
+-    <PlatformToolset>v141</PlatformToolset>
+-  </PropertyGroup>
+-  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="Configuration">
+-    <ConfigurationType>StaticLibrary</ConfigurationType>
+-    <UseDebugLibraries>true</UseDebugLibraries>
+-    <PlatformToolset>v141</PlatformToolset>
+-  </PropertyGroup>
+-  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'" Label="Configuration">
+-    <ConfigurationType>StaticLibrary</ConfigurationType>
+-    <UseDebugLibraries>false</UseDebugLibraries>
+-    <PlatformToolset>v141</PlatformToolset>
+-  </PropertyGroup>
+-  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="Configuration">
+-    <ConfigurationType>StaticLibrary</ConfigurationType>
+-    <UseDebugLibraries>false</UseDebugLibraries>
+-    <PlatformToolset>v141</PlatformToolset>
+-  </PropertyGroup>
+-  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='ReleaseMT|Win32'" Label="Configuration">
+-    <ConfigurationType>StaticLibrary</ConfigurationType>
+-    <UseDebugLibraries>false</UseDebugLibraries>
+-    <PlatformToolset>v141</PlatformToolset>
+-  </PropertyGroup>
+-  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='ReleaseMT|x64'" Label="Configuration">
+-    <ConfigurationType>StaticLibrary</ConfigurationType>
+-    <UseDebugLibraries>false</UseDebugLibraries>
+-    <PlatformToolset>v141</PlatformToolset>
+-  </PropertyGroup>
+-  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
+-  <ImportGroup Label="ExtensionSettings">
+-  </ImportGroup>
+-  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+-    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+-  </ImportGroup>
+-  <ImportGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="PropertySheets">
+-    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+-  </ImportGroup>
+-  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
+-    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+-  </ImportGroup>
+-  <ImportGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="PropertySheets">
+-    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+-  </ImportGroup>
+-  <ImportGroup Condition="'$(Configuration)|$(Platform)'=='ReleaseMT|Win32'" Label="PropertySheets">
+-    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+-  </ImportGroup>
+-  <ImportGroup Condition="'$(Configuration)|$(Platform)'=='ReleaseMT|x64'" Label="PropertySheets">
+-    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+-  </ImportGroup>
+-  <PropertyGroup Label="UserMacros" />
+-  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+-    <LinkIncremental>true</LinkIncremental>
+-    <OutDir>$(SolutionDir)$(Configuration)\$(Platform)\$(ProjectName)\</OutDir>
+-    <IntDir>$(Configuration)\$(Platform)\$(ProjectName)\</IntDir>
+-  </PropertyGroup>
+-  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+-    <LinkIncremental>true</LinkIncremental>
+-    <OutDir>$(SolutionDir)$(Configuration)\$(Platform)\$(ProjectName)\</OutDir>
+-    <IntDir>$(Configuration)\$(Platform)\$(ProjectName)\</IntDir>
+-  </PropertyGroup>
+-  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
+-    <LinkIncremental>true</LinkIncremental>
+-    <OutDir>$(SolutionDir)$(Configuration)\$(Platform)\$(ProjectName)\</OutDir>
+-    <IntDir>$(Configuration)\$(Platform)\$(ProjectName)\</IntDir>
+-  </PropertyGroup>
+-  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+-    <LinkIncremental>true</LinkIncremental>
+-    <OutDir>$(SolutionDir)$(Configuration)\$(Platform)\$(ProjectName)\</OutDir>
+-    <IntDir>$(Configuration)\$(Platform)\$(ProjectName)\</IntDir>
+-  </PropertyGroup>
+-  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='ReleaseMT|Win32'">
+-    <LinkIncremental>true</LinkIncremental>
+-    <OutDir>$(SolutionDir)$(Configuration)\$(Platform)\$(ProjectName)\</OutDir>
+-    <IntDir>$(Configuration)\$(Platform)\$(ProjectName)\</IntDir>
+-  </PropertyGroup>
+-  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='ReleaseMT|x64'">
+-    <LinkIncremental>true</LinkIncremental>
+-    <OutDir>$(SolutionDir)$(Configuration)\$(Platform)\$(ProjectName)\</OutDir>
+-    <IntDir>$(Configuration)\$(Platform)\$(ProjectName)\</IntDir>
+-  </PropertyGroup>
+-  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+-    <ClCompile>
+-      <PreprocessorDefinitions>WIN32;HAVE_CONFIG_H;_DEBUG;_LIB;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+-      <RuntimeLibrary>MultiThreadedDebugDLL</RuntimeLibrary>
+-      <WarningLevel>Level3</WarningLevel>
+-      <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
+-      <Optimization>Disabled</Optimization>
+-      <AdditionalIncludeDirectories>./;../../src/liblzma/common;../../src/common;../../src/liblzma/api;../../src/liblzma/check;../../src/liblzma/delta;../../src/liblzma/lz;../../src/liblzma/lzma;../../src/liblzma/rangecoder;../../src/liblzma/simple</AdditionalIncludeDirectories>
+-    </ClCompile>
+-    <Link>
+-      <TargetMachine>MachineX86</TargetMachine>
+-      <GenerateDebugInformation>true</GenerateDebugInformation>
+-      <SubSystem>Windows</SubSystem>
+-    </Link>
+-  </ItemDefinitionGroup>
+-  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+-    <ClCompile>
+-      <PreprocessorDefinitions>WIN32;HAVE_CONFIG_H;_DEBUG;_LIB;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+-      <RuntimeLibrary>MultiThreadedDebugDLL</RuntimeLibrary>
+-      <WarningLevel>Level3</WarningLevel>
+-      <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
+-      <Optimization>Disabled</Optimization>
+-      <AdditionalIncludeDirectories>./;../../src/liblzma/common;../../src/common;../../src/liblzma/api;../../src/liblzma/check;../../src/liblzma/delta;../../src/liblzma/lz;../../src/liblzma/lzma;../../src/liblzma/rangecoder;../../src/liblzma/simple</AdditionalIncludeDirectories>
+-    </ClCompile>
+-    <Link>
+-      <GenerateDebugInformation>true</GenerateDebugInformation>
+-      <SubSystem>Windows</SubSystem>
+-    </Link>
+-  </ItemDefinitionGroup>
+-  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
+-    <ClCompile>
+-      <PreprocessorDefinitions>WIN32;HAVE_CONFIG_H;NDEBUG;_LIB;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+-      <RuntimeLibrary>MultiThreadedDLL</RuntimeLibrary>
+-      <WarningLevel>Level3</WarningLevel>
+-      <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
+-      <AdditionalIncludeDirectories>./;../../src/liblzma/common;../../src/common;../../src/liblzma/api;../../src/liblzma/check;../../src/liblzma/delta;../../src/liblzma/lz;../../src/liblzma/lzma;../../src/liblzma/rangecoder;../../src/liblzma/simple</AdditionalIncludeDirectories>
+-    </ClCompile>
+-    <Link>
+-      <TargetMachine>MachineX86</TargetMachine>
+-      <GenerateDebugInformation>true</GenerateDebugInformation>
+-      <SubSystem>Windows</SubSystem>
+-      <EnableCOMDATFolding>true</EnableCOMDATFolding>
+-      <OptimizeReferences>true</OptimizeReferences>
+-    </Link>
+-  </ItemDefinitionGroup>
+-  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+-    <ClCompile>
+-      <PreprocessorDefinitions>WIN32;HAVE_CONFIG_H;NDEBUG;_LIB;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+-      <RuntimeLibrary>MultiThreadedDLL</RuntimeLibrary>
+-      <WarningLevel>Level3</WarningLevel>
+-      <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
+-      <AdditionalIncludeDirectories>./;../../src/liblzma/common;../../src/common;../../src/liblzma/api;../../src/liblzma/check;../../src/liblzma/delta;../../src/liblzma/lz;../../src/liblzma/lzma;../../src/liblzma/rangecoder;../../src/liblzma/simple</AdditionalIncludeDirectories>
+-    </ClCompile>
+-    <Link>
+-      <GenerateDebugInformation>true</GenerateDebugInformation>
+-      <SubSystem>Windows</SubSystem>
+-      <EnableCOMDATFolding>true</EnableCOMDATFolding>
+-      <OptimizeReferences>true</OptimizeReferences>
+-    </Link>
+-  </ItemDefinitionGroup>
+-  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='ReleaseMT|Win32'">
+-    <ClCompile>
+-      <PreprocessorDefinitions>WIN32;HAVE_CONFIG_H;NDEBUG;_LIB;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+-      <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
+-      <WarningLevel>Level3</WarningLevel>
+-      <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
+-      <AdditionalIncludeDirectories>./;../../src/liblzma/common;../../src/common;../../src/liblzma/api;../../src/liblzma/check;../../src/liblzma/delta;../../src/liblzma/lz;../../src/liblzma/lzma;../../src/liblzma/rangecoder;../../src/liblzma/simple</AdditionalIncludeDirectories>
+-    </ClCompile>
+-    <Link>
+-      <TargetMachine>MachineX86</TargetMachine>
+-      <GenerateDebugInformation>true</GenerateDebugInformation>
+-      <SubSystem>Windows</SubSystem>
+-      <EnableCOMDATFolding>true</EnableCOMDATFolding>
+-      <OptimizeReferences>true</OptimizeReferences>
+-    </Link>
+-  </ItemDefinitionGroup>
+-  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='ReleaseMT|x64'">
+-    <ClCompile>
+-      <PreprocessorDefinitions>WIN32;HAVE_CONFIG_H;NDEBUG;_LIB;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+-      <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
+-      <WarningLevel>Level3</WarningLevel>
+-      <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
+-      <AdditionalIncludeDirectories>./;../../src/liblzma/common;../../src/common;../../src/liblzma/api;../../src/liblzma/check;../../src/liblzma/delta;../../src/liblzma/lz;../../src/liblzma/lzma;../../src/liblzma/rangecoder;../../src/liblzma/simple</AdditionalIncludeDirectories>
+-    </ClCompile>
+-    <Link>
+-      <GenerateDebugInformation>true</GenerateDebugInformation>
+-      <SubSystem>Windows</SubSystem>
+-      <EnableCOMDATFolding>true</EnableCOMDATFolding>
+-      <OptimizeReferences>true</OptimizeReferences>
+-    </Link>
+-  </ItemDefinitionGroup>
+-  <ItemGroup>
+-    <ClCompile Include="..\..\src\common\tuklib_cpucores.c" />
+-    <ClCompile Include="..\..\src\common\tuklib_physmem.c" />
+-    <ClCompile Include="..\..\src\liblzma\check\check.c" />
+-    <ClCompile Include="..\..\src\liblzma\check\crc32_fast.c" />
+-    <ClCompile Include="..\..\src\liblzma\check\crc32_table.c" />
+-    <ClCompile Include="..\..\src\liblzma\check\crc64_fast.c" />
+-    <ClCompile Include="..\..\src\liblzma\check\crc64_table.c" />
+-    <ClCompile Include="..\..\src\liblzma\check\sha256.c" />
+-    <ClCompile Include="..\..\src\liblzma\common\alone_decoder.c" />
+-    <ClCompile Include="..\..\src\liblzma\common\alone_encoder.c" />
+-    <ClCompile Include="..\..\src\liblzma\common\auto_decoder.c" />
+-    <ClCompile Include="..\..\src\liblzma\common\block_buffer_decoder.c" />
+-    <ClCompile Include="..\..\src\liblzma\common\block_buffer_encoder.c" />
+-    <ClCompile Include="..\..\src\liblzma\common\block_decoder.c" />
+-    <ClCompile Include="..\..\src\liblzma\common\block_encoder.c" />
+-    <ClCompile Include="..\..\src\liblzma\common\block_header_decoder.c" />
+-    <ClCompile Include="..\..\src\liblzma\common\block_header_encoder.c" />
+-    <ClCompile Include="..\..\src\liblzma\common\block_util.c" />
+-    <ClCompile Include="..\..\src\liblzma\common\common.c" />
+-    <ClCompile Include="..\..\src\liblzma\common\easy_buffer_encoder.c" />
+-    <ClCompile Include="..\..\src\liblzma\common\easy_decoder_memusage.c" />
+-    <ClCompile Include="..\..\src\liblzma\common\easy_encoder.c" />
+-    <ClCompile Include="..\..\src\liblzma\common\easy_encoder_memusage.c" />
+-    <ClCompile Include="..\..\src\liblzma\common\easy_preset.c" />
+-    <ClCompile Include="..\..\src\liblzma\common\file_info.c" />
+-    <ClCompile Include="..\..\src\liblzma\common\filter_buffer_decoder.c" />
+-    <ClCompile Include="..\..\src\liblzma\common\filter_buffer_encoder.c" />
+-    <ClCompile Include="..\..\src\liblzma\common\filter_common.c" />
+-    <ClCompile Include="..\..\src\liblzma\common\filter_decoder.c" />
+-    <ClCompile Include="..\..\src\liblzma\common\filter_encoder.c" />
+-    <ClCompile Include="..\..\src\liblzma\common\filter_flags_decoder.c" />
+-    <ClCompile Include="..\..\src\liblzma\common\filter_flags_encoder.c" />
+-    <ClCompile Include="..\..\src\liblzma\common\hardware_cputhreads.c" />
+-    <ClCompile Include="..\..\src\liblzma\common\hardware_physmem.c" />
+-    <ClCompile Include="..\..\src\liblzma\common\index.c" />
+-    <ClCompile Include="..\..\src\liblzma\common\index_decoder.c" />
+-    <ClCompile Include="..\..\src\liblzma\common\index_encoder.c" />
+-    <ClCompile Include="..\..\src\liblzma\common\index_hash.c" />
+-    <ClCompile Include="..\..\src\liblzma\common\lzip_decoder.c" />
+-    <ClCompile Include="..\..\src\liblzma\common\microlzma_decoder.c" />
+-    <ClCompile Include="..\..\src\liblzma\common\microlzma_encoder.c" />
+-    <ClCompile Include="..\..\src\liblzma\common\outqueue.c" />
+-    <ClCompile Include="..\..\src\liblzma\common\stream_buffer_decoder.c" />
+-    <ClCompile Include="..\..\src\liblzma\common\stream_buffer_encoder.c" />
+-    <ClCompile Include="..\..\src\liblzma\common\stream_decoder.c" />
+-    <ClCompile Include="..\..\src\liblzma\common\stream_decoder_mt.c" />
+-    <ClCompile Include="..\..\src\liblzma\common\stream_encoder.c" />
+-    <ClCompile Include="..\..\src\liblzma\common\stream_encoder_mt.c" />
+-    <ClCompile Include="..\..\src\liblzma\common\stream_flags_common.c" />
+-    <ClCompile Include="..\..\src\liblzma\common\stream_flags_decoder.c" />
+-    <ClCompile Include="..\..\src\liblzma\common\stream_flags_encoder.c" />
+-    <ClCompile Include="..\..\src\liblzma\common\string_conversion.c" />
+-    <ClCompile Include="..\..\src\liblzma\common\vli_decoder.c" />
+-    <ClCompile Include="..\..\src\liblzma\common\vli_encoder.c" />
+-    <ClCompile Include="..\..\src\liblzma\common\vli_size.c" />
+-    <ClCompile Include="..\..\src\liblzma\delta\delta_common.c" />
+-    <ClCompile Include="..\..\src\liblzma\delta\delta_decoder.c" />
+-    <ClCompile Include="..\..\src\liblzma\delta\delta_encoder.c" />
+-    <ClCompile Include="..\..\src\liblzma\lzma\fastpos_table.c" />
+-    <ClCompile Include="..\..\src\liblzma\lzma\lzma2_decoder.c" />
+-    <ClCompile Include="..\..\src\liblzma\lzma\lzma2_encoder.c" />
+-    <ClCompile Include="..\..\src\liblzma\lzma\lzma_decoder.c" />
+-    <ClCompile Include="..\..\src\liblzma\lzma\lzma_encoder.c" />
+-    <ClCompile Include="..\..\src\liblzma\lzma\lzma_encoder_optimum_fast.c" />
+-    <ClCompile Include="..\..\src\liblzma\lzma\lzma_encoder_optimum_normal.c" />
+-    <ClCompile Include="..\..\src\liblzma\lzma\lzma_encoder_presets.c" />
+-    <ClCompile Include="..\..\src\liblzma\lz\lz_decoder.c" />
+-    <ClCompile Include="..\..\src\liblzma\lz\lz_encoder.c" />
+-    <ClCompile Include="..\..\src\liblzma\lz\lz_encoder_mf.c" />
+-    <ClCompile Include="..\..\src\liblzma\rangecoder\price_table.c" />
+-    <ClCompile Include="..\..\src\liblzma\simple\arm.c" />
+-    <ClCompile Include="..\..\src\liblzma\simple\arm64.c" />
+-    <ClCompile Include="..\..\src\liblzma\simple\armthumb.c" />
+-    <ClCompile Include="..\..\src\liblzma\simple\ia64.c" />
+-    <ClCompile Include="..\..\src\liblzma\simple\powerpc.c" />
+-    <ClCompile Include="..\..\src\liblzma\simple\simple_coder.c" />
+-    <ClCompile Include="..\..\src\liblzma\simple\simple_decoder.c" />
+-    <ClCompile Include="..\..\src\liblzma\simple\simple_encoder.c" />
+-    <ClCompile Include="..\..\src\liblzma\simple\sparc.c" />
+-    <ClCompile Include="..\..\src\liblzma\simple\x86.c" />
+-  </ItemGroup>
+-  <ItemGroup>
+-    <ClInclude Include="..\..\src\common\mythread.h" />
+-    <ClInclude Include="..\..\src\common\sysdefs.h" />
+-    <ClInclude Include="..\..\src\common\tuklib_common.h" />
+-    <ClInclude Include="..\..\src\common\tuklib_config.h" />
+-    <ClInclude Include="..\..\src\common\tuklib_cpucores.h" />
+-    <ClInclude Include="..\..\src\common\tuklib_integer.h" />
+-    <ClInclude Include="..\..\src\common\tuklib_physmem.h" />
+-    <ClInclude Include="..\..\src\liblzma\api\lzma.h" />
+-    <ClInclude Include="..\..\src\liblzma\api\lzma\base.h" />
+-    <ClInclude Include="..\..\src\liblzma\api\lzma\bcj.h" />
+-    <ClInclude Include="..\..\src\liblzma\api\lzma\block.h" />
+-    <ClInclude Include="..\..\src\liblzma\api\lzma\check.h" />
+-    <ClInclude Include="..\..\src\liblzma\api\lzma\container.h" />
+-    <ClInclude Include="..\..\src\liblzma\api\lzma\delta.h" />
+-    <ClInclude Include="..\..\src\liblzma\api\lzma\filter.h" />
+-    <ClInclude Include="..\..\src\liblzma\api\lzma\hardware.h" />
+-    <ClInclude Include="..\..\src\liblzma\api\lzma\index.h" />
+-    <ClInclude Include="..\..\src\liblzma\api\lzma\index_hash.h" />
+-    <ClInclude Include="..\..\src\liblzma\api\lzma\lzma12.h" />
+-    <ClInclude Include="..\..\src\liblzma\api\lzma\stream_flags.h" />
+-    <ClInclude Include="..\..\src\liblzma\api\lzma\version.h" />
+-    <ClInclude Include="..\..\src\liblzma\api\lzma\vli.h" />
+-    <ClInclude Include="..\..\src\liblzma\check\check.h" />
+-    <ClInclude Include="..\..\src\liblzma\check\crc32_table_be.h" />
+-    <ClInclude Include="..\..\src\liblzma\check\crc32_table_le.h" />
+-    <ClInclude Include="..\..\src\liblzma\check\crc64_table_be.h" />
+-    <ClInclude Include="..\..\src\liblzma\check\crc64_table_le.h" />
+-    <ClInclude Include="..\..\src\liblzma\check\crc_macros.h" />
+-    <ClInclude Include="..\..\src\liblzma\common\alone_decoder.h" />
+-    <ClInclude Include="..\..\src\liblzma\common\block_buffer_encoder.h" />
+-    <ClInclude Include="..\..\src\liblzma\common\block_decoder.h" />
+-    <ClInclude Include="..\..\src\liblzma\common\block_encoder.h" />
+-    <ClInclude Include="..\..\src\liblzma\common\common.h" />
+-    <ClInclude Include="..\..\src\liblzma\common\easy_preset.h" />
+-    <ClInclude Include="..\..\src\liblzma\common\filter_common.h" />
+-    <ClInclude Include="..\..\src\liblzma\common\filter_decoder.h" />
+-    <ClInclude Include="..\..\src\liblzma\common\filter_encoder.h" />
+-    <ClInclude Include="..\..\src\liblzma\common\index.h" />
+-    <ClInclude Include="..\..\src\liblzma\common\index_decoder.h" />
+-    <ClInclude Include="..\..\src\liblzma\common\index_encoder.h" />
+-    <ClInclude Include="..\..\src\liblzma\common\memcmplen.h" />
+-    <ClInclude Include="..\..\src\liblzma\common\lzip_decoder.h" />
+-    <ClInclude Include="..\..\src\liblzma\common\outqueue.h" />
+-    <ClInclude Include="..\..\src\liblzma\common\stream_decoder.h" />
+-    <ClInclude Include="..\..\src\liblzma\common\stream_flags_common.h" />
+-    <ClInclude Include="..\..\src\liblzma\delta\delta_common.h" />
+-    <ClInclude Include="..\..\src\liblzma\delta\delta_decoder.h" />
+-    <ClInclude Include="..\..\src\liblzma\delta\delta_encoder.h" />
+-    <ClInclude Include="..\..\src\liblzma\delta\delta_private.h" />
+-    <ClInclude Include="..\..\src\liblzma\lzma\fastpos.h" />
+-    <ClInclude Include="..\..\src\liblzma\lzma\lzma2_decoder.h" />
+-    <ClInclude Include="..\..\src\liblzma\lzma\lzma2_encoder.h" />
+-    <ClInclude Include="..\..\src\liblzma\lzma\lzma_common.h" />
+-    <ClInclude Include="..\..\src\liblzma\lzma\lzma_decoder.h" />
+-    <ClInclude Include="..\..\src\liblzma\lzma\lzma_encoder.h" />
+-    <ClInclude Include="..\..\src\liblzma\lzma\lzma_encoder_private.h" />
+-    <ClInclude Include="..\..\src\liblzma\lz\lz_decoder.h" />
+-    <ClInclude Include="..\..\src\liblzma\lz\lz_encoder.h" />
+-    <ClInclude Include="..\..\src\liblzma\lz\lz_encoder_hash.h" />
+-    <ClInclude Include="..\..\src\liblzma\lz\lz_encoder_hash_table.h" />
+-    <ClInclude Include="..\..\src\liblzma\rangecoder\price.h" />
+-    <ClInclude Include="..\..\src\liblzma\rangecoder\range_common.h" />
+-    <ClInclude Include="..\..\src\liblzma\rangecoder\range_decoder.h" />
+-    <ClInclude Include="..\..\src\liblzma\rangecoder\range_encoder.h" />
+-    <ClInclude Include="..\..\src\liblzma\simple\simple_coder.h" />
+-    <ClInclude Include="..\..\src\liblzma\simple\simple_decoder.h" />
+-    <ClInclude Include="..\..\src\liblzma\simple\simple_encoder.h" />
+-    <ClInclude Include="..\..\src\liblzma\simple\simple_private.h" />
+-    <ClInclude Include="config.h" />
+-  </ItemGroup>
+-  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
+-  <ImportGroup Label="ExtensionTargets">
+-  </ImportGroup>
+-</Project>
+diff --git a/windows/vs2017/liblzma_dll.vcxproj b/windows/vs2017/liblzma_dll.vcxproj
+deleted file mode 100644
+index 7818b2cf..00000000
+--- a/windows/vs2017/liblzma_dll.vcxproj
++++ /dev/null
+@@ -1,398 +0,0 @@
+-﻿<?xml version="1.0" encoding="utf-8"?>
+-<Project DefaultTargets="Build" ToolsVersion="15.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+-  <ItemGroup Label="ProjectConfigurations">
+-    <ProjectConfiguration Include="Debug|Win32">
+-      <Configuration>Debug</Configuration>
+-      <Platform>Win32</Platform>
+-    </ProjectConfiguration>
+-    <ProjectConfiguration Include="Debug|x64">
+-      <Configuration>Debug</Configuration>
+-      <Platform>x64</Platform>
+-    </ProjectConfiguration>
+-    <ProjectConfiguration Include="ReleaseMT|Win32">
+-      <Configuration>ReleaseMT</Configuration>
+-      <Platform>Win32</Platform>
+-    </ProjectConfiguration>
+-    <ProjectConfiguration Include="ReleaseMT|x64">
+-      <Configuration>ReleaseMT</Configuration>
+-      <Platform>x64</Platform>
+-    </ProjectConfiguration>
+-    <ProjectConfiguration Include="Release|Win32">
+-      <Configuration>Release</Configuration>
+-      <Platform>Win32</Platform>
+-    </ProjectConfiguration>
+-    <ProjectConfiguration Include="Release|x64">
+-      <Configuration>Release</Configuration>
+-      <Platform>x64</Platform>
+-    </ProjectConfiguration>
+-  </ItemGroup>
+-  <PropertyGroup Label="Globals">
+-    <ProjectGuid>{E0F247DB-EF12-4755-8DF9-F74BCD1348F7}</ProjectGuid>
+-    <Keyword>Win32Proj</Keyword>
+-  </PropertyGroup>
+-  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
+-  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
+-    <ConfigurationType>DynamicLibrary</ConfigurationType>
+-    <UseDebugLibraries>true</UseDebugLibraries>
+-    <PlatformToolset>v141</PlatformToolset>
+-  </PropertyGroup>
+-  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="Configuration">
+-    <ConfigurationType>DynamicLibrary</ConfigurationType>
+-    <UseDebugLibraries>true</UseDebugLibraries>
+-    <PlatformToolset>v141</PlatformToolset>
+-  </PropertyGroup>
+-  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'" Label="Configuration">
+-    <ConfigurationType>DynamicLibrary</ConfigurationType>
+-    <UseDebugLibraries>false</UseDebugLibraries>
+-    <PlatformToolset>v141</PlatformToolset>
+-  </PropertyGroup>
+-  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="Configuration">
+-    <ConfigurationType>DynamicLibrary</ConfigurationType>
+-    <UseDebugLibraries>false</UseDebugLibraries>
+-    <PlatformToolset>v141</PlatformToolset>
+-  </PropertyGroup>
+-  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='ReleaseMT|Win32'" Label="Configuration">
+-    <ConfigurationType>DynamicLibrary</ConfigurationType>
+-    <UseDebugLibraries>false</UseDebugLibraries>
+-    <PlatformToolset>v141</PlatformToolset>
+-  </PropertyGroup>
+-  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='ReleaseMT|x64'" Label="Configuration">
+-    <ConfigurationType>DynamicLibrary</ConfigurationType>
+-    <UseDebugLibraries>false</UseDebugLibraries>
+-    <PlatformToolset>v141</PlatformToolset>
+-  </PropertyGroup>
+-  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
+-  <ImportGroup Label="ExtensionSettings">
+-  </ImportGroup>
+-  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+-    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+-  </ImportGroup>
+-  <ImportGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="PropertySheets">
+-    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+-  </ImportGroup>
+-  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
+-    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+-  </ImportGroup>
+-  <ImportGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="PropertySheets">
+-    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+-  </ImportGroup>
+-  <ImportGroup Condition="'$(Configuration)|$(Platform)'=='ReleaseMT|Win32'" Label="PropertySheets">
+-    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+-  </ImportGroup>
+-  <ImportGroup Condition="'$(Configuration)|$(Platform)'=='ReleaseMT|x64'" Label="PropertySheets">
+-    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+-  </ImportGroup>
+-  <PropertyGroup Label="UserMacros" />
+-  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+-    <LinkIncremental>true</LinkIncremental>
+-    <OutDir>$(SolutionDir)$(Configuration)\$(Platform)\$(ProjectName)\</OutDir>
+-    <IntDir>$(Configuration)\$(Platform)\$(ProjectName)\</IntDir>
+-    <TargetName>liblzma</TargetName>
+-  </PropertyGroup>
+-  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+-    <LinkIncremental>true</LinkIncremental>
+-    <OutDir>$(SolutionDir)$(Configuration)\$(Platform)\$(ProjectName)\</OutDir>
+-    <IntDir>$(Configuration)\$(Platform)\$(ProjectName)\</IntDir>
+-    <TargetName>liblzma</TargetName>
+-  </PropertyGroup>
+-  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
+-    <LinkIncremental>
+-    </LinkIncremental>
+-    <OutDir>$(SolutionDir)$(Configuration)\$(Platform)\$(ProjectName)\</OutDir>
+-    <IntDir>$(Configuration)\$(Platform)\$(ProjectName)\</IntDir>
+-    <TargetName>liblzma</TargetName>
+-  </PropertyGroup>
+-  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+-    <LinkIncremental />
+-    <OutDir>$(SolutionDir)$(Configuration)\$(Platform)\$(ProjectName)\</OutDir>
+-    <IntDir>$(Configuration)\$(Platform)\$(ProjectName)\</IntDir>
+-    <TargetName>liblzma</TargetName>
+-  </PropertyGroup>
+-  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='ReleaseMT|Win32'">
+-    <LinkIncremental>
+-    </LinkIncremental>
+-    <OutDir>$(SolutionDir)$(Configuration)\$(Platform)\$(ProjectName)\</OutDir>
+-    <IntDir>$(Configuration)\$(Platform)\$(ProjectName)\</IntDir>
+-    <TargetName>liblzma</TargetName>
+-  </PropertyGroup>
+-  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='ReleaseMT|x64'">
+-    <LinkIncremental />
+-    <OutDir>$(SolutionDir)$(Configuration)\$(Platform)\$(ProjectName)\</OutDir>
+-    <IntDir>$(Configuration)\$(Platform)\$(ProjectName)\</IntDir>
+-    <TargetName>liblzma</TargetName>
+-  </PropertyGroup>
+-  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+-    <ClCompile>
+-      <PreprocessorDefinitions>WIN32;HAVE_CONFIG_H;DLL_EXPORT;_DEBUG;_WINDOWS;_USRDLL;LIBLZMADLL_EXPORTS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+-      <RuntimeLibrary>MultiThreadedDebugDLL</RuntimeLibrary>
+-      <WarningLevel>Level3</WarningLevel>
+-      <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
+-      <Optimization>Disabled</Optimization>
+-      <AdditionalIncludeDirectories>./;../../src/liblzma/common;../../src/common;../../src/liblzma/api;../../src/liblzma/check;../../src/liblzma/delta;../../src/liblzma/lz;../../src/liblzma/lzma;../../src/liblzma/rangecoder;../../src/liblzma/simple</AdditionalIncludeDirectories>
+-    </ClCompile>
+-    <Link>
+-      <TargetMachine>MachineX86</TargetMachine>
+-      <GenerateDebugInformation>true</GenerateDebugInformation>
+-      <SubSystem>Windows</SubSystem>
+-    </Link>
+-    <ResourceCompile>
+-      <AdditionalIncludeDirectories>./;../../src/liblzma/common;../../src/common;../../src/liblzma/api;</AdditionalIncludeDirectories>
+-      <PreprocessorDefinitions>HAVE_CONFIG_H</PreprocessorDefinitions>
+-    </ResourceCompile>
+-  </ItemDefinitionGroup>
+-  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+-    <ClCompile>
+-      <PreprocessorDefinitions>WIN32;HAVE_CONFIG_H;DLL_EXPORT;_DEBUG;_WINDOWS;_USRDLL;LIBLZMADLL_EXPORTS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+-      <RuntimeLibrary>MultiThreadedDebugDLL</RuntimeLibrary>
+-      <WarningLevel>Level3</WarningLevel>
+-      <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
+-      <Optimization>Disabled</Optimization>
+-      <AdditionalIncludeDirectories>./;../../src/liblzma/common;../../src/common;../../src/liblzma/api;../../src/liblzma/check;../../src/liblzma/delta;../../src/liblzma/lz;../../src/liblzma/lzma;../../src/liblzma/rangecoder;../../src/liblzma/simple</AdditionalIncludeDirectories>
+-    </ClCompile>
+-    <Link>
+-      <GenerateDebugInformation>true</GenerateDebugInformation>
+-      <SubSystem>Windows</SubSystem>
+-    </Link>
+-    <ResourceCompile>
+-      <AdditionalIncludeDirectories>./;../../src/liblzma/common;../../src/common;../../src/liblzma/api;</AdditionalIncludeDirectories>
+-      <PreprocessorDefinitions>HAVE_CONFIG_H</PreprocessorDefinitions>
+-    </ResourceCompile>
+-  </ItemDefinitionGroup>
+-  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
+-    <ClCompile>
+-      <PreprocessorDefinitions>WIN32;HAVE_CONFIG_H;DLL_EXPORT;NDEBUG;_WINDOWS;_USRDLL;LIBLZMADLL_EXPORTS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+-      <RuntimeLibrary>MultiThreadedDLL</RuntimeLibrary>
+-      <WarningLevel>Level3</WarningLevel>
+-      <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
+-      <AdditionalIncludeDirectories>./;../../src/liblzma/common;../../src/common;../../src/liblzma/api;../../src/liblzma/check;../../src/liblzma/delta;../../src/liblzma/lz;../../src/liblzma/lzma;../../src/liblzma/rangecoder;../../src/liblzma/simple</AdditionalIncludeDirectories>
+-    </ClCompile>
+-    <Link>
+-      <TargetMachine>MachineX86</TargetMachine>
+-      <GenerateDebugInformation>true</GenerateDebugInformation>
+-      <SubSystem>Windows</SubSystem>
+-      <EnableCOMDATFolding>true</EnableCOMDATFolding>
+-      <OptimizeReferences>true</OptimizeReferences>
+-    </Link>
+-    <ResourceCompile>
+-      <AdditionalIncludeDirectories>./;../../src/liblzma/common;../../src/common;../../src/liblzma/api;</AdditionalIncludeDirectories>
+-      <PreprocessorDefinitions>HAVE_CONFIG_H</PreprocessorDefinitions>
+-    </ResourceCompile>
+-  </ItemDefinitionGroup>
+-  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+-    <ClCompile>
+-      <PreprocessorDefinitions>WIN32;HAVE_CONFIG_H;DLL_EXPORT;NDEBUG;_WINDOWS;_USRDLL;LIBLZMADLL_EXPORTS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+-      <RuntimeLibrary>MultiThreadedDLL</RuntimeLibrary>
+-      <WarningLevel>Level3</WarningLevel>
+-      <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
+-      <AdditionalIncludeDirectories>./;../../src/liblzma/common;../../src/common;../../src/liblzma/api;../../src/liblzma/check;../../src/liblzma/delta;../../src/liblzma/lz;../../src/liblzma/lzma;../../src/liblzma/rangecoder;../../src/liblzma/simple</AdditionalIncludeDirectories>
+-    </ClCompile>
+-    <Link>
+-      <GenerateDebugInformation>true</GenerateDebugInformation>
+-      <SubSystem>Windows</SubSystem>
+-      <EnableCOMDATFolding>true</EnableCOMDATFolding>
+-      <OptimizeReferences>true</OptimizeReferences>
+-    </Link>
+-    <ResourceCompile>
+-      <AdditionalIncludeDirectories>./;../../src/liblzma/common;../../src/common;../../src/liblzma/api;</AdditionalIncludeDirectories>
+-      <PreprocessorDefinitions>HAVE_CONFIG_H</PreprocessorDefinitions>
+-    </ResourceCompile>
+-  </ItemDefinitionGroup>
+-  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='ReleaseMT|Win32'">
+-    <ClCompile>
+-      <PreprocessorDefinitions>WIN32;HAVE_CONFIG_H;DLL_EXPORT;NDEBUG;_WINDOWS;_USRDLL;LIBLZMADLL_EXPORTS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+-      <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
+-      <WarningLevel>Level3</WarningLevel>
+-      <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
+-      <AdditionalIncludeDirectories>./;../../src/liblzma/common;../../src/common;../../src/liblzma/api;../../src/liblzma/check;../../src/liblzma/delta;../../src/liblzma/lz;../../src/liblzma/lzma;../../src/liblzma/rangecoder;../../src/liblzma/simple</AdditionalIncludeDirectories>
+-    </ClCompile>
+-    <Link>
+-      <TargetMachine>MachineX86</TargetMachine>
+-      <GenerateDebugInformation>true</GenerateDebugInformation>
+-      <SubSystem>Windows</SubSystem>
+-      <EnableCOMDATFolding>true</EnableCOMDATFolding>
+-      <OptimizeReferences>true</OptimizeReferences>
+-    </Link>
+-    <ResourceCompile>
+-      <AdditionalIncludeDirectories>./;../../src/liblzma/common;../../src/common;../../src/liblzma/api;</AdditionalIncludeDirectories>
+-      <PreprocessorDefinitions>HAVE_CONFIG_H</PreprocessorDefinitions>
+-    </ResourceCompile>
+-  </ItemDefinitionGroup>
+-  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='ReleaseMT|x64'">
+-    <ClCompile>
+-      <PreprocessorDefinitions>WIN32;HAVE_CONFIG_H;DLL_EXPORT;NDEBUG;_WINDOWS;_USRDLL;LIBLZMADLL_EXPORTS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+-      <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
+-      <WarningLevel>Level3</WarningLevel>
+-      <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
+-      <AdditionalIncludeDirectories>./;../../src/liblzma/common;../../src/common;../../src/liblzma/api;../../src/liblzma/check;../../src/liblzma/delta;../../src/liblzma/lz;../../src/liblzma/lzma;../../src/liblzma/rangecoder;../../src/liblzma/simple</AdditionalIncludeDirectories>
+-    </ClCompile>
+-    <Link>
+-      <GenerateDebugInformation>true</GenerateDebugInformation>
+-      <SubSystem>Windows</SubSystem>
+-      <EnableCOMDATFolding>true</EnableCOMDATFolding>
+-      <OptimizeReferences>true</OptimizeReferences>
+-    </Link>
+-    <ResourceCompile>
+-      <AdditionalIncludeDirectories>./;../../src/liblzma/common;../../src/common;../../src/liblzma/api;</AdditionalIncludeDirectories>
+-      <PreprocessorDefinitions>HAVE_CONFIG_H</PreprocessorDefinitions>
+-    </ResourceCompile>
+-  </ItemDefinitionGroup>
+-  <ItemGroup>
+-    <ClCompile Include="..\..\src\common\tuklib_cpucores.c" />
+-    <ClCompile Include="..\..\src\common\tuklib_physmem.c" />
+-    <ClCompile Include="..\..\src\liblzma\check\check.c" />
+-    <ClCompile Include="..\..\src\liblzma\check\crc32_fast.c" />
+-    <ClCompile Include="..\..\src\liblzma\check\crc32_table.c" />
+-    <ClCompile Include="..\..\src\liblzma\check\crc64_fast.c" />
+-    <ClCompile Include="..\..\src\liblzma\check\crc64_table.c" />
+-    <ClCompile Include="..\..\src\liblzma\check\sha256.c" />
+-    <ClCompile Include="..\..\src\liblzma\common\alone_decoder.c" />
+-    <ClCompile Include="..\..\src\liblzma\common\alone_encoder.c" />
+-    <ClCompile Include="..\..\src\liblzma\common\auto_decoder.c" />
+-    <ClCompile Include="..\..\src\liblzma\common\block_buffer_decoder.c" />
+-    <ClCompile Include="..\..\src\liblzma\common\block_buffer_encoder.c" />
+-    <ClCompile Include="..\..\src\liblzma\common\block_decoder.c" />
+-    <ClCompile Include="..\..\src\liblzma\common\block_encoder.c" />
+-    <ClCompile Include="..\..\src\liblzma\common\block_header_decoder.c" />
+-    <ClCompile Include="..\..\src\liblzma\common\block_header_encoder.c" />
+-    <ClCompile Include="..\..\src\liblzma\common\block_util.c" />
+-    <ClCompile Include="..\..\src\liblzma\common\common.c" />
+-    <ClCompile Include="..\..\src\liblzma\common\easy_buffer_encoder.c" />
+-    <ClCompile Include="..\..\src\liblzma\common\easy_decoder_memusage.c" />
+-    <ClCompile Include="..\..\src\liblzma\common\easy_encoder.c" />
+-    <ClCompile Include="..\..\src\liblzma\common\easy_encoder_memusage.c" />
+-    <ClCompile Include="..\..\src\liblzma\common\easy_preset.c" />
+-    <ClCompile Include="..\..\src\liblzma\common\file_info.c" />
+-    <ClCompile Include="..\..\src\liblzma\common\filter_buffer_decoder.c" />
+-    <ClCompile Include="..\..\src\liblzma\common\filter_buffer_encoder.c" />
+-    <ClCompile Include="..\..\src\liblzma\common\filter_common.c" />
+-    <ClCompile Include="..\..\src\liblzma\common\filter_decoder.c" />
+-    <ClCompile Include="..\..\src\liblzma\common\filter_encoder.c" />
+-    <ClCompile Include="..\..\src\liblzma\common\filter_flags_decoder.c" />
+-    <ClCompile Include="..\..\src\liblzma\common\filter_flags_encoder.c" />
+-    <ClCompile Include="..\..\src\liblzma\common\hardware_cputhreads.c" />
+-    <ClCompile Include="..\..\src\liblzma\common\hardware_physmem.c" />
+-    <ClCompile Include="..\..\src\liblzma\common\index.c" />
+-    <ClCompile Include="..\..\src\liblzma\common\index_decoder.c" />
+-    <ClCompile Include="..\..\src\liblzma\common\index_encoder.c" />
+-    <ClCompile Include="..\..\src\liblzma\common\index_hash.c" />
+-    <ClCompile Include="..\..\src\liblzma\common\lzip_decoder.c" />
+-    <ClCompile Include="..\..\src\liblzma\common\microlzma_decoder.c" />
+-    <ClCompile Include="..\..\src\liblzma\common\microlzma_encoder.c" />
+-    <ClCompile Include="..\..\src\liblzma\common\outqueue.c" />
+-    <ClCompile Include="..\..\src\liblzma\common\stream_buffer_decoder.c" />
+-    <ClCompile Include="..\..\src\liblzma\common\stream_buffer_encoder.c" />
+-    <ClCompile Include="..\..\src\liblzma\common\stream_decoder.c" />
+-    <ClCompile Include="..\..\src\liblzma\common\stream_decoder_mt.c" />
+-    <ClCompile Include="..\..\src\liblzma\common\stream_encoder.c" />
+-    <ClCompile Include="..\..\src\liblzma\common\stream_encoder_mt.c" />
+-    <ClCompile Include="..\..\src\liblzma\common\stream_flags_common.c" />
+-    <ClCompile Include="..\..\src\liblzma\common\stream_flags_decoder.c" />
+-    <ClCompile Include="..\..\src\liblzma\common\stream_flags_encoder.c" />
+-    <ClCompile Include="..\..\src\liblzma\common\string_conversion.c" />
+-    <ClCompile Include="..\..\src\liblzma\common\vli_decoder.c" />
+-    <ClCompile Include="..\..\src\liblzma\common\vli_encoder.c" />
+-    <ClCompile Include="..\..\src\liblzma\common\vli_size.c" />
+-    <ClCompile Include="..\..\src\liblzma\delta\delta_common.c" />
+-    <ClCompile Include="..\..\src\liblzma\delta\delta_decoder.c" />
+-    <ClCompile Include="..\..\src\liblzma\delta\delta_encoder.c" />
+-    <ClCompile Include="..\..\src\liblzma\lzma\fastpos_table.c" />
+-    <ClCompile Include="..\..\src\liblzma\lzma\lzma2_decoder.c" />
+-    <ClCompile Include="..\..\src\liblzma\lzma\lzma2_encoder.c" />
+-    <ClCompile Include="..\..\src\liblzma\lzma\lzma_decoder.c" />
+-    <ClCompile Include="..\..\src\liblzma\lzma\lzma_encoder.c" />
+-    <ClCompile Include="..\..\src\liblzma\lzma\lzma_encoder_optimum_fast.c" />
+-    <ClCompile Include="..\..\src\liblzma\lzma\lzma_encoder_optimum_normal.c" />
+-    <ClCompile Include="..\..\src\liblzma\lzma\lzma_encoder_presets.c" />
+-    <ClCompile Include="..\..\src\liblzma\lz\lz_decoder.c" />
+-    <ClCompile Include="..\..\src\liblzma\lz\lz_encoder.c" />
+-    <ClCompile Include="..\..\src\liblzma\lz\lz_encoder_mf.c" />
+-    <ClCompile Include="..\..\src\liblzma\rangecoder\price_table.c" />
+-    <ClCompile Include="..\..\src\liblzma\simple\arm.c" />
+-    <ClCompile Include="..\..\src\liblzma\simple\arm64.c" />
+-    <ClCompile Include="..\..\src\liblzma\simple\armthumb.c" />
+-    <ClCompile Include="..\..\src\liblzma\simple\ia64.c" />
+-    <ClCompile Include="..\..\src\liblzma\simple\powerpc.c" />
+-    <ClCompile Include="..\..\src\liblzma\simple\simple_coder.c" />
+-    <ClCompile Include="..\..\src\liblzma\simple\simple_decoder.c" />
+-    <ClCompile Include="..\..\src\liblzma\simple\simple_encoder.c" />
+-    <ClCompile Include="..\..\src\liblzma\simple\sparc.c" />
+-    <ClCompile Include="..\..\src\liblzma\simple\x86.c" />
+-  </ItemGroup>
+-  <ItemGroup>
+-    <ClInclude Include="..\..\src\common\mythread.h" />
+-    <ClInclude Include="..\..\src\common\sysdefs.h" />
+-    <ClInclude Include="..\..\src\common\tuklib_common.h" />
+-    <ClInclude Include="..\..\src\common\tuklib_config.h" />
+-    <ClInclude Include="..\..\src\common\tuklib_cpucores.h" />
+-    <ClInclude Include="..\..\src\common\tuklib_integer.h" />
+-    <ClInclude Include="..\..\src\common\tuklib_physmem.h" />
+-    <ClInclude Include="..\..\src\liblzma\api\lzma.h" />
+-    <ClInclude Include="..\..\src\liblzma\api\lzma\base.h" />
+-    <ClInclude Include="..\..\src\liblzma\api\lzma\bcj.h" />
+-    <ClInclude Include="..\..\src\liblzma\api\lzma\block.h" />
+-    <ClInclude Include="..\..\src\liblzma\api\lzma\check.h" />
+-    <ClInclude Include="..\..\src\liblzma\api\lzma\container.h" />
+-    <ClInclude Include="..\..\src\liblzma\api\lzma\delta.h" />
+-    <ClInclude Include="..\..\src\liblzma\api\lzma\filter.h" />
+-    <ClInclude Include="..\..\src\liblzma\api\lzma\hardware.h" />
+-    <ClInclude Include="..\..\src\liblzma\api\lzma\index.h" />
+-    <ClInclude Include="..\..\src\liblzma\api\lzma\index_hash.h" />
+-    <ClInclude Include="..\..\src\liblzma\api\lzma\lzma12.h" />
+-    <ClInclude Include="..\..\src\liblzma\api\lzma\stream_flags.h" />
+-    <ClInclude Include="..\..\src\liblzma\api\lzma\version.h" />
+-    <ClInclude Include="..\..\src\liblzma\api\lzma\vli.h" />
+-    <ClInclude Include="..\..\src\liblzma\check\check.h" />
+-    <ClInclude Include="..\..\src\liblzma\check\crc32_table_be.h" />
+-    <ClInclude Include="..\..\src\liblzma\check\crc32_table_le.h" />
+-    <ClInclude Include="..\..\src\liblzma\check\crc64_table_be.h" />
+-    <ClInclude Include="..\..\src\liblzma\check\crc64_table_le.h" />
+-    <ClInclude Include="..\..\src\liblzma\check\crc_macros.h" />
+-    <ClInclude Include="..\..\src\liblzma\common\alone_decoder.h" />
+-    <ClInclude Include="..\..\src\liblzma\common\block_buffer_encoder.h" />
+-    <ClInclude Include="..\..\src\liblzma\common\block_decoder.h" />
+-    <ClInclude Include="..\..\src\liblzma\common\block_encoder.h" />
+-    <ClInclude Include="..\..\src\liblzma\common\common.h" />
+-    <ClInclude Include="..\..\src\liblzma\common\easy_preset.h" />
+-    <ClInclude Include="..\..\src\liblzma\common\filter_common.h" />
+-    <ClInclude Include="..\..\src\liblzma\common\filter_decoder.h" />
+-    <ClInclude Include="..\..\src\liblzma\common\filter_encoder.h" />
+-    <ClInclude Include="..\..\src\liblzma\common\index.h" />
+-    <ClInclude Include="..\..\src\liblzma\common\index_decoder.h" />
+-    <ClInclude Include="..\..\src\liblzma\common\index_encoder.h" />
+-    <ClInclude Include="..\..\src\liblzma\common\memcmplen.h" />
+-    <ClInclude Include="..\..\src\liblzma\common\lzip_decoder.h" />
+-    <ClInclude Include="..\..\src\liblzma\common\outqueue.h" />
+-    <ClInclude Include="..\..\src\liblzma\common\stream_decoder.h" />
+-    <ClInclude Include="..\..\src\liblzma\common\stream_flags_common.h" />
+-    <ClInclude Include="..\..\src\liblzma\delta\delta_common.h" />
+-    <ClInclude Include="..\..\src\liblzma\delta\delta_decoder.h" />
+-    <ClInclude Include="..\..\src\liblzma\delta\delta_encoder.h" />
+-    <ClInclude Include="..\..\src\liblzma\delta\delta_private.h" />
+-    <ClInclude Include="..\..\src\liblzma\lzma\fastpos.h" />
+-    <ClInclude Include="..\..\src\liblzma\lzma\lzma2_decoder.h" />
+-    <ClInclude Include="..\..\src\liblzma\lzma\lzma2_encoder.h" />
+-    <ClInclude Include="..\..\src\liblzma\lzma\lzma_common.h" />
+-    <ClInclude Include="..\..\src\liblzma\lzma\lzma_decoder.h" />
+-    <ClInclude Include="..\..\src\liblzma\lzma\lzma_encoder.h" />
+-    <ClInclude Include="..\..\src\liblzma\lzma\lzma_encoder_private.h" />
+-    <ClInclude Include="..\..\src\liblzma\lz\lz_decoder.h" />
+-    <ClInclude Include="..\..\src\liblzma\lz\lz_encoder.h" />
+-    <ClInclude Include="..\..\src\liblzma\lz\lz_encoder_hash.h" />
+-    <ClInclude Include="..\..\src\liblzma\lz\lz_encoder_hash_table.h" />
+-    <ClInclude Include="..\..\src\liblzma\rangecoder\price.h" />
+-    <ClInclude Include="..\..\src\liblzma\rangecoder\range_common.h" />
+-    <ClInclude Include="..\..\src\liblzma\rangecoder\range_decoder.h" />
+-    <ClInclude Include="..\..\src\liblzma\rangecoder\range_encoder.h" />
+-    <ClInclude Include="..\..\src\liblzma\simple\simple_coder.h" />
+-    <ClInclude Include="..\..\src\liblzma\simple\simple_decoder.h" />
+-    <ClInclude Include="..\..\src\liblzma\simple\simple_encoder.h" />
+-    <ClInclude Include="..\..\src\liblzma\simple\simple_private.h" />
+-    <ClInclude Include="config.h" />
+-  </ItemGroup>
+-  <ItemGroup>
+-    <ResourceCompile Include="..\..\src\liblzma\liblzma_w32res.rc" />
+-  </ItemGroup>
+-  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
+-  <ImportGroup Label="ExtensionTargets">
+-  </ImportGroup>
+-</Project>
+diff --git a/windows/vs2017/xz_win.sln b/windows/vs2017/xz_win.sln
+deleted file mode 100644
+index ba49f3e8..00000000
+--- a/windows/vs2017/xz_win.sln
++++ /dev/null
+@@ -1,48 +0,0 @@
+-﻿
+-Microsoft Visual Studio Solution File, Format Version 12.00
+-# Visual Studio 15
+-VisualStudioVersion = 15.0.26430.14
+-MinimumVisualStudioVersion = 10.0.40219.1
+-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "liblzma", "liblzma.vcxproj", "{12728250-16EC-4DC6-94D7-E21DD88947F8}"
+-EndProject
+-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "liblzma_dll", "liblzma_dll.vcxproj", "{E0F247DB-EF12-4755-8DF9-F74BCD1348F7}"
+-EndProject
+-Global
+-	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+-		Debug|Win32 = Debug|Win32
+-		Debug|x64 = Debug|x64
+-		Release|Win32 = Release|Win32
+-		Release|x64 = Release|x64
+-		ReleaseMT|Win32 = ReleaseMT|Win32
+-		ReleaseMT|x64 = ReleaseMT|x64
+-	EndGlobalSection
+-	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+-		{12728250-16EC-4DC6-94D7-E21DD88947F8}.Debug|Win32.ActiveCfg = Debug|Win32
+-		{12728250-16EC-4DC6-94D7-E21DD88947F8}.Debug|Win32.Build.0 = Debug|Win32
+-		{12728250-16EC-4DC6-94D7-E21DD88947F8}.Debug|x64.ActiveCfg = Debug|x64
+-		{12728250-16EC-4DC6-94D7-E21DD88947F8}.Debug|x64.Build.0 = Debug|x64
+-		{12728250-16EC-4DC6-94D7-E21DD88947F8}.Release|Win32.ActiveCfg = Release|Win32
+-		{12728250-16EC-4DC6-94D7-E21DD88947F8}.Release|Win32.Build.0 = Release|Win32
+-		{12728250-16EC-4DC6-94D7-E21DD88947F8}.Release|x64.ActiveCfg = Release|x64
+-		{12728250-16EC-4DC6-94D7-E21DD88947F8}.Release|x64.Build.0 = Release|x64
+-		{12728250-16EC-4DC6-94D7-E21DD88947F8}.ReleaseMT|Win32.ActiveCfg = ReleaseMT|Win32
+-		{12728250-16EC-4DC6-94D7-E21DD88947F8}.ReleaseMT|Win32.Build.0 = ReleaseMT|Win32
+-		{12728250-16EC-4DC6-94D7-E21DD88947F8}.ReleaseMT|x64.ActiveCfg = ReleaseMT|x64
+-		{12728250-16EC-4DC6-94D7-E21DD88947F8}.ReleaseMT|x64.Build.0 = ReleaseMT|x64
+-		{E0F247DB-EF12-4755-8DF9-F74BCD1348F7}.Debug|Win32.ActiveCfg = Debug|Win32
+-		{E0F247DB-EF12-4755-8DF9-F74BCD1348F7}.Debug|Win32.Build.0 = Debug|Win32
+-		{E0F247DB-EF12-4755-8DF9-F74BCD1348F7}.Debug|x64.ActiveCfg = Debug|x64
+-		{E0F247DB-EF12-4755-8DF9-F74BCD1348F7}.Debug|x64.Build.0 = Debug|x64
+-		{E0F247DB-EF12-4755-8DF9-F74BCD1348F7}.Release|Win32.ActiveCfg = Release|Win32
+-		{E0F247DB-EF12-4755-8DF9-F74BCD1348F7}.Release|Win32.Build.0 = Release|Win32
+-		{E0F247DB-EF12-4755-8DF9-F74BCD1348F7}.Release|x64.ActiveCfg = Release|x64
+-		{E0F247DB-EF12-4755-8DF9-F74BCD1348F7}.Release|x64.Build.0 = Release|x64
+-		{E0F247DB-EF12-4755-8DF9-F74BCD1348F7}.ReleaseMT|Win32.ActiveCfg = ReleaseMT|Win32
+-		{E0F247DB-EF12-4755-8DF9-F74BCD1348F7}.ReleaseMT|Win32.Build.0 = ReleaseMT|Win32
+-		{E0F247DB-EF12-4755-8DF9-F74BCD1348F7}.ReleaseMT|x64.ActiveCfg = ReleaseMT|x64
+-		{E0F247DB-EF12-4755-8DF9-F74BCD1348F7}.ReleaseMT|x64.Build.0 = ReleaseMT|x64
+-	EndGlobalSection
+-	GlobalSection(SolutionProperties) = preSolution
+-		HideSolutionNode = FALSE
+-	EndGlobalSection
+-EndGlobal
+diff --git a/windows/vs2019/config.h b/windows/vs2019/config.h
+deleted file mode 100644
+index 6679da9a..00000000
+--- a/windows/vs2019/config.h
++++ /dev/null
+@@ -1,157 +0,0 @@
+-/* config.h for compiling liblzma (*not* the whole XZ Utils) with MSVC 2019 */
+-
+-/* Prefix for symbols exported by tuklib_*.c files */
+-#define TUKLIB_SYMBOL_PREFIX lzma_
+-
+-/* How many MiB of RAM to assume if the real amount cannot be determined. */
+-#define ASSUME_RAM 128
+-
+-/* Define to 1 if crc32 integrity check is enabled. */
+-#define HAVE_CHECK_CRC32 1
+-
+-/* Define to 1 if crc64 integrity check is enabled. */
+-#define HAVE_CHECK_CRC64 1
+-
+-/* Define to 1 if sha256 integrity check is enabled. */
+-#define HAVE_CHECK_SHA256 1
+-
+-/* Define to 1 if any of HAVE_DECODER_foo have been defined. */
+-#define HAVE_DECODERS 1
+-
+-/* Define to 1 if arm decoder is enabled. */
+-#define HAVE_DECODER_ARM 1
+-
+-/* Define to 1 if arm64 decoder is enabled. */
+-#define HAVE_DECODER_ARM64 1
+-
+-/* Define to 1 if armthumb decoder is enabled. */
+-#define HAVE_DECODER_ARMTHUMB 1
+-
+-/* Define to 1 if delta decoder is enabled. */
+-#define HAVE_DECODER_DELTA 1
+-
+-/* Define to 1 if ia64 decoder is enabled. */
+-#define HAVE_DECODER_IA64 1
+-
+-/* Define to 1 if lzma1 decoder is enabled. */
+-#define HAVE_DECODER_LZMA1 1
+-
+-/* Define to 1 if lzma2 decoder is enabled. */
+-#define HAVE_DECODER_LZMA2 1
+-
+-/* Define to 1 if powerpc decoder is enabled. */
+-#define HAVE_DECODER_POWERPC 1
+-
+-/* Define to 1 if sparc decoder is enabled. */
+-#define HAVE_DECODER_SPARC 1
+-
+-/* Define to 1 if x86 decoder is enabled. */
+-#define HAVE_DECODER_X86 1
+-
+-/* Define to 1 if any of HAVE_ENCODER_foo have been defined. */
+-#define HAVE_ENCODERS 1
+-
+-/* Define to 1 if arm encoder is enabled. */
+-#define HAVE_ENCODER_ARM 1
+-
+-/* Define to 1 if arm64 encoder is enabled. */
+-#define HAVE_ENCODER_ARM64 1
+-
+-/* Define to 1 if armthumb encoder is enabled. */
+-#define HAVE_ENCODER_ARMTHUMB 1
+-
+-/* Define to 1 if delta encoder is enabled. */
+-#define HAVE_ENCODER_DELTA 1
+-
+-/* Define to 1 if ia64 encoder is enabled. */
+-#define HAVE_ENCODER_IA64 1
+-
+-/* Define to 1 if lzma1 encoder is enabled. */
+-#define HAVE_ENCODER_LZMA1 1
+-
+-/* Define to 1 if lzma2 encoder is enabled. */
+-#define HAVE_ENCODER_LZMA2 1
+-
+-/* Define to 1 if powerpc encoder is enabled. */
+-#define HAVE_ENCODER_POWERPC 1
+-
+-/* Define to 1 if sparc encoder is enabled. */
+-#define HAVE_ENCODER_SPARC 1
+-
+-/* Define to 1 if x86 encoder is enabled. */
+-#define HAVE_ENCODER_X86 1
+-
+-/* Define to 1 if you have the <inttypes.h> header file. */
+-#define HAVE_INTTYPES_H 1
+-
+-/* Define to 1 if you have the <limits.h> header file. */
+-#define HAVE_LIMITS_H 1
+-
+-/* Define to 1 if .lz (lzip) decompression support is enabled. */
+-#define HAVE_LZIP_DECODER 1
+-
+-/* Define to 1 to enable bt2 match finder. */
+-#define HAVE_MF_BT2 1
+-
+-/* Define to 1 to enable bt3 match finder. */
+-#define HAVE_MF_BT3 1
+-
+-/* Define to 1 to enable bt4 match finder. */
+-#define HAVE_MF_BT4 1
+-
+-/* Define to 1 to enable hc3 match finder. */
+-#define HAVE_MF_HC3 1
+-
+-/* Define to 1 to enable hc4 match finder. */
+-#define HAVE_MF_HC4 1
+-
+-/* Define to 1 if stdbool.h conforms to C99. */
+-#define HAVE_STDBOOL_H 1
+-
+-/* Define to 1 if you have the <stdint.h> header file. */
+-#define HAVE_STDINT_H 1
+-
+-/* Define to 1 if you have the <stdlib.h> header file. */
+-#define HAVE_STDLIB_H 1
+-
+-/* Define to 1 if you have the <string.h> header file. */
+-#define HAVE_STRING_H 1
+-
+-/* Define to 1 or 0, depending whether the compiler supports simple visibility
+-   declarations. */
+-#define HAVE_VISIBILITY 0
+-
+-/* Define to 1 if the system has the type `_Bool'. */
+-#define HAVE__BOOL 1
+-
+-#ifdef _M_IX86
+-/* Define to 1 when using Windows 95 (and thus XP) compatible threads. This
+-   avoids use of features that were added in Windows Vista.
+-   This is used for 32-bit x86 builds for compatibility reasons since it
+-   makes no measurable difference in performance compared to Vista threads. */
+-#define MYTHREAD_WIN95 1
+-#else
+-/* Define to 1 when using Windows Vista compatible threads. This uses features
+-   that are not available on Windows XP. */
+-#define MYTHREAD_VISTA 1
+-#endif
+-
+-/* Define to 1 to disable debugging code. */
+-#define NDEBUG 1
+-
+-/* Define to the full name of this package. */
+-#define PACKAGE_NAME "XZ Utils"
+-
+-/* Define to the home page for this package. */
+-#define PACKAGE_URL "https://tukaani.org/xz/"
+-
+-/* The size of `size_t', as computed by sizeof. */
+-#ifdef _WIN64
+-#define SIZEOF_SIZE_T 8
+-#else
+-#define SIZEOF_SIZE_T 4
+-#endif
+-
+-/* Define to 1 if the system supports fast unaligned access to 16-bit and
+-   32-bit integers. */
+-#define TUKLIB_FAST_UNALIGNED_ACCESS 1
+diff --git a/windows/vs2019/liblzma.vcxproj b/windows/vs2019/liblzma.vcxproj
+deleted file mode 100644
+index defb2e73..00000000
+--- a/windows/vs2019/liblzma.vcxproj
++++ /dev/null
+@@ -1,364 +0,0 @@
+-﻿<?xml version="1.0" encoding="utf-8"?>
+-<Project DefaultTargets="Build" ToolsVersion="15.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+-  <ItemGroup Label="ProjectConfigurations">
+-    <ProjectConfiguration Include="Debug|Win32">
+-      <Configuration>Debug</Configuration>
+-      <Platform>Win32</Platform>
+-    </ProjectConfiguration>
+-    <ProjectConfiguration Include="Debug|x64">
+-      <Configuration>Debug</Configuration>
+-      <Platform>x64</Platform>
+-    </ProjectConfiguration>
+-    <ProjectConfiguration Include="ReleaseMT|Win32">
+-      <Configuration>ReleaseMT</Configuration>
+-      <Platform>Win32</Platform>
+-    </ProjectConfiguration>
+-    <ProjectConfiguration Include="ReleaseMT|x64">
+-      <Configuration>ReleaseMT</Configuration>
+-      <Platform>x64</Platform>
+-    </ProjectConfiguration>
+-    <ProjectConfiguration Include="Release|Win32">
+-      <Configuration>Release</Configuration>
+-      <Platform>Win32</Platform>
+-    </ProjectConfiguration>
+-    <ProjectConfiguration Include="Release|x64">
+-      <Configuration>Release</Configuration>
+-      <Platform>x64</Platform>
+-    </ProjectConfiguration>
+-  </ItemGroup>
+-  <PropertyGroup Label="Globals">
+-    <ProjectGuid>{12728250-16EC-4DC6-94D7-E21DD88947F8}</ProjectGuid>
+-    <Keyword>Win32Proj</Keyword>
+-    <WindowsTargetPlatformVersion>10.0</WindowsTargetPlatformVersion>
+-  </PropertyGroup>
+-  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
+-  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
+-    <ConfigurationType>StaticLibrary</ConfigurationType>
+-    <UseDebugLibraries>true</UseDebugLibraries>
+-    <PlatformToolset>v142</PlatformToolset>
+-  </PropertyGroup>
+-  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="Configuration">
+-    <ConfigurationType>StaticLibrary</ConfigurationType>
+-    <UseDebugLibraries>true</UseDebugLibraries>
+-    <PlatformToolset>v142</PlatformToolset>
+-  </PropertyGroup>
+-  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'" Label="Configuration">
+-    <ConfigurationType>StaticLibrary</ConfigurationType>
+-    <UseDebugLibraries>false</UseDebugLibraries>
+-    <PlatformToolset>v142</PlatformToolset>
+-  </PropertyGroup>
+-  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="Configuration">
+-    <ConfigurationType>StaticLibrary</ConfigurationType>
+-    <UseDebugLibraries>false</UseDebugLibraries>
+-    <PlatformToolset>v142</PlatformToolset>
+-  </PropertyGroup>
+-  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='ReleaseMT|Win32'" Label="Configuration">
+-    <ConfigurationType>StaticLibrary</ConfigurationType>
+-    <UseDebugLibraries>false</UseDebugLibraries>
+-    <PlatformToolset>v142</PlatformToolset>
+-  </PropertyGroup>
+-  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='ReleaseMT|x64'" Label="Configuration">
+-    <ConfigurationType>StaticLibrary</ConfigurationType>
+-    <UseDebugLibraries>false</UseDebugLibraries>
+-    <PlatformToolset>v142</PlatformToolset>
+-  </PropertyGroup>
+-  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
+-  <ImportGroup Label="ExtensionSettings">
+-  </ImportGroup>
+-  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+-    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+-  </ImportGroup>
+-  <ImportGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="PropertySheets">
+-    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+-  </ImportGroup>
+-  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
+-    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+-  </ImportGroup>
+-  <ImportGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="PropertySheets">
+-    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+-  </ImportGroup>
+-  <ImportGroup Condition="'$(Configuration)|$(Platform)'=='ReleaseMT|Win32'" Label="PropertySheets">
+-    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+-  </ImportGroup>
+-  <ImportGroup Condition="'$(Configuration)|$(Platform)'=='ReleaseMT|x64'" Label="PropertySheets">
+-    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+-  </ImportGroup>
+-  <PropertyGroup Label="UserMacros" />
+-  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+-    <LinkIncremental>true</LinkIncremental>
+-    <OutDir>$(SolutionDir)$(Configuration)\$(Platform)\$(ProjectName)\</OutDir>
+-    <IntDir>$(Configuration)\$(Platform)\$(ProjectName)\</IntDir>
+-  </PropertyGroup>
+-  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+-    <LinkIncremental>true</LinkIncremental>
+-    <OutDir>$(SolutionDir)$(Configuration)\$(Platform)\$(ProjectName)\</OutDir>
+-    <IntDir>$(Configuration)\$(Platform)\$(ProjectName)\</IntDir>
+-  </PropertyGroup>
+-  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
+-    <LinkIncremental>true</LinkIncremental>
+-    <OutDir>$(SolutionDir)$(Configuration)\$(Platform)\$(ProjectName)\</OutDir>
+-    <IntDir>$(Configuration)\$(Platform)\$(ProjectName)\</IntDir>
+-  </PropertyGroup>
+-  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+-    <LinkIncremental>true</LinkIncremental>
+-    <OutDir>$(SolutionDir)$(Configuration)\$(Platform)\$(ProjectName)\</OutDir>
+-    <IntDir>$(Configuration)\$(Platform)\$(ProjectName)\</IntDir>
+-  </PropertyGroup>
+-  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='ReleaseMT|Win32'">
+-    <LinkIncremental>true</LinkIncremental>
+-    <OutDir>$(SolutionDir)$(Configuration)\$(Platform)\$(ProjectName)\</OutDir>
+-    <IntDir>$(Configuration)\$(Platform)\$(ProjectName)\</IntDir>
+-  </PropertyGroup>
+-  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='ReleaseMT|x64'">
+-    <LinkIncremental>true</LinkIncremental>
+-    <OutDir>$(SolutionDir)$(Configuration)\$(Platform)\$(ProjectName)\</OutDir>
+-    <IntDir>$(Configuration)\$(Platform)\$(ProjectName)\</IntDir>
+-  </PropertyGroup>
+-  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+-    <ClCompile>
+-      <PreprocessorDefinitions>WIN32;HAVE_CONFIG_H;_DEBUG;_LIB;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+-      <RuntimeLibrary>MultiThreadedDebugDLL</RuntimeLibrary>
+-      <WarningLevel>Level3</WarningLevel>
+-      <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
+-      <Optimization>Disabled</Optimization>
+-      <AdditionalIncludeDirectories>./;../../src/liblzma/common;../../src/common;../../src/liblzma/api;../../src/liblzma/check;../../src/liblzma/delta;../../src/liblzma/lz;../../src/liblzma/lzma;../../src/liblzma/rangecoder;../../src/liblzma/simple</AdditionalIncludeDirectories>
+-    </ClCompile>
+-    <Link>
+-      <TargetMachine>MachineX86</TargetMachine>
+-      <GenerateDebugInformation>true</GenerateDebugInformation>
+-      <SubSystem>Windows</SubSystem>
+-    </Link>
+-  </ItemDefinitionGroup>
+-  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+-    <ClCompile>
+-      <PreprocessorDefinitions>WIN32;HAVE_CONFIG_H;_DEBUG;_LIB;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+-      <RuntimeLibrary>MultiThreadedDebugDLL</RuntimeLibrary>
+-      <WarningLevel>Level3</WarningLevel>
+-      <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
+-      <Optimization>Disabled</Optimization>
+-      <AdditionalIncludeDirectories>./;../../src/liblzma/common;../../src/common;../../src/liblzma/api;../../src/liblzma/check;../../src/liblzma/delta;../../src/liblzma/lz;../../src/liblzma/lzma;../../src/liblzma/rangecoder;../../src/liblzma/simple</AdditionalIncludeDirectories>
+-    </ClCompile>
+-    <Link>
+-      <GenerateDebugInformation>true</GenerateDebugInformation>
+-      <SubSystem>Windows</SubSystem>
+-    </Link>
+-  </ItemDefinitionGroup>
+-  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
+-    <ClCompile>
+-      <PreprocessorDefinitions>WIN32;HAVE_CONFIG_H;NDEBUG;_LIB;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+-      <RuntimeLibrary>MultiThreadedDLL</RuntimeLibrary>
+-      <WarningLevel>Level3</WarningLevel>
+-      <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
+-      <AdditionalIncludeDirectories>./;../../src/liblzma/common;../../src/common;../../src/liblzma/api;../../src/liblzma/check;../../src/liblzma/delta;../../src/liblzma/lz;../../src/liblzma/lzma;../../src/liblzma/rangecoder;../../src/liblzma/simple</AdditionalIncludeDirectories>
+-    </ClCompile>
+-    <Link>
+-      <TargetMachine>MachineX86</TargetMachine>
+-      <GenerateDebugInformation>true</GenerateDebugInformation>
+-      <SubSystem>Windows</SubSystem>
+-      <EnableCOMDATFolding>true</EnableCOMDATFolding>
+-      <OptimizeReferences>true</OptimizeReferences>
+-    </Link>
+-  </ItemDefinitionGroup>
+-  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+-    <ClCompile>
+-      <PreprocessorDefinitions>WIN32;HAVE_CONFIG_H;NDEBUG;_LIB;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+-      <RuntimeLibrary>MultiThreadedDLL</RuntimeLibrary>
+-      <WarningLevel>Level3</WarningLevel>
+-      <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
+-      <AdditionalIncludeDirectories>./;../../src/liblzma/common;../../src/common;../../src/liblzma/api;../../src/liblzma/check;../../src/liblzma/delta;../../src/liblzma/lz;../../src/liblzma/lzma;../../src/liblzma/rangecoder;../../src/liblzma/simple</AdditionalIncludeDirectories>
+-    </ClCompile>
+-    <Link>
+-      <GenerateDebugInformation>true</GenerateDebugInformation>
+-      <SubSystem>Windows</SubSystem>
+-      <EnableCOMDATFolding>true</EnableCOMDATFolding>
+-      <OptimizeReferences>true</OptimizeReferences>
+-    </Link>
+-  </ItemDefinitionGroup>
+-  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='ReleaseMT|Win32'">
+-    <ClCompile>
+-      <PreprocessorDefinitions>WIN32;HAVE_CONFIG_H;NDEBUG;_LIB;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+-      <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
+-      <WarningLevel>Level3</WarningLevel>
+-      <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
+-      <AdditionalIncludeDirectories>./;../../src/liblzma/common;../../src/common;../../src/liblzma/api;../../src/liblzma/check;../../src/liblzma/delta;../../src/liblzma/lz;../../src/liblzma/lzma;../../src/liblzma/rangecoder;../../src/liblzma/simple</AdditionalIncludeDirectories>
+-    </ClCompile>
+-    <Link>
+-      <TargetMachine>MachineX86</TargetMachine>
+-      <GenerateDebugInformation>true</GenerateDebugInformation>
+-      <SubSystem>Windows</SubSystem>
+-      <EnableCOMDATFolding>true</EnableCOMDATFolding>
+-      <OptimizeReferences>true</OptimizeReferences>
+-    </Link>
+-  </ItemDefinitionGroup>
+-  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='ReleaseMT|x64'">
+-    <ClCompile>
+-      <PreprocessorDefinitions>WIN32;HAVE_CONFIG_H;NDEBUG;_LIB;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+-      <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
+-      <WarningLevel>Level3</WarningLevel>
+-      <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
+-      <AdditionalIncludeDirectories>./;../../src/liblzma/common;../../src/common;../../src/liblzma/api;../../src/liblzma/check;../../src/liblzma/delta;../../src/liblzma/lz;../../src/liblzma/lzma;../../src/liblzma/rangecoder;../../src/liblzma/simple</AdditionalIncludeDirectories>
+-    </ClCompile>
+-    <Link>
+-      <GenerateDebugInformation>true</GenerateDebugInformation>
+-      <SubSystem>Windows</SubSystem>
+-      <EnableCOMDATFolding>true</EnableCOMDATFolding>
+-      <OptimizeReferences>true</OptimizeReferences>
+-    </Link>
+-  </ItemDefinitionGroup>
+-  <ItemGroup>
+-    <ClCompile Include="..\..\src\common\tuklib_cpucores.c" />
+-    <ClCompile Include="..\..\src\common\tuklib_physmem.c" />
+-    <ClCompile Include="..\..\src\liblzma\check\check.c" />
+-    <ClCompile Include="..\..\src\liblzma\check\crc32_fast.c" />
+-    <ClCompile Include="..\..\src\liblzma\check\crc32_table.c" />
+-    <ClCompile Include="..\..\src\liblzma\check\crc64_fast.c" />
+-    <ClCompile Include="..\..\src\liblzma\check\crc64_table.c" />
+-    <ClCompile Include="..\..\src\liblzma\check\sha256.c" />
+-    <ClCompile Include="..\..\src\liblzma\common\alone_decoder.c" />
+-    <ClCompile Include="..\..\src\liblzma\common\alone_encoder.c" />
+-    <ClCompile Include="..\..\src\liblzma\common\auto_decoder.c" />
+-    <ClCompile Include="..\..\src\liblzma\common\block_buffer_decoder.c" />
+-    <ClCompile Include="..\..\src\liblzma\common\block_buffer_encoder.c" />
+-    <ClCompile Include="..\..\src\liblzma\common\block_decoder.c" />
+-    <ClCompile Include="..\..\src\liblzma\common\block_encoder.c" />
+-    <ClCompile Include="..\..\src\liblzma\common\block_header_decoder.c" />
+-    <ClCompile Include="..\..\src\liblzma\common\block_header_encoder.c" />
+-    <ClCompile Include="..\..\src\liblzma\common\block_util.c" />
+-    <ClCompile Include="..\..\src\liblzma\common\common.c" />
+-    <ClCompile Include="..\..\src\liblzma\common\easy_buffer_encoder.c" />
+-    <ClCompile Include="..\..\src\liblzma\common\easy_decoder_memusage.c" />
+-    <ClCompile Include="..\..\src\liblzma\common\easy_encoder.c" />
+-    <ClCompile Include="..\..\src\liblzma\common\easy_encoder_memusage.c" />
+-    <ClCompile Include="..\..\src\liblzma\common\easy_preset.c" />
+-    <ClCompile Include="..\..\src\liblzma\common\file_info.c" />
+-    <ClCompile Include="..\..\src\liblzma\common\filter_buffer_decoder.c" />
+-    <ClCompile Include="..\..\src\liblzma\common\filter_buffer_encoder.c" />
+-    <ClCompile Include="..\..\src\liblzma\common\filter_common.c" />
+-    <ClCompile Include="..\..\src\liblzma\common\filter_decoder.c" />
+-    <ClCompile Include="..\..\src\liblzma\common\filter_encoder.c" />
+-    <ClCompile Include="..\..\src\liblzma\common\filter_flags_decoder.c" />
+-    <ClCompile Include="..\..\src\liblzma\common\filter_flags_encoder.c" />
+-    <ClCompile Include="..\..\src\liblzma\common\hardware_cputhreads.c" />
+-    <ClCompile Include="..\..\src\liblzma\common\hardware_physmem.c" />
+-    <ClCompile Include="..\..\src\liblzma\common\index.c" />
+-    <ClCompile Include="..\..\src\liblzma\common\index_decoder.c" />
+-    <ClCompile Include="..\..\src\liblzma\common\index_encoder.c" />
+-    <ClCompile Include="..\..\src\liblzma\common\index_hash.c" />
+-    <ClCompile Include="..\..\src\liblzma\common\lzip_decoder.c" />
+-    <ClCompile Include="..\..\src\liblzma\common\microlzma_decoder.c" />
+-    <ClCompile Include="..\..\src\liblzma\common\microlzma_encoder.c" />
+-    <ClCompile Include="..\..\src\liblzma\common\outqueue.c" />
+-    <ClCompile Include="..\..\src\liblzma\common\stream_buffer_decoder.c" />
+-    <ClCompile Include="..\..\src\liblzma\common\stream_buffer_encoder.c" />
+-    <ClCompile Include="..\..\src\liblzma\common\stream_decoder.c" />
+-    <ClCompile Include="..\..\src\liblzma\common\stream_decoder_mt.c" />
+-    <ClCompile Include="..\..\src\liblzma\common\stream_encoder.c" />
+-    <ClCompile Include="..\..\src\liblzma\common\stream_encoder_mt.c" />
+-    <ClCompile Include="..\..\src\liblzma\common\stream_flags_common.c" />
+-    <ClCompile Include="..\..\src\liblzma\common\stream_flags_decoder.c" />
+-    <ClCompile Include="..\..\src\liblzma\common\stream_flags_encoder.c" />
+-    <ClCompile Include="..\..\src\liblzma\common\string_conversion.c" />
+-    <ClCompile Include="..\..\src\liblzma\common\vli_decoder.c" />
+-    <ClCompile Include="..\..\src\liblzma\common\vli_encoder.c" />
+-    <ClCompile Include="..\..\src\liblzma\common\vli_size.c" />
+-    <ClCompile Include="..\..\src\liblzma\delta\delta_common.c" />
+-    <ClCompile Include="..\..\src\liblzma\delta\delta_decoder.c" />
+-    <ClCompile Include="..\..\src\liblzma\delta\delta_encoder.c" />
+-    <ClCompile Include="..\..\src\liblzma\lzma\fastpos_table.c" />
+-    <ClCompile Include="..\..\src\liblzma\lzma\lzma2_decoder.c" />
+-    <ClCompile Include="..\..\src\liblzma\lzma\lzma2_encoder.c" />
+-    <ClCompile Include="..\..\src\liblzma\lzma\lzma_decoder.c" />
+-    <ClCompile Include="..\..\src\liblzma\lzma\lzma_encoder.c" />
+-    <ClCompile Include="..\..\src\liblzma\lzma\lzma_encoder_optimum_fast.c" />
+-    <ClCompile Include="..\..\src\liblzma\lzma\lzma_encoder_optimum_normal.c" />
+-    <ClCompile Include="..\..\src\liblzma\lzma\lzma_encoder_presets.c" />
+-    <ClCompile Include="..\..\src\liblzma\lz\lz_decoder.c" />
+-    <ClCompile Include="..\..\src\liblzma\lz\lz_encoder.c" />
+-    <ClCompile Include="..\..\src\liblzma\lz\lz_encoder_mf.c" />
+-    <ClCompile Include="..\..\src\liblzma\rangecoder\price_table.c" />
+-    <ClCompile Include="..\..\src\liblzma\simple\arm.c" />
+-    <ClCompile Include="..\..\src\liblzma\simple\arm64.c" />
+-    <ClCompile Include="..\..\src\liblzma\simple\armthumb.c" />
+-    <ClCompile Include="..\..\src\liblzma\simple\ia64.c" />
+-    <ClCompile Include="..\..\src\liblzma\simple\powerpc.c" />
+-    <ClCompile Include="..\..\src\liblzma\simple\simple_coder.c" />
+-    <ClCompile Include="..\..\src\liblzma\simple\simple_decoder.c" />
+-    <ClCompile Include="..\..\src\liblzma\simple\simple_encoder.c" />
+-    <ClCompile Include="..\..\src\liblzma\simple\sparc.c" />
+-    <ClCompile Include="..\..\src\liblzma\simple\x86.c" />
+-  </ItemGroup>
+-  <ItemGroup>
+-    <ClInclude Include="..\..\src\common\mythread.h" />
+-    <ClInclude Include="..\..\src\common\sysdefs.h" />
+-    <ClInclude Include="..\..\src\common\tuklib_common.h" />
+-    <ClInclude Include="..\..\src\common\tuklib_config.h" />
+-    <ClInclude Include="..\..\src\common\tuklib_cpucores.h" />
+-    <ClInclude Include="..\..\src\common\tuklib_integer.h" />
+-    <ClInclude Include="..\..\src\common\tuklib_physmem.h" />
+-    <ClInclude Include="..\..\src\liblzma\api\lzma.h" />
+-    <ClInclude Include="..\..\src\liblzma\api\lzma\base.h" />
+-    <ClInclude Include="..\..\src\liblzma\api\lzma\bcj.h" />
+-    <ClInclude Include="..\..\src\liblzma\api\lzma\block.h" />
+-    <ClInclude Include="..\..\src\liblzma\api\lzma\check.h" />
+-    <ClInclude Include="..\..\src\liblzma\api\lzma\container.h" />
+-    <ClInclude Include="..\..\src\liblzma\api\lzma\delta.h" />
+-    <ClInclude Include="..\..\src\liblzma\api\lzma\filter.h" />
+-    <ClInclude Include="..\..\src\liblzma\api\lzma\hardware.h" />
+-    <ClInclude Include="..\..\src\liblzma\api\lzma\index.h" />
+-    <ClInclude Include="..\..\src\liblzma\api\lzma\index_hash.h" />
+-    <ClInclude Include="..\..\src\liblzma\api\lzma\lzma12.h" />
+-    <ClInclude Include="..\..\src\liblzma\api\lzma\stream_flags.h" />
+-    <ClInclude Include="..\..\src\liblzma\api\lzma\version.h" />
+-    <ClInclude Include="..\..\src\liblzma\api\lzma\vli.h" />
+-    <ClInclude Include="..\..\src\liblzma\check\check.h" />
+-    <ClInclude Include="..\..\src\liblzma\check\crc32_table_be.h" />
+-    <ClInclude Include="..\..\src\liblzma\check\crc32_table_le.h" />
+-    <ClInclude Include="..\..\src\liblzma\check\crc64_table_be.h" />
+-    <ClInclude Include="..\..\src\liblzma\check\crc64_table_le.h" />
+-    <ClInclude Include="..\..\src\liblzma\check\crc_macros.h" />
+-    <ClInclude Include="..\..\src\liblzma\common\alone_decoder.h" />
+-    <ClInclude Include="..\..\src\liblzma\common\block_buffer_encoder.h" />
+-    <ClInclude Include="..\..\src\liblzma\common\block_decoder.h" />
+-    <ClInclude Include="..\..\src\liblzma\common\block_encoder.h" />
+-    <ClInclude Include="..\..\src\liblzma\common\common.h" />
+-    <ClInclude Include="..\..\src\liblzma\common\easy_preset.h" />
+-    <ClInclude Include="..\..\src\liblzma\common\filter_common.h" />
+-    <ClInclude Include="..\..\src\liblzma\common\filter_decoder.h" />
+-    <ClInclude Include="..\..\src\liblzma\common\filter_encoder.h" />
+-    <ClInclude Include="..\..\src\liblzma\common\index.h" />
+-    <ClInclude Include="..\..\src\liblzma\common\index_decoder.h" />
+-    <ClInclude Include="..\..\src\liblzma\common\index_encoder.h" />
+-    <ClInclude Include="..\..\src\liblzma\common\memcmplen.h" />
+-    <ClInclude Include="..\..\src\liblzma\common\lzip_decoder.h" />
+-    <ClInclude Include="..\..\src\liblzma\common\outqueue.h" />
+-    <ClInclude Include="..\..\src\liblzma\common\stream_decoder.h" />
+-    <ClInclude Include="..\..\src\liblzma\common\stream_flags_common.h" />
+-    <ClInclude Include="..\..\src\liblzma\delta\delta_common.h" />
+-    <ClInclude Include="..\..\src\liblzma\delta\delta_decoder.h" />
+-    <ClInclude Include="..\..\src\liblzma\delta\delta_encoder.h" />
+-    <ClInclude Include="..\..\src\liblzma\delta\delta_private.h" />
+-    <ClInclude Include="..\..\src\liblzma\lzma\fastpos.h" />
+-    <ClInclude Include="..\..\src\liblzma\lzma\lzma2_decoder.h" />
+-    <ClInclude Include="..\..\src\liblzma\lzma\lzma2_encoder.h" />
+-    <ClInclude Include="..\..\src\liblzma\lzma\lzma_common.h" />
+-    <ClInclude Include="..\..\src\liblzma\lzma\lzma_decoder.h" />
+-    <ClInclude Include="..\..\src\liblzma\lzma\lzma_encoder.h" />
+-    <ClInclude Include="..\..\src\liblzma\lzma\lzma_encoder_private.h" />
+-    <ClInclude Include="..\..\src\liblzma\lz\lz_decoder.h" />
+-    <ClInclude Include="..\..\src\liblzma\lz\lz_encoder.h" />
+-    <ClInclude Include="..\..\src\liblzma\lz\lz_encoder_hash.h" />
+-    <ClInclude Include="..\..\src\liblzma\lz\lz_encoder_hash_table.h" />
+-    <ClInclude Include="..\..\src\liblzma\rangecoder\price.h" />
+-    <ClInclude Include="..\..\src\liblzma\rangecoder\range_common.h" />
+-    <ClInclude Include="..\..\src\liblzma\rangecoder\range_decoder.h" />
+-    <ClInclude Include="..\..\src\liblzma\rangecoder\range_encoder.h" />
+-    <ClInclude Include="..\..\src\liblzma\simple\simple_coder.h" />
+-    <ClInclude Include="..\..\src\liblzma\simple\simple_decoder.h" />
+-    <ClInclude Include="..\..\src\liblzma\simple\simple_encoder.h" />
+-    <ClInclude Include="..\..\src\liblzma\simple\simple_private.h" />
+-    <ClInclude Include="config.h" />
+-  </ItemGroup>
+-  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
+-  <ImportGroup Label="ExtensionTargets">
+-  </ImportGroup>
+-</Project>
+diff --git a/windows/vs2019/liblzma_dll.vcxproj b/windows/vs2019/liblzma_dll.vcxproj
+deleted file mode 100644
+index 8aa221b7..00000000
+--- a/windows/vs2019/liblzma_dll.vcxproj
++++ /dev/null
+@@ -1,399 +0,0 @@
+-﻿<?xml version="1.0" encoding="utf-8"?>
+-<Project DefaultTargets="Build" ToolsVersion="15.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+-  <ItemGroup Label="ProjectConfigurations">
+-    <ProjectConfiguration Include="Debug|Win32">
+-      <Configuration>Debug</Configuration>
+-      <Platform>Win32</Platform>
+-    </ProjectConfiguration>
+-    <ProjectConfiguration Include="Debug|x64">
+-      <Configuration>Debug</Configuration>
+-      <Platform>x64</Platform>
+-    </ProjectConfiguration>
+-    <ProjectConfiguration Include="ReleaseMT|Win32">
+-      <Configuration>ReleaseMT</Configuration>
+-      <Platform>Win32</Platform>
+-    </ProjectConfiguration>
+-    <ProjectConfiguration Include="ReleaseMT|x64">
+-      <Configuration>ReleaseMT</Configuration>
+-      <Platform>x64</Platform>
+-    </ProjectConfiguration>
+-    <ProjectConfiguration Include="Release|Win32">
+-      <Configuration>Release</Configuration>
+-      <Platform>Win32</Platform>
+-    </ProjectConfiguration>
+-    <ProjectConfiguration Include="Release|x64">
+-      <Configuration>Release</Configuration>
+-      <Platform>x64</Platform>
+-    </ProjectConfiguration>
+-  </ItemGroup>
+-  <PropertyGroup Label="Globals">
+-    <ProjectGuid>{E0F247DB-EF12-4755-8DF9-F74BCD1348F7}</ProjectGuid>
+-    <Keyword>Win32Proj</Keyword>
+-    <WindowsTargetPlatformVersion>10.0</WindowsTargetPlatformVersion>
+-  </PropertyGroup>
+-  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
+-  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
+-    <ConfigurationType>DynamicLibrary</ConfigurationType>
+-    <UseDebugLibraries>true</UseDebugLibraries>
+-    <PlatformToolset>v142</PlatformToolset>
+-  </PropertyGroup>
+-  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="Configuration">
+-    <ConfigurationType>DynamicLibrary</ConfigurationType>
+-    <UseDebugLibraries>true</UseDebugLibraries>
+-    <PlatformToolset>v142</PlatformToolset>
+-  </PropertyGroup>
+-  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'" Label="Configuration">
+-    <ConfigurationType>DynamicLibrary</ConfigurationType>
+-    <UseDebugLibraries>false</UseDebugLibraries>
+-    <PlatformToolset>v142</PlatformToolset>
+-  </PropertyGroup>
+-  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="Configuration">
+-    <ConfigurationType>DynamicLibrary</ConfigurationType>
+-    <UseDebugLibraries>false</UseDebugLibraries>
+-    <PlatformToolset>v142</PlatformToolset>
+-  </PropertyGroup>
+-  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='ReleaseMT|Win32'" Label="Configuration">
+-    <ConfigurationType>DynamicLibrary</ConfigurationType>
+-    <UseDebugLibraries>false</UseDebugLibraries>
+-    <PlatformToolset>v142</PlatformToolset>
+-  </PropertyGroup>
+-  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='ReleaseMT|x64'" Label="Configuration">
+-    <ConfigurationType>DynamicLibrary</ConfigurationType>
+-    <UseDebugLibraries>false</UseDebugLibraries>
+-    <PlatformToolset>v142</PlatformToolset>
+-  </PropertyGroup>
+-  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
+-  <ImportGroup Label="ExtensionSettings">
+-  </ImportGroup>
+-  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+-    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+-  </ImportGroup>
+-  <ImportGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="PropertySheets">
+-    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+-  </ImportGroup>
+-  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
+-    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+-  </ImportGroup>
+-  <ImportGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="PropertySheets">
+-    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+-  </ImportGroup>
+-  <ImportGroup Condition="'$(Configuration)|$(Platform)'=='ReleaseMT|Win32'" Label="PropertySheets">
+-    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+-  </ImportGroup>
+-  <ImportGroup Condition="'$(Configuration)|$(Platform)'=='ReleaseMT|x64'" Label="PropertySheets">
+-    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+-  </ImportGroup>
+-  <PropertyGroup Label="UserMacros" />
+-  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+-    <LinkIncremental>true</LinkIncremental>
+-    <OutDir>$(SolutionDir)$(Configuration)\$(Platform)\$(ProjectName)\</OutDir>
+-    <IntDir>$(Configuration)\$(Platform)\$(ProjectName)\</IntDir>
+-    <TargetName>liblzma</TargetName>
+-  </PropertyGroup>
+-  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+-    <LinkIncremental>true</LinkIncremental>
+-    <OutDir>$(SolutionDir)$(Configuration)\$(Platform)\$(ProjectName)\</OutDir>
+-    <IntDir>$(Configuration)\$(Platform)\$(ProjectName)\</IntDir>
+-    <TargetName>liblzma</TargetName>
+-  </PropertyGroup>
+-  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
+-    <LinkIncremental>
+-    </LinkIncremental>
+-    <OutDir>$(SolutionDir)$(Configuration)\$(Platform)\$(ProjectName)\</OutDir>
+-    <IntDir>$(Configuration)\$(Platform)\$(ProjectName)\</IntDir>
+-    <TargetName>liblzma</TargetName>
+-  </PropertyGroup>
+-  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+-    <LinkIncremental />
+-    <OutDir>$(SolutionDir)$(Configuration)\$(Platform)\$(ProjectName)\</OutDir>
+-    <IntDir>$(Configuration)\$(Platform)\$(ProjectName)\</IntDir>
+-    <TargetName>liblzma</TargetName>
+-  </PropertyGroup>
+-  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='ReleaseMT|Win32'">
+-    <LinkIncremental>
+-    </LinkIncremental>
+-    <OutDir>$(SolutionDir)$(Configuration)\$(Platform)\$(ProjectName)\</OutDir>
+-    <IntDir>$(Configuration)\$(Platform)\$(ProjectName)\</IntDir>
+-    <TargetName>liblzma</TargetName>
+-  </PropertyGroup>
+-  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='ReleaseMT|x64'">
+-    <LinkIncremental />
+-    <OutDir>$(SolutionDir)$(Configuration)\$(Platform)\$(ProjectName)\</OutDir>
+-    <IntDir>$(Configuration)\$(Platform)\$(ProjectName)\</IntDir>
+-    <TargetName>liblzma</TargetName>
+-  </PropertyGroup>
+-  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+-    <ClCompile>
+-      <PreprocessorDefinitions>WIN32;HAVE_CONFIG_H;DLL_EXPORT;_DEBUG;_WINDOWS;_USRDLL;LIBLZMADLL_EXPORTS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+-      <RuntimeLibrary>MultiThreadedDebugDLL</RuntimeLibrary>
+-      <WarningLevel>Level3</WarningLevel>
+-      <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
+-      <Optimization>Disabled</Optimization>
+-      <AdditionalIncludeDirectories>./;../../src/liblzma/common;../../src/common;../../src/liblzma/api;../../src/liblzma/check;../../src/liblzma/delta;../../src/liblzma/lz;../../src/liblzma/lzma;../../src/liblzma/rangecoder;../../src/liblzma/simple</AdditionalIncludeDirectories>
+-    </ClCompile>
+-    <Link>
+-      <TargetMachine>MachineX86</TargetMachine>
+-      <GenerateDebugInformation>true</GenerateDebugInformation>
+-      <SubSystem>Windows</SubSystem>
+-    </Link>
+-    <ResourceCompile>
+-      <AdditionalIncludeDirectories>./;../../src/liblzma/common;../../src/common;../../src/liblzma/api;</AdditionalIncludeDirectories>
+-      <PreprocessorDefinitions>HAVE_CONFIG_H</PreprocessorDefinitions>
+-    </ResourceCompile>
+-  </ItemDefinitionGroup>
+-  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+-    <ClCompile>
+-      <PreprocessorDefinitions>WIN32;HAVE_CONFIG_H;DLL_EXPORT;_DEBUG;_WINDOWS;_USRDLL;LIBLZMADLL_EXPORTS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+-      <RuntimeLibrary>MultiThreadedDebugDLL</RuntimeLibrary>
+-      <WarningLevel>Level3</WarningLevel>
+-      <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
+-      <Optimization>Disabled</Optimization>
+-      <AdditionalIncludeDirectories>./;../../src/liblzma/common;../../src/common;../../src/liblzma/api;../../src/liblzma/check;../../src/liblzma/delta;../../src/liblzma/lz;../../src/liblzma/lzma;../../src/liblzma/rangecoder;../../src/liblzma/simple</AdditionalIncludeDirectories>
+-    </ClCompile>
+-    <Link>
+-      <GenerateDebugInformation>true</GenerateDebugInformation>
+-      <SubSystem>Windows</SubSystem>
+-    </Link>
+-    <ResourceCompile>
+-      <AdditionalIncludeDirectories>./;../../src/liblzma/common;../../src/common;../../src/liblzma/api;</AdditionalIncludeDirectories>
+-      <PreprocessorDefinitions>HAVE_CONFIG_H</PreprocessorDefinitions>
+-    </ResourceCompile>
+-  </ItemDefinitionGroup>
+-  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
+-    <ClCompile>
+-      <PreprocessorDefinitions>WIN32;HAVE_CONFIG_H;DLL_EXPORT;NDEBUG;_WINDOWS;_USRDLL;LIBLZMADLL_EXPORTS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+-      <RuntimeLibrary>MultiThreadedDLL</RuntimeLibrary>
+-      <WarningLevel>Level3</WarningLevel>
+-      <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
+-      <AdditionalIncludeDirectories>./;../../src/liblzma/common;../../src/common;../../src/liblzma/api;../../src/liblzma/check;../../src/liblzma/delta;../../src/liblzma/lz;../../src/liblzma/lzma;../../src/liblzma/rangecoder;../../src/liblzma/simple</AdditionalIncludeDirectories>
+-    </ClCompile>
+-    <Link>
+-      <TargetMachine>MachineX86</TargetMachine>
+-      <GenerateDebugInformation>true</GenerateDebugInformation>
+-      <SubSystem>Windows</SubSystem>
+-      <EnableCOMDATFolding>true</EnableCOMDATFolding>
+-      <OptimizeReferences>true</OptimizeReferences>
+-    </Link>
+-    <ResourceCompile>
+-      <AdditionalIncludeDirectories>./;../../src/liblzma/common;../../src/common;../../src/liblzma/api;</AdditionalIncludeDirectories>
+-      <PreprocessorDefinitions>HAVE_CONFIG_H</PreprocessorDefinitions>
+-    </ResourceCompile>
+-  </ItemDefinitionGroup>
+-  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+-    <ClCompile>
+-      <PreprocessorDefinitions>WIN32;HAVE_CONFIG_H;DLL_EXPORT;NDEBUG;_WINDOWS;_USRDLL;LIBLZMADLL_EXPORTS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+-      <RuntimeLibrary>MultiThreadedDLL</RuntimeLibrary>
+-      <WarningLevel>Level3</WarningLevel>
+-      <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
+-      <AdditionalIncludeDirectories>./;../../src/liblzma/common;../../src/common;../../src/liblzma/api;../../src/liblzma/check;../../src/liblzma/delta;../../src/liblzma/lz;../../src/liblzma/lzma;../../src/liblzma/rangecoder;../../src/liblzma/simple</AdditionalIncludeDirectories>
+-    </ClCompile>
+-    <Link>
+-      <GenerateDebugInformation>true</GenerateDebugInformation>
+-      <SubSystem>Windows</SubSystem>
+-      <EnableCOMDATFolding>true</EnableCOMDATFolding>
+-      <OptimizeReferences>true</OptimizeReferences>
+-    </Link>
+-    <ResourceCompile>
+-      <AdditionalIncludeDirectories>./;../../src/liblzma/common;../../src/common;../../src/liblzma/api;</AdditionalIncludeDirectories>
+-      <PreprocessorDefinitions>HAVE_CONFIG_H</PreprocessorDefinitions>
+-    </ResourceCompile>
+-  </ItemDefinitionGroup>
+-  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='ReleaseMT|Win32'">
+-    <ClCompile>
+-      <PreprocessorDefinitions>WIN32;HAVE_CONFIG_H;DLL_EXPORT;NDEBUG;_WINDOWS;_USRDLL;LIBLZMADLL_EXPORTS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+-      <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
+-      <WarningLevel>Level3</WarningLevel>
+-      <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
+-      <AdditionalIncludeDirectories>./;../../src/liblzma/common;../../src/common;../../src/liblzma/api;../../src/liblzma/check;../../src/liblzma/delta;../../src/liblzma/lz;../../src/liblzma/lzma;../../src/liblzma/rangecoder;../../src/liblzma/simple</AdditionalIncludeDirectories>
+-    </ClCompile>
+-    <Link>
+-      <TargetMachine>MachineX86</TargetMachine>
+-      <GenerateDebugInformation>true</GenerateDebugInformation>
+-      <SubSystem>Windows</SubSystem>
+-      <EnableCOMDATFolding>true</EnableCOMDATFolding>
+-      <OptimizeReferences>true</OptimizeReferences>
+-    </Link>
+-    <ResourceCompile>
+-      <AdditionalIncludeDirectories>./;../../src/liblzma/common;../../src/common;../../src/liblzma/api;</AdditionalIncludeDirectories>
+-      <PreprocessorDefinitions>HAVE_CONFIG_H</PreprocessorDefinitions>
+-    </ResourceCompile>
+-  </ItemDefinitionGroup>
+-  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='ReleaseMT|x64'">
+-    <ClCompile>
+-      <PreprocessorDefinitions>WIN32;HAVE_CONFIG_H;DLL_EXPORT;NDEBUG;_WINDOWS;_USRDLL;LIBLZMADLL_EXPORTS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+-      <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
+-      <WarningLevel>Level3</WarningLevel>
+-      <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
+-      <AdditionalIncludeDirectories>./;../../src/liblzma/common;../../src/common;../../src/liblzma/api;../../src/liblzma/check;../../src/liblzma/delta;../../src/liblzma/lz;../../src/liblzma/lzma;../../src/liblzma/rangecoder;../../src/liblzma/simple</AdditionalIncludeDirectories>
+-    </ClCompile>
+-    <Link>
+-      <GenerateDebugInformation>true</GenerateDebugInformation>
+-      <SubSystem>Windows</SubSystem>
+-      <EnableCOMDATFolding>true</EnableCOMDATFolding>
+-      <OptimizeReferences>true</OptimizeReferences>
+-    </Link>
+-    <ResourceCompile>
+-      <AdditionalIncludeDirectories>./;../../src/liblzma/common;../../src/common;../../src/liblzma/api;</AdditionalIncludeDirectories>
+-      <PreprocessorDefinitions>HAVE_CONFIG_H</PreprocessorDefinitions>
+-    </ResourceCompile>
+-  </ItemDefinitionGroup>
+-  <ItemGroup>
+-    <ClCompile Include="..\..\src\common\tuklib_cpucores.c" />
+-    <ClCompile Include="..\..\src\common\tuklib_physmem.c" />
+-    <ClCompile Include="..\..\src\liblzma\check\check.c" />
+-    <ClCompile Include="..\..\src\liblzma\check\crc32_fast.c" />
+-    <ClCompile Include="..\..\src\liblzma\check\crc32_table.c" />
+-    <ClCompile Include="..\..\src\liblzma\check\crc64_fast.c" />
+-    <ClCompile Include="..\..\src\liblzma\check\crc64_table.c" />
+-    <ClCompile Include="..\..\src\liblzma\check\sha256.c" />
+-    <ClCompile Include="..\..\src\liblzma\common\alone_decoder.c" />
+-    <ClCompile Include="..\..\src\liblzma\common\alone_encoder.c" />
+-    <ClCompile Include="..\..\src\liblzma\common\auto_decoder.c" />
+-    <ClCompile Include="..\..\src\liblzma\common\block_buffer_decoder.c" />
+-    <ClCompile Include="..\..\src\liblzma\common\block_buffer_encoder.c" />
+-    <ClCompile Include="..\..\src\liblzma\common\block_decoder.c" />
+-    <ClCompile Include="..\..\src\liblzma\common\block_encoder.c" />
+-    <ClCompile Include="..\..\src\liblzma\common\block_header_decoder.c" />
+-    <ClCompile Include="..\..\src\liblzma\common\block_header_encoder.c" />
+-    <ClCompile Include="..\..\src\liblzma\common\block_util.c" />
+-    <ClCompile Include="..\..\src\liblzma\common\common.c" />
+-    <ClCompile Include="..\..\src\liblzma\common\easy_buffer_encoder.c" />
+-    <ClCompile Include="..\..\src\liblzma\common\easy_decoder_memusage.c" />
+-    <ClCompile Include="..\..\src\liblzma\common\easy_encoder.c" />
+-    <ClCompile Include="..\..\src\liblzma\common\easy_encoder_memusage.c" />
+-    <ClCompile Include="..\..\src\liblzma\common\easy_preset.c" />
+-    <ClCompile Include="..\..\src\liblzma\common\file_info.c" />
+-    <ClCompile Include="..\..\src\liblzma\common\filter_buffer_decoder.c" />
+-    <ClCompile Include="..\..\src\liblzma\common\filter_buffer_encoder.c" />
+-    <ClCompile Include="..\..\src\liblzma\common\filter_common.c" />
+-    <ClCompile Include="..\..\src\liblzma\common\filter_decoder.c" />
+-    <ClCompile Include="..\..\src\liblzma\common\filter_encoder.c" />
+-    <ClCompile Include="..\..\src\liblzma\common\filter_flags_decoder.c" />
+-    <ClCompile Include="..\..\src\liblzma\common\filter_flags_encoder.c" />
+-    <ClCompile Include="..\..\src\liblzma\common\hardware_cputhreads.c" />
+-    <ClCompile Include="..\..\src\liblzma\common\hardware_physmem.c" />
+-    <ClCompile Include="..\..\src\liblzma\common\index.c" />
+-    <ClCompile Include="..\..\src\liblzma\common\index_decoder.c" />
+-    <ClCompile Include="..\..\src\liblzma\common\index_encoder.c" />
+-    <ClCompile Include="..\..\src\liblzma\common\index_hash.c" />
+-    <ClCompile Include="..\..\src\liblzma\common\lzip_decoder.c" />
+-    <ClCompile Include="..\..\src\liblzma\common\microlzma_decoder.c" />
+-    <ClCompile Include="..\..\src\liblzma\common\microlzma_encoder.c" />
+-    <ClCompile Include="..\..\src\liblzma\common\outqueue.c" />
+-    <ClCompile Include="..\..\src\liblzma\common\stream_buffer_decoder.c" />
+-    <ClCompile Include="..\..\src\liblzma\common\stream_buffer_encoder.c" />
+-    <ClCompile Include="..\..\src\liblzma\common\stream_decoder.c" />
+-    <ClCompile Include="..\..\src\liblzma\common\stream_decoder_mt.c" />
+-    <ClCompile Include="..\..\src\liblzma\common\stream_encoder.c" />
+-    <ClCompile Include="..\..\src\liblzma\common\stream_encoder_mt.c" />
+-    <ClCompile Include="..\..\src\liblzma\common\stream_flags_common.c" />
+-    <ClCompile Include="..\..\src\liblzma\common\stream_flags_decoder.c" />
+-    <ClCompile Include="..\..\src\liblzma\common\stream_flags_encoder.c" />
+-    <ClCompile Include="..\..\src\liblzma\common\string_conversion.c" />
+-    <ClCompile Include="..\..\src\liblzma\common\vli_decoder.c" />
+-    <ClCompile Include="..\..\src\liblzma\common\vli_encoder.c" />
+-    <ClCompile Include="..\..\src\liblzma\common\vli_size.c" />
+-    <ClCompile Include="..\..\src\liblzma\delta\delta_common.c" />
+-    <ClCompile Include="..\..\src\liblzma\delta\delta_decoder.c" />
+-    <ClCompile Include="..\..\src\liblzma\delta\delta_encoder.c" />
+-    <ClCompile Include="..\..\src\liblzma\lzma\fastpos_table.c" />
+-    <ClCompile Include="..\..\src\liblzma\lzma\lzma2_decoder.c" />
+-    <ClCompile Include="..\..\src\liblzma\lzma\lzma2_encoder.c" />
+-    <ClCompile Include="..\..\src\liblzma\lzma\lzma_decoder.c" />
+-    <ClCompile Include="..\..\src\liblzma\lzma\lzma_encoder.c" />
+-    <ClCompile Include="..\..\src\liblzma\lzma\lzma_encoder_optimum_fast.c" />
+-    <ClCompile Include="..\..\src\liblzma\lzma\lzma_encoder_optimum_normal.c" />
+-    <ClCompile Include="..\..\src\liblzma\lzma\lzma_encoder_presets.c" />
+-    <ClCompile Include="..\..\src\liblzma\lz\lz_decoder.c" />
+-    <ClCompile Include="..\..\src\liblzma\lz\lz_encoder.c" />
+-    <ClCompile Include="..\..\src\liblzma\lz\lz_encoder_mf.c" />
+-    <ClCompile Include="..\..\src\liblzma\rangecoder\price_table.c" />
+-    <ClCompile Include="..\..\src\liblzma\simple\arm.c" />
+-    <ClCompile Include="..\..\src\liblzma\simple\arm64.c" />
+-    <ClCompile Include="..\..\src\liblzma\simple\armthumb.c" />
+-    <ClCompile Include="..\..\src\liblzma\simple\ia64.c" />
+-    <ClCompile Include="..\..\src\liblzma\simple\powerpc.c" />
+-    <ClCompile Include="..\..\src\liblzma\simple\simple_coder.c" />
+-    <ClCompile Include="..\..\src\liblzma\simple\simple_decoder.c" />
+-    <ClCompile Include="..\..\src\liblzma\simple\simple_encoder.c" />
+-    <ClCompile Include="..\..\src\liblzma\simple\sparc.c" />
+-    <ClCompile Include="..\..\src\liblzma\simple\x86.c" />
+-  </ItemGroup>
+-  <ItemGroup>
+-    <ClInclude Include="..\..\src\common\mythread.h" />
+-    <ClInclude Include="..\..\src\common\sysdefs.h" />
+-    <ClInclude Include="..\..\src\common\tuklib_common.h" />
+-    <ClInclude Include="..\..\src\common\tuklib_config.h" />
+-    <ClInclude Include="..\..\src\common\tuklib_cpucores.h" />
+-    <ClInclude Include="..\..\src\common\tuklib_integer.h" />
+-    <ClInclude Include="..\..\src\common\tuklib_physmem.h" />
+-    <ClInclude Include="..\..\src\liblzma\api\lzma.h" />
+-    <ClInclude Include="..\..\src\liblzma\api\lzma\base.h" />
+-    <ClInclude Include="..\..\src\liblzma\api\lzma\bcj.h" />
+-    <ClInclude Include="..\..\src\liblzma\api\lzma\block.h" />
+-    <ClInclude Include="..\..\src\liblzma\api\lzma\check.h" />
+-    <ClInclude Include="..\..\src\liblzma\api\lzma\container.h" />
+-    <ClInclude Include="..\..\src\liblzma\api\lzma\delta.h" />
+-    <ClInclude Include="..\..\src\liblzma\api\lzma\filter.h" />
+-    <ClInclude Include="..\..\src\liblzma\api\lzma\hardware.h" />
+-    <ClInclude Include="..\..\src\liblzma\api\lzma\index.h" />
+-    <ClInclude Include="..\..\src\liblzma\api\lzma\index_hash.h" />
+-    <ClInclude Include="..\..\src\liblzma\api\lzma\lzma12.h" />
+-    <ClInclude Include="..\..\src\liblzma\api\lzma\stream_flags.h" />
+-    <ClInclude Include="..\..\src\liblzma\api\lzma\version.h" />
+-    <ClInclude Include="..\..\src\liblzma\api\lzma\vli.h" />
+-    <ClInclude Include="..\..\src\liblzma\check\check.h" />
+-    <ClInclude Include="..\..\src\liblzma\check\crc32_table_be.h" />
+-    <ClInclude Include="..\..\src\liblzma\check\crc32_table_le.h" />
+-    <ClInclude Include="..\..\src\liblzma\check\crc64_table_be.h" />
+-    <ClInclude Include="..\..\src\liblzma\check\crc64_table_le.h" />
+-    <ClInclude Include="..\..\src\liblzma\check\crc_macros.h" />
+-    <ClInclude Include="..\..\src\liblzma\common\alone_decoder.h" />
+-    <ClInclude Include="..\..\src\liblzma\common\block_buffer_encoder.h" />
+-    <ClInclude Include="..\..\src\liblzma\common\block_decoder.h" />
+-    <ClInclude Include="..\..\src\liblzma\common\block_encoder.h" />
+-    <ClInclude Include="..\..\src\liblzma\common\common.h" />
+-    <ClInclude Include="..\..\src\liblzma\common\easy_preset.h" />
+-    <ClInclude Include="..\..\src\liblzma\common\filter_common.h" />
+-    <ClInclude Include="..\..\src\liblzma\common\filter_decoder.h" />
+-    <ClInclude Include="..\..\src\liblzma\common\filter_encoder.h" />
+-    <ClInclude Include="..\..\src\liblzma\common\index.h" />
+-    <ClInclude Include="..\..\src\liblzma\common\index_decoder.h" />
+-    <ClInclude Include="..\..\src\liblzma\common\index_encoder.h" />
+-    <ClInclude Include="..\..\src\liblzma\common\memcmplen.h" />
+-    <ClInclude Include="..\..\src\liblzma\common\lzip_decoder.h" />
+-    <ClInclude Include="..\..\src\liblzma\common\outqueue.h" />
+-    <ClInclude Include="..\..\src\liblzma\common\stream_decoder.h" />
+-    <ClInclude Include="..\..\src\liblzma\common\stream_flags_common.h" />
+-    <ClInclude Include="..\..\src\liblzma\delta\delta_common.h" />
+-    <ClInclude Include="..\..\src\liblzma\delta\delta_decoder.h" />
+-    <ClInclude Include="..\..\src\liblzma\delta\delta_encoder.h" />
+-    <ClInclude Include="..\..\src\liblzma\delta\delta_private.h" />
+-    <ClInclude Include="..\..\src\liblzma\lzma\fastpos.h" />
+-    <ClInclude Include="..\..\src\liblzma\lzma\lzma2_decoder.h" />
+-    <ClInclude Include="..\..\src\liblzma\lzma\lzma2_encoder.h" />
+-    <ClInclude Include="..\..\src\liblzma\lzma\lzma_common.h" />
+-    <ClInclude Include="..\..\src\liblzma\lzma\lzma_decoder.h" />
+-    <ClInclude Include="..\..\src\liblzma\lzma\lzma_encoder.h" />
+-    <ClInclude Include="..\..\src\liblzma\lzma\lzma_encoder_private.h" />
+-    <ClInclude Include="..\..\src\liblzma\lz\lz_decoder.h" />
+-    <ClInclude Include="..\..\src\liblzma\lz\lz_encoder.h" />
+-    <ClInclude Include="..\..\src\liblzma\lz\lz_encoder_hash.h" />
+-    <ClInclude Include="..\..\src\liblzma\lz\lz_encoder_hash_table.h" />
+-    <ClInclude Include="..\..\src\liblzma\rangecoder\price.h" />
+-    <ClInclude Include="..\..\src\liblzma\rangecoder\range_common.h" />
+-    <ClInclude Include="..\..\src\liblzma\rangecoder\range_decoder.h" />
+-    <ClInclude Include="..\..\src\liblzma\rangecoder\range_encoder.h" />
+-    <ClInclude Include="..\..\src\liblzma\simple\simple_coder.h" />
+-    <ClInclude Include="..\..\src\liblzma\simple\simple_decoder.h" />
+-    <ClInclude Include="..\..\src\liblzma\simple\simple_encoder.h" />
+-    <ClInclude Include="..\..\src\liblzma\simple\simple_private.h" />
+-    <ClInclude Include="config.h" />
+-  </ItemGroup>
+-  <ItemGroup>
+-    <ResourceCompile Include="..\..\src\liblzma\liblzma_w32res.rc" />
+-  </ItemGroup>
+-  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
+-  <ImportGroup Label="ExtensionTargets">
+-  </ImportGroup>
+-</Project>
+diff --git a/windows/vs2019/xz_win.sln b/windows/vs2019/xz_win.sln
+deleted file mode 100644
+index c65cd3e2..00000000
+--- a/windows/vs2019/xz_win.sln
++++ /dev/null
+@@ -1,51 +0,0 @@
+-﻿
+-Microsoft Visual Studio Solution File, Format Version 12.00
+-# Visual Studio Version 16
+-VisualStudioVersion = 16.0.28803.202
+-MinimumVisualStudioVersion = 10.0.40219.1
+-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "liblzma", "liblzma.vcxproj", "{12728250-16EC-4DC6-94D7-E21DD88947F8}"
+-EndProject
+-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "liblzma_dll", "liblzma_dll.vcxproj", "{E0F247DB-EF12-4755-8DF9-F74BCD1348F7}"
+-EndProject
+-Global
+-	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+-		Debug|Win32 = Debug|Win32
+-		Debug|x64 = Debug|x64
+-		Release|Win32 = Release|Win32
+-		Release|x64 = Release|x64
+-		ReleaseMT|Win32 = ReleaseMT|Win32
+-		ReleaseMT|x64 = ReleaseMT|x64
+-	EndGlobalSection
+-	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+-		{12728250-16EC-4DC6-94D7-E21DD88947F8}.Debug|Win32.ActiveCfg = Debug|Win32
+-		{12728250-16EC-4DC6-94D7-E21DD88947F8}.Debug|Win32.Build.0 = Debug|Win32
+-		{12728250-16EC-4DC6-94D7-E21DD88947F8}.Debug|x64.ActiveCfg = Debug|x64
+-		{12728250-16EC-4DC6-94D7-E21DD88947F8}.Debug|x64.Build.0 = Debug|x64
+-		{12728250-16EC-4DC6-94D7-E21DD88947F8}.Release|Win32.ActiveCfg = Release|Win32
+-		{12728250-16EC-4DC6-94D7-E21DD88947F8}.Release|Win32.Build.0 = Release|Win32
+-		{12728250-16EC-4DC6-94D7-E21DD88947F8}.Release|x64.ActiveCfg = Release|x64
+-		{12728250-16EC-4DC6-94D7-E21DD88947F8}.Release|x64.Build.0 = Release|x64
+-		{12728250-16EC-4DC6-94D7-E21DD88947F8}.ReleaseMT|Win32.ActiveCfg = ReleaseMT|Win32
+-		{12728250-16EC-4DC6-94D7-E21DD88947F8}.ReleaseMT|Win32.Build.0 = ReleaseMT|Win32
+-		{12728250-16EC-4DC6-94D7-E21DD88947F8}.ReleaseMT|x64.ActiveCfg = ReleaseMT|x64
+-		{12728250-16EC-4DC6-94D7-E21DD88947F8}.ReleaseMT|x64.Build.0 = ReleaseMT|x64
+-		{E0F247DB-EF12-4755-8DF9-F74BCD1348F7}.Debug|Win32.ActiveCfg = Debug|Win32
+-		{E0F247DB-EF12-4755-8DF9-F74BCD1348F7}.Debug|Win32.Build.0 = Debug|Win32
+-		{E0F247DB-EF12-4755-8DF9-F74BCD1348F7}.Debug|x64.ActiveCfg = Debug|x64
+-		{E0F247DB-EF12-4755-8DF9-F74BCD1348F7}.Debug|x64.Build.0 = Debug|x64
+-		{E0F247DB-EF12-4755-8DF9-F74BCD1348F7}.Release|Win32.ActiveCfg = Release|Win32
+-		{E0F247DB-EF12-4755-8DF9-F74BCD1348F7}.Release|Win32.Build.0 = Release|Win32
+-		{E0F247DB-EF12-4755-8DF9-F74BCD1348F7}.Release|x64.ActiveCfg = Release|x64
+-		{E0F247DB-EF12-4755-8DF9-F74BCD1348F7}.Release|x64.Build.0 = Release|x64
+-		{E0F247DB-EF12-4755-8DF9-F74BCD1348F7}.ReleaseMT|Win32.ActiveCfg = ReleaseMT|Win32
+-		{E0F247DB-EF12-4755-8DF9-F74BCD1348F7}.ReleaseMT|Win32.Build.0 = ReleaseMT|Win32
+-		{E0F247DB-EF12-4755-8DF9-F74BCD1348F7}.ReleaseMT|x64.ActiveCfg = ReleaseMT|x64
+-		{E0F247DB-EF12-4755-8DF9-F74BCD1348F7}.ReleaseMT|x64.Build.0 = ReleaseMT|x64
+-	EndGlobalSection
+-	GlobalSection(SolutionProperties) = preSolution
+-		HideSolutionNode = FALSE
+-	EndGlobalSection
+-	GlobalSection(ExtensibilityGlobals) = postSolution
+-		SolutionGuid = {78887FAE-FC02-4B67-A8DB-DC7863496039}
+-	EndGlobalSection
+-EndGlobal

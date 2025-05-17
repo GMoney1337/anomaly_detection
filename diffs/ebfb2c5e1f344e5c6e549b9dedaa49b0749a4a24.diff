@@ -1,0 +1,1196 @@
+diff --git a/configure.ac b/configure.ac
+index d4a51ffd..82a7b1f9 100644
+--- a/configure.ac
++++ b/configure.ac
+@@ -315,35 +315,6 @@ AM_CONDITIONAL(COND_ASM_X86, test "x$enable_assembler" = xx86)
+ AM_CONDITIONAL(COND_ASM_X86_64, test "x$enable_assembler" = xx86_64)
+ 
+ 
+-################################
+-# Fast unaligned memory access #
+-################################
+-
+-AC_MSG_CHECKING([if unaligned memory access should be used])
+-AC_ARG_ENABLE([unaligned-access], AC_HELP_STRING([--enable-unaligned-access],
+-		[Enable if the system supports *fast* unaligned memory access
+-		with 16-bit and 32-bit integers. By default, this is enabled
+-		only on x86, x86_64, and big endian PowerPC.]),
+-	[], [enable_unaligned_access=auto])
+-if test "x$enable_unaligned_access" = xauto ; then
+-	case $host_cpu in
+-		i?86|x86_64|powerpc|powerpc64)
+-			enable_unaligned_access=yes
+-			;;
+-		*)
+-			enable_unaligned_access=no
+-			;;
+-	esac
+-fi
+-if test "x$enable_unaligned_access" = xyes ; then
+-	AC_DEFINE([HAVE_FAST_UNALIGNED_ACCESS], [1], [Define to 1 if
+-		the system supports fast unaligned memory access.])
+-	AC_MSG_RESULT([yes])
+-else
+-	AC_MSG_RESULT([no])
+-fi
+-
+-
+ #####################
+ # Size optimization #
+ #####################
+@@ -508,30 +479,6 @@ AC_CHECK_HEADERS([fcntl.h limits.h sys/time.h],
+ 	[],
+ 	[AC_MSG_ERROR([Required header file(s) are missing.])])
+ 
+-# If any of these headers are missing, things should still work correctly:
+-AC_CHECK_HEADERS([byteswap.h])
+-
+-# Even if we have byteswap.h, we may lack the specific macros/functions.
+-if test x$ac_cv_header_byteswap_h = xyes ; then
+-	m4_foreach([FUNC], [bswap_16,bswap_32,bswap_64], [
+-		AC_MSG_CHECKING([if FUNC is available])
+-		AC_LINK_IFELSE([AC_LANG_SOURCE([
+-#include <byteswap.h>
+-int
+-main(void)
+-{
+-	FUNC[](42);
+-	return 0;
+-}
+-		])], [
+-			AC_DEFINE(HAVE_[]m4_toupper(FUNC), [1],
+-					[Define to 1 if] FUNC [is available.])
+-			AC_MSG_RESULT([yes])
+-		], [AC_MSG_RESULT([no])])
+-
+-	])dnl
+-fi
+-
+ 
+ ###############################################################################
+ # Checks for typedefs, structures, and compiler characteristics.
+@@ -578,6 +525,7 @@ gl_GETOPT
+ AC_CHECK_FUNCS([futimens futimes futimesat utimes utime], [break])
+ 
+ TUKLIB_PROGNAME
++TUKLIB_INTEGER
+ TUKLIB_PHYSMEM
+ TUKLIB_CPUCORES
+ 
+diff --git a/m4/tuklib_integer.m4 b/m4/tuklib_integer.m4
+new file mode 100644
+index 00000000..5fe66eef
+--- /dev/null
++++ b/m4/tuklib_integer.m4
+@@ -0,0 +1,74 @@
++#
++# SYNOPSIS
++#
++#   TUKLIB_INTEGER
++#
++# DESCRIPTION
++#
++#   Checks for tuklib_integer.h:
++#     - Endianness
++#     - Does operating system provide byte swapping macros
++#     - Does the hardware support fast unaligned access to 16-bit
++#       and 32-bit integers
++#
++# COPYING
++#
++#   Author: Lasse Collin
++#
++#   This file has been put into the public domain.
++#   You can do whatever you want with this file.
++#
++
++AC_DEFUN_ONCE([TUKLIB_INTEGER], [
++AC_REQUIRE([TUKLIB_COMMON])
++AC_REQUIRE([AC_C_BIGENDIAN])
++AC_CHECK_HEADERS([byteswap.h sys/endian.h sys/byteorder.h], [break])
++
++# Even if we have byteswap.h, we may lack the specific macros/functions.
++if test x$ac_cv_header_byteswap_h = xyes ; then
++	m4_foreach([FUNC], [bswap_16,bswap_32,bswap_64], [
++		AC_MSG_CHECKING([if FUNC is available])
++		AC_LINK_IFELSE([AC_LANG_SOURCE([
++#include <byteswap.h>
++int
++main(void)
++{
++	FUNC[](42);
++	return 0;
++}
++		])], [
++			AC_DEFINE(HAVE_[]m4_toupper(FUNC), [1],
++					[Define to 1 if] FUNC [is available.])
++			AC_MSG_RESULT([yes])
++		], [AC_MSG_RESULT([no])])
++
++	])dnl
++fi
++
++AC_MSG_CHECKING([if unaligned memory access should be used])
++AC_ARG_ENABLE([unaligned-access], AC_HELP_STRING([--enable-unaligned-access],
++		[Enable if the system supports *fast* unaligned memory access
++		with 16-bit and 32-bit integers. By default, this is enabled
++		only on x86, x86_64, and big endian PowerPC.]),
++	[], [enable_unaligned_access=auto])
++if test "x$enable_unaligned_access" = xauto ; then
++	# TODO: There may be other architectures, on which unaligned access
++	# is OK.
++	case $host_cpu in
++		i?86|x86_64|powerpc|powerpc64)
++			enable_unaligned_access=yes
++			;;
++		*)
++			enable_unaligned_access=no
++			;;
++	esac
++fi
++if test "x$enable_unaligned_access" = xyes ; then
++	AC_DEFINE([TUKLIB_FAST_UNALIGNED_ACCESS], [1], [Define to 1 if
++		the system supports fast unaligned access to 16-bit and
++		32-bit integers.])
++	AC_MSG_RESULT([yes])
++else
++	AC_MSG_RESULT([no])
++fi
++])dnl
+diff --git a/src/common/bswap.h b/src/common/bswap.h
+deleted file mode 100644
+index c8cf125a..00000000
+--- a/src/common/bswap.h
++++ /dev/null
+@@ -1,52 +0,0 @@
+-///////////////////////////////////////////////////////////////////////////////
+-//
+-/// \file       bswap.h
+-/// \brief      Byte swapping
+-//
+-//  Author:     Lasse Collin
+-//
+-//  This file has been put into the public domain.
+-//  You can do whatever you want with this file.
+-//
+-///////////////////////////////////////////////////////////////////////////////
+-
+-#ifndef LZMA_BSWAP_H
+-#define LZMA_BSWAP_H
+-
+-// NOTE: We assume that config.h is already #included.
+-
+-// At least glibc has byteswap.h which contains inline assembly code for
+-// byteswapping. Some systems have byteswap.h but lack one or more of the
+-// bswap_xx macros/functions, which is why we check them separately even
+-// if byteswap.h is available.
+-
+-#ifdef HAVE_BYTESWAP_H
+-#	include <byteswap.h>
+-#endif
+-
+-#ifndef HAVE_BSWAP_16
+-#	define bswap_16(num) \
+-		(((num) << 8) | ((num) >> 8))
+-#endif
+-
+-#ifndef HAVE_BSWAP_32
+-#	define bswap_32(num) \
+-		( (((num) << 24)                       ) \
+-		| (((num) <<  8) & UINT32_C(0x00FF0000)) \
+-		| (((num) >>  8) & UINT32_C(0x0000FF00)) \
+-		| (((num) >> 24)                       ) )
+-#endif
+-
+-#ifndef HAVE_BSWAP_64
+-#	define bswap_64(num) \
+-		( (((num) << 56)                               ) \
+-		| (((num) << 40) & UINT64_C(0x00FF000000000000)) \
+-		| (((num) << 24) & UINT64_C(0x0000FF0000000000)) \
+-		| (((num) <<  8) & UINT64_C(0x000000FF00000000)) \
+-		| (((num) >>  8) & UINT64_C(0x00000000FF000000)) \
+-		| (((num) >> 24) & UINT64_C(0x0000000000FF0000)) \
+-		| (((num) >> 40) & UINT64_C(0x000000000000FF00)) \
+-		| (((num) >> 56)                               ) )
+-#endif
+-
+-#endif
+diff --git a/src/common/integer.h b/src/common/integer.h
+deleted file mode 100644
+index 518c2a4e..00000000
+--- a/src/common/integer.h
++++ /dev/null
+@@ -1,170 +0,0 @@
+-///////////////////////////////////////////////////////////////////////////////
+-//
+-/// \file       integer.h
+-/// \brief      Reading and writing integers from and to buffers
+-//
+-//  Author:     Lasse Collin
+-//
+-//  This file has been put into the public domain.
+-//  You can do whatever you want with this file.
+-//
+-///////////////////////////////////////////////////////////////////////////////
+-
+-#ifndef LZMA_INTEGER_H
+-#define LZMA_INTEGER_H
+-
+-// On big endian, we need byte swapping. These macros may be used outside
+-// this file, so don't put these inside HAVE_FAST_UNALIGNED_ACCESS.
+-#ifdef WORDS_BIGENDIAN
+-#	include "bswap.h"
+-#	define integer_le_16(n) bswap_16(n)
+-#	define integer_le_32(n) bswap_32(n)
+-#	define integer_le_64(n) bswap_64(n)
+-#else
+-#	define integer_le_16(n) (n)
+-#	define integer_le_32(n) (n)
+-#	define integer_le_64(n) (n)
+-#endif
+-
+-
+-// I'm aware of AC_CHECK_ALIGNED_ACCESS_REQUIRED from Autoconf archive, but
+-// it's not useful here. We don't care if unaligned access is supported,
+-// we care if it is fast. Some systems can emulate unaligned access in
+-// software, which is horribly slow; we want to use byte-by-byte access on
+-// such systems but the Autoconf test would detect such a system as
+-// supporting unaligned access.
+-//
+-// NOTE: HAVE_FAST_UNALIGNED_ACCESS indicates only support for 16-bit and
+-// 32-bit integer loads and stores. 64-bit integers may or may not work.
+-// That's why 64-bit functions are commented out.
+-//
+-// TODO: Big endian PowerPC supports byte swapping load and store instructions
+-// that also allow unaligned access. Inline assembler could be OK for that.
+-//
+-// Performance of these functions isn't that important until LZMA3, but it
+-// doesn't hurt to have these ready already.
+-#ifdef HAVE_FAST_UNALIGNED_ACCESS
+-
+-static inline uint16_t
+-integer_read_16(const uint8_t buf[static 2])
+-{
+-	uint16_t ret = *(const uint16_t *)(buf);
+-	return integer_le_16(ret);
+-}
+-
+-
+-static inline uint32_t
+-integer_read_32(const uint8_t buf[static 4])
+-{
+-	uint32_t ret = *(const uint32_t *)(buf);
+-	return integer_le_32(ret);
+-}
+-
+-
+-/*
+-static inline uint64_t
+-integer_read_64(const uint8_t buf[static 8])
+-{
+-	uint64_t ret = *(const uint64_t *)(buf);
+-	return integer_le_64(ret);
+-}
+-*/
+-
+-
+-static inline void
+-integer_write_16(uint8_t buf[static 2], uint16_t num)
+-{
+-	*(uint16_t *)(buf) = integer_le_16(num);
+-}
+-
+-
+-static inline void
+-integer_write_32(uint8_t buf[static 4], uint32_t num)
+-{
+-	*(uint32_t *)(buf) = integer_le_32(num);
+-}
+-
+-
+-/*
+-static inline void
+-integer_write_64(uint8_t buf[static 8], uint64_t num)
+-{
+-	*(uint64_t *)(buf) = integer_le_64(num);
+-}
+-*/
+-
+-
+-#else
+-
+-static inline uint16_t
+-integer_read_16(const uint8_t buf[static 2])
+-{
+-	uint16_t ret = buf[0] | (buf[1] << 8);
+-	return ret;
+-}
+-
+-
+-static inline uint32_t
+-integer_read_32(const uint8_t buf[static 4])
+-{
+-	uint32_t ret = buf[0];
+-	ret |= (uint32_t)(buf[1]) << 8;
+-	ret |= (uint32_t)(buf[2]) << 16;
+-	ret |= (uint32_t)(buf[3]) << 24;
+-	return ret;
+-}
+-
+-
+-/*
+-static inline uint64_t
+-integer_read_64(const uint8_t buf[static 8])
+-{
+-	uint64_t ret = buf[0];
+-	ret |= (uint64_t)(buf[1]) << 8;
+-	ret |= (uint64_t)(buf[2]) << 16;
+-	ret |= (uint64_t)(buf[3]) << 24;
+-	ret |= (uint64_t)(buf[4]) << 32;
+-	ret |= (uint64_t)(buf[5]) << 40;
+-	ret |= (uint64_t)(buf[6]) << 48;
+-	ret |= (uint64_t)(buf[7]) << 56;
+-	return ret;
+-}
+-*/
+-
+-
+-static inline void
+-integer_write_16(uint8_t buf[static 2], uint16_t num)
+-{
+-	buf[0] = (uint8_t)(num);
+-	buf[1] = (uint8_t)(num >> 8);
+-}
+-
+-
+-static inline void
+-integer_write_32(uint8_t buf[static 4], uint32_t num)
+-{
+-	buf[0] = (uint8_t)(num);
+-	buf[1] = (uint8_t)(num >> 8);
+-	buf[2] = (uint8_t)(num >> 16);
+-	buf[3] = (uint8_t)(num >> 24);
+-}
+-
+-
+-/*
+-static inline void
+-integer_write_64(uint8_t buf[static 8], uint64_t num)
+-{
+-	buf[0] = (uint8_t)(num);
+-	buf[1] = (uint8_t)(num >> 8);
+-	buf[2] = (uint8_t)(num >> 16);
+-	buf[3] = (uint8_t)(num >> 24);
+-	buf[4] = (uint8_t)(num >> 32);
+-	buf[5] = (uint8_t)(num >> 40);
+-	buf[6] = (uint8_t)(num >> 48);
+-	buf[7] = (uint8_t)(num >> 56);
+-}
+-*/
+-
+-#endif
+-
+-#endif
+diff --git a/src/common/tuklib_config.h b/src/common/tuklib_config.h
+index 3fe21451..549cb24d 100644
+--- a/src/common/tuklib_config.h
++++ b/src/common/tuklib_config.h
+@@ -1 +1,7 @@
+-#include "sysdefs.h"
++#ifdef HAVE_CONFIG_H
++#	include "sysdefs.h"
++#else
++#	include <stddef.h>
++#	include <inttypes.h>
++#	include <limits.h>
++#endif
+diff --git a/src/common/tuklib_integer.h b/src/common/tuklib_integer.h
+new file mode 100644
+index 00000000..f13dd1d8
+--- /dev/null
++++ b/src/common/tuklib_integer.h
+@@ -0,0 +1,350 @@
++///////////////////////////////////////////////////////////////////////////////
++//
++/// \file       tuklib_integer.h
++/// \brief      Byte swapping and endianness related macros and functions
++///
++/// This file provides macros or functions to do basic endianness related
++/// integer operations (XX = 16, 32, or 64; Y = b or l):
++///   - Byte swapping: bswapXX(num)
++///   - Byte order conversions to/from native: convXXYe(num)
++///   - Aligned reads: readXXYe(ptr)
++///   - Aligned writes: writeXXYe(ptr, num)
++///   - Unaligned reads (16/32-bit only): unaligned_readXXYe(ptr)
++///   - Unaligned writes (16/32-bit only): unaligned_writeXXYe(ptr, num)
++///
++/// Since they can macros, the arguments should have no side effects since
++/// they may be evaluated more than once.
++///
++/// \todo       PowerPC and possibly some other architectures support
++///             byte swapping load and store instructions. This file
++///             doesn't take advantage of those instructions.
++//
++//  Author:     Lasse Collin
++//
++//  This file has been put into the public domain.
++//  You can do whatever you want with this file.
++//
++///////////////////////////////////////////////////////////////////////////////
++
++#ifndef TUKLIB_INTEGER_H
++#define TUKLIB_INTEGER_H
++
++#include "tuklib_common.h"
++
++
++////////////////////////////////////////
++// Operating system specific features //
++////////////////////////////////////////
++
++#if defined(HAVE_BYTESWAP_H)
++	// glibc, uClibc, dietlibc
++#	include <byteswap.h>
++#	ifdef HAVE_BSWAP_16
++#		define bswap16(num) bswap_16(num)
++#	endif
++#	ifdef HAVE_BSWAP_32
++#		define bswap32(num) bswap_32(num)
++#	endif
++#	ifdef HAVE_BSWAP_64
++#		define bswap64(num) bswap_64(num)
++#	endif
++
++#elif defined(HAVE_SYS_ENDIAN_H)
++	// *BSDs and Darwin
++#	include <sys/endian.h>
++
++#elif defined(HAVE_SYS_BYTEORDER_H)
++	// Solaris
++#	include <sys/byteorder.h>
++#	ifdef BSWAP_16
++#		define bswap16(num) BSWAP_16(num)
++#	endif
++#	ifdef BSWAP_32
++#		define bswap32(num) BSWAP_32(num)
++#	endif
++#	ifdef BSWAP_64
++#		define bswap64(num) BSWAP_64(num)
++#	endif
++#	ifdef BE_16
++#		define conv16be(num) BE_16(num)
++#	endif
++#	ifdef BE_32
++#		define conv32be(num) BE_32(num)
++#	endif
++#	ifdef BE_64
++#		define conv64be(num) BE_64(num)
++#	endif
++#	ifdef LE_16
++#		define conv16le(num) LE_16(num)
++#	endif
++#	ifdef LE_32
++#		define conv32le(num) LE_32(num)
++#	endif
++#	ifdef LE_64
++#		define conv64le(num) LE_64(num)
++#	endif
++#endif
++
++
++///////////////////
++// Byte swapping //
++///////////////////
++
++#ifndef bswap16
++#	define bswap16(num) \
++		(((uint16_t)(num) << 8) | ((uint16_t)(num) >> 8))
++#endif
++
++#ifndef bswap32
++#	define bswap32(num) \
++		( (((uint32_t)(num) << 24)                       ) \
++		| (((uint32_t)(num) <<  8) & UINT32_C(0x00FF0000)) \
++		| (((uint32_t)(num) >>  8) & UINT32_C(0x0000FF00)) \
++		| (((uint32_t)(num) >> 24)                       ) )
++#endif
++
++#ifndef bswap64
++#	define bswap64(num) \
++		( (((uint64_t)(num) << 56)                               ) \
++		| (((uint64_t)(num) << 40) & UINT64_C(0x00FF000000000000)) \
++		| (((uint64_t)(num) << 24) & UINT64_C(0x0000FF0000000000)) \
++		| (((uint64_t)(num) <<  8) & UINT64_C(0x000000FF00000000)) \
++		| (((uint64_t)(num) >>  8) & UINT64_C(0x00000000FF000000)) \
++		| (((uint64_t)(num) >> 24) & UINT64_C(0x0000000000FF0000)) \
++		| (((uint64_t)(num) >> 40) & UINT64_C(0x000000000000FF00)) \
++		| (((uint64_t)(num) >> 56)                               ) )
++#endif
++
++// Define conversion macros using the basic byte swapping macros.
++#ifdef WORDS_BIGENDIAN
++#	ifndef conv16be
++#		define conv16be(num) ((uint16_t)(num))
++#	endif
++#	ifndef conv32be
++#		define conv32be(num) ((uint32_t)(num))
++#	endif
++#	ifndef conv64be
++#		define conv64be(num) ((uint64_t)(num))
++#	endif
++#	ifndef conv16le
++#		define conv16le(num) bswap16(num)
++#	endif
++#	ifndef conv32le
++#		define conv32le(num) bswap32(num)
++#	endif
++#	ifndef conv64le
++#		define conv64le(num) bswap64(num)
++#	endif
++#else
++#	ifndef conv16be
++#		define conv16be(num) bswap16(num)
++#	endif
++#	ifndef conv32be
++#		define conv32be(num) bswap32(num)
++#	endif
++#	ifndef conv64be
++#		define conv64be(num) bswap64(num)
++#	endif
++#	ifndef conv16le
++#		define conv16le(num) ((uint16_t)(num))
++#	endif
++#	ifndef conv32le
++#		define conv32le(num) ((uint32_t)(num))
++#	endif
++#	ifndef conv64le
++#		define conv64le(num) ((uint64_t)(num))
++#	endif
++#endif
++
++
++//////////////////////////////
++// Aligned reads and writes //
++//////////////////////////////
++
++static inline uint16_t
++read16be(const uint8_t *buf)
++{
++	uint16_t num = *(const uint16_t *)buf;
++	return conv16be(num);
++}
++
++
++static inline uint16_t
++read16le(const uint8_t *buf)
++{
++	uint16_t num = *(const uint16_t *)buf;
++	return conv16le(num);
++}
++
++
++static inline uint32_t
++read32be(const uint8_t *buf)
++{
++	uint32_t num = *(const uint32_t *)buf;
++	return conv32be(num);
++}
++
++
++static inline uint32_t
++read32le(const uint8_t *buf)
++{
++	uint32_t num = *(const uint32_t *)buf;
++	return conv32le(num);
++}
++
++
++static inline uint64_t
++read64be(const uint8_t *buf)
++{
++	uint64_t num = *(const uint64_t *)buf;
++	return conv64be(num);
++}
++
++
++static inline uint64_t
++read64le(const uint8_t *buf)
++{
++	uint64_t num = *(const uint64_t *)buf;
++	return conv64le(num);
++}
++
++
++// NOTE: Possible byte swapping must be done in a macro to allow GCC
++// to optimize byte swapping of constants when using glibc's or *BSD's
++// byte swapping macros. The actual write is done in an inline function
++// to make type checking of the buf pointer possible similarly to readXXYe()
++// functions. This also seems to silence a probably bogus GCC warning about
++// strict aliasing when buf points to the beginning of an uint8_t array.
++
++#define write16be(buf, num) write16ne((buf), conv16be(num))
++#define write16le(buf, num) write16ne((buf), conv16le(num))
++#define write32be(buf, num) write32ne((buf), conv32be(num))
++#define write32le(buf, num) write32ne((buf), conv32le(num))
++#define write64be(buf, num) write64ne((buf), conv64be(num))
++#define write64le(buf, num) write64ne((buf), conv64le(num))
++
++
++static inline void
++write16ne(uint8_t *buf, uint16_t num)
++{
++	*(uint16_t *)buf = num;
++	return;
++}
++
++
++static inline void
++write32ne(uint8_t *buf, uint32_t num)
++{
++	*(uint32_t *)buf = num;
++	return;
++}
++
++
++static inline void
++write64ne(uint8_t *buf, uint64_t num)
++{
++	*(uint64_t *)buf = num;
++	return;
++}
++
++
++////////////////////////////////
++// Unaligned reads and writes //
++////////////////////////////////
++
++// NOTE: TUKLIB_FAST_UNALIGNED_ACCESS indicates only support for 16-bit and
++// 32-bit unaligned integer loads and stores. It's possible that 64-bit
++// unaligned access doesn't work or is slower than byte-by-byte access.
++// Since unaligned 64-bit is probably not needed as often as 16-bit or
++// 32-bit, we simply don't support 64-bit unaligned access for now.
++#ifdef TUKLIB_FAST_UNALIGNED_ACCESS
++#	define unaligned_read16be read16be
++#	define unaligned_read16le read16le
++#	define unaligned_read32be read32be
++#	define unaligned_read32le read32le
++#	define unaligned_write16be write16be
++#	define unaligned_write16le write16le
++#	define unaligned_write32be write32be
++#	define unaligned_write32le write32le
++
++#else
++
++static inline uint16_t
++unaligned_read16be(const uint8_t *buf)
++{
++	uint16_t num = ((uint16_t)buf[0] << 8) | buf[1];
++	return num;
++}
++
++
++static inline uint16_t
++unaligned_read16le(const uint8_t *buf)
++{
++	uint16_t num = ((uint32_t)buf[0]) | ((uint16_t)buf[1] << 8);
++	return num;
++}
++
++
++static inline uint32_t
++unaligned_read32be(const uint8_t *buf)
++{
++	uint32_t num = (uint32_t)buf[0] << 24;
++	num |= (uint32_t)buf[1] << 16;
++	num |= (uint32_t)buf[2] << 8;
++	num |= (uint32_t)buf[3];
++	return num;
++}
++
++
++static inline uint32_t
++unaligned_read32le(const uint8_t *buf)
++{
++	uint32_t num = (uint32_t)buf[0];
++	num |= (uint32_t)buf[1] << 8;
++	num |= (uint32_t)buf[2] << 16;
++	num |= (uint32_t)buf[3] << 24;
++	return num;
++}
++
++
++static inline void
++unaligned_write16be(uint8_t *buf, uint16_t num)
++{
++	buf[0] = num >> 8;
++	buf[1] = num;
++	return;
++}
++
++
++static inline void
++unaligned_write16le(uint8_t *buf, uint16_t num)
++{
++	buf[0] = num;
++	buf[1] = num >> 8;
++	return;
++}
++
++
++static inline void
++unaligned_write32be(uint8_t *buf, uint32_t num)
++{
++	buf[0] = num >> 24;
++	buf[1] = num >> 16;
++	buf[2] = num >> 8;
++	buf[3] = num;
++	return;
++}
++
++
++static inline void
++unaligned_write32le(uint8_t *buf, uint32_t num)
++{
++	buf[0] = num;
++	buf[1] = num >> 8;
++	buf[2] = num >> 16;
++	buf[3] = num >> 24;
++	return;
++}
++
++#endif
++#endif
+diff --git a/src/liblzma/check/check.c b/src/liblzma/check/check.c
+index ba8622e6..428ddaeb 100644
+--- a/src/liblzma/check/check.c
++++ b/src/liblzma/check/check.c
+@@ -150,13 +150,13 @@ lzma_check_finish(lzma_check_state *check, lzma_check type)
+ 	switch (type) {
+ #ifdef HAVE_CHECK_CRC32
+ 	case LZMA_CHECK_CRC32:
+-		check->buffer.u32[0] = integer_le_32(check->state.crc32);
++		check->buffer.u32[0] = conv32le(check->state.crc32);
+ 		break;
+ #endif
+ 
+ #ifdef HAVE_CHECK_CRC64
+ 	case LZMA_CHECK_CRC64:
+-		check->buffer.u64[0] = integer_le_64(check->state.crc64);
++		check->buffer.u64[0] = conv64le(check->state.crc64);
+ 		break;
+ #endif
+ 
+diff --git a/src/liblzma/check/crc32_fast.c b/src/liblzma/check/crc32_fast.c
+index a308eff5..49dc31f2 100644
+--- a/src/liblzma/check/crc32_fast.c
++++ b/src/liblzma/check/crc32_fast.c
+@@ -29,7 +29,7 @@ lzma_crc32(const uint8_t *buf, size_t size, uint32_t crc)
+ 	crc = ~crc;
+ 
+ #ifdef WORDS_BIGENDIAN
+-	crc = bswap_32(crc);
++	crc = bswap32(crc);
+ #endif
+ 
+ 	if (size > 8) {
+@@ -75,7 +75,7 @@ lzma_crc32(const uint8_t *buf, size_t size, uint32_t crc)
+ 		crc = lzma_crc32_table[0][*buf++ ^ A(crc)] ^ S8(crc);
+ 
+ #ifdef WORDS_BIGENDIAN
+-	crc = bswap_32(crc);
++	crc = bswap32(crc);
+ #endif
+ 
+ 	return ~crc;
+diff --git a/src/liblzma/check/crc32_tablegen.c b/src/liblzma/check/crc32_tablegen.c
+index 56bc5c7f..31a4d275 100644
+--- a/src/liblzma/check/crc32_tablegen.c
++++ b/src/liblzma/check/crc32_tablegen.c
+@@ -14,12 +14,8 @@
+ //
+ ///////////////////////////////////////////////////////////////////////////////
+ 
+-#include <inttypes.h>
+ #include <stdio.h>
+-
+-#ifdef WORDS_BIGENDIAN
+-#	include "../../common/bswap.h"
+-#endif
++#include "../../common/tuklib_integer.h"
+ 
+ 
+ static uint32_t crc32_table[8][256];
+@@ -48,7 +44,7 @@ init_crc32_table(void)
+ #ifdef WORDS_BIGENDIAN
+ 	for (size_t s = 0; s < 8; ++s)
+ 		for (size_t b = 0; b < 256; ++b)
+-			crc32_table[s][b] = bswap_32(crc32_table[s][b]);
++			crc32_table[s][b] = bswap32(crc32_table[s][b]);
+ #endif
+ 
+ 	return;
+diff --git a/src/liblzma/check/crc64_fast.c b/src/liblzma/check/crc64_fast.c
+index 25557264..e42fc3dc 100644
+--- a/src/liblzma/check/crc64_fast.c
++++ b/src/liblzma/check/crc64_fast.c
+@@ -32,7 +32,7 @@ lzma_crc64(const uint8_t *buf, size_t size, uint64_t crc)
+ 	crc = ~crc;
+ 
+ #ifdef WORDS_BIGENDIAN
+-	crc = bswap_64(crc);
++	crc = bswap64(crc);
+ #endif
+ 
+ 	if (size > 4) {
+@@ -64,7 +64,7 @@ lzma_crc64(const uint8_t *buf, size_t size, uint64_t crc)
+ 		crc = lzma_crc64_table[0][*buf++ ^ A1(crc)] ^ S8(crc);
+ 
+ #ifdef WORDS_BIGENDIAN
+-	crc = bswap_64(crc);
++	crc = bswap64(crc);
+ #endif
+ 
+ 	return ~crc;
+diff --git a/src/liblzma/check/crc64_tablegen.c b/src/liblzma/check/crc64_tablegen.c
+index 92b9a7da..fddaa7ed 100644
+--- a/src/liblzma/check/crc64_tablegen.c
++++ b/src/liblzma/check/crc64_tablegen.c
+@@ -13,12 +13,8 @@
+ //
+ ///////////////////////////////////////////////////////////////////////////////
+ 
+-#include <inttypes.h>
+ #include <stdio.h>
+-
+-#ifdef WORDS_BIGENDIAN
+-#	include "../../common/bswap.h"
+-#endif
++#include "../../common/tuklib_integer.h"
+ 
+ 
+ static uint64_t crc64_table[4][256];
+@@ -47,7 +43,7 @@ init_crc64_table(void)
+ #ifdef WORDS_BIGENDIAN
+ 	for (size_t s = 0; s < 4; ++s)
+ 		for (size_t b = 0; b < 256; ++b)
+-			crc64_table[s][b] = bswap_64(crc64_table[s][b]);
++			crc64_table[s][b] = bswap64(crc64_table[s][b]);
+ #endif
+ 
+ 	return;
+diff --git a/src/liblzma/check/crc_macros.h b/src/liblzma/check/crc_macros.h
+index 9e2c0303..a7c21b76 100644
+--- a/src/liblzma/check/crc_macros.h
++++ b/src/liblzma/check/crc_macros.h
+@@ -11,8 +11,6 @@
+ ///////////////////////////////////////////////////////////////////////////////
+ 
+ #ifdef WORDS_BIGENDIAN
+-#	include "../../common/bswap.h"
+-
+ #	define A(x) ((x) >> 24)
+ #	define B(x) (((x) >> 16) & 0xFF)
+ #	define C(x) (((x) >> 8) & 0xFF)
+diff --git a/src/liblzma/check/sha256.c b/src/liblzma/check/sha256.c
+index 6053a51b..04231dba 100644
+--- a/src/liblzma/check/sha256.c
++++ b/src/liblzma/check/sha256.c
+@@ -29,10 +29,6 @@
+ 
+ #include "check.h"
+ 
+-#ifndef WORDS_BIGENDIAN
+-#	include "../../common/bswap.h"
+-#endif
+-
+ // At least on x86, GCC is able to optimize this to a rotate instruction.
+ #define rotr_32(num, amount) ((num) >> (amount) | (num) << (32 - (amount)))
+ 
+@@ -123,7 +119,7 @@ process(lzma_check_state *check)
+ 	uint32_t data[16];
+ 
+ 	for (size_t i = 0; i < 16; ++i)
+-		data[i] = bswap_32(check->buffer.u32[i]);
++		data[i] = bswap32(check->buffer.u32[i]);
+ 
+ 	transform(check->state.sha256.state, data);
+ #endif
+@@ -194,20 +190,12 @@ lzma_sha256_finish(lzma_check_state *check)
+ 	// Convert the message size from bytes to bits.
+ 	check->state.sha256.size *= 8;
+ 
+-#ifdef WORDS_BIGENDIAN
+-	check->buffer.u64[(64 - 8) / 8] = check->state.sha256.size;
+-#else
+-	check->buffer.u64[(64 - 8) / 8] = bswap_64(check->state.sha256.size);
+-#endif
++	check->buffer.u64[(64 - 8) / 8] = conv64be(check->state.sha256.size);
+ 
+ 	process(check);
+ 
+ 	for (size_t i = 0; i < 8; ++i)
+-#ifdef WORDS_BIGENDIAN
+-		check->buffer.u32[i] = check->state.sha256.state[i];
+-#else
+-		check->buffer.u32[i] = bswap_32(check->state.sha256.state[i]);
+-#endif
++		check->buffer.u32[i] = conv32be(check->state.sha256.state[i]);
+ 
+ 	return;
+ }
+diff --git a/src/liblzma/common/alone_encoder.c b/src/liblzma/common/alone_encoder.c
+index 68c9505d..d8c0170f 100644
+--- a/src/liblzma/common/alone_encoder.c
++++ b/src/liblzma/common/alone_encoder.c
+@@ -116,7 +116,7 @@ alone_encoder_init(lzma_next_coder *next, lzma_allocator *allocator,
+ 	if (d != UINT32_MAX)
+ 		++d;
+ 
+-	integer_write_32(next->coder->header + 1, d);
++	unaligned_write32le(next->coder->header + 1, d);
+ 
+ 	// - Uncompressed size (always unknown and using EOPM)
+ 	memset(next->coder->header + 1 + 4, 0xFF, 8);
+diff --git a/src/liblzma/common/block_header_decoder.c b/src/liblzma/common/block_header_decoder.c
+index 868f71b2..2c9573ee 100644
+--- a/src/liblzma/common/block_header_decoder.c
++++ b/src/liblzma/common/block_header_decoder.c
+@@ -59,7 +59,7 @@ lzma_block_header_decode(lzma_block *block,
+ 	const size_t in_size = block->header_size - 4;
+ 
+ 	// Verify CRC32
+-	if (lzma_crc32(in, in_size, 0) != integer_read_32(in + in_size))
++	if (lzma_crc32(in, in_size, 0) != unaligned_read32le(in + in_size))
+ 		return LZMA_DATA_ERROR;
+ 
+ 	// Check for unsupported flags.
+diff --git a/src/liblzma/common/block_header_encoder.c b/src/liblzma/common/block_header_encoder.c
+index bc1a10f8..79dafb80 100644
+--- a/src/liblzma/common/block_header_encoder.c
++++ b/src/liblzma/common/block_header_encoder.c
+@@ -126,7 +126,7 @@ lzma_block_header_encode(const lzma_block *block, uint8_t *out)
+ 	memzero(out + out_pos, out_size - out_pos);
+ 
+ 	// CRC32
+-	integer_write_32(out + out_size, lzma_crc32(out, out_size, 0));
++	unaligned_write32le(out + out_size, lzma_crc32(out, out_size, 0));
+ 
+ 	return LZMA_OK;
+ }
+diff --git a/src/liblzma/common/common.h b/src/liblzma/common/common.h
+index d794cb30..81f51421 100644
+--- a/src/liblzma/common/common.h
++++ b/src/liblzma/common/common.h
+@@ -15,7 +15,7 @@
+ 
+ #include "sysdefs.h"
+ #include "mythread.h"
+-#include "integer.h"
++#include "tuklib_integer.h"
+ 
+ #if defined(_WIN32) || defined(__CYGWIN__)
+ #	ifdef DLL_EXPORT
+diff --git a/src/liblzma/common/stream_flags_decoder.c b/src/liblzma/common/stream_flags_decoder.c
+index 3dbbbcf4..1bc2f97c 100644
+--- a/src/liblzma/common/stream_flags_decoder.c
++++ b/src/liblzma/common/stream_flags_decoder.c
+@@ -38,7 +38,7 @@ lzma_stream_header_decode(lzma_stream_flags *options, const uint8_t *in)
+ 	// and unsupported files.
+ 	const uint32_t crc = lzma_crc32(in + sizeof(lzma_header_magic),
+ 			LZMA_STREAM_FLAGS_SIZE, 0);
+-	if (crc != integer_read_32(in + sizeof(lzma_header_magic)
++	if (crc != unaligned_read32le(in + sizeof(lzma_header_magic)
+ 			+ LZMA_STREAM_FLAGS_SIZE))
+ 		return LZMA_DATA_ERROR;
+ 
+@@ -67,7 +67,7 @@ lzma_stream_footer_decode(lzma_stream_flags *options, const uint8_t *in)
+ 	// CRC32
+ 	const uint32_t crc = lzma_crc32(in + sizeof(uint32_t),
+ 			sizeof(uint32_t) + LZMA_STREAM_FLAGS_SIZE, 0);
+-	if (crc != integer_read_32(in))
++	if (crc != unaligned_read32le(in))
+ 		return LZMA_DATA_ERROR;
+ 
+ 	// Stream Flags
+@@ -75,7 +75,7 @@ lzma_stream_footer_decode(lzma_stream_flags *options, const uint8_t *in)
+ 		return LZMA_OPTIONS_ERROR;
+ 
+ 	// Backward Size
+-	options->backward_size = integer_read_32(in + sizeof(uint32_t));
++	options->backward_size = unaligned_read32le(in + sizeof(uint32_t));
+ 	options->backward_size = (options->backward_size + 1) * 4;
+ 
+ 	return LZMA_OK;
+diff --git a/src/liblzma/common/stream_flags_encoder.c b/src/liblzma/common/stream_flags_encoder.c
+index ecbd0f13..4e717159 100644
+--- a/src/liblzma/common/stream_flags_encoder.c
++++ b/src/liblzma/common/stream_flags_encoder.c
+@@ -46,7 +46,7 @@ lzma_stream_header_encode(const lzma_stream_flags *options, uint8_t *out)
+ 	const uint32_t crc = lzma_crc32(out + sizeof(lzma_header_magic),
+ 			LZMA_STREAM_FLAGS_SIZE, 0);
+ 
+-	integer_write_32(out + sizeof(lzma_header_magic)
++	unaligned_write32le(out + sizeof(lzma_header_magic)
+ 			+ LZMA_STREAM_FLAGS_SIZE, crc);
+ 
+ 	return LZMA_OK;
+@@ -66,7 +66,7 @@ lzma_stream_footer_encode(const lzma_stream_flags *options, uint8_t *out)
+ 	if (!is_backward_size_valid(options))
+ 		return LZMA_PROG_ERROR;
+ 
+-	integer_write_32(out + 4, options->backward_size / 4 - 1);
++	unaligned_write32le(out + 4, options->backward_size / 4 - 1);
+ 
+ 	// Stream Flags
+ 	if (stream_flags_encode(options, out + 2 * 4))
+@@ -76,7 +76,7 @@ lzma_stream_footer_encode(const lzma_stream_flags *options, uint8_t *out)
+ 	const uint32_t crc = lzma_crc32(
+ 			out + 4, 4 + LZMA_STREAM_FLAGS_SIZE, 0);
+ 
+-	integer_write_32(out, crc);
++	unaligned_write32le(out, crc);
+ 
+ 	// Magic
+ 	memcpy(out + 2 * 4 + LZMA_STREAM_FLAGS_SIZE,
+diff --git a/src/liblzma/lz/lz_encoder_hash.h b/src/liblzma/lz/lz_encoder_hash.h
+index 884c27b9..c398d7d0 100644
+--- a/src/liblzma/lz/lz_encoder_hash.h
++++ b/src/liblzma/lz/lz_encoder_hash.h
+@@ -37,7 +37,7 @@
+ #define FIX_5_HASH_SIZE (HASH_2_SIZE + HASH_3_SIZE + HASH_4_SIZE)
+ 
+ // Endianness doesn't matter in hash_2_calc() (no effect on the output).
+-#ifdef HAVE_FAST_UNALIGNED_ACCESS
++#ifdef TUKLIB_FAST_UNALIGNED_ACCESS
+ #	define hash_2_calc() \
+ 		const uint32_t hash_value = *(const uint16_t *)(cur);
+ #else
+diff --git a/src/liblzma/lzma/lzma_decoder.c b/src/liblzma/lzma/lzma_decoder.c
+index a013a62b..92c127f1 100644
+--- a/src/liblzma/lzma/lzma_decoder.c
++++ b/src/liblzma/lzma/lzma_decoder.c
+@@ -1042,7 +1042,7 @@ lzma_lzma_props_decode(void **options, lzma_allocator *allocator,
+ 	// All dictionary sizes are accepted, including zero. LZ decoder
+ 	// will automatically use a dictionary at least a few KiB even if
+ 	// a smaller dictionary is requested.
+-	opt->dict_size = integer_read_32(props + 1);
++	opt->dict_size = unaligned_read32le(props + 1);
+ 
+ 	opt->preset_dict = NULL;
+ 	opt->preset_dict_size = 0;
+diff --git a/src/liblzma/lzma/lzma_encoder.c b/src/liblzma/lzma/lzma_encoder.c
+index e9836978..0fe992d5 100644
+--- a/src/liblzma/lzma/lzma_encoder.c
++++ b/src/liblzma/lzma/lzma_encoder.c
+@@ -661,7 +661,7 @@ lzma_lzma_props_encode(const void *options, uint8_t *out)
+ 	if (lzma_lzma_lclppb_encode(opt, out))
+ 		return LZMA_PROG_ERROR;
+ 
+-	integer_write_32(out + 1, opt->dict_size);
++	unaligned_write32le(out + 1, opt->dict_size);
+ 
+ 	return LZMA_OK;
+ }
+diff --git a/src/liblzma/lzma/lzma_encoder_private.h b/src/liblzma/lzma/lzma_encoder_private.h
+index 017f58bd..3895de2d 100644
+--- a/src/liblzma/lzma/lzma_encoder_private.h
++++ b/src/liblzma/lzma/lzma_encoder_private.h
+@@ -24,7 +24,7 @@
+ // needed in lzma_lzma_optimum_*() to test if the match is at least
+ // MATCH_LEN_MIN bytes. Unaligned access gives tiny gain so there's no
+ // reason to not use it when it is supported.
+-#ifdef HAVE_FAST_UNALIGNED_ACCESS
++#ifdef TUKLIB_FAST_UNALIGNED_ACCESS
+ #	define not_equal_16(a, b) \
+ 		(*(const uint16_t *)(a) != *(const uint16_t *)(b))
+ #else
+diff --git a/src/liblzma/simple/simple_decoder.c b/src/liblzma/simple/simple_decoder.c
+index 9be1bfef..0beccd32 100644
+--- a/src/liblzma/simple/simple_decoder.c
++++ b/src/liblzma/simple/simple_decoder.c
+@@ -28,7 +28,7 @@ lzma_simple_props_decode(void **options, lzma_allocator *allocator,
+ 	if (opt == NULL)
+ 		return LZMA_MEM_ERROR;
+ 
+-	opt->start_offset = integer_read_32(props);
++	opt->start_offset = unaligned_read32le(props);
+ 
+ 	// Don't leave an options structure allocated if start_offset is zero.
+ 	if (opt->start_offset == 0)
+diff --git a/src/liblzma/simple/simple_encoder.c b/src/liblzma/simple/simple_encoder.c
+index 1ceabd1f..8aa463be 100644
+--- a/src/liblzma/simple/simple_encoder.c
++++ b/src/liblzma/simple/simple_encoder.c
+@@ -32,7 +32,7 @@ lzma_simple_props_encode(const void *options, uint8_t *out)
+ 	if (opt == NULL || opt->start_offset == 0)
+ 		return LZMA_OK;
+ 
+-	integer_write_32(out, opt->start_offset);
++	unaligned_write32le(out, opt->start_offset);
+ 
+ 	return LZMA_OK;
+ }
+diff --git a/tests/test_block_header.c b/tests/test_block_header.c
+index a95792eb..3d9b5d93 100644
+--- a/tests/test_block_header.c
++++ b/tests/test_block_header.c
+@@ -211,7 +211,7 @@ test3(void)
+ 	// Unsupported filter
+ 	// NOTE: This may need updating when new IDs become supported.
+ 	buf[2] ^= 0x1F;
+-	integer_write_32(buf + known_options.header_size - 4,
++	unaligned_write32le(buf + known_options.header_size - 4,
+ 			lzma_crc32(buf, known_options.header_size - 4, 0));
+ 	expect(lzma_block_header_decode(&decoded_options, NULL, buf)
+ 			== LZMA_OPTIONS_ERROR);
+@@ -219,7 +219,7 @@ test3(void)
+ 
+ 	// Non-nul Padding
+ 	buf[known_options.header_size - 4 - 1] ^= 1;
+-	integer_write_32(buf + known_options.header_size - 4,
++	unaligned_write32le(buf + known_options.header_size - 4,
+ 			lzma_crc32(buf, known_options.header_size - 4, 0));
+ 	expect(lzma_block_header_decode(&decoded_options, NULL, buf)
+ 			== LZMA_OPTIONS_ERROR);
+diff --git a/tests/test_stream_flags.c b/tests/test_stream_flags.c
+index 9c86c6b8..9611459e 100644
+--- a/tests/test_stream_flags.c
++++ b/tests/test_stream_flags.c
+@@ -133,13 +133,13 @@ test_decode_invalid(void)
+ 
+ 	// Test 2a (valid CRC32)
+ 	uint32_t crc = lzma_crc32(buffer + 6, 2, 0);
+-	integer_write_32(buffer + 8, crc);
++	unaligned_write32le(buffer + 8, crc);
+ 	succeed(test_header_decoder(LZMA_OK));
+ 
+ 	// Test 2b (invalid Stream Flags with valid CRC32)
+ 	buffer[6] ^= 0x20;
+ 	crc = lzma_crc32(buffer + 6, 2, 0);
+-	integer_write_32(buffer + 8, crc);
++	unaligned_write32le(buffer + 8, crc);
+ 	succeed(test_header_decoder(LZMA_OPTIONS_ERROR));
+ 
+ 	// Test 3 (invalid CRC32)
+@@ -151,7 +151,7 @@ test_decode_invalid(void)
+ 	expect(lzma_stream_footer_encode(&known_flags, buffer) == LZMA_OK);
+ 	buffer[9] ^= 0x40;
+ 	crc = lzma_crc32(buffer + 4, 6, 0);
+-	integer_write_32(buffer, crc);
++	unaligned_write32le(buffer, crc);
+ 	succeed(test_footer_decoder(LZMA_OPTIONS_ERROR));
+ 
+ 	// Test 5 (invalid Magic Bytes)
+diff --git a/tests/tests.h b/tests/tests.h
+index 60a7276c..8f3c745d 100644
+--- a/tests/tests.h
++++ b/tests/tests.h
+@@ -14,7 +14,7 @@
+ #define LZMA_TESTS_H
+ 
+ #include "sysdefs.h"
+-#include "integer.h"
++#include "tuklib_integer.h"
+ #include "lzma.h"
+ 
+ #include <stdio.h>

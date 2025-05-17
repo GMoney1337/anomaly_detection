@@ -1,0 +1,20 @@
+diff --git a/Makefile.am b/Makefile.am
+index 9a6f7eca..fcd2ff30 100644
+--- a/Makefile.am
++++ b/Makefile.am
+@@ -22,7 +22,6 @@ dist_doc_DATA = \
+ 	NEWS \
+ 	README \
+ 	THANKS \
+-	TODO \
+ 	doc/faq.txt \
+ 	doc/history.txt \
+ 	doc/xz-file-format.txt \
+@@ -68,6 +67,7 @@ EXTRA_DIST = \
+ 	COPYING.LGPLv2.1 \
+ 	INSTALL.generic \
+ 	PACKAGERS \
++	TODO \
+ 	build-aux/manconv.sh \
+ 	build-aux/version.sh
+ 

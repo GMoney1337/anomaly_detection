@@ -1,0 +1,116 @@
+diff --git a/src/liblzma/api/lzma/container.h b/src/liblzma/api/lzma/container.h
+index 86991add..9fbf4df0 100644
+--- a/src/liblzma/api/lzma/container.h
++++ b/src/liblzma/api/lzma/container.h
+@@ -520,7 +520,10 @@ extern LZMA_API(lzma_ret) lzma_stream_buffer_encode(
+  *
+  * \param       strm        Pointer to properly prepared lzma_stream
+  * \param       memlimit    Memory usage limit as bytes. Use UINT64_MAX
+- *                          to effectively disable the limiter.
++ *                          to effectively disable the limiter. liblzma
++ *                          5.2.3 and earlier don't allow 0 here and return
++ *                          LZMA_PROG_ERROR; later versions treat 0 as if 1
++ *                          had been specified.
+  * \param       flags       Bitwise-or of zero or more of the decoder flags:
+  *                          LZMA_TELL_NO_CHECK, LZMA_TELL_UNSUPPORTED_CHECK,
+  *                          LZMA_TELL_ANY_CHECK, LZMA_CONCATENATED
+@@ -544,7 +547,10 @@ extern LZMA_API(lzma_ret) lzma_stream_decoder(
+  *
+  * \param       strm        Pointer to properly prepared lzma_stream
+  * \param       memlimit    Memory usage limit as bytes. Use UINT64_MAX
+- *                          to effectively disable the limiter.
++ *                          to effectively disable the limiter. liblzma
++ *                          5.2.3 and earlier don't allow 0 here and return
++ *                          LZMA_PROG_ERROR; later versions treat 0 as if 1
++ *                          had been specified.
+  * \param       flags       Bitwise-or of flags, or zero for no flags.
+  *
+  * \return      - LZMA_OK: Initialization was successful.
+@@ -560,9 +566,16 @@ extern LZMA_API(lzma_ret) lzma_auto_decoder(
+ /**
+  * \brief       Initialize .lzma decoder (legacy file format)
+  *
++ * \param       strm        Pointer to properly prepared lzma_stream
++ * \param       memlimit    Memory usage limit as bytes. Use UINT64_MAX
++ *                          to effectively disable the limiter. liblzma
++ *                          5.2.3 and earlier don't allow 0 here and return
++ *                          LZMA_PROG_ERROR; later versions treat 0 as if 1
++ *                          had been specified.
++ *
+  * Valid `action' arguments to lzma_code() are LZMA_RUN and LZMA_FINISH.
+- * There is no need to use LZMA_FINISH, but allowing it may simplify
+- * certain types of applications.
++ * There is no need to use LZMA_FINISH, but it's allowed because it may
++ * simplify certain types of applications.
+  *
+  * \return      - LZMA_OK
+  *              - LZMA_MEM_ERROR
+diff --git a/src/liblzma/common/alone_decoder.c b/src/liblzma/common/alone_decoder.c
+index dd681765..77d0a9b1 100644
+--- a/src/liblzma/common/alone_decoder.c
++++ b/src/liblzma/common/alone_decoder.c
+@@ -203,9 +203,6 @@ lzma_alone_decoder_init(lzma_next_coder *next, const lzma_allocator *allocator,
+ {
+ 	lzma_next_coder_init(&lzma_alone_decoder_init, next, allocator);
+ 
+-	if (memlimit == 0)
+-		return LZMA_PROG_ERROR;
+-
+ 	lzma_alone_coder *coder = next->coder;
+ 
+ 	if (coder == NULL) {
+@@ -227,7 +224,7 @@ lzma_alone_decoder_init(lzma_next_coder *next, const lzma_allocator *allocator,
+ 	coder->options.preset_dict = NULL;
+ 	coder->options.preset_dict_size = 0;
+ 	coder->uncompressed_size = 0;
+-	coder->memlimit = memlimit;
++	coder->memlimit = my_max(1, memlimit);
+ 	coder->memusage = LZMA_MEMUSAGE_BASE;
+ 
+ 	return LZMA_OK;
+diff --git a/src/liblzma/common/auto_decoder.c b/src/liblzma/common/auto_decoder.c
+index 09acd6dc..479b150f 100644
+--- a/src/liblzma/common/auto_decoder.c
++++ b/src/liblzma/common/auto_decoder.c
+@@ -155,9 +155,6 @@ auto_decoder_init(lzma_next_coder *next, const lzma_allocator *allocator,
+ {
+ 	lzma_next_coder_init(&auto_decoder_init, next, allocator);
+ 
+-	if (memlimit == 0)
+-		return LZMA_PROG_ERROR;
+-
+ 	if (flags & ~LZMA_SUPPORTED_FLAGS)
+ 		return LZMA_OPTIONS_ERROR;
+ 
+@@ -175,7 +172,7 @@ auto_decoder_init(lzma_next_coder *next, const lzma_allocator *allocator,
+ 		coder->next = LZMA_NEXT_CODER_INIT;
+ 	}
+ 
+-	coder->memlimit = memlimit;
++	coder->memlimit = my_max(1, memlimit);
+ 	coder->flags = flags;
+ 	coder->sequence = SEQ_INIT;
+ 
+diff --git a/src/liblzma/common/stream_decoder.c b/src/liblzma/common/stream_decoder.c
+index 7ae7a670..fdd8ff2f 100644
+--- a/src/liblzma/common/stream_decoder.c
++++ b/src/liblzma/common/stream_decoder.c
+@@ -422,9 +422,6 @@ lzma_stream_decoder_init(
+ {
+ 	lzma_next_coder_init(&lzma_stream_decoder_init, next, allocator);
+ 
+-	if (memlimit == 0)
+-		return LZMA_PROG_ERROR;
+-
+ 	if (flags & ~LZMA_SUPPORTED_FLAGS)
+ 		return LZMA_OPTIONS_ERROR;
+ 
+@@ -444,7 +441,7 @@ lzma_stream_decoder_init(
+ 		coder->index_hash = NULL;
+ 	}
+ 
+-	coder->memlimit = memlimit;
++	coder->memlimit = my_max(1, memlimit);
+ 	coder->memusage = LZMA_MEMUSAGE_BASE;
+ 	coder->tell_no_check = (flags & LZMA_TELL_NO_CHECK) != 0;
+ 	coder->tell_unsupported_check

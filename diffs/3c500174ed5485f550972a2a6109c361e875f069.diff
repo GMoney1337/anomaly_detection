@@ -1,0 +1,12 @@
+diff --git a/THANKS b/THANKS
+index 7a1899d1..db8ded64 100644
+--- a/THANKS
++++ b/THANKS
+@@ -78,6 +78,7 @@ has been important. :-) In alphabetical order:
+   - Eric S. Raymond
+   - Cristian Rodríguez
+   - Christian von Roques
++  - Torsten Rupp
+   - Jukka Salmi
+   - Alexandre Sauvé
+   - Benno Schulenberg

@@ -1,0 +1,100 @@
+diff --git a/src/liblzma/Makefile.am b/src/liblzma/Makefile.am
+index 9ad021a2..32134e84 100644
+--- a/src/liblzma/Makefile.am
++++ b/src/liblzma/Makefile.am
+@@ -12,7 +12,7 @@ CLEANFILES =
+ doc_DATA =
+ 
+ lib_LTLIBRARIES = liblzma.la
+-liblzma_la_SOURCES = $(top_srcdir)/src/common/tuklib_physmem.c
++liblzma_la_SOURCES =
+ liblzma_la_CPPFLAGS = \
+ 	-I$(top_srcdir)/src/liblzma/api \
+ 	-I$(top_srcdir)/src/liblzma/common \
+@@ -32,6 +32,12 @@ liblzma_la_LDFLAGS += \
+ 	-Wl,--version-script=$(top_srcdir)/src/liblzma/liblzma.map
+ endif
+ 
++liblzma_la_SOURCES += $(top_srcdir)/src/common/tuklib_physmem.c
++
++if COND_THREADS
++liblzma_la_SOURCES += $(top_srcdir)/src/common/tuklib_cpucores.c
++endif
++
+ include $(srcdir)/common/Makefile.inc
+ include $(srcdir)/check/Makefile.inc
+ 
+diff --git a/src/liblzma/api/lzma/hardware.h b/src/liblzma/api/lzma/hardware.h
+index e7dd03c3..5321d9af 100644
+--- a/src/liblzma/api/lzma/hardware.h
++++ b/src/liblzma/api/lzma/hardware.h
+@@ -48,3 +48,17 @@
+  *              of RAM on the specific operating system.
+  */
+ extern LZMA_API(uint64_t) lzma_physmem(void) lzma_nothrow;
++
++
++/**
++ * \brief       Get the number of processor cores or threads
++ *
++ * This function may be useful when determining how many threads to use.
++ * If the hardware supports more than one thread per CPU core, the number
++ * of hardware threads is returned if that information is available.
++ *
++ * \brief       On success, the number of available CPU threads or cores is
++ *              returned. If this information isn't available or an error
++ *              occurs, zero is returned.
++ */
++extern LZMA_API(uint32_t) lzma_cputhreads(void) lzma_nothrow;
+diff --git a/src/liblzma/common/Makefile.inc b/src/liblzma/common/Makefile.inc
+index 76432767..8f54a97a 100644
+--- a/src/liblzma/common/Makefile.inc
++++ b/src/liblzma/common/Makefile.inc
+@@ -44,6 +44,7 @@ liblzma_la_SOURCES += \
+ 
+ if COND_THREADS
+ liblzma_la_SOURCES += \
++	common/hardware_cputhreads.c \
+ 	common/outqueue.c \
+ 	common/outqueue.h \
+ 	common/stream_encoder_mt.c
+diff --git a/src/liblzma/common/hardware_cputhreads.c b/src/liblzma/common/hardware_cputhreads.c
+new file mode 100644
+index 00000000..f468366a
+--- /dev/null
++++ b/src/liblzma/common/hardware_cputhreads.c
+@@ -0,0 +1,22 @@
++///////////////////////////////////////////////////////////////////////////////
++//
++/// \file       hardware_cputhreads.c
++/// \brief      Get the number of CPU threads or cores
++//
++//  Author:     Lasse Collin
++//
++//  This file has been put into the public domain.
++//  You can do whatever you want with this file.
++//
++///////////////////////////////////////////////////////////////////////////////
++
++#include "common.h"
++
++#include "tuklib_cpucores.h"
++
++
++extern LZMA_API(uint32_t)
++lzma_cputhreads(void)
++{
++	return tuklib_cpucores();
++}
+diff --git a/src/liblzma/liblzma.map b/src/liblzma/liblzma.map
+index b5e125ed..1a453e8e 100644
+--- a/src/liblzma/liblzma.map
++++ b/src/liblzma/liblzma.map
+@@ -98,6 +98,7 @@ global:
+ XZ_5.1.3alpha {
+ global:
+ 	lzma_block_uncomp_encode;
++	lzma_cputhreads;
+ 	lzma_get_progress;
+ 	lzma_stream_encoder_mt;
+ 	lzma_stream_encoder_mt_memusage;

@@ -1,0 +1,20 @@
+diff --git a/src/liblzma/common/outqueue.h b/src/liblzma/common/outqueue.h
+index ae56f636..25f07197 100644
+--- a/src/liblzma/common/outqueue.h
++++ b/src/liblzma/common/outqueue.h
+@@ -9,6 +9,9 @@
+ //
+ ///////////////////////////////////////////////////////////////////////////////
+ 
++#ifndef LZMA_OUTQUEUE_H
++#define LZMA_OUTQUEUE_H
++
+ #include "common.h"
+ 
+ 
+@@ -251,3 +254,5 @@ lzma_outq_outbuf_memusage(size_t buf_size)
+ 	assert(buf_size <= SIZE_MAX - sizeof(lzma_outbuf));
+ 	return sizeof(lzma_outbuf) + buf_size;
+ }
++
++#endif

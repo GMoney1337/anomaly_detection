@@ -1,0 +1,265 @@
+diff --git a/dos/Makefile b/dos/Makefile
+index 67437cd6..9d563126 100644
+--- a/dos/Makefile
++++ b/dos/Makefile
+@@ -184,7 +184,7 @@ $(GETOPT_OBJS): %.o: %.c $(GETOPT_H)
+ getopt.a: $(GETOPT_OBJS)
+ 	$(RM) $@
+ 	$(AR) rcs $@ $(GETOPT_OBJS)
+-	$(STRIP) --strip-unneeded $@	
++	$(STRIP) --strip-unneeded $@
+ 
+ getopt-clean:
+ 	$(RM) $(GETOPT_H) $(GETOPT_OBJS) getopt.a
+@@ -233,16 +233,9 @@ XZ_SRCS = \
+ 	../src/xz/suffix.c \
+ 	../src/xz/util.c
+ 
+-XZ_SRCS_FIXED = $(XZ_SRCS:.c=-fixed.c)
+ XZ_OBJS = $(XZ_SRCS:.c=.o)
+ 
+-$(XZ_SRCS_FIXED): %-fixed.c: %.c
+-	$(SED) "s/%'/%/g" $< > $@
+-
+-# We need to "fix" the source files which use ' as format character
+-# in printf() to get thousand separators. DJGPP doesn't support it.
+-# It's not in C89 or C99, but it is in POSIX.
+-$(XZ_OBJS): %.o: %-fixed.c
++$(XZ_OBJS): %.o: %.c
+ 	$(CC) $(ALL_CPPFLAGS) $(ALL_CFLAGS) -c -o $@ $<
+ 
+ xz.exe: getopt.a liblzma.a $(XZ_OBJS)
+@@ -258,8 +251,5 @@ xz.exe: getopt.a liblzma.a $(XZ_OBJS)
+ xz-clean: $(XZ_OBJS:.o=-clean)
+ 	-$(RM) xz.exe xz
+ 
+-# FIXME: Deleting hardware-fixed.c may actually delete hardware.c
+-# on Dosemu 1.4.0 with its FreeDOS 1.0. Maybe it tries with
+-# truncated 8.3 name first.
+ $(XZ_OBJS:.o=-clean):
+-	-$(RM) $(@:-clean=.o) $(@:-clean=-fixed.c)
++	-$(RM) $(@:-clean=.o)
+diff --git a/src/xz/message.c b/src/xz/message.c
+index 1d9cb76e..8fa06e15 100644
+--- a/src/xz/message.c
++++ b/src/xz/message.c
+@@ -363,21 +363,22 @@ progress_sizes_helper(char **pos, size_t *left, uint64_t value, bool final)
+ 	if (final) {
+ 		// At maximum of four digits is allowed for exact byte count.
+ 		if (value < 10000) {
+-			my_snprintf(pos, left, "%'" PRIu64 " B", value);
++			my_snprintf(pos, left, "%s B",
++					uint64_to_str(value, 0));
+ 			return;
+ 		}
+ 
+ 		// At maximum of five significant digits is allowed for KiB.
+ 		if (value < UINT64_C(10239900)) {
+-			my_snprintf(pos, left, "%'.1f KiB",
+-					(double)(value) / 1024.0);
++			my_snprintf(pos, left, "%s KiB", double_to_str(
++					(double)(value) / 1024.0));
+ 			return;
+ 		}
+ 	}
+ 
+ 	// Otherwise we use MiB.
+-	my_snprintf(pos, left, "%'.1f MiB",
+-			(double)(value) / (1024.0 * 1024.0));
++	my_snprintf(pos, left, "%s MiB",
++			double_to_str((double)(value) / (1024.0 * 1024.0)));
+ 
+ 	return;
+ }
+@@ -1157,10 +1158,10 @@ message_help(bool long_help)
+ 	if (long_help) {
+ 		printf(_(
+ "On this system and configuration, this program will use at maximum of roughly\n"
+-"%'" PRIu64 " MiB RAM and "), hardware_memlimit_get() / (1024 * 1024));
+-		printf(N_("one thread.\n\n", "%'" PRIu32 " threads.\n\n",
++"%s MiB RAM and "), uint64_to_str(hardware_memlimit_get() / (1024 * 1024), 0));
++		printf(N_("one thread.\n\n", "%s threads.\n\n",
+ 				hardware_threadlimit_get()),
+-				hardware_threadlimit_get());
++				uint64_to_str(hardware_threadlimit_get(), 0));
+ 	}
+ 
+ 	printf(_("Report bugs to <%s> (in English or Finnish).\n"),
+diff --git a/src/xz/process.c b/src/xz/process.c
+index 7a3c4149..0731ad94 100644
+--- a/src/xz/process.c
++++ b/src/xz/process.c
+@@ -163,11 +163,12 @@ coder_set_compression_settings(void)
+ 		message_fatal("Unsupported filter chain or filter options");
+ 
+ 	// Print memory usage info.
+-	message(V_DEBUG, _("%'" PRIu64 " MiB (%'" PRIu64 " B) of memory is "
+-			"required per thread, "
+-			"limit is %'" PRIu64 " MiB (%'" PRIu64 " B)"),
+-			memory_usage >> 20, memory_usage,
+-			memory_limit >> 20, memory_limit);
++	message(V_DEBUG, _("%s MiB (%s B) of memory is required per thread, "
++			"limit is %s MiB (%s B)"),
++			uint64_to_str(memory_usage >> 20, 0),
++			uint64_to_str(memory_usage, 1),
++			uint64_to_str(memory_limit >> 20, 2),
++			uint64_to_str(memory_limit, 3));
+ 
+ 	if (memory_usage > memory_limit) {
+ 		// If --no-auto-adjust was used or we didn't find LZMA1 or
+@@ -225,15 +226,13 @@ coder_set_compression_settings(void)
+ 		// was given. FIXME: Always warn?
+ 		if (!preset_default)
+ 			message(V_WARNING, "Adjusted LZMA%c dictionary size "
+-					"from %'" PRIu32 " MiB to "
+-					"%'" PRIu32 " MiB to not exceed "
+-					"the memory usage limit of "
+-					"%'" PRIu64 " MiB",
++					"from %s MiB to %s MiB to not exceed "
++					"the memory usage limit of %s MiB",
+ 					filters[i].id == LZMA_FILTER_LZMA2
+ 						? '2' : '1',
+-					orig_dict_size >> 20,
+-					opt->dict_size >> 20,
+-					memory_limit >> 20);
++					uint64_to_str(orig_dict_size >> 20, 0),
++					uint64_to_str(opt->dict_size >> 20, 1),
++					uint64_to_str(memory_limit >> 20, 2));
+ 	}
+ 
+ /*
+@@ -443,10 +442,11 @@ coder_run(file_pair *pair)
+ 						/ (1024 * 1024);
+ 				memlimit /= 1024 * 1024;
+ 
+-				message_error(_("Limit was %'" PRIu64 " MiB, "
+-						"but %'" PRIu64 " MiB would "
++				message_error(_("Limit was %s MiB, "
++						"but %s MiB would "
+ 						"have been needed"),
+-						memlimit, memusage);
++						uint64_to_str(memlimit, 0),
++						uint64_to_str(memusage, 1));
+ 			}
+ 
+ 			if (stop)
+diff --git a/src/xz/util.c b/src/xz/util.c
+index d200bfca..d160ea0d 100644
+--- a/src/xz/util.c
++++ b/src/xz/util.c
+@@ -13,6 +13,15 @@
+ #include "private.h"
+ 
+ 
++// Thousand separator for format strings is not supported outside POSIX.
++// This is used in uint64_to_str() and double_to_str().
++#ifdef DOSLIKE
++#	define THOUSAND ""
++#else
++#	define THOUSAND "'"
++#endif
++
++
+ extern void *
+ xrealloc(void *ptr, size_t size)
+ {
+@@ -118,6 +127,31 @@ error:
+ }
+ 
+ 
++extern const char *
++uint64_to_str(uint64_t value, uint32_t slot)
++{
++	// 2^64 with thousand separators is 26 bytes plus trailing '\0'.
++	static char bufs[4][32];
++
++	assert(slot < ARRAY_SIZE(bufs));
++
++	snprintf(bufs[slot], sizeof(bufs[slot]), "%" THOUSAND PRIu64, value);
++	return bufs[slot];
++}
++
++
++extern const char *
++double_to_str(double value)
++{
++	// 64 bytes is surely enough, since it won't fit in some other
++	// fields anyway.
++	static char buf[64];
++
++	snprintf(buf, sizeof(buf), "%" THOUSAND ".1f", value);
++	return buf;
++}
++
++
+ /*
+ /// \brief      Simple quoting to get rid of ASCII control characters
+ ///
+diff --git a/src/xz/util.h b/src/xz/util.h
+index 511d2ee9..3657eb80 100644
+--- a/src/xz/util.h
++++ b/src/xz/util.h
+@@ -41,6 +41,26 @@ extern uint64_t str_to_uint64(const char *name, const char *value,
+ 		uint64_t min, uint64_t max);
+ 
+ 
++/// \brief      Convert uint64_t to a string
++///
++/// Convert the given value to a string with locale-specific thousand
++/// separators, if supported by the snprintf() implementation. The string
++/// is stored into an internal static buffer indicated by the slot argument.
++/// A pointer to the selected buffer is returned.
++///
++/// This function exists, because non-POSIX systems don't support thousand
++/// separator in format strings. Solving the problem in a simple way doesn't
++/// work, because it breaks gettext (specifically, the xgettext tool).
++extern const char *uint64_to_str(uint64_t value, uint32_t slot);
++
++
++/// \brief      Convert double to a string with one decimal place
++///
++/// This is like uint64_to_str() except that this converts a double and
++/// uses exactly one decimal place.
++extern const char *double_to_str(double value);
++
++
+ /// \brief      Check if filename is empty and print an error message
+ extern bool is_empty_filename(const char *filename);
+ 
+diff --git a/windows/Makefile b/windows/Makefile
+index 2da34506..192348bd 100644
+--- a/windows/Makefile
++++ b/windows/Makefile
+@@ -283,24 +283,17 @@ XZ_SRCS = \
+ 	../src/xz/suffix.c \
+ 	../src/xz/util.c
+ 
+-XZ_SRCS_FIXED = $(XZ_SRCS:.c=-fixed.c)
+ XZ_OBJS = $(XZ_SRCS:.c=.o)
+ XZ_OBJS_STATIC = $(XZ_SRCS:.c=-static.o)
+ 
+-$(XZ_SRCS_FIXED): %-fixed.c: %.c
+-	$(SED) "s/%'/%/g" $< > $@
+-
+-# We need to "fix" the source files which use ' as format character
+-# in printf() to get thousand separators. Windows doesn't support it.
+-# It's not in C89 or C99, but it is in POSIX.
+-$(XZ_OBJS): %.o: %-fixed.c
++$(XZ_OBJS): %.o: %.c
+ 	$(CC) $(ALL_CPPFLAGS) $(ALL_CFLAGS) -c -o $@ $<
+ 
+ xz-dynamic.exe: liblzma.dll $(XZ_OBJS) xz_rc.o
+ 	$(CC) $(ALL_CFLAGS) $(XZ_OBJS) xz_rc.o -o $@ liblzma.a
+ 	$(STRIP) --strip-all $@
+ 
+-$(XZ_OBJS_STATIC): %-static.o: %-fixed.c
++$(XZ_OBJS_STATIC): %-static.o: %.c
+ 	$(CC) -DLZMA_API_STATIC $(ALL_CPPFLAGS) $(ALL_CFLAGS) -c -o $@ $<
+ 
+ xz.exe: liblzma_static.lib $(XZ_OBJS_STATIC) xz_rc.o
+@@ -309,4 +302,4 @@ xz.exe: liblzma_static.lib $(XZ_OBJS_STATIC) xz_rc.o
+ 
+ .PHONY: xz-clean
+ xz-clean:
+-	-$(RM) $(XZ_OBJS) $(XZ_OBJS_STATIC) $(XZ_SRCS_FIXED) xz_rc.o xz-dynamic.exe xz.exe
++	-$(RM) $(XZ_OBJS) $(XZ_OBJS_STATIC) xz_rc.o xz-dynamic.exe xz.exe

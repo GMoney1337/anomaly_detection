@@ -1,0 +1,58 @@
+diff --git a/src/xz/file_io.c b/src/xz/file_io.c
+index 767c819a..f0d895bc 100644
+--- a/src/xz/file_io.c
++++ b/src/xz/file_io.c
+@@ -39,6 +39,32 @@ static bool warn_fchown;
+ 
+ #include "tuklib_open_stdxxx.h"
+ 
++#ifdef _MSC_VER
++#	ifdef _WIN64
++		typedef __int64 ssize_t;
++#	else
++		typedef int ssize_t;
++#	endif
++
++	typedef int mode_t;
++#	define S_IRUSR _S_IREAD
++#	define S_IWUSR _S_IWRITE
++
++#	define setmode _setmode
++#	define open _open
++#	define close _close
++#	define lseek _lseeki64
++#	define unlink _unlink
++
++	// The casts are to silence warnings.
++	// The sizes are known to be small enough.
++#	define read(fd, buf, size) _read(fd, buf, (unsigned int)(size))
++#	define write(fd, buf, size) _write(fd, buf, (unsigned int)(size))
++
++#	define S_ISDIR(m) (((m) & _S_IFMT) == _S_IFDIR)
++#	define S_ISREG(m) (((m) & _S_IFMT) == _S_IFREG)
++#endif
++
+ #ifndef O_BINARY
+ #	define O_BINARY 0
+ #endif
+diff --git a/src/xz/file_io.h b/src/xz/file_io.h
+index 6992efa4..906fd960 100644
+--- a/src/xz/file_io.h
++++ b/src/xz/file_io.h
+@@ -18,6 +18,16 @@
+ #	define IO_BUFFER_SIZE (BUFSIZ & ~7U)
+ #endif
+ 
++#ifdef _MSC_VER
++	// The first one renames both "struct stat" -> "struct _stat64"
++	// and stat() -> _stat64(). The documentation mentions only
++	// "struct __stat64", not "struct _stat64", but the latter
++	// works too.
++#	define stat _stat64
++#	define fstat _fstat64
++#	define off_t __int64
++#endif
++
+ 
+ /// is_sparse() accesses the buffer as uint64_t for maximum speed.
+ /// The u32 and u64 members must only be access through this union

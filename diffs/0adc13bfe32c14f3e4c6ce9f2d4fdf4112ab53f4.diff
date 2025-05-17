@@ -1,0 +1,146 @@
+diff --git a/src/xz/coder.c b/src/xz/coder.c
+index 268359a4..a2699a9b 100644
+--- a/src/xz/coder.c
++++ b/src/xz/coder.c
+@@ -211,7 +211,7 @@ coder_set_compression_settings(void)
+ 			}
+ 		}
+ 
+-		if (hardware_threads_get() > 1) {
++		if (hardware_threads_is_mt()) {
+ 			message(V_WARNING, _("Switching to single-threaded "
+ 					"mode due to --flush-timeout"));
+ 			hardware_threads_set(1);
+@@ -225,7 +225,7 @@ coder_set_compression_settings(void)
+ 	if (opt_mode == MODE_COMPRESS) {
+ #ifdef HAVE_ENCODERS
+ #	ifdef MYTHREAD_ENABLED
+-		if (opt_format == FORMAT_XZ && hardware_threads_get() > 1) {
++		if (opt_format == FORMAT_XZ && hardware_threads_is_mt()) {
+ 			mt_options.threads = hardware_threads_get();
+ 			mt_options.block_size = opt_block_size;
+ 			mt_options.check = check;
+@@ -278,7 +278,7 @@ coder_set_compression_settings(void)
+ 
+ #ifdef HAVE_ENCODERS
+ #	ifdef MYTHREAD_ENABLED
+-	if (opt_format == FORMAT_XZ && mt_options.threads > 1) {
++	if (opt_format == FORMAT_XZ && hardware_threads_is_mt()) {
+ 		// Try to reduce the number of threads before
+ 		// adjusting the compression settings down.
+ 		while (mt_options.threads > 1) {
+@@ -469,7 +469,7 @@ coder_init(file_pair *pair)
+ 
+ 		case FORMAT_XZ:
+ #	ifdef MYTHREAD_ENABLED
+-			if (hardware_threads_get() > 1)
++			if (hardware_threads_is_mt())
+ 				ret = lzma_stream_encoder_mt(
+ 						&strm, &mt_options);
+ 			else
+@@ -619,7 +619,7 @@ split_block(uint64_t *block_remaining,
+ {
+ 	if (*next_block_remaining > 0) {
+ 		// The Block at *list_pos has previously been split up.
+-		assert(hardware_threads_get() == 1);
++		assert(!hardware_threads_is_mt());
+ 		assert(opt_block_size > 0);
+ 		assert(opt_block_list != NULL);
+ 
+@@ -647,7 +647,7 @@ split_block(uint64_t *block_remaining,
+ 		// If in single-threaded mode, split up the Block if needed.
+ 		// This is not needed in multi-threaded mode because liblzma
+ 		// will do this due to how threaded encoding works.
+-		if (hardware_threads_get() == 1 && opt_block_size > 0
++		if (!hardware_threads_is_mt() && opt_block_size > 0
+ 				&& *block_remaining > opt_block_size) {
+ 			*next_block_remaining
+ 					= *block_remaining - opt_block_size;
+@@ -707,7 +707,7 @@ coder_normal(file_pair *pair)
+ 		// --block-size doesn't do anything here in threaded mode,
+ 		// because the threaded encoder will take care of splitting
+ 		// to fixed-sized Blocks.
+-		if (hardware_threads_get() == 1 && opt_block_size > 0)
++		if (!hardware_threads_is_mt() && opt_block_size > 0)
+ 			block_remaining = opt_block_size;
+ 
+ 		// If --block-list was used, start with the first size.
+@@ -721,7 +721,7 @@ coder_normal(file_pair *pair)
+ 		// mode the size info isn't written into Block Headers.
+ 		if (opt_block_list != NULL) {
+ 			if (block_remaining < opt_block_list[list_pos]) {
+-				assert(hardware_threads_get() == 1);
++				assert(!hardware_threads_is_mt());
+ 				next_block_remaining = opt_block_list[list_pos]
+ 						- block_remaining;
+ 			} else {
+@@ -785,7 +785,7 @@ coder_normal(file_pair *pair)
+ 			} else {
+ 				// Start a new Block after LZMA_FULL_BARRIER.
+ 				if (opt_block_list == NULL) {
+-					assert(hardware_threads_get() == 1);
++					assert(!hardware_threads_is_mt());
+ 					assert(opt_block_size > 0);
+ 					block_remaining = opt_block_size;
+ 				} else {
+diff --git a/src/xz/hardware.c b/src/xz/hardware.c
+index d45d6ade..18eee7ec 100644
+--- a/src/xz/hardware.c
++++ b/src/xz/hardware.c
+@@ -17,6 +17,10 @@
+ /// the --threads=NUM command line option.
+ static uint32_t threads_max = 1;
+ 
++/// True when the number of threads is automatically determined based
++/// on the available hardware threads.
++static bool threads_are_automatic = false;
++
+ /// Memory usage limit for compression
+ static uint64_t memlimit_compress = 0;
+ 
+@@ -48,6 +52,8 @@ hardware_threads_set(uint32_t n)
+ {
+ 	if (n == 0) {
+ 		// Automatic number of threads was requested.
++		threads_are_automatic = true;
++
+ 		// If threading support was enabled at build time,
+ 		// use the number of available CPU cores. Otherwise
+ 		// use one thread since disabling threading support
+@@ -61,6 +67,7 @@ hardware_threads_set(uint32_t n)
+ #endif
+ 	} else {
+ 		threads_max = n;
++		threads_are_automatic = false;
+ 	}
+ 
+ 	return;
+@@ -74,6 +81,13 @@ hardware_threads_get(void)
+ }
+ 
+ 
++extern bool
++hardware_threads_is_mt(void)
++{
++	return threads_max > 1 || threads_are_automatic;
++}
++
++
+ extern void
+ hardware_memlimit_set(uint64_t new_memlimit,
+ 		bool set_compress, bool set_decompress, bool set_mtdec,
+diff --git a/src/xz/hardware.h b/src/xz/hardware.h
+index cefd7d10..1a5a7a67 100644
+--- a/src/xz/hardware.h
++++ b/src/xz/hardware.h
+@@ -21,6 +21,10 @@ extern void hardware_threads_set(uint32_t threadlimit);
+ /// Get the maximum number of worker threads.
+ extern uint32_t hardware_threads_get(void);
+ 
++/// Returns true if multithreaded mode should be used for .xz compression.
++/// This can be true even if the number of threads is one.
++extern bool hardware_threads_is_mt(void);
++
+ 
+ /// Set the memory usage limit. There are separate limits for compression,
+ /// decompression (also includes --list), and multithreaded decompression.

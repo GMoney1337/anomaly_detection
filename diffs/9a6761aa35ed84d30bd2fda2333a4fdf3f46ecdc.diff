@@ -1,0 +1,30 @@
+diff --git a/.github/workflows/freebsd.yml b/.github/workflows/freebsd.yml
+index 669de3a8..69643cf2 100644
+--- a/.github/workflows/freebsd.yml
++++ b/.github/workflows/freebsd.yml
+@@ -1,3 +1,5 @@
++# SPDX-License-Identifier: 0BSD
++
+ name: FreeBSD
+ 
+ on:
+diff --git a/.github/workflows/netbsd.yml b/.github/workflows/netbsd.yml
+index 2421f53a..44ef2699 100644
+--- a/.github/workflows/netbsd.yml
++++ b/.github/workflows/netbsd.yml
+@@ -1,3 +1,5 @@
++# SPDX-License-Identifier: 0BSD
++
+ name: NetBSD
+ 
+ on:
+diff --git a/.github/workflows/openbsd.yml b/.github/workflows/openbsd.yml
+index 25ebbc56..d02f8ab0 100644
+--- a/.github/workflows/openbsd.yml
++++ b/.github/workflows/openbsd.yml
+@@ -1,3 +1,5 @@
++# SPDX-License-Identifier: 0BSD
++
+ name: OpenBSD
+ 
+ on:

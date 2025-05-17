@@ -1,0 +1,26 @@
+diff --git a/windows/README-Windows.txt b/windows/README-Windows.txt
+index 5dc2ac72..5a4ed822 100644
+--- a/windows/README-Windows.txt
++++ b/windows/README-Windows.txt
+@@ -68,7 +68,7 @@ Package contents
+                       liblzma.def is in this directory too.
+ 
+         doc/manuals   The manuals of the command line tools in
+-                      plain text (TXT) and PDF formats.
++                      plain text (TXT) format.
+ 
+         doc/api       liblzma API documentation in HTML format.
+ 
+diff --git a/windows/build.bash b/windows/build.bash
+index fa7b938c..a1813421 100644
+--- a/windows/build.bash
++++ b/windows/build.bash
+@@ -207,7 +207,7 @@ txtcp pkg/doc "" doc/*.txt \
+ 	windows/liblzma-crt-mixing.txt \
+ 	windows/COPYING.MinGW-w64-runtime.txt
+ txtcp pkg/doc/manuals "" doc/man/txt/{xz,xzdec,lzmainfo}.txt
+-cp -v doc/man/pdf-*/{xz,xzdec,lzmainfo}-*.pdf pkg/doc/manuals
++# cp -v doc/man/pdf-*/{xz,xzdec,lzmainfo}-*.pdf pkg/doc/manuals
+ cp -v doc/api/* pkg/doc/api
+ txtcp pkg/doc/examples "" doc/examples/*
+ 

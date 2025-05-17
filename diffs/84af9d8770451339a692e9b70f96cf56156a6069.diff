@@ -1,0 +1,28 @@
+diff --git a/.gitignore b/.gitignore
+index 0b5bb535..1217ea8b 100644
+--- a/.gitignore
++++ b/.gitignore
+@@ -13,7 +13,6 @@ Makefile.in
+ /autom4te.cache
+ /Doxyfile
+ /aclocal.m4
+-/build-aux
+ /config.h
+ /config.h.in
+ /config.log
+@@ -22,6 +21,15 @@ Makefile.in
+ /libtool
+ /stamp-h1
+ 
++build-aux/compile
++build-aux/config.guess
++build-aux/config.rpath
++build-aux/config.sub
++build-aux/depcomp
++build-aux/install-sh
++build-aux/ltmain.sh
++build-aux/missing
++
+ /src/liblzma/liblzma.pc
+ /src/lzmainfo/lzmainfo
+ /src/xz/xz

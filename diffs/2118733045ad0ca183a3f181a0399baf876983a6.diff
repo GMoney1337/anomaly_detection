@@ -1,0 +1,12 @@
+diff --git a/THANKS b/THANKS
+index f5d7dea9..7afe415b 100644
+--- a/THANKS
++++ b/THANKS
+@@ -37,6 +37,7 @@ has been important. :-) In alphabetical order:
+   - Hin-Tak Leung
+   - Andraž 'ruskie' Levstik
+   - Lorenzo De Liso
++  - Gregory Margo
+   - Jim Meyering
+   - Rafał Mużyło
+   - Adrien Nader

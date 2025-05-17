@@ -1,0 +1,10 @@
+diff --git a/src/liblzma/check/crc64_x86.s b/src/liblzma/check/crc64_x86.s
+index f9dc595f..7ad3d889 100644
+--- a/src/liblzma/check/crc64_x86.s
++++ b/src/liblzma/check/crc64_x86.s
+@@ -200,4 +200,4 @@ lzma_crc64:
+ 	popl	%ebx
+ 	ret
+ 
+-	.size	lzma_crc32, .-lzma_crc32
++	.size	lzma_crc64, .-lzma_crc64

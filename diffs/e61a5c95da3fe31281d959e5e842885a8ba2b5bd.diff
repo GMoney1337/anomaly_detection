@@ -1,0 +1,13 @@
+diff --git a/src/xz/file_io.c b/src/xz/file_io.c
+index 21cdecb0..a54dfa2e 100644
+--- a/src/xz/file_io.c
++++ b/src/xz/file_io.c
+@@ -1035,7 +1035,7 @@ io_write_buf(file_pair *pair, const uint8_t *buf, size_t size)
+ 		if (amount == -1) {
+ 			if (errno == EINTR) {
+ 				if (user_abort)
+-					return -1;
++					return true;
+ 
+ 				continue;
+ 			}

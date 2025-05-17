@@ -1,0 +1,219 @@
+diff --git a/src/liblzma/common/block_decoder.c b/src/liblzma/common/block_decoder.c
+index 4827e0f0..be647d48 100644
+--- a/src/liblzma/common/block_decoder.c
++++ b/src/liblzma/common/block_decoder.c
+@@ -123,7 +123,10 @@ block_decode(void *coder_ptr, const lzma_allocator *allocator,
+ 				return LZMA_DATA_ERROR;
+ 		}
+ 
+-		if (!coder->ignore_check)
++		// Don't waste time updating the integrity check if it will be
++		// ignored. Also skip it if no new output was produced. This
++		// avoids null pointer + 0 (undefined behavior) when out == 0.
++		if (!coder->ignore_check && out_used > 0)
+ 			lzma_check_update(&coder->check, coder->block->check,
+ 					out + out_start, out_used);
+ 
+diff --git a/src/liblzma/common/block_encoder.c b/src/liblzma/common/block_encoder.c
+index 520ecc5a..4a136ef6 100644
+--- a/src/liblzma/common/block_encoder.c
++++ b/src/liblzma/common/block_encoder.c
+@@ -77,8 +77,11 @@ block_encode(void *coder_ptr, const lzma_allocator *allocator,
+ 		// checked it at the beginning of this function.
+ 		coder->uncompressed_size += in_used;
+ 
+-		lzma_check_update(&coder->check, coder->block->check,
+-				in + in_start, in_used);
++		// Call lzma_check_update() only if input was consumed. This
++		// avoids null pointer + 0 (undefined behavior) when in == 0.
++		if (in_used > 0)
++			lzma_check_update(&coder->check, coder->block->check,
++					in + in_start, in_used);
+ 
+ 		if (ret != LZMA_STREAM_END || action == LZMA_SYNC_FLUSH)
+ 			return ret;
+diff --git a/src/liblzma/common/common.c b/src/liblzma/common/common.c
+index a708fdf1..baad3dd8 100644
+--- a/src/liblzma/common/common.c
++++ b/src/liblzma/common/common.c
+@@ -288,13 +288,21 @@ lzma_code(lzma_stream *strm, lzma_action action)
+ 			strm->next_in, &in_pos, strm->avail_in,
+ 			strm->next_out, &out_pos, strm->avail_out, action);
+ 
+-	strm->next_in += in_pos;
+-	strm->avail_in -= in_pos;
+-	strm->total_in += in_pos;
++	// Updating next_in and next_out has to be skipped when they are NULL
++	// to avoid null pointer + 0 (undefined behavior). Do this by checking
++	// in_pos > 0 and out_pos > 0 because this way NULL + non-zero (a bug)
++	// will get caught one way or other.
++	if (in_pos > 0) {
++		strm->next_in += in_pos;
++		strm->avail_in -= in_pos;
++		strm->total_in += in_pos;
++	}
+ 
+-	strm->next_out += out_pos;
+-	strm->avail_out -= out_pos;
+-	strm->total_out += out_pos;
++	if (out_pos > 0) {
++		strm->next_out += out_pos;
++		strm->avail_out -= out_pos;
++		strm->total_out += out_pos;
++	}
+ 
+ 	strm->internal->avail_in = strm->avail_in;
+ 
+diff --git a/src/liblzma/common/index_decoder.c b/src/liblzma/common/index_decoder.c
+index 8622b2f0..19a31b3e 100644
+--- a/src/liblzma/common/index_decoder.c
++++ b/src/liblzma/common/index_decoder.c
+@@ -203,9 +203,16 @@ index_decode(void *coder_ptr, const lzma_allocator *allocator,
+ 	}
+ 
+ out:
+-	// Update the CRC32,
+-	coder->crc32 = lzma_crc32(in + in_start,
+-			*in_pos - in_start, coder->crc32);
++	// Update the CRC32.
++	//
++	// Avoid null pointer + 0 (undefined behavior) in "in + in_start".
++	// In such a case we had no input and thus in_used == 0.
++	{
++		const size_t in_used = *in_pos - in_start;
++		if (in_used > 0)
++			coder->crc32 = lzma_crc32(in + in_start,
++					in_used, coder->crc32);
++	}
+ 
+ 	return ret;
+ }
+diff --git a/src/liblzma/common/index_encoder.c b/src/liblzma/common/index_encoder.c
+index c7cafb72..204490cc 100644
+--- a/src/liblzma/common/index_encoder.c
++++ b/src/liblzma/common/index_encoder.c
+@@ -153,8 +153,15 @@ index_encode(void *coder_ptr,
+ 
+ out:
+ 	// Update the CRC32.
+-	coder->crc32 = lzma_crc32(out + out_start,
+-			*out_pos - out_start, coder->crc32);
++	//
++	// Avoid null pointer + 0 (undefined behavior) in "out + out_start".
++	// In such a case we had no input and thus out_used == 0.
++	{
++		const size_t out_used = *out_pos - out_start;
++		if (out_used > 0)
++			coder->crc32 = lzma_crc32(out + out_start,
++					out_used, coder->crc32);
++	}
+ 
+ 	return ret;
+ }
+diff --git a/src/liblzma/common/index_hash.c b/src/liblzma/common/index_hash.c
+index f55f7bc8..52c3d650 100644
+--- a/src/liblzma/common/index_hash.c
++++ b/src/liblzma/common/index_hash.c
+@@ -328,9 +328,16 @@ lzma_index_hash_decode(lzma_index_hash *index_hash, const uint8_t *in,
+ 	}
+ 
+ out:
+-	// Update the CRC32,
+-	index_hash->crc32 = lzma_crc32(in + in_start,
+-			*in_pos - in_start, index_hash->crc32);
++	// Update the CRC32.
++	//
++	// Avoid null pointer + 0 (undefined behavior) in "in + in_start".
++	// In such a case we had no input and thus in_used == 0.
++	{
++		const size_t in_used = *in_pos - in_start;
++		if (in_used > 0)
++			index_hash->crc32 = lzma_crc32(in + in_start,
++					in_used, index_hash->crc32);
++	}
+ 
+ 	return ret;
+ }
+diff --git a/src/liblzma/common/lzip_decoder.c b/src/liblzma/common/lzip_decoder.c
+index 20794f94..58c08674 100644
+--- a/src/liblzma/common/lzip_decoder.c
++++ b/src/liblzma/common/lzip_decoder.c
+@@ -262,7 +262,11 @@ lzip_decode(void *coder_ptr, const lzma_allocator *allocator,
+ 		coder->member_size += *in_pos - in_start;
+ 		coder->uncompressed_size += out_used;
+ 
+-		if (!coder->ignore_check)
++		// Don't update the CRC32 if the integrity check will be
++		// ignored or if there was no new output. The latter is
++		// important in case out == NULL to avoid null pointer + 0
++		// which is undefined behavior.
++		if (!coder->ignore_check && out_used > 0)
+ 			coder->crc32 = lzma_crc32(out + out_start, out_used,
+ 					coder->crc32);
+ 
+diff --git a/src/liblzma/delta/delta_decoder.c b/src/liblzma/delta/delta_decoder.c
+index 13d8a28f..77cf65cc 100644
+--- a/src/liblzma/delta/delta_decoder.c
++++ b/src/liblzma/delta/delta_decoder.c
+@@ -42,7 +42,12 @@ delta_decode(void *coder_ptr, const lzma_allocator *allocator,
+ 			in, in_pos, in_size, out, out_pos, out_size,
+ 			action);
+ 
+-	decode_buffer(coder, out + out_start, *out_pos - out_start);
++	// out might be NULL. In that case size == 0. Null pointer + 0 is
++	// undefined behavior so skip the call in that case as it would
++	// do nothing anyway.
++	const size_t size = *out_pos - out_start;
++	if (size > 0)
++		decode_buffer(coder, out + out_start, size);
+ 
+ 	return ret;
+ }
+diff --git a/src/liblzma/delta/delta_encoder.c b/src/liblzma/delta/delta_encoder.c
+index 38416515..056bf746 100644
+--- a/src/liblzma/delta/delta_encoder.c
++++ b/src/liblzma/delta/delta_encoder.c
+@@ -63,7 +63,12 @@ delta_encode(void *coder_ptr, const lzma_allocator *allocator,
+ 		const size_t out_avail = out_size - *out_pos;
+ 		const size_t size = my_min(in_avail, out_avail);
+ 
+-		copy_and_encode(coder, in + *in_pos, out + *out_pos, size);
++		// in and out might be NULL. In such cases size == 0.
++		// Null pointer + 0 is undefined behavior so skip
++		// the call in that case as it would do nothing anyway.
++		if (size > 0)
++			copy_and_encode(coder, in + *in_pos, out + *out_pos,
++					size);
+ 
+ 		*in_pos += size;
+ 		*out_pos += size;
+@@ -78,7 +83,10 @@ delta_encode(void *coder_ptr, const lzma_allocator *allocator,
+ 				in, in_pos, in_size, out, out_pos, out_size,
+ 				action);
+ 
+-		encode_in_place(coder, out + out_start, *out_pos - out_start);
++		// Like above, avoid null pointer + 0.
++		const size_t size = *out_pos - out_start;
++		if (size > 0)
++			encode_in_place(coder, out + out_start, size);
+ 	}
+ 
+ 	return ret;
+diff --git a/src/liblzma/simple/simple_coder.c b/src/liblzma/simple/simple_coder.c
+index 4f499bef..ed2d7fb0 100644
+--- a/src/liblzma/simple/simple_coder.c
++++ b/src/liblzma/simple/simple_coder.c
+@@ -139,9 +139,11 @@ simple_code(void *coder_ptr, const lzma_allocator *allocator,
+ 				return ret;
+ 		}
+ 
+-		// Filter out[].
++		// Filter out[] unless there is nothing to filter.
++		// This way we avoid null pointer + 0 (undefined behavior)
++		// when out == NULL.
+ 		const size_t size = *out_pos - out_start;
+-		const size_t filtered = call_filter(
++		const size_t filtered = size == 0 ? 0 : call_filter(
+ 				coder, out + out_start, size);
+ 
+ 		const size_t unfiltered = size - filtered;

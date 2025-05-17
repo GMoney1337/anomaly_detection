@@ -1,0 +1,49 @@
+diff --git a/AUTHORS b/AUTHORS
+index 218e7a38..f805a204 100644
+--- a/AUTHORS
++++ b/AUTHORS
+@@ -24,7 +24,7 @@ Authors of XZ Utils
+     by Michał Górny.
+ 
+     Architecture-specific CRC optimizations were contributed by
+-    Ilya Kurdyukov, Hans Jansen, Chenxi Mao, and Xi Ruoyao.
++    Ilya Kurdyukov, Chenxi Mao, and Xi Ruoyao.
+ 
+     Other authors:
+       - Jonathan Nieder
+diff --git a/src/liblzma/check/crc32_arm64.h b/src/liblzma/check/crc32_arm64.h
+index 50bac6c7..fb0e8f01 100644
+--- a/src/liblzma/check/crc32_arm64.h
++++ b/src/liblzma/check/crc32_arm64.h
+@@ -7,7 +7,6 @@
+ //
+ //  Authors:    Chenxi Mao
+ //              Jia Tan
+-//              Hans Jansen
+ //              Lasse Collin
+ //
+ ///////////////////////////////////////////////////////////////////////////////
+diff --git a/src/liblzma/check/crc32_fast.c b/src/liblzma/check/crc32_fast.c
+index 48a23dec..3c7cb95f 100644
+--- a/src/liblzma/check/crc32_fast.c
++++ b/src/liblzma/check/crc32_fast.c
+@@ -7,7 +7,6 @@
+ //
+ //  Authors:    Lasse Collin
+ //              Ilya Kurdyukov
+-//              Hans Jansen
+ //
+ ///////////////////////////////////////////////////////////////////////////////
+ 
+diff --git a/src/liblzma/check/crc_common.h b/src/liblzma/check/crc_common.h
+index abf56927..7ea1e60b 100644
+--- a/src/liblzma/check/crc_common.h
++++ b/src/liblzma/check/crc_common.h
+@@ -7,7 +7,6 @@
+ //
+ //  Authors:    Lasse Collin
+ //              Ilya Kurdyukov
+-//              Hans Jansen
+ //              Jia Tan
+ //
+ ///////////////////////////////////////////////////////////////////////////////

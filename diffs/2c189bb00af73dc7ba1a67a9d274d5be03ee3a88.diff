@@ -1,0 +1,28 @@
+diff --git a/tests/test_compress.sh b/tests/test_compress.sh
+index 61d20ce9..0aa81001 100755
+--- a/tests/test_compress.sh
++++ b/tests/test_compress.sh
+@@ -130,8 +130,8 @@ test_xz -4
+ 
+ test_filter()
+ {
+-	grep "define HAVE_ENCODER_$1" ../config.h > /dev/null || return
+-	grep "define HAVE_DECODER_$1" ../config.h > /dev/null || return
++	grep "define HAVE_ENCODER_$1 1" ../config.h > /dev/null || return
++	grep "define HAVE_DECODER_$1 1" ../config.h > /dev/null || return
+ 	shift
+ 	test_xz "$@" --lzma2=dict=64KiB,nice=32,mode=fast
+ }
+diff --git a/tests/test_files.sh b/tests/test_files.sh
+index 64d73081..e42af918 100755
+--- a/tests/test_files.sh
++++ b/tests/test_files.sh
+@@ -35,7 +35,7 @@ fi
+ EXIT_STATUS=0
+ have_feature()
+ {
+-	grep "define HAVE_$1" ../config.h > /dev/null && return 0
++	grep "define HAVE_$1 1" ../config.h > /dev/null && return 0
+ 	printf '%s: Skipping because HAVE_%s is not enabled\n' "$2" "$1"
+ 	EXIT_STATUS=77
+ 	return 1

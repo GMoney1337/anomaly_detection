@@ -1,0 +1,13 @@
+diff --git a/src/common/sysdefs.h b/src/common/sysdefs.h
+index 47bcbd97..2fbcd593 100644
+--- a/src/common/sysdefs.h
++++ b/src/common/sysdefs.h
+@@ -127,7 +127,7 @@
+ #include <stdlib.h>
+ #include <assert.h>
+ 
+-// Pre-C99 systems lack stdbool.h. All the code in LZMA Utils must be written
++// Pre-C99 systems lack stdbool.h. All the code in XZ Utils must be written
+ // so that it works with fake bool type, for example:
+ //
+ //    bool foo = (flags & 0x100) != 0;

@@ -1,0 +1,32 @@
+diff --git a/src/xz/message.c b/src/xz/message.c
+index a87f864d..056ba5ea 100644
+--- a/src/xz/message.c
++++ b/src/xz/message.c
+@@ -15,6 +15,11 @@
+ 
+ #include <stdarg.h>
+ 
++#ifdef _MSC_VER
++#	include <io.h>
++#	define isatty _isatty
++#endif
++
+ 
+ /// Number of the current file
+ static unsigned int files_pos = 0;
+diff --git a/src/xz/util.c b/src/xz/util.c
+index 6ab4c2d7..df6fd709 100644
+--- a/src/xz/util.c
++++ b/src/xz/util.c
+@@ -13,6 +13,11 @@
+ #include "private.h"
+ #include <stdarg.h>
+ 
++#ifdef _MSC_VER
++#	include <io.h>
++#	define isatty _isatty
++#endif
++
+ 
+ /// Buffers for uint64_to_str() and uint64_to_nicestr()
+ static char bufs[4][128];

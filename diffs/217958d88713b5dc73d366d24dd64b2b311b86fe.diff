@@ -1,0 +1,199 @@
+diff --git a/src/lzmainfo/lzmainfo.c b/src/lzmainfo/lzmainfo.c
+index b0ccdfb4..71e62958 100644
+--- a/src/lzmainfo/lzmainfo.c
++++ b/src/lzmainfo/lzmainfo.c
+@@ -26,7 +26,8 @@
+ #endif
+ 
+ 
+-static void lzma_attribute((__noreturn__))
++tuklib_attr_noreturn
++static void
+ help(void)
+ {
+ 	printf(
+@@ -45,7 +46,8 @@ _("Usage: %s [--help] [--version] [FILE]...\n"
+ }
+ 
+ 
+-static void lzma_attribute((__noreturn__))
++tuklib_attr_noreturn
++static void
+ version(void)
+ {
+ 	puts("lzmainfo (" PACKAGE_NAME ") " LZMA_VERSION_STRING);
+diff --git a/src/xz/coder.c b/src/xz/coder.c
+index 143fd99a..2ba64694 100644
+--- a/src/xz/coder.c
++++ b/src/xz/coder.c
+@@ -222,7 +222,8 @@ coder_add_block_filters(const char *str, size_t slot)
+ }
+ 
+ 
+-static void lzma_attribute((__noreturn__))
++tuklib_attr_noreturn
++static void
+ memlimit_too_small(uint64_t memory_usage)
+ {
+ 	message(V_ERROR, _("Memory usage limit is too low for the given "
+diff --git a/src/xz/hardware.h b/src/xz/hardware.h
+index 2bb3d7ba..a67b26ef 100644
+--- a/src/xz/hardware.h
++++ b/src/xz/hardware.h
+@@ -71,4 +71,5 @@ extern bool hardware_memlimit_mtenc_is_default(void);
+ extern uint64_t hardware_memlimit_mtdec_get(void);
+ 
+ /// Display the amount of RAM and memory usage limits and exit.
+-extern void hardware_memlimit_show(void) lzma_attribute((__noreturn__));
++tuklib_attr_noreturn
++extern void hardware_memlimit_show(void);
+diff --git a/src/xz/message.h b/src/xz/message.h
+index 21771eb4..20381705 100644
+--- a/src/xz/message.h
++++ b/src/xz/message.h
+@@ -44,42 +44,44 @@ extern enum message_verbosity message_verbosity_get(void);
+ /// \brief      Print a message if verbosity level is at least "verbosity"
+ ///
+ /// This doesn't touch the exit status.
+-extern void message(enum message_verbosity verbosity, const char *fmt, ...)
+-		lzma_attribute((__format__(__printf__, 2, 3)));
++lzma_attribute((__format__(__printf__, 2, 3)))
++extern void message(enum message_verbosity verbosity, const char *fmt, ...);
+ 
+ 
+ /// \brief      Prints a warning and possibly sets exit status
+ ///
+ /// The message is printed only if verbosity level is at least V_WARNING.
+ /// The exit status is set to WARNING unless it was already at ERROR.
+-extern void message_warning(const char *fmt, ...)
+-		lzma_attribute((__format__(__printf__, 1, 2)));
++lzma_attribute((__format__(__printf__, 1, 2)))
++extern void message_warning(const char *fmt, ...);
+ 
+ 
+ /// \brief      Prints an error message and sets exit status
+ ///
+ /// The message is printed only if verbosity level is at least V_ERROR.
+ /// The exit status is set to ERROR.
+-extern void message_error(const char *fmt, ...)
+-		lzma_attribute((__format__(__printf__, 1, 2)));
++lzma_attribute((__format__(__printf__, 1, 2)))
++extern void message_error(const char *fmt, ...);
+ 
+ 
+ /// \brief      Prints an error message and exits with EXIT_ERROR
+ ///
+ /// The message is printed only if verbosity level is at least V_ERROR.
+-extern void message_fatal(const char *fmt, ...)
+-		lzma_attribute((__format__(__printf__, 1, 2)))
+-		lzma_attribute((__noreturn__));
++tuklib_attr_noreturn
++lzma_attribute((__format__(__printf__, 1, 2)))
++extern void message_fatal(const char *fmt, ...);
+ 
+ 
+ /// Print an error message that an internal error occurred and exit with
+ /// EXIT_ERROR.
+-extern void message_bug(void) lzma_attribute((__noreturn__));
++tuklib_attr_noreturn
++extern void message_bug(void);
+ 
+ 
+ /// Print a message that establishing signal handlers failed, and exit with
+ /// exit status ERROR.
+-extern void message_signal_handler(void) lzma_attribute((__noreturn__));
++tuklib_attr_noreturn
++extern void message_signal_handler(void);
+ 
+ 
+ /// Convert lzma_ret to a string.
+@@ -100,11 +102,13 @@ extern void message_try_help(void);
+ 
+ 
+ /// Prints the version number to stdout and exits with exit status SUCCESS.
+-extern void message_version(void) lzma_attribute((__noreturn__));
++tuklib_attr_noreturn
++extern void message_version(void);
+ 
+ 
+ /// Print the help message.
+-extern void message_help(bool long_help) lzma_attribute((__noreturn__));
++tuklib_attr_noreturn
++extern void message_help(bool long_help);
+ 
+ 
+ /// Prints a help message specifically for using the --filters and
+diff --git a/src/xz/options.c b/src/xz/options.c
+index f4662131..4d5e899c 100644
+--- a/src/xz/options.c
++++ b/src/xz/options.c
+@@ -241,7 +241,8 @@ enum {
+ };
+ 
+ 
+-static void lzma_attribute((__noreturn__))
++tuklib_attr_noreturn
++static void
+ error_lzma_preset(const char *valuestr)
+ {
+ 	message_fatal(_("Unsupported LZMA1/LZMA2 preset: %s"), valuestr);
+diff --git a/src/xz/util.h b/src/xz/util.h
+index 3fac8961..6d7e1481 100644
+--- a/src/xz/util.h
++++ b/src/xz/util.h
+@@ -19,8 +19,8 @@
+ 
+ 
+ /// \brief      Safe realloc() that never returns NULL
+-extern void *xrealloc(void *ptr, size_t size)
+-		lzma_attr_alloc_size(2);
++lzma_attr_alloc_size(2)
++extern void *xrealloc(void *ptr, size_t size);
+ 
+ 
+ /// \brief      Safe strdup() that never returns NULL
+@@ -101,8 +101,8 @@ extern const char *uint64_to_nicestr(uint64_t value,
+ ///
+ /// A maximum of *left bytes is written starting from *pos. *pos and *left
+ /// are updated accordingly.
+-extern void my_snprintf(char **pos, size_t *left, const char *fmt, ...)
+-		lzma_attribute((__format__(__printf__, 3, 4)));
++lzma_attribute((__format__(__printf__, 3, 4)))
++extern void my_snprintf(char **pos, size_t *left, const char *fmt, ...);
+ 
+ 
+ /// \brief      Test if stdin is a terminal
+diff --git a/src/xzdec/xzdec.c b/src/xzdec/xzdec.c
+index e9645c3f..10ce4e82 100644
+--- a/src/xzdec/xzdec.c
++++ b/src/xzdec/xzdec.c
+@@ -47,7 +47,8 @@
+ static int display_errors = 2;
+ 
+ 
+-static void lzma_attribute((__format__(__printf__, 1, 2)))
++lzma_attribute((__format__(__printf__, 1, 2)))
++static void
+ my_errorf(const char *fmt, ...)
+ {
+ 	va_list ap;
+@@ -64,7 +65,8 @@ my_errorf(const char *fmt, ...)
+ }
+ 
+ 
+-static void lzma_attribute((__noreturn__))
++tuklib_attr_noreturn
++static void
+ help(void)
+ {
+ 	printf(
+@@ -88,7 +90,8 @@ PACKAGE_NAME " home page: <" PACKAGE_URL ">\n", progname);
+ }
+ 
+ 
+-static void lzma_attribute((__noreturn__))
++tuklib_attr_noreturn
++static void
+ version(void)
+ {
+ 	printf(TOOL_FORMAT "dec (" PACKAGE_NAME ") " LZMA_VERSION_STRING "\n"

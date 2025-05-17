@@ -1,0 +1,65 @@
+diff --git a/debug/Makefile.am b/debug/Makefile.am
+index a5b7e310..23834f4f 100644
+--- a/debug/Makefile.am
++++ b/debug/Makefile.am
+@@ -16,9 +16,10 @@ noinst_PROGRAMS = \
+ 
+ AM_CPPFLAGS = \
+ 	-I$(top_srcdir)/src/common \
+-	-I$(top_srcdir)/src/liblzma/api
++	-I$(top_srcdir)/src/liblzma/api \
++	$(STATIC_CPPFLAGS)
+ 
+-AM_LDFLAGS = -static
++AM_LDFLAGS = $(STATIC_LDFLAGS)
+ 
+ LDADD = $(top_builddir)/src/liblzma/liblzma.la
+ 
+diff --git a/debug/full_flush.c b/debug/full_flush.c
+index fe7a1a75..ce0d2e89 100644
+--- a/debug/full_flush.c
++++ b/debug/full_flush.c
+@@ -11,6 +11,7 @@
+ ///////////////////////////////////////////////////////////////////////////////
+ 
+ #include "sysdefs.h"
++#include "lzma.h"
+ #include <stdio.h>
+ 
+ 
+diff --git a/debug/known_sizes.c b/debug/known_sizes.c
+index b1151bda..cdee26df 100644
+--- a/debug/known_sizes.c
++++ b/debug/known_sizes.c
+@@ -15,6 +15,7 @@
+ ///////////////////////////////////////////////////////////////////////////////
+ 
+ #include "sysdefs.h"
++#include "lzma.h"
+ #include <sys/types.h>
+ #include <sys/stat.h>
+ #include <sys/unistd.h>
+diff --git a/debug/memusage.c b/debug/memusage.c
+index 57ce3f19..93fe0b2c 100644
+--- a/debug/memusage.c
++++ b/debug/memusage.c
+@@ -11,6 +11,7 @@
+ ///////////////////////////////////////////////////////////////////////////////
+ 
+ #include "sysdefs.h"
++#include "lzma.h"
+ #include <stdio.h>
+ 
+ int
+diff --git a/debug/sync_flush.c b/debug/sync_flush.c
+index b5f25bfd..1dccbdaa 100644
+--- a/debug/sync_flush.c
++++ b/debug/sync_flush.c
+@@ -11,6 +11,7 @@
+ ///////////////////////////////////////////////////////////////////////////////
+ 
+ #include "sysdefs.h"
++#include "lzma.h"
+ #include <stdio.h>
+ 
+ 

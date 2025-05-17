@@ -1,0 +1,12 @@
+diff --git a/THANKS b/THANKS
+index 242435ea..7870ed8d 100644
+--- a/THANKS
++++ b/THANKS
+@@ -92,6 +92,7 @@ has been important. :-) In alphabetical order:
+   - Alexandre Sauvé
+   - Benno Schulenberg
+   - Andreas Schwab
++  - Bhargava Shastry
+   - Dan Shechter
+   - Stuart Shelton
+   - Sebastian Andrzej Siewior

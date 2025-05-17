@@ -1,0 +1,121 @@
+diff --git a/src/liblzma/lz/lz_encoder.c b/src/liblzma/lz/lz_encoder.c
+index 8d2277ec..43e6d3b4 100644
+--- a/src/liblzma/lz/lz_encoder.c
++++ b/src/liblzma/lz/lz_encoder.c
+@@ -141,7 +141,7 @@ lzma_lz_encoder_reset(lzma_lz_encoder *lz, lzma_allocator *allocator,
+ 		const uint8_t *preset_dictionary,
+ 		size_t preset_dictionary_size)
+ {
+-	lz->sequence = SEQ_RUN;
++	lz->sequence = SEQ_START;
+ 	lz->uncompressed_size = uncompressed_size;
+ 	lz->temp_size = 0;
+ 
+@@ -477,24 +477,42 @@ lzma_lz_encode(lzma_coder *coder, lzma_allocator *allocator,
+ 		coder->lz.temp_size = 0;
+ 	}
+ 
+-	if (coder->lz.sequence == SEQ_FLUSH_END) {
++	switch (coder->lz.sequence) {
++	case SEQ_START:
++		assert(coder->lz.read_pos == coder->lz.write_pos);
++
++		// If there is no new input data and LZMA_SYNC_FLUSH is used
++		// immediatelly after previous LZMA_SYNC_FLUSH finished or
++		// at the very beginning of the input stream, we return
++		// LZMA_STREAM_END immediatelly. Writing a flush marker
++		// to the very beginning of the stream or right after previous
++		// flush marker is not allowed by the LZMA stream format.
++		if (*in_pos == in_size && action == LZMA_SYNC_FLUSH)
++			return LZMA_STREAM_END;
++
++		coder->lz.sequence = SEQ_RUN;
++		break;
++
++	case SEQ_FLUSH_END:
+ 		// During an earlier call to this function, flushing was
+ 		// otherwise finished except some data was left pending
+ 		// in coder->lz.buffer. Now we have copied all that data
+ 		// to the output buffer and can return LZMA_STREAM_END.
+-		coder->lz.sequence = SEQ_RUN;
++		coder->lz.sequence = SEQ_START;
+ 		assert(action == LZMA_SYNC_FLUSH);
+ 		return LZMA_STREAM_END;
+-	}
+ 
+-	if (coder->lz.sequence == SEQ_END) {
++	case SEQ_END:
+ 		// This is like the above flushing case, but for finishing
+ 		// the encoding.
+ 		//
+ 		// NOTE: action is not necesarily LZMA_FINISH; it can
+-		// be LZMA_SYNC_FLUSH too in case it is used at the
+-		// end of the stream with known Uncompressed Size.
++		// be LZMA_RUN or LZMA_SYNC_FLUSH too in case it is used
++		// at the end of the stream with known Uncompressed Size.
+ 		return action != LZMA_RUN ? LZMA_STREAM_END : LZMA_OK;
++
++	default:
++		break;
+ 	}
+ 
+ 	while (*out_pos < out_size
+@@ -511,7 +529,7 @@ lzma_lz_encode(lzma_coder *coder, lzma_allocator *allocator,
+ 				assert(action == LZMA_SYNC_FLUSH);
+ 				if (coder->lz.temp_size == 0) {
+ 					// Flushing was finished successfully.
+-					coder->lz.sequence = SEQ_RUN;
++					coder->lz.sequence = SEQ_START;
+ 				} else {
+ 					// Flushing was otherwise finished,
+ 					// except that some data was left
+diff --git a/src/liblzma/lz/lz_encoder.h b/src/liblzma/lz/lz_encoder.h
+index 11d12722..78ac4a36 100644
+--- a/src/liblzma/lz/lz_encoder.h
++++ b/src/liblzma/lz/lz_encoder.h
+@@ -30,6 +30,7 @@
+ typedef struct lzma_lz_encoder_s lzma_lz_encoder;
+ struct lzma_lz_encoder_s {
+ 	enum {
++		SEQ_START,
+ 		SEQ_RUN,
+ 		SEQ_FLUSH,
+ 		SEQ_FLUSH_END,
+diff --git a/src/liblzma/lzma/lzma_encoder.c b/src/liblzma/lzma/lzma_encoder.c
+index 8a5b0142..0fcb755c 100644
+--- a/src/liblzma/lzma/lzma_encoder.c
++++ b/src/liblzma/lzma/lzma_encoder.c
+@@ -157,31 +157,8 @@ lzma_lzma_encode(lzma_coder *coder, uint8_t *restrict out,
+ 	// Initialize the stream if no data has been encoded yet.
+ 	if (!coder->is_initialized) {
+ 		if (coder->lz.read_pos == coder->lz.read_limit) {
+-			switch (coder->lz.sequence) {
+-			case SEQ_RUN:
+-				// Cannot initialize, because there is
+-				// no input data.
+-				return false;
+-
+-			case SEQ_FLUSH:
+-				// Nothing to flush. There cannot be a flush
+-				// marker when no data has been processed
+-				// yet (file format doesn't allow it, and
+-				// it would be just waste of space).
+-				return true;
+-
+-			case SEQ_FINISH:
+-				// We are encoding an empty file. No need
+-				// to initialize the encoder.
+-				assert(coder->lz.write_pos == coder->lz.read_pos);
+-				break;
+-
+-			default:
+-				// We never get here.
+-				assert(0);
+-				return true;
+-			}
+-
++			assert(coder->lz.write_pos == coder->lz.read_pos);
++			assert(coder->lz.sequence == SEQ_FINISH);
+ 		} else {
+ 			// Do the actual initialization.
+ 			uint32_t len;

@@ -1,0 +1,38 @@
+diff --git a/src/liblzma/common/alone_decoder.c b/src/liblzma/common/alone_decoder.c
+index 006740f4..4c76ae71 100644
+--- a/src/liblzma/common/alone_decoder.c
++++ b/src/liblzma/common/alone_decoder.c
+@@ -213,7 +213,6 @@ lzma_alone_decoder(lzma_stream *strm, uint64_t memlimit)
+ 	lzma_next_strm_init(lzma_alone_decoder_init, strm, memlimit);
+ 
+ 	strm->internal->supported_actions[LZMA_RUN] = true;
+-// 	strm->internal->supported_actions[LZMA_SYNC_FLUSH] = true; FIXME
+ 	strm->internal->supported_actions[LZMA_FINISH] = true;
+ 
+ 	return LZMA_OK;
+diff --git a/src/liblzma/common/block_decoder.c b/src/liblzma/common/block_decoder.c
+index 2c16a204..eab25a88 100644
+--- a/src/liblzma/common/block_decoder.c
++++ b/src/liblzma/common/block_decoder.c
+@@ -227,7 +227,7 @@ lzma_block_decoder(lzma_stream *strm, lzma_block *options)
+ 	lzma_next_strm_init(lzma_block_decoder_init, strm, options);
+ 
+ 	strm->internal->supported_actions[LZMA_RUN] = true;
+-	strm->internal->supported_actions[LZMA_SYNC_FLUSH] = true;
++	strm->internal->supported_actions[LZMA_FINISH] = true;
+ 
+ 	return LZMA_OK;
+ }
+diff --git a/src/liblzma/common/filter_decoder.c b/src/liblzma/common/filter_decoder.c
+index 9fe94f7b..5eb6d770 100644
+--- a/src/liblzma/common/filter_decoder.c
++++ b/src/liblzma/common/filter_decoder.c
+@@ -203,7 +203,7 @@ lzma_raw_decoder(lzma_stream *strm, const lzma_filter *options)
+ 	lzma_next_strm_init(lzma_raw_decoder_init, strm, options);
+ 
+ 	strm->internal->supported_actions[LZMA_RUN] = true;
+-	strm->internal->supported_actions[LZMA_SYNC_FLUSH] = true;
++	strm->internal->supported_actions[LZMA_FINISH] = true;
+ 
+ 	return LZMA_OK;
+ }

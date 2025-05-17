@@ -1,0 +1,25 @@
+diff --git a/configure.ac b/configure.ac
+index a16031b5..a595cd98 100644
+--- a/configure.ac
++++ b/configure.ac
+@@ -640,7 +640,7 @@ case $enable_threads in
+ 		AC_CHECK_FUNCS([clock_gettime pthread_condattr_setclock])
+ 		AC_CHECK_DECL([CLOCK_MONOTONIC], [AC_DEFINE(
+ 			[HAVE_CLOCK_MONOTONIC], [1], [Define to 1 if
+-			CLOCK_MONOTONIC is declared in <time.h>])], [],
++			`CLOCK_MONOTONIC' is declared in <time.h>.])], [],
+ 			[[#include <time.h>]])
+ 		CFLAGS=$OLD_CFLAGS
+ 		;;
+diff --git a/m4/tuklib_progname.m4 b/m4/tuklib_progname.m4
+index 2133e327..7685d068 100644
+--- a/m4/tuklib_progname.m4
++++ b/m4/tuklib_progname.m4
+@@ -23,6 +23,6 @@ AC_DEFUN_ONCE([TUKLIB_PROGNAME], [
+ AC_REQUIRE([TUKLIB_COMMON])
+ AC_CHECK_DECL([program_invocation_name], [AC_DEFINE(
+ 	[HAVE_PROGRAM_INVOCATION_NAME], [1],
+-	[Define to 1 if PROGRAM_INVOCATION_NAME is declared in <errno.h>])],
++	[Define to 1 if `program_invocation_name' is declared in <errno.h>.])],
+ 	[], [#include <errno.h>])
+ ])dnl

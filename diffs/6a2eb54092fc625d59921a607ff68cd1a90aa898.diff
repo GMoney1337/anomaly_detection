@@ -1,0 +1,884 @@
+diff --git a/src/common/sysdefs.h b/src/common/sysdefs.h
+index 47a49fde..f55c2360 100644
+--- a/src/common/sysdefs.h
++++ b/src/common/sysdefs.h
+@@ -149,8 +149,6 @@ typedef unsigned char _Bool;
+ #	include <memory.h>
+ #endif
+ 
+-#include "lzma.h"
+-
+ 
+ ////////////
+ // Macros //
+diff --git a/src/liblzma/api/lzma.h b/src/liblzma/api/lzma.h
+index 24bdc74e..bb617213 100644
+--- a/src/liblzma/api/lzma.h
++++ b/src/liblzma/api/lzma.h
+@@ -149,6 +149,23 @@
+ #endif /* ifdef LZMA_MANUAL_HEADERS */
+ 
+ 
++/******************
++ * LZMA_API macro *
++ ******************/
++
++/*
++ * Some systems require that the functions are declared specially
++ * in the headers.
++ */
++#ifndef LZMA_API
++#	if defined(_WIN32)
++#		define LZMA_API __cdecl __declspec(dllimport)
++#	else
++#		define LZMA_API
++#	endif
++#endif
++
++
+ /********************
+  * GNU C extensions *
+  ********************/
+diff --git a/src/liblzma/api/lzma/base.h b/src/liblzma/api/lzma/base.h
+index bc1aff78..9fe3ca66 100644
+--- a/src/liblzma/api/lzma/base.h
++++ b/src/liblzma/api/lzma/base.h
+@@ -523,7 +523,7 @@ typedef struct {
+  * out what `action' values are supported by the coder. See documentation of
+  * lzma_ret for the possible return values.
+  */
+-extern lzma_ret lzma_code(lzma_stream *strm, lzma_action action)
++extern LZMA_API lzma_ret lzma_code(lzma_stream *strm, lzma_action action)
+ 		lzma_attr_warn_unused_result;
+ 
+ 
+@@ -540,7 +540,7 @@ extern lzma_ret lzma_code(lzma_stream *strm, lzma_action action)
+  *              stream structure. liblzma doesn't do this, and assumes that
+  *              application knows what it is doing.
+  */
+-extern void lzma_end(lzma_stream *strm);
++extern LZMA_API void lzma_end(lzma_stream *strm);
+ 
+ 
+ /**
+@@ -565,7 +565,7 @@ extern void lzma_end(lzma_stream *strm);
+  *              If this function isn't supported by *strm or some other error
+  *              occurs, zero is returned.
+  */
+-extern uint64_t lzma_memusage(const lzma_stream *strm);
++extern LZMA_API uint64_t lzma_memusage(const lzma_stream *strm);
+ 
+ 
+ /**
+@@ -577,7 +577,7 @@ extern uint64_t lzma_memusage(const lzma_stream *strm);
+  * \return      On success, the current memory usage limit is returned
+  *              (always non-zero). On error, zero is returned.
+  */
+-extern uint64_t lzma_memlimit_get(const lzma_stream *strm);
++extern LZMA_API uint64_t lzma_memlimit_get(const lzma_stream *strm);
+ 
+ 
+ /**
+@@ -592,4 +592,4 @@ extern uint64_t lzma_memlimit_get(const lzma_stream *strm);
+  *              - LZMA_PROG_ERROR: Invalid arguments, e.g. *strm doesn't
+  *                support memory usage limit or memlimit was zero.
+  */
+-extern lzma_ret lzma_memlimit_set(lzma_stream *strm, uint64_t memlimit);
++extern LZMA_API lzma_ret lzma_memlimit_set(lzma_stream *strm, uint64_t memlimit);
+diff --git a/src/liblzma/api/lzma/block.h b/src/liblzma/api/lzma/block.h
+index 7ac0a02c..845d828e 100644
+--- a/src/liblzma/api/lzma/block.h
++++ b/src/liblzma/api/lzma/block.h
+@@ -280,7 +280,7 @@ typedef struct {
+  *              filter chain, consider using lzma_memlimit_encoder() which as
+  *              a side-effect validates the filter chain.
+  */
+-extern lzma_ret lzma_block_header_size(lzma_block *block)
++extern LZMA_API lzma_ret lzma_block_header_size(lzma_block *block)
+ 		lzma_attr_warn_unused_result;
+ 
+ 
+@@ -302,7 +302,8 @@ extern lzma_ret lzma_block_header_size(lzma_block *block)
+  *              - LZMA_PROG_ERROR: Invalid arguments, for example
+  *                block->header_size is invalid or block->filters is NULL.
+  */
+-extern lzma_ret lzma_block_header_encode(const lzma_block *block, uint8_t *out)
++extern LZMA_API lzma_ret lzma_block_header_encode(
++		const lzma_block *block, uint8_t *out)
+ 		lzma_attr_warn_unused_result;
+ 
+ 
+@@ -331,7 +332,7 @@ extern lzma_ret lzma_block_header_encode(const lzma_block *block, uint8_t *out)
+  *              - LZMA_PROG_ERROR: Invalid arguments, for example
+  *                block->header_size is invalid or block->filters is NULL.
+  */
+-extern lzma_ret lzma_block_header_decode(lzma_block *block,
++extern LZMA_API lzma_ret lzma_block_header_decode(lzma_block *block,
+ 		lzma_allocator *allocator, const uint8_t *in)
+ 		lzma_attr_warn_unused_result;
+ 
+@@ -363,7 +364,7 @@ extern lzma_ret lzma_block_header_decode(lzma_block *block,
+  *                block->header_size must be a multiple of four and
+  *                between 8 and 1024 inclusive.
+  */
+-extern lzma_ret lzma_block_compressed_size(
++extern LZMA_API lzma_ret lzma_block_compressed_size(
+ 		lzma_block *block, lzma_vli unpadded_size)
+ 		lzma_attr_warn_unused_result;
+ 
+@@ -379,7 +380,7 @@ extern lzma_ret lzma_block_compressed_size(
+  *
+  * \return      Unpadded Size on success, or zero on error.
+  */
+-extern lzma_vli lzma_block_unpadded_size(const lzma_block *block)
++extern LZMA_API lzma_vli lzma_block_unpadded_size(const lzma_block *block)
+ 		lzma_attr_pure;
+ 
+ 
+@@ -392,7 +393,7 @@ extern lzma_vli lzma_block_unpadded_size(const lzma_block *block)
+  * \return      On success, total encoded size of the Block. On error,
+  *              zero is returned.
+  */
+-extern lzma_vli lzma_block_total_size(const lzma_block *block)
++extern LZMA_API lzma_vli lzma_block_total_size(const lzma_block *block)
+ 		lzma_attr_pure;
+ 
+ 
+@@ -410,7 +411,8 @@ extern lzma_vli lzma_block_total_size(const lzma_block *block)
+  *                the encoder failed.
+  *              - LZMA_PROG_ERROR
+  */
+-extern lzma_ret lzma_block_encoder(lzma_stream *strm, lzma_block *block)
++extern LZMA_API lzma_ret lzma_block_encoder(
++		lzma_stream *strm, lzma_block *block)
+ 		lzma_attr_warn_unused_result;
+ 
+ 
+@@ -427,7 +429,8 @@ extern lzma_ret lzma_block_encoder(lzma_stream *strm, lzma_block *block)
+  *              - LZMA_PROG_ERROR
+  *              - LZMA_MEM_ERROR
+  */
+-extern lzma_ret lzma_block_decoder(lzma_stream *strm, lzma_block *block)
++extern LZMA_API lzma_ret lzma_block_decoder(
++		lzma_stream *strm, lzma_block *block)
+ 		lzma_attr_warn_unused_result;
+ 
+ 
+@@ -437,7 +440,7 @@ extern lzma_ret lzma_block_decoder(lzma_stream *strm, lzma_block *block)
+  * This is equivalent to lzma_stream_buffer_bound() but for .xz Blocks.
+  * See the documentation of lzma_stream_buffer_bound().
+  */
+-extern size_t lzma_block_buffer_bound(size_t uncompressed_size);
++extern LZMA_API size_t lzma_block_buffer_bound(size_t uncompressed_size);
+ 
+ 
+ /**
+@@ -476,7 +479,7 @@ extern size_t lzma_block_buffer_bound(size_t uncompressed_size);
+  *              - LZMA_DATA_ERROR
+  *              - LZMA_PROG_ERROR
+  */
+-extern lzma_ret lzma_block_buffer_encode(
++extern LZMA_API lzma_ret lzma_block_buffer_encode(
+ 		lzma_block *block, lzma_allocator *allocator,
+ 		const uint8_t *in, size_t in_size,
+ 		uint8_t *out, size_t *out_pos, size_t out_size)
+@@ -510,7 +513,7 @@ extern lzma_ret lzma_block_buffer_encode(
+  *              - LZMA_BUF_ERROR: Output buffer was too small.
+  *              - LZMA_PROG_ERROR
+  */
+-extern lzma_ret lzma_block_buffer_decode(
++extern LZMA_API lzma_ret lzma_block_buffer_decode(
+ 		lzma_block *block, lzma_allocator *allocator,
+ 		const uint8_t *in, size_t *in_pos, size_t in_size,
+ 		uint8_t *out, size_t *out_pos, size_t out_size);
+diff --git a/src/liblzma/api/lzma/check.h b/src/liblzma/api/lzma/check.h
+index 2df103f1..13f17c46 100644
+--- a/src/liblzma/api/lzma/check.h
++++ b/src/liblzma/api/lzma/check.h
+@@ -82,7 +82,7 @@ typedef enum {
+  * You can assume that LZMA_CHECK_NONE and LZMA_CHECK_CRC32 are always
+  * supported (even if liblzma is built with limited features).
+  */
+-extern lzma_bool lzma_check_is_supported(lzma_check check)
++extern LZMA_API lzma_bool lzma_check_is_supported(lzma_check check)
+ 		lzma_attr_const;
+ 
+ 
+@@ -96,7 +96,7 @@ extern lzma_bool lzma_check_is_supported(lzma_check check)
+  *
+  * If the argument is not in the range [0, 15], UINT32_MAX is returned.
+  */
+-extern uint32_t lzma_check_size(lzma_check check) lzma_attr_const;
++extern LZMA_API uint32_t lzma_check_size(lzma_check check) lzma_attr_const;
+ 
+ 
+ /**
+@@ -119,7 +119,8 @@ extern uint32_t lzma_check_size(lzma_check check) lzma_attr_const;
+  * \return      Updated CRC value, which can be passed to this function
+  *              again to continue CRC calculation.
+  */
+-extern uint32_t lzma_crc32(const uint8_t *buf, size_t size, uint32_t crc)
++extern LZMA_API uint32_t lzma_crc32(
++		const uint8_t *buf, size_t size, uint32_t crc)
+ 		lzma_attr_pure;
+ 
+ 
+@@ -130,7 +131,8 @@ extern uint32_t lzma_crc32(const uint8_t *buf, size_t size, uint32_t crc)
+  *
+  * This function is used similarly to lzma_crc32(). See its documentation.
+  */
+-extern uint64_t lzma_crc64(const uint8_t *buf, size_t size, uint64_t crc)
++extern LZMA_API uint64_t lzma_crc64(
++		const uint8_t *buf, size_t size, uint64_t crc)
+ 		lzma_attr_pure;
+ 
+ 
+@@ -147,4 +149,4 @@ extern uint64_t lzma_crc64(const uint8_t *buf, size_t size, uint64_t crc)
+  * returned LZMA_NO_CHECK, LZMA_UNSUPPORTED_CHECK, or LZMA_GET_CHECK.
+  * Calling this function in any other situation has undefined behavior.
+  */
+-extern lzma_check lzma_get_check(const lzma_stream *strm);
++extern LZMA_API lzma_check lzma_get_check(const lzma_stream *strm);
+diff --git a/src/liblzma/api/lzma/container.h b/src/liblzma/api/lzma/container.h
+index a6cee0fe..dc7dc855 100644
+--- a/src/liblzma/api/lzma/container.h
++++ b/src/liblzma/api/lzma/container.h
+@@ -71,7 +71,7 @@
+  *
+  * \param       preset  Compression preset (level and possible flags)
+  */
+-extern uint64_t lzma_easy_encoder_memusage(uint32_t preset)
++extern LZMA_API uint64_t lzma_easy_encoder_memusage(uint32_t preset)
+ 		lzma_attr_pure;
+ 
+ 
+@@ -82,7 +82,7 @@ extern uint64_t lzma_easy_encoder_memusage(uint32_t preset)
+  *
+  * \param       preset  Compression preset (level and possible flags)
+  */
+-extern uint64_t lzma_easy_decoder_memusage(uint32_t preset)
++extern LZMA_API uint64_t lzma_easy_decoder_memusage(uint32_t preset)
+ 		lzma_attr_pure;
+ 
+ 
+@@ -119,7 +119,7 @@ extern uint64_t lzma_easy_decoder_memusage(uint32_t preset)
+  * LZMA_RUN, LZMA_SYNC_FLUSH, LZMA_FULL_FLUSH, and LZMA_FINISH. In future,
+  * there may be compression levels or flags that don't support LZMA_SYNC_FLUSH.
+  */
+-extern lzma_ret lzma_easy_encoder(
++extern LZMA_API lzma_ret lzma_easy_encoder(
+ 		lzma_stream *strm, uint32_t preset, lzma_check check)
+ 		lzma_attr_warn_unused_result;
+ 
+@@ -139,7 +139,7 @@ extern lzma_ret lzma_easy_encoder(
+  *              - LZMA_OPTIONS_ERROR
+  *              - LZMA_PROG_ERROR
+  */
+-extern lzma_ret lzma_stream_encoder(lzma_stream *strm,
++extern LZMA_API lzma_ret lzma_stream_encoder(lzma_stream *strm,
+ 		const lzma_filter *filters, lzma_check check)
+ 		lzma_attr_warn_unused_result;
+ 
+@@ -164,7 +164,7 @@ extern lzma_ret lzma_stream_encoder(lzma_stream *strm,
+  *              - LZMA_OPTIONS_ERROR
+  *              - LZMA_PROG_ERROR
+  */
+-extern lzma_ret lzma_alone_encoder(
++extern LZMA_API lzma_ret lzma_alone_encoder(
+ 		lzma_stream *strm, const lzma_options_lzma *options)
+ 		lzma_attr_warn_unused_result;
+ 
+@@ -191,7 +191,7 @@ extern lzma_ret lzma_alone_encoder(
+  *              uncompressible data. Currently there is no function to
+  *              calculate the maximum expansion of multi-call encoding.
+  */
+-extern size_t lzma_stream_buffer_bound(size_t uncompressed_size);
++extern LZMA_API size_t lzma_stream_buffer_bound(size_t uncompressed_size);
+ 
+ 
+ /**
+@@ -219,7 +219,7 @@ extern size_t lzma_stream_buffer_bound(size_t uncompressed_size);
+  *              - LZMA_DATA_ERROR
+  *              - LZMA_PROG_ERROR
+  */
+-extern lzma_ret lzma_stream_buffer_encode(
++extern LZMA_API lzma_ret lzma_stream_buffer_encode(
+ 		lzma_filter *filters, lzma_check check,
+ 		lzma_allocator *allocator, const uint8_t *in, size_t in_size,
+ 		uint8_t *out, size_t *out_pos, size_t out_size)
+@@ -286,7 +286,7 @@ extern lzma_ret lzma_stream_buffer_encode(
+  *              - LZMA_MEM_ERROR: Cannot allocate memory.
+  *              - LZMA_OPTIONS_ERROR: Unsupported flags
+  */
+-extern lzma_ret lzma_stream_decoder(
++extern LZMA_API lzma_ret lzma_stream_decoder(
+ 		lzma_stream *strm, uint64_t memlimit, uint32_t flags)
+ 		lzma_attr_warn_unused_result;
+ 
+@@ -306,7 +306,7 @@ extern lzma_ret lzma_stream_decoder(
+  *              - LZMA_MEM_ERROR: Cannot allocate memory.
+  *              - LZMA_OPTIONS_ERROR: Unsupported flags
+  */
+-extern lzma_ret lzma_auto_decoder(
++extern LZMA_API lzma_ret lzma_auto_decoder(
+ 		lzma_stream *strm, uint64_t memlimit, uint32_t flags)
+ 		lzma_attr_warn_unused_result;
+ 
+@@ -321,7 +321,8 @@ extern lzma_ret lzma_auto_decoder(
+  * \return      - LZMA_OK
+  *              - LZMA_MEM_ERROR
+  */
+-extern lzma_ret lzma_alone_decoder(lzma_stream *strm, uint64_t memlimit)
++extern LZMA_API lzma_ret lzma_alone_decoder(
++		lzma_stream *strm, uint64_t memlimit)
+ 		lzma_attr_warn_unused_result;
+ 
+ 
+@@ -363,7 +364,7 @@ extern lzma_ret lzma_alone_decoder(lzma_stream *strm, uint64_t memlimit)
+  *              - LZMA_BUF_ERROR: Output buffer was too small.
+  *              - LZMA_PROG_ERROR
+  */
+-extern lzma_ret lzma_stream_buffer_decode(
++extern LZMA_API lzma_ret lzma_stream_buffer_decode(
+ 		uint64_t *memlimit, uint32_t flags, lzma_allocator *allocator,
+ 		const uint8_t *in, size_t *in_pos, size_t in_size,
+ 		uint8_t *out, size_t *out_pos, size_t out_size)
+diff --git a/src/liblzma/api/lzma/filter.h b/src/liblzma/api/lzma/filter.h
+index 13c3bdc3..370a433c 100644
+--- a/src/liblzma/api/lzma/filter.h
++++ b/src/liblzma/api/lzma/filter.h
+@@ -81,7 +81,7 @@ typedef struct {
+  * liblzma version and build. It would be useless, because the application
+  * couldn't know what kind of options the filter would need.
+  */
+-extern lzma_bool lzma_filter_encoder_is_supported(lzma_vli id);
++extern LZMA_API lzma_bool lzma_filter_encoder_is_supported(lzma_vli id);
+ 
+ 
+ /**
+@@ -90,7 +90,7 @@ extern lzma_bool lzma_filter_encoder_is_supported(lzma_vli id);
+  * Returns true if the give Filter ID  is supported for decoding by this
+  * liblzma build. Otherwise false is returned.
+  */
+-extern lzma_bool lzma_filter_decoder_is_supported(lzma_vli id);
++extern LZMA_API lzma_bool lzma_filter_decoder_is_supported(lzma_vli id);
+ 
+ 
+ /**
+@@ -102,7 +102,7 @@ extern lzma_bool lzma_filter_decoder_is_supported(lzma_vli id);
+  * \return      Rough number of bytes required for the given filter chain
+  *              when encoding.
+  */
+-extern uint64_t lzma_raw_encoder_memusage(const lzma_filter *filters)
++extern LZMA_API uint64_t lzma_raw_encoder_memusage(const lzma_filter *filters)
+ 		lzma_attr_pure;
+ 
+ 
+@@ -115,7 +115,7 @@ extern uint64_t lzma_raw_encoder_memusage(const lzma_filter *filters)
+  * \return      Rough number of bytes required for the given filter chain
+  *              when decoding.
+  */
+-extern uint64_t lzma_raw_decoder_memusage(const lzma_filter *filters)
++extern LZMA_API uint64_t lzma_raw_decoder_memusage(const lzma_filter *filters)
+ 		lzma_attr_pure;
+ 
+ 
+@@ -138,7 +138,7 @@ extern uint64_t lzma_raw_decoder_memusage(const lzma_filter *filters)
+  *              - LZMA_OPTIONS_ERROR
+  *              - LZMA_PROG_ERROR
+  */
+-extern lzma_ret lzma_raw_encoder(
++extern LZMA_API lzma_ret lzma_raw_encoder(
+ 		lzma_stream *strm, const lzma_filter *options)
+ 		lzma_attr_warn_unused_result;
+ 
+@@ -156,7 +156,7 @@ extern lzma_ret lzma_raw_encoder(
+  *              - LZMA_OPTIONS_ERROR
+  *              - LZMA_PROG_ERROR
+  */
+-extern lzma_ret lzma_raw_decoder(
++extern LZMA_API lzma_ret lzma_raw_decoder(
+ 		lzma_stream *strm, const lzma_filter *options)
+ 		lzma_attr_warn_unused_result;
+ 
+@@ -180,7 +180,7 @@ extern lzma_ret lzma_raw_decoder(
+  *              that this returns LZMA_OK while the following call to
+  *              lzma_properties_encode() returns LZMA_OPTIONS_ERROR.
+  */
+-extern lzma_ret lzma_properties_size(
++extern LZMA_API lzma_ret lzma_properties_size(
+ 		uint32_t *size, const lzma_filter *filter);
+ 
+ 
+@@ -205,7 +205,7 @@ extern lzma_ret lzma_properties_size(
+  *              lzma_properties_size() indicated that the size
+  *              of the Filter Properties field is zero.
+  */
+-extern lzma_ret lzma_properties_encode(
++extern LZMA_API lzma_ret lzma_properties_encode(
+ 		const lzma_filter *filter, uint8_t *props);
+ 
+ 
+@@ -230,7 +230,7 @@ extern lzma_ret lzma_properties_encode(
+  *              - LZMA_OPTIONS_ERROR
+  *              - LZMA_MEM_ERROR
+  */
+-extern lzma_ret lzma_properties_decode(
++extern LZMA_API lzma_ret lzma_properties_decode(
+ 		lzma_filter *filter, lzma_allocator *allocator,
+ 		const uint8_t *props, size_t props_size);
+ 
+@@ -254,7 +254,7 @@ extern lzma_ret lzma_properties_decode(
+  * \note        If you need to calculate size of List of Filter Flags,
+  *              you need to loop over every lzma_filter entry.
+  */
+-extern lzma_ret lzma_filter_flags_size(
++extern LZMA_API lzma_ret lzma_filter_flags_size(
+ 		uint32_t *size, const lzma_filter *options)
+ 		lzma_attr_warn_unused_result;
+ 
+@@ -277,7 +277,7 @@ extern lzma_ret lzma_filter_flags_size(
+  *                buffer space (you should have checked it with
+  *                lzma_filter_flags_size()).
+  */
+-extern lzma_ret lzma_filter_flags_encode(const lzma_filter *options,
++extern LZMA_API lzma_ret lzma_filter_flags_encode(const lzma_filter *options,
+ 		uint8_t *out, size_t *out_pos, size_t out_size)
+ 		lzma_attr_warn_unused_result;
+ 
+@@ -297,7 +297,7 @@ extern lzma_ret lzma_filter_flags_encode(const lzma_filter *options,
+  *              - LZMA_MEM_ERROR
+  *              - LZMA_PROG_ERROR
+  */
+-extern lzma_ret lzma_filter_flags_decode(
++extern LZMA_API lzma_ret lzma_filter_flags_decode(
+ 		lzma_filter *options, lzma_allocator *allocator,
+ 		const uint8_t *in, size_t *in_pos, size_t in_size)
+ 		lzma_attr_warn_unused_result;
+diff --git a/src/liblzma/api/lzma/index.h b/src/liblzma/api/lzma/index.h
+index 9af296dd..66255400 100644
+--- a/src/liblzma/api/lzma/index.h
++++ b/src/liblzma/api/lzma/index.h
+@@ -84,7 +84,7 @@ typedef struct {
+  * If you want to know how much memory an existing lzma_index structure is
+  * using, use lzma_index_memusage(lzma_index_count(i)).
+  */
+-extern uint64_t lzma_index_memusage(lzma_vli record_count);
++extern LZMA_API uint64_t lzma_index_memusage(lzma_vli record_count);
+ 
+ 
+ /**
+@@ -97,7 +97,8 @@ extern uint64_t lzma_index_memusage(lzma_vli record_count);
+  * In this case, return value cannot be NULL or a different pointer than
+  * the i that was given as an argument.
+  */
+-extern lzma_index *lzma_index_init(lzma_index *i, lzma_allocator *allocator)
++extern LZMA_API lzma_index *lzma_index_init(
++		lzma_index *i, lzma_allocator *allocator)
+ 		lzma_attr_warn_unused_result;
+ 
+ 
+@@ -106,7 +107,7 @@ extern lzma_index *lzma_index_init(lzma_index *i, lzma_allocator *allocator)
+  *
+  * If i is NULL, this does nothing.
+  */
+-extern void lzma_index_end(lzma_index *i, lzma_allocator *allocator);
++extern LZMA_API void lzma_index_end(lzma_index *i, lzma_allocator *allocator);
+ 
+ 
+ /**
+@@ -130,7 +131,8 @@ extern void lzma_index_end(lzma_index *i, lzma_allocator *allocator);
+  *                Stream or size of the Index field would grow too big.
+  *              - LZMA_PROG_ERROR
+  */
+-extern lzma_ret lzma_index_append(lzma_index *i, lzma_allocator *allocator,
++extern LZMA_API lzma_ret lzma_index_append(
++		lzma_index *i, lzma_allocator *allocator,
+ 		lzma_vli unpadded_size, lzma_vli uncompressed_size)
+ 		lzma_attr_warn_unused_result;
+ 
+@@ -138,7 +140,7 @@ extern lzma_ret lzma_index_append(lzma_index *i, lzma_allocator *allocator,
+ /**
+  * \brief       Get the number of Records
+  */
+-extern lzma_vli lzma_index_count(const lzma_index *i) lzma_attr_pure;
++extern LZMA_API lzma_vli lzma_index_count(const lzma_index *i) lzma_attr_pure;
+ 
+ 
+ /**
+@@ -146,7 +148,7 @@ extern lzma_vli lzma_index_count(const lzma_index *i) lzma_attr_pure;
+  *
+  * This is needed to verify the Backward Size field in the Stream Footer.
+  */
+-extern lzma_vli lzma_index_size(const lzma_index *i) lzma_attr_pure;
++extern LZMA_API lzma_vli lzma_index_size(const lzma_index *i) lzma_attr_pure;
+ 
+ 
+ /**
+@@ -155,7 +157,8 @@ extern lzma_vli lzma_index_size(const lzma_index *i) lzma_attr_pure;
+  * This doesn't include the Stream Header, Stream Footer, Stream Padding,
+  * or Index fields.
+  */
+-extern lzma_vli lzma_index_total_size(const lzma_index *i) lzma_attr_pure;
++extern LZMA_API lzma_vli lzma_index_total_size(const lzma_index *i)
++		lzma_attr_pure;
+ 
+ 
+ /**
+@@ -164,7 +167,8 @@ extern lzma_vli lzma_index_total_size(const lzma_index *i) lzma_attr_pure;
+  * If multiple Indexes have been combined, this works as if the Blocks
+  * were in a single Stream.
+  */
+-extern lzma_vli lzma_index_stream_size(const lzma_index *i) lzma_attr_pure;
++extern LZMA_API lzma_vli lzma_index_stream_size(const lzma_index *i)
++		lzma_attr_pure;
+ 
+ 
+ /**
+@@ -175,20 +179,22 @@ extern lzma_vli lzma_index_stream_size(const lzma_index *i) lzma_attr_pure;
+  * combined, this includes also the headers of each separate Stream and the
+  * possible Stream Padding fields.
+  */
+-extern lzma_vli lzma_index_file_size(const lzma_index *i) lzma_attr_pure;
++extern LZMA_API lzma_vli lzma_index_file_size(const lzma_index *i)
++		lzma_attr_pure;
+ 
+ 
+ /**
+  * \brief       Get the uncompressed size of the Stream
+  */
+-extern lzma_vli lzma_index_uncompressed_size(const lzma_index *i)
++extern LZMA_API lzma_vli lzma_index_uncompressed_size(const lzma_index *i)
+ 		lzma_attr_pure;
+ 
+ 
+ /**
+  * \brief       Get the next Record from the Index
+  */
+-extern lzma_bool lzma_index_read(lzma_index *i, lzma_index_record *record)
++extern LZMA_API lzma_bool lzma_index_read(
++		lzma_index *i, lzma_index_record *record)
+ 		lzma_attr_warn_unused_result;
+ 
+ 
+@@ -198,7 +204,7 @@ extern lzma_bool lzma_index_read(lzma_index *i, lzma_index_record *record)
+  * Rewind the Index so that next call to lzma_index_read() will return the
+  * first Record.
+  */
+-extern void lzma_index_rewind(lzma_index *i);
++extern LZMA_API void lzma_index_rewind(lzma_index *i);
+ 
+ 
+ /**
+@@ -223,7 +229,7 @@ extern void lzma_index_rewind(lzma_index *i);
+  * If target is greater than the uncompressed size of the Stream, *record
+  * and the read position are not modified, and this function returns true.
+  */
+-extern lzma_bool lzma_index_locate(
++extern LZMA_API lzma_bool lzma_index_locate(
+ 		lzma_index *i, lzma_index_record *record, lzma_vli target)
+ 		lzma_attr_warn_unused_result;
+ 
+@@ -248,7 +254,7 @@ extern lzma_bool lzma_index_locate(
+  *              - LZMA_MEM_ERROR
+  *              - LZMA_PROG_ERROR
+  */
+-extern lzma_ret lzma_index_cat(lzma_index *lzma_restrict dest,
++extern LZMA_API lzma_ret lzma_index_cat(lzma_index *lzma_restrict dest,
+ 		lzma_index *lzma_restrict src,
+ 		lzma_allocator *allocator, lzma_vli padding)
+ 		lzma_attr_warn_unused_result;
+@@ -261,7 +267,7 @@ extern lzma_ret lzma_index_cat(lzma_index *lzma_restrict dest,
+  *
+  * \return      A copy of the Index, or NULL if memory allocation failed.
+  */
+-extern lzma_index *lzma_index_dup(
++extern LZMA_API lzma_index *lzma_index_dup(
+ 		const lzma_index *i, lzma_allocator *allocator)
+ 		lzma_attr_warn_unused_result;
+ 
+@@ -271,7 +277,8 @@ extern lzma_index *lzma_index_dup(
+  *
+  * \return      True if *a and *b are equal, false otherwise.
+  */
+-extern lzma_bool lzma_index_equal(const lzma_index *a, const lzma_index *b)
++extern LZMA_API lzma_bool lzma_index_equal(
++		const lzma_index *a, const lzma_index *b)
+ 		lzma_attr_pure;
+ 
+ 
+@@ -289,7 +296,7 @@ extern lzma_bool lzma_index_equal(const lzma_index *a, const lzma_index *b)
+  *              - LZMA_MEM_ERROR
+  *              - LZMA_PROG_ERROR
+  */
+-extern lzma_ret lzma_index_encoder(lzma_stream *strm, lzma_index *i)
++extern LZMA_API lzma_ret lzma_index_encoder(lzma_stream *strm, lzma_index *i)
+ 		lzma_attr_warn_unused_result;
+ 
+ 
+@@ -319,7 +326,7 @@ extern lzma_ret lzma_index_encoder(lzma_stream *strm, lzma_index *i)
+  *              limit is modified after decoding a part of the Index already,
+  *              the new limit may be ignored.
+  */
+-extern lzma_ret lzma_index_decoder(
++extern LZMA_API lzma_ret lzma_index_decoder(
+ 		lzma_stream *strm, lzma_index **i, uint64_t memlimit)
+ 		lzma_attr_warn_unused_result;
+ 
+@@ -345,7 +352,7 @@ extern lzma_ret lzma_index_decoder(
+  * \note        This function doesn't take allocator argument since all
+  *              the internal data is allocated on stack.
+  */
+-extern lzma_ret lzma_index_buffer_encode(lzma_index *i,
++extern LZMA_API lzma_ret lzma_index_buffer_encode(lzma_index *i,
+ 		uint8_t *out, size_t *out_pos, size_t out_size);
+ 
+ 
+@@ -376,6 +383,6 @@ extern lzma_ret lzma_index_buffer_encode(lzma_index *i,
+  *              - LZMA_DATA_ERROR
+  *              - LZMA_PROG_ERROR
+  */
+-extern lzma_ret lzma_index_buffer_decode(
++extern LZMA_API lzma_ret lzma_index_buffer_decode(
+ 		lzma_index **i,  uint64_t *memlimit, lzma_allocator *allocator,
+ 		const uint8_t *in, size_t *in_pos, size_t in_size);
+diff --git a/src/liblzma/api/lzma/index_hash.h b/src/liblzma/api/lzma/index_hash.h
+index 6ebbe9fb..9acc92d1 100644
+--- a/src/liblzma/api/lzma/index_hash.h
++++ b/src/liblzma/api/lzma/index_hash.h
+@@ -41,7 +41,7 @@ typedef struct lzma_index_hash_s lzma_index_hash;
+  * returned. In this case, return value cannot be NULL or a different
+  * pointer than the index_hash that was given as an argument.
+  */
+-extern lzma_index_hash *lzma_index_hash_init(
++extern LZMA_API lzma_index_hash *lzma_index_hash_init(
+ 		lzma_index_hash *index_hash, lzma_allocator *allocator)
+ 		lzma_attr_warn_unused_result;
+ 
+@@ -49,7 +49,7 @@ extern lzma_index_hash *lzma_index_hash_init(
+ /**
+  * \brief       Deallocate lzma_index_hash structure
+  */
+-extern void lzma_index_hash_end(
++extern LZMA_API void lzma_index_hash_end(
+ 		lzma_index_hash *index_hash, lzma_allocator *allocator);
+ 
+ 
+@@ -66,7 +66,7 @@ extern void lzma_index_hash_end(
+  *              - LZMA_PROG_ERROR: Invalid arguments or this function is being
+  *                used when lzma_index_hash_decode() has already been used.
+  */
+-extern lzma_ret lzma_index_hash_append(lzma_index_hash *index_hash,
++extern LZMA_API lzma_ret lzma_index_hash_append(lzma_index_hash *index_hash,
+ 		lzma_vli unpadded_size, lzma_vli uncompressed_size)
+ 		lzma_attr_warn_unused_result;
+ 
+@@ -96,7 +96,7 @@ extern lzma_ret lzma_index_hash_append(lzma_index_hash *index_hash,
+  *              - LZMA_BUF_ERROR: Cannot progress because *in_pos >= in_size.
+  *              - LZMA_PROG_ERROR
+  */
+-extern lzma_ret lzma_index_hash_decode(lzma_index_hash *index_hash,
++extern LZMA_API lzma_ret lzma_index_hash_decode(lzma_index_hash *index_hash,
+ 		const uint8_t *in, size_t *in_pos, size_t in_size)
+ 		lzma_attr_warn_unused_result;
+ 
+@@ -106,5 +106,6 @@ extern lzma_ret lzma_index_hash_decode(lzma_index_hash *index_hash,
+  *
+  * This is needed to verify the Backward Size field in the Stream Footer.
+  */
+-extern lzma_vli lzma_index_hash_size(const lzma_index_hash *index_hash)
++extern LZMA_API lzma_vli lzma_index_hash_size(
++		const lzma_index_hash *index_hash)
+ 		lzma_attr_pure;
+diff --git a/src/liblzma/api/lzma/lzma.h b/src/liblzma/api/lzma/lzma.h
+index 834bf0b0..f84d87c5 100644
+--- a/src/liblzma/api/lzma/lzma.h
++++ b/src/liblzma/api/lzma/lzma.h
+@@ -118,7 +118,7 @@ typedef enum {
+  * could require giving additional options to the encoder that the older
+  * match finders don't need.
+  */
+-extern lzma_bool lzma_mf_is_supported(lzma_match_finder match_finder)
++extern LZMA_API lzma_bool lzma_mf_is_supported(lzma_match_finder match_finder)
+ 		lzma_attr_const;
+ 
+ 
+@@ -160,7 +160,8 @@ typedef enum {
+  * mode, which the application developer wasn't aware, could require giving
+  * additional options to the encoder that the older modes don't need.
+  */
+-extern lzma_bool lzma_mode_is_supported(lzma_mode mode) lzma_attr_const;
++extern LZMA_API lzma_bool lzma_mode_is_supported(lzma_mode mode)
++		lzma_attr_const;
+ 
+ 
+ /**
+@@ -406,4 +407,5 @@ typedef struct {
+  * This function is available only if LZMA1 or LZMA2 encoder has been enabled
+  * when building liblzma.
+  */
+-extern lzma_bool lzma_lzma_preset(lzma_options_lzma *options, uint32_t preset);
++extern LZMA_API lzma_bool lzma_lzma_preset(
++		lzma_options_lzma *options, uint32_t preset);
+diff --git a/src/liblzma/api/lzma/stream_flags.h b/src/liblzma/api/lzma/stream_flags.h
+index 29d73040..c0ce75aa 100644
+--- a/src/liblzma/api/lzma/stream_flags.h
++++ b/src/liblzma/api/lzma/stream_flags.h
+@@ -127,7 +127,7 @@ typedef struct {
+  *                this liblzma version.
+  *              - LZMA_PROG_ERROR: Invalid options.
+  */
+-extern lzma_ret lzma_stream_header_encode(
++extern LZMA_API lzma_ret lzma_stream_header_encode(
+ 		const lzma_stream_flags *options, uint8_t *out)
+ 		lzma_attr_warn_unused_result;
+ 
+@@ -144,7 +144,7 @@ extern lzma_ret lzma_stream_header_encode(
+  *                this liblzma version.
+  *              - LZMA_PROG_ERROR: Invalid options.
+  */
+-extern lzma_ret lzma_stream_footer_encode(
++extern LZMA_API lzma_ret lzma_stream_footer_encode(
+ 		const lzma_stream_flags *options, uint8_t *out)
+ 		lzma_attr_warn_unused_result;
+ 
+@@ -179,7 +179,7 @@ extern lzma_ret lzma_stream_footer_encode(
+  *              LZMA_FORMAT_ERROR is returned by lzma_stream_header_decode()
+  *              when decoding non-first Stream.
+  */
+-extern lzma_ret lzma_stream_header_decode(
++extern LZMA_API lzma_ret lzma_stream_header_decode(
+ 		lzma_stream_flags *options, const uint8_t *in)
+ 		lzma_attr_warn_unused_result;
+ 
+@@ -206,7 +206,7 @@ extern lzma_ret lzma_stream_header_decode(
+  *              is corrupt (possibly truncated). Stream decoder in liblzma
+  *              uses LZMA_DATA_ERROR in this situation.
+  */
+-extern lzma_ret lzma_stream_footer_decode(
++extern LZMA_API lzma_ret lzma_stream_footer_decode(
+ 		lzma_stream_flags *options, const uint8_t *in)
+ 		lzma_attr_warn_unused_result;
+ 
+@@ -226,6 +226,6 @@ extern lzma_ret lzma_stream_footer_decode(
+  *              - LZMA_PROG_ERROR: Invalid value, e.g. invalid check or
+  *                backward_size.
+  */
+-extern lzma_ret lzma_stream_flags_compare(
++extern LZMA_API lzma_ret lzma_stream_flags_compare(
+ 		const lzma_stream_flags *a, const lzma_stream_flags *b)
+ 		lzma_attr_pure;
+diff --git a/src/liblzma/api/lzma/version.h b/src/liblzma/api/lzma/version.h
+index 6d6f824a..c2f76f86 100644
+--- a/src/liblzma/api/lzma/version.h
++++ b/src/liblzma/api/lzma/version.h
+@@ -47,7 +47,7 @@
+  * This allows the application to compare if it was built against the same,
+  * older, or newer version of liblzma that is currently running.
+  */
+-extern uint32_t lzma_version_number(void) lzma_attr_const;
++extern LZMA_API uint32_t lzma_version_number(void) lzma_attr_const;
+ 
+ 
+ /**
+@@ -56,4 +56,4 @@ extern uint32_t lzma_version_number(void) lzma_attr_const;
+  * This function may be useful if you want to display which version of
+  * liblzma your application is currently using.
+  */
+-extern const char *lzma_version_string(void) lzma_attr_const;
++extern LZMA_API const char *lzma_version_string(void) lzma_attr_const;
+diff --git a/src/liblzma/api/lzma/vli.h b/src/liblzma/api/lzma/vli.h
+index caca204b..1d1b218c 100644
+--- a/src/liblzma/api/lzma/vli.h
++++ b/src/liblzma/api/lzma/vli.h
+@@ -117,9 +117,9 @@ typedef uint64_t lzma_vli;
+  *              - LZMA_BUF_ERROR: No output space was provided.
+  *              - LZMA_PROG_ERROR: Arguments are not sane.
+  */
+-extern lzma_ret lzma_vli_encode(lzma_vli vli, size_t *lzma_restrict vli_pos,
+-		uint8_t *lzma_restrict out, size_t *lzma_restrict out_pos,
+-		size_t out_size);
++extern LZMA_API lzma_ret lzma_vli_encode(lzma_vli vli,
++		size_t *lzma_restrict vli_pos, uint8_t *lzma_restrict out,
++		size_t *lzma_restrict out_pos, size_t out_size);
+ 
+ 
+ /**
+@@ -157,7 +157,7 @@ extern lzma_ret lzma_vli_encode(lzma_vli vli, size_t *lzma_restrict vli_pos,
+  *              - LZMA_BUF_ERROR: No input was provided.
+  *              - LZMA_PROG_ERROR: Arguments are not sane.
+  */
+-extern lzma_ret lzma_vli_decode(lzma_vli *lzma_restrict vli,
++extern LZMA_API lzma_ret lzma_vli_decode(lzma_vli *lzma_restrict vli,
+ 		size_t *lzma_restrict vli_pos, const uint8_t *lzma_restrict in,
+ 		size_t *lzma_restrict in_pos, size_t in_size);
+ 
+@@ -168,4 +168,4 @@ extern lzma_ret lzma_vli_decode(lzma_vli *lzma_restrict vli,
+  * \return      Number of bytes on success (1-9). If vli isn't valid,
+  *              zero is returned.
+  */
+-extern uint32_t lzma_vli_size(lzma_vli vli) lzma_attr_pure;
++extern LZMA_API uint32_t lzma_vli_size(lzma_vli vli) lzma_attr_pure;
+diff --git a/src/liblzma/common/common.h b/src/liblzma/common/common.h
+index 392491e4..2642c5bd 100644
+--- a/src/liblzma/common/common.h
++++ b/src/liblzma/common/common.h
+@@ -26,11 +26,20 @@
+ 
+ // Don't use ifdef...
+ #if HAVE_VISIBILITY
+-#	define LZMA_API __attribute__((__visibility__("default")))
++#	define LZMA_VISIBILITY __attribute__((__visibility__("default")))
+ #else
+-#	define LZMA_API
++#	define LZMA_VISIBILITY
+ #endif
+ 
++#ifdef _WIN32
++#	define LZMA_EXPORT __cdecl __declspec(dllexport)
++#else
++#	define LZMA_EXPORT
++#endif
++
++#define LZMA_API LZMA_VISIBILITY LZMA_EXPORT
++
++#include "lzma.h"
+ 
+ // These allow helping the compiler in some often-executed branches, whose
+ // result is almost always the same.
+diff --git a/src/xz/private.h b/src/xz/private.h
+index 9f0c52cc..3c8b4e05 100644
+--- a/src/xz/private.h
++++ b/src/xz/private.h
+@@ -22,6 +22,7 @@
+ 
+ #include "sysdefs.h"
+ #include "mythread.h"
++#include "lzma.h"
+ 
+ #include <sys/types.h>
+ #include <sys/stat.h>
+diff --git a/src/xzdec/xzdec.c b/src/xzdec/xzdec.c
+index d6f4252f..a9deaa3a 100644
+--- a/src/xzdec/xzdec.c
++++ b/src/xzdec/xzdec.c
+@@ -18,6 +18,7 @@
+ ///////////////////////////////////////////////////////////////////////////////
+ 
+ #include "sysdefs.h"
++#include "lzma.h"
+ 
+ #include <errno.h>
+ #include <stdio.h>
+diff --git a/tests/tests.h b/tests/tests.h
+index 7b7b3d40..66214afd 100644
+--- a/tests/tests.h
++++ b/tests/tests.h
+@@ -22,6 +22,7 @@
+ 
+ #include "sysdefs.h"
+ #include "integer.h"
++#include "lzma.h"
+ 
+ #include <stdio.h>
+ 

@@ -1,0 +1,17 @@
+diff --git a/tests/files/README b/tests/files/README
+index 1e14378a..734b828b 100644
+--- a/tests/files/README
++++ b/tests/files/README
+@@ -256,3 +256,8 @@
+     the end of the file). The Check type is None to nullify certain
+     simple size-based sanity checks in a Block decoder.
+ 
++    bad-1-lzma2-11.xz has LZMA2 stream that lacks the end of
++    payload marker. When Compressed Size bytes have been decoded,
++    Uncompressed Size bytes of output will have been produced but
++    the LZMA2 decoder doesn't indicate end of stream.
++
+diff --git a/tests/files/bad-1-lzma2-11.xz b/tests/files/bad-1-lzma2-11.xz
+new file mode 100644
+index 00000000..ce857b67
+Binary files /dev/null and b/tests/files/bad-1-lzma2-11.xz differ

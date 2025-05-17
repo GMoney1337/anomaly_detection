@@ -1,0 +1,6 @@
+diff --git a/tests/files/bad-3-corrupt_lzma2.xz b/tests/files/bad-3-corrupt_lzma2.xz
+index 926f95b0..f9ec69a2 100644
+Binary files a/tests/files/bad-3-corrupt_lzma2.xz and b/tests/files/bad-3-corrupt_lzma2.xz differ
+diff --git a/tests/files/good-large_compressed.lzma b/tests/files/good-large_compressed.lzma
+index 8450fea8..878991f3 100644
+Binary files a/tests/files/good-large_compressed.lzma and b/tests/files/good-large_compressed.lzma differ

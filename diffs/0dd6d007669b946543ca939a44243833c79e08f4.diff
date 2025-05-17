@@ -1,0 +1,402 @@
+diff --git a/src/xz/coder.c b/src/xz/coder.c
+index 0ab8e467..48dfd4a6 100644
+--- a/src/xz/coder.c
++++ b/src/xz/coder.c
+@@ -103,11 +103,12 @@ coder_add_filter(lzma_vli id, void *options)
+ 
+ 
+ static void lzma_attribute((noreturn))
+-memlimit_too_small(uint64_t memory_usage, uint64_t memory_limit)
++memlimit_too_small(uint64_t memory_usage)
+ {
+-	message_fatal(_("Memory usage limit (%" PRIu64 " MiB) is too small "
+-			"for the given filter setup (%" PRIu64 " MiB)"),
+-			memory_limit >> 20, memory_usage >> 20);
++	message(V_ERROR, _("Memory usage limit is too low for the given "
++			"filter setup."));
++	message_mem_needed(V_ERROR, memory_usage);
++	tuklib_exit(E_ERROR, E_ERROR, false);
+ }
+ 
+ 
+@@ -180,22 +181,18 @@ coder_set_compression_settings(void)
+ 		memory_usage = lzma_raw_decoder_memusage(filters);
+ 
+ 	if (memory_usage == UINT64_MAX)
+-		message_fatal("Unsupported filter chain or filter options");
++		message_fatal(_("Unsupported filter chain or filter options"));
+ 
+-	// Print memory usage info.
+-	message(V_DEBUG, _("%s MiB (%s B) of memory is required per thread, "
+-			"limit is %s MiB (%s B)"),
+-			uint64_to_str(memory_usage >> 20, 0),
+-			uint64_to_str(memory_usage, 1),
+-			uint64_to_str(memory_limit >> 20, 2),
+-			uint64_to_str(memory_limit, 3));
++	// Print memory usage info before possible dictionary
++	// size auto-adjusting.
++	message_mem_needed(V_DEBUG, memory_usage);
+ 
+ 	if (memory_usage > memory_limit) {
+ 		// If --no-auto-adjust was used or we didn't find LZMA1 or
+ 		// LZMA2 as the last filter, give an error immediatelly.
+ 		// --format=raw implies --no-auto-adjust.
+ 		if (!auto_adjust || opt_format == FORMAT_RAW)
+-			memlimit_too_small(memory_usage, memory_limit);
++			memlimit_too_small(memory_usage);
+ 
+ 		assert(opt_mode == MODE_COMPRESS);
+ 
+@@ -206,7 +203,7 @@ coder_set_compression_settings(void)
+ 		while (filters[i].id != LZMA_FILTER_LZMA2
+ 				&& filters[i].id != LZMA_FILTER_LZMA1) {
+ 			if (filters[i].id == LZMA_VLI_UNKNOWN)
+-				memlimit_too_small(memory_usage, memory_limit);
++				memlimit_too_small(memory_usage);
+ 
+ 			++i;
+ 		}
+@@ -225,7 +222,7 @@ coder_set_compression_settings(void)
+ 			// FIXME: Displays the scaled memory usage instead
+ 			// of the original.
+ 			if (opt->dict_size < (UINT32_C(1) << 20))
+-				memlimit_too_small(memory_usage, memory_limit);
++				memlimit_too_small(memory_usage);
+ 
+ 			memory_usage = lzma_raw_encoder_memusage(filters);
+ 			if (memory_usage == UINT64_MAX)
+@@ -245,14 +242,17 @@ coder_set_compression_settings(void)
+ 		// However, omit the message if no preset or custom chain
+ 		// was given. FIXME: Always warn?
+ 		if (!preset_default)
+-			message(V_WARNING, "Adjusted LZMA%c dictionary size "
++			message(V_WARNING, _("Adjusted LZMA%c dictionary size "
+ 					"from %s MiB to %s MiB to not exceed "
+-					"the memory usage limit of %s MiB",
++					"the memory usage limit of %s"),
+ 					filters[i].id == LZMA_FILTER_LZMA2
+ 						? '2' : '1',
+ 					uint64_to_str(orig_dict_size >> 20, 0),
+ 					uint64_to_str(opt->dict_size >> 20, 1),
+-					uint64_to_str(memory_limit >> 20, 2));
++					uint64_to_nicestr(memory_limit,
++							NICESTR_B,
++							NICESTR_MIB,
++							false, 2));
+ 	}
+ 
+ /*
+@@ -538,24 +538,10 @@ coder_normal(file_pair *pair)
+ 			}
+ 
+ 			if (ret == LZMA_MEMLIMIT_ERROR) {
+-				// Figure out how much memory it would have
++				// Display how much memory it would have
+ 				// actually needed.
+-				uint64_t memusage = lzma_memusage(&strm);
+-				uint64_t memlimit = hardware_memlimit_get();
+-
+-				// Round the memory limit down and usage up.
+-				// This way we don't display a ridiculous
+-				// message like "Limit was 9 MiB, but 9 MiB
+-				// would have been needed".
+-				memusage = (memusage + 1024 * 1024 - 1)
+-						/ (1024 * 1024);
+-				memlimit /= 1024 * 1024;
+-
+-				message_error(_("Limit was %s MiB, "
+-						"but %s MiB would "
+-						"have been needed"),
+-						uint64_to_str(memlimit, 0),
+-						uint64_to_str(memusage, 1));
++				message_mem_needed(V_ERROR,
++						lzma_memusage(&strm));
+ 			}
+ 
+ 			if (stop)
+diff --git a/src/xz/message.c b/src/xz/message.c
+index eca90592..6c26d0b4 100644
+--- a/src/xz/message.c
++++ b/src/xz/message.c
+@@ -111,29 +111,6 @@ my_time(void)
+ }
+ 
+ 
+-/// Wrapper for snprintf() to help constructing a string in pieces.
+-static void lzma_attribute((format(printf, 3, 4)))
+-my_snprintf(char **pos, size_t *left, const char *fmt, ...)
+-{
+-	va_list ap;
+-	va_start(ap, fmt);
+-	const int len = vsnprintf(*pos, *left, fmt, ap);
+-	va_end(ap);
+-
+-	// If an error occurred, we want the caller to think that the whole
+-	// buffer was used. This way no more data will be written to the
+-	// buffer. We don't need better error handling here.
+-	if (len < 0 || (size_t)(len) >= *left) {
+-		*left = 0;
+-	} else {
+-		*pos += len;
+-		*left -= len;
+-	}
+-
+-	return;
+-}
+-
+-
+ extern void
+ message_init(void)
+ {
+@@ -356,35 +333,6 @@ progress_percentage(uint64_t in_pos, bool final)
+ }
+ 
+ 
+-static void
+-progress_sizes_helper(char **pos, size_t *left, uint64_t value, bool final)
+-{
+-	// Allow high precision only for the final message, since it looks
+-	// stupid for in-progress information.
+-	if (final) {
+-		// A maximum of four digits are allowed for exact byte count.
+-		if (value < 10000) {
+-			my_snprintf(pos, left, "%s B",
+-					uint64_to_str(value, 0));
+-			return;
+-		}
+-
+-		// A maximum of five significant digits are allowed for KiB.
+-		if (value < UINT64_C(10239900)) {
+-			my_snprintf(pos, left, "%s KiB", double_to_str(
+-					(double)(value) / 1024.0));
+-			return;
+-		}
+-	}
+-
+-	// Otherwise we use MiB.
+-	my_snprintf(pos, left, "%s MiB",
+-			double_to_str((double)(value) / (1024.0 * 1024.0)));
+-
+-	return;
+-}
+-
+-
+ /// Make the string containing the amount of input processed, amount of
+ /// output produced, and the compression ratio.
+ static const char *
+@@ -401,9 +349,12 @@ progress_sizes(uint64_t compressed_pos, uint64_t uncompressed_pos, bool final)
+ 
+ 	// Print the sizes. If this the final message, use more reasonable
+ 	// units than MiB if the file was small.
+-	progress_sizes_helper(&pos, &left, compressed_pos, final);
+-	my_snprintf(&pos, &left, " / ");
+-	progress_sizes_helper(&pos, &left, uncompressed_pos, final);
++	const enum nicestr_unit unit_min = final ? NICESTR_B : NICESTR_MIB;
++	my_snprintf(&pos, &left, "%s / %s",
++			uint64_to_nicestr(compressed_pos,
++				unit_min, NICESTR_MIB, false, 0),
++			uint64_to_nicestr(uncompressed_pos,
++				unit_min, NICESTR_MIB, false, 1));
+ 
+ 	// Avoid division by zero. If we cannot calculate the ratio, set
+ 	// it to some nice number greater than 10.0 so that it gets caught
+@@ -889,6 +840,25 @@ message_strm(lzma_ret code)
+ }
+ 
+ 
++extern void
++message_mem_needed(enum message_verbosity v, uint64_t memusage)
++{
++	if (v > verbosity)
++		return;
++
++	// NOTE: With bad luck, the rounded values may be the same, which
++	// can be confusing to the user when this function is called to
++	// tell that the memory usage limit was too low.
++	message(v, _("%s of memory is required. The limit is %s."),
++			uint64_to_nicestr(memusage,
++				NICESTR_B, NICESTR_MIB, false, 0),
++			uint64_to_nicestr(hardware_memlimit_get(),
++				NICESTR_B, NICESTR_MIB, false, 1));
++
++	return;
++}
++
++
+ extern void
+ message_filters(enum message_verbosity v, const lzma_filter *filters)
+ {
+diff --git a/src/xz/message.h b/src/xz/message.h
+index d9edb7c0..9edc403c 100644
+--- a/src/xz/message.h
++++ b/src/xz/message.h
+@@ -87,6 +87,10 @@ extern void message_signal_handler(void) lzma_attribute((noreturn));
+ extern const char *message_strm(lzma_ret code);
+ 
+ 
++/// Display how much memory was needed and how much the limit was.
++extern void message_mem_needed(enum message_verbosity v, uint64_t memusage);
++
++
+ /// Print the filter chain.
+ extern void message_filters(
+ 		enum message_verbosity v, const lzma_filter *filters);
+diff --git a/src/xz/util.c b/src/xz/util.c
+index c0ac5384..a962421f 100644
+--- a/src/xz/util.c
++++ b/src/xz/util.c
+@@ -11,6 +11,7 @@
+ ///////////////////////////////////////////////////////////////////////////////
+ 
+ #include "private.h"
++#include <stdarg.h>
+ 
+ 
+ extern void *
+@@ -143,6 +144,55 @@ uint64_to_str(uint64_t value, uint32_t slot)
+ }
+ 
+ 
++extern const char *
++uint64_to_nicestr(uint64_t value, enum nicestr_unit unit_min,
++		enum nicestr_unit unit_max, bool always_also_bytes,
++		uint32_t slot)
++{
++	assert(unit_min <= unit_max);
++	assert(unit_max <= NICESTR_TIB);
++
++	enum nicestr_unit unit = NICESTR_B;
++	const char *str;
++
++	if ((unit_min == NICESTR_B && value < 10000)
++			|| unit_max == NICESTR_B) {
++		// The value is shown as bytes.
++		str = uint64_to_str(value, slot);
++	} else {
++		// Scale the value to a nicer unit. Unless unit_min and
++		// unit_max limit us, we will show at most five significant
++		// digits with one decimal place.
++		double d = (double)(value);
++		do {
++			d /= 1024.0;
++			++unit;
++		} while (unit < unit_min || (d > 9999.9 && unit < unit_max));
++
++		str = double_to_str(d);
++	}
++
++	static const char suffix[5][4] = { "B", "KiB", "MiB", "GiB", "TiB" };
++
++	// Minimum buffer size:
++	// 11   "1,234.5 MiB"
++	//  2   " ("
++	// 26   2^64 with thousand separators
++	//  3   " B)"
++	//  1   '\0'
++	// 43   Total
++	static char buf[4][44];
++	char *pos = buf[slot];
++	size_t left = sizeof(buf[slot]);
++	my_snprintf(&pos, &left, "%s %s", str, suffix[unit]);
++
++	if (always_also_bytes && value >= 10000)
++		snprintf(pos, left, " (%s B)", uint64_to_str(value, slot));
++
++	return buf[slot];
++}
++
++
+ extern const char *
+ double_to_str(double value)
+ {
+@@ -166,6 +216,28 @@ double_to_str(double value)
+ }
+ 
+ 
++extern void
++my_snprintf(char **pos, size_t *left, const char *fmt, ...)
++{
++	va_list ap;
++	va_start(ap, fmt);
++	const int len = vsnprintf(*pos, *left, fmt, ap);
++	va_end(ap);
++
++	// If an error occurred, we want the caller to think that the whole
++	// buffer was used. This way no more data will be written to the
++	// buffer. We don't need better error handling here.
++	if (len < 0 || (size_t)(len) >= *left) {
++		*left = 0;
++	} else {
++		*pos += len;
++		*left -= len;
++	}
++
++	return;
++}
++
++
+ /*
+ /// \brief      Simple quoting to get rid of ASCII control characters
+ ///
+diff --git a/src/xz/util.h b/src/xz/util.h
+index 3657eb80..67bf3075 100644
+--- a/src/xz/util.h
++++ b/src/xz/util.h
+@@ -54,6 +54,42 @@ extern uint64_t str_to_uint64(const char *name, const char *value,
+ extern const char *uint64_to_str(uint64_t value, uint32_t slot);
+ 
+ 
++enum nicestr_unit {
++	NICESTR_B,
++	NICESTR_KIB,
++	NICESTR_MIB,
++	NICESTR_GIB,
++	NICESTR_TIB,
++};
++
++
++/// \brief      Convert uint64_t to a nice human readable string
++///
++/// This is like uint64_to_str() but uses B, KiB, MiB, GiB, or TiB suffix
++/// and optionally includes the exact size in parenthesis.
++///
++/// \param      value     Value to be printed
++/// \param      unit_min  Smallest unit to use. This and unit_max are used
++///                       e.g. when showing the progress indicator to force
++///                       the unit to MiB.
++/// \param      unit_max  Biggest unit to use. assert(unit_min <= unit_max).
++/// \param      always_also_bytes
++///                       Show also the exact byte value in parenthesis
++///                       if the nicely formatted string uses bigger unit
++///                       than bytes.
++/// \param      slot      Which static buffer to use to hold the string.
++///                       This is shared with uint64_to_str().
++///
++/// \return     Pointer to statically allocated buffer containing the string.
++///
++/// \note       This uses double_to_str() internally so the static buffer
++///             in double_to_str() will be overwritten.
++///
++extern const char *uint64_to_nicestr(uint64_t value,
++		enum nicestr_unit unit_min, enum nicestr_unit unit_max,
++		bool always_also_bytes, uint32_t slot);
++
++
+ /// \brief      Convert double to a string with one decimal place
+ ///
+ /// This is like uint64_to_str() except that this converts a double and
+@@ -61,6 +97,14 @@ extern const char *uint64_to_str(uint64_t value, uint32_t slot);
+ extern const char *double_to_str(double value);
+ 
+ 
++/// \brief      Wrapper for snprintf() to help constructing a string in pieces
++///
++/// A maximum of *left bytes is written starting from *pos. *pos and *left
++/// are updated accordingly.
++extern void my_snprintf(char **pos, size_t *left, const char *fmt, ...)
++		lzma_attribute((format(printf, 3, 4)));
++
++
+ /// \brief      Check if filename is empty and print an error message
+ extern bool is_empty_filename(const char *filename);
+ 

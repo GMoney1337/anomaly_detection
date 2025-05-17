@@ -1,0 +1,27 @@
+diff --git a/tests/files/README b/tests/files/README
+index 119cac48..b0b700c5 100644
+--- a/tests/files/README
++++ b/tests/files/README
+@@ -80,6 +80,14 @@
+     good-1-arm64-lzma2-2.xz is like good-1-arm64-lzma2-1.xz but with
+     non-zero start offset. XZ Embedded doesn't support this file.
+ 
++    good-1-riscv-lzma2-1.xz uses the RISC-V filter and LZMA2. The
++    uncompressed data is constructed so it tests all of the instructions
++    that should be encoded and a few that should not. Additionally, the
++    file contains random bytes to help test unforeseen corner cases.
++
++    good-1-riscv-lzma2-2.xz is like good-1-riscv-lzma2-1.xz but with
++    non-zero start offset. XZ Embedded doesn't support this file.
++
+     good-1-lzma2-1.xz has two LZMA2 chunks, of which the second sets
+     new properties.
+ 
+diff --git a/tests/files/good-1-riscv-lzma2-1.xz b/tests/files/good-1-riscv-lzma2-1.xz
+new file mode 100644
+index 00000000..38a0e2fd
+Binary files /dev/null and b/tests/files/good-1-riscv-lzma2-1.xz differ
+diff --git a/tests/files/good-1-riscv-lzma2-2.xz b/tests/files/good-1-riscv-lzma2-2.xz
+new file mode 100644
+index 00000000..d7ee659b
+Binary files /dev/null and b/tests/files/good-1-riscv-lzma2-2.xz differ

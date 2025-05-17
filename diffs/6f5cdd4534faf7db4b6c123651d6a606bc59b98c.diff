@@ -1,0 +1,44 @@
+diff --git a/src/xz/options.c b/src/xz/options.c
+index af0b28c5..c4f56b49 100644
+--- a/src/xz/options.c
++++ b/src/xz/options.c
+@@ -82,9 +82,9 @@ parse_options(const char *str, const option_map *opts,
+ 			*value++ = '\0';
+ 
+ 		if (value == NULL || value[0] == '\0')
+-			message_fatal(_("%s: Options must be 'name=value' "
+-					"pairs separated with commas"),
+-					tuklib_mask_nonprint(str));
++			message_fatal(_("%s: %s"), tuklib_mask_nonprint(str),
++					_("Options must be 'name=value' "
++					"pairs separated with commas"));
+ 
+ 		// Look for the option name from the option map.
+ 		unsigned i = 0;
+@@ -110,8 +110,9 @@ parse_options(const char *str, const option_map *opts,
+ 			}
+ 
+ 			if (opts[i].map[j].name == NULL)
+-				message_fatal(_("%s: Invalid option value"),
+-						tuklib_mask_nonprint(value));
++				message_fatal(_("%s: %s"),
++						tuklib_mask_nonprint(value),
++						_("Invalid option value"));
+ 
+ 			set(filter_options, i, opts[i].map[j].id, value);
+ 
+diff --git a/src/xz/util.c b/src/xz/util.c
+index 0d339aed..3af5982e 100644
+--- a/src/xz/util.c
++++ b/src/xz/util.c
+@@ -103,8 +103,8 @@ str_to_uint64(const char *name, const char *value, uint64_t min, uint64_t max)
+ 		return max;
+ 
+ 	if (*value < '0' || *value > '9')
+-		message_fatal(_("%s: Value is not a non-negative "
+-				"decimal integer"), value);
++		message_fatal(_("%s: %s"), value,
++			_("Value is not a non-negative decimal integer"));
+ 
+ 	do {
+ 		// Don't overflow.

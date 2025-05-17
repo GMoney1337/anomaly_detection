@@ -1,0 +1,13 @@
+diff --git a/src/xz/message.c b/src/xz/message.c
+index 8caba650..a87f864d 100644
+--- a/src/xz/message.c
++++ b/src/xz/message.c
+@@ -668,7 +668,7 @@ progress_flush(bool finished)
+ 				cols[4]);
+ 	} else {
+ 		// The filename is always printed.
+-		fprintf(stderr, "%s: ", filename);
++		fprintf(stderr, _("%s: "), filename);
+ 
+ 		// Percentage is printed only if we didn't finish yet.
+ 		if (!finished) {

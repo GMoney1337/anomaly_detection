@@ -1,0 +1,95 @@
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+index 40828cd9..1f8d55ad 100644
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -1861,6 +1861,8 @@ if(HAVE_DECODERS)
+             src/common/sysdefs.h
+             src/common/tuklib_common.h
+             src/common/tuklib_config.h
++            src/common/tuklib_mbstr_nonprint.c
++            src/common/tuklib_mbstr_nonprint.h
+             src/common/tuklib_exit.c
+             src/common/tuklib_exit.h
+             src/common/tuklib_gettext.h
+@@ -1891,6 +1893,7 @@ if(HAVE_DECODERS)
+         endif()
+ 
+         tuklib_progname("${XZDEC}")
++        tuklib_mbstr("${XZDEC}")
+ 
+         install(TARGETS "${XZDEC}"
+                 RUNTIME DESTINATION "${CMAKE_INSTALL_BINDIR}"
+diff --git a/src/xzdec/Makefile.am b/src/xzdec/Makefile.am
+index 31a6508c..f300cc45 100644
+--- a/src/xzdec/Makefile.am
++++ b/src/xzdec/Makefile.am
+@@ -11,6 +11,7 @@
+ xzdec_SOURCES = \
+ 	xzdec.c \
+ 	../common/tuklib_progname.c \
++	../common/tuklib_mbstr_nonprint.c \
+ 	../common/tuklib_exit.c
+ 
+ if COND_W32
+@@ -34,6 +35,7 @@ xzdec_LDADD += $(LTLIBINTL)
+ lzmadec_SOURCES = \
+ 	xzdec.c \
+ 	../common/tuklib_progname.c \
++	../common/tuklib_mbstr_nonprint.c \
+ 	../common/tuklib_exit.c
+ 
+ if COND_W32
+diff --git a/src/xzdec/xzdec.c b/src/xzdec/xzdec.c
+index 84d31929..02028f33 100644
+--- a/src/xzdec/xzdec.c
++++ b/src/xzdec/xzdec.c
+@@ -43,6 +43,7 @@
+ #include "getopt.h"
+ #include "tuklib_gettext.h"
+ #include "tuklib_progname.h"
++#include "tuklib_mbstr_nonprint.h"
+ #include "tuklib_exit.h"
+ 
+ #ifdef TUKLIB_DOSLIKE
+@@ -210,7 +211,8 @@ uncompress(lzma_stream *strm, FILE *file, const char *filename)
+ 				// an error occurred. ferror() doesn't
+ 				// touch errno.
+ 				my_errorf("%s: Error reading input file: %s",
+-						filename, strerror(errno));
++					tuklib_mask_nonprint(filename),
++					strerror(errno));
+ 				exit(EXIT_FAILURE);
+ 			}
+ 
+@@ -293,7 +295,8 @@ uncompress(lzma_stream *strm, FILE *file, const char *filename)
+ 				break;
+ 			}
+ 
+-			my_errorf("%s: %s", filename, msg);
++			my_errorf("%s: %s", tuklib_mask_nonprint(filename),
++					msg);
+ 			exit(EXIT_FAILURE);
+ 		}
+ 	}
+@@ -423,6 +426,8 @@ main(int argc, char **argv)
+ 	// We need to set the locale even though we don't have any
+ 	// translated messages:
+ 	//
++	//   - tuklib_mask_nonprint() has locale-specific behavior (LC_CTYPE).
++	//
+ 	//   - This is needed on Windows to make non-ASCII filenames display
+ 	//     properly when the active code page has been set to UTF-8
+ 	//     in the application manifest. Use the helper macro from
+@@ -465,8 +470,10 @@ main(int argc, char **argv)
+ 				src_name = argv[optind];
+ 				src_file = fopen(src_name, "rb");
+ 				if (src_file == NULL) {
+-					my_errorf("%s: %s", src_name,
+-							strerror(errno));
++					my_errorf("%s: %s",
++						tuklib_mask_nonprint(
++							src_name),
++						strerror(errno));
+ 					exit(EXIT_FAILURE);
+ 				}
+ 			}

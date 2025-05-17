@@ -1,0 +1,294 @@
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+index b21090f7..408b1605 100644
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -230,7 +230,7 @@ add_library(liblzma
+     src/liblzma/check/check.h
+     src/liblzma/check/crc_common.h
+     src/liblzma/check/crc_x86_clmul.h
+-    src/liblzma/check/crc32_aarch64.h
++    src/liblzma/check/crc32_arm64.h
+     src/liblzma/common/block_util.c
+     src/liblzma/common/common.c
+     src/liblzma/common/common.h
+diff --git a/src/liblzma/check/Makefile.inc b/src/liblzma/check/Makefile.inc
+index e7f87c85..da7ee0db 100644
+--- a/src/liblzma/check/Makefile.inc
++++ b/src/liblzma/check/Makefile.inc
+@@ -16,7 +16,7 @@ liblzma_la_SOURCES += \
+ 	check/check.h \
+ 	check/crc_common.h \
+ 	check/crc_x86_clmul.h \
+-	check/crc32_aarch64.h
++	check/crc32_arm64.h
+ 
+ if COND_SMALL
+ liblzma_la_SOURCES += check/crc32_small.c
+diff --git a/src/liblzma/check/crc32_aarch64.h b/src/liblzma/check/crc32_aarch64.h
+deleted file mode 100644
+index 77b14af4..00000000
+--- a/src/liblzma/check/crc32_aarch64.h
++++ /dev/null
+@@ -1,109 +0,0 @@
+-///////////////////////////////////////////////////////////////////////////////
+-//
+-/// \file       crc32_aarch64.c
+-/// \brief      CRC32 calculation with aarch64 optimization
+-//
+-//  Authors:    Chenxi Mao
+-//
+-//  This file has been put into the public domain.
+-//  You can do whatever you want with this file.
+-//
+-///////////////////////////////////////////////////////////////////////////////
+-#ifdef LZMA_CRC_CRC32_AARCH64_H
+-#	error crc_arm64_clmul.h was included twice.
+-#endif
+-#define LZMA_CRC_CRC32_AARCH64_H
+-#include <sys/auxv.h>
+-// EDG-based compilers (Intel's classic compiler and compiler for E2K) can
+-// define __GNUC__ but the attribute must not be used with them.
+-// The new Clang-based ICX needs the attribute.
+-//
+-// NOTE: Build systems check for this too, keep them in sync with this.
+-#if (defined(__GNUC__) || defined(__clang__)) && !defined(__EDG__)
+-#	define crc_attr_target \
+-        __attribute__((__target__("+crc")))
+-#else
+-#	define crc_attr_target
+-#endif
+-#ifdef BUILDING_CRC32_AARCH64
+-crc_attr_target
+-crc_attr_no_sanitize_address
+-static uint32_t
+-crc32_arch_optimized(const uint8_t *buf, size_t size, uint32_t crc)
+-{
+-	crc = ~crc;
+-	while ((uintptr_t)(buf) & 7) {
+-		crc = __builtin_aarch64_crc32b(crc, *buf);
+-		buf++;
+-		size--;
+-	}
+-	for (;size>=8;size-=8,buf+=8) {
+-		crc = __builtin_aarch64_crc32x(crc, aligned_read64le(buf));
+-	}
+-	for (;size>0;size--,buf++)
+-		crc = __builtin_aarch64_crc32b(crc, *buf);
+-	return ~crc;
+-}
+-#endif
+-#ifdef BUILDING_CRC64_AARCH64
+-//FIXME: there is no crc64_arch_optimized implementation,
+-// to make compiler happy, add crc64_generic here.
+-#ifdef WORDS_BIGENDIAN
+-#	define A1(x) ((x) >> 56)
+-#else
+-#	define A1 A
+-#endif
+-crc_attr_target
+-crc_attr_no_sanitize_address
+-static uint64_t
+-crc64_arch_optimized(const uint8_t *buf, size_t size, uint64_t crc)
+-{
+-	crc = ~crc;
+-
+-#ifdef WORDS_BIGENDIAN
+-	crc = bswap64(crc);
+-#endif
+-
+-	if (size > 4) {
+-		while ((uintptr_t)(buf) & 3) {
+-			crc = lzma_crc64_table[0][*buf++ ^ A1(crc)] ^ S8(crc);
+-			--size;
+-		}
+-
+-		const uint8_t *const limit = buf + (size & ~(size_t)(3));
+-		size &= (size_t)(3);
+-
+-		while (buf < limit) {
+-#ifdef WORDS_BIGENDIAN
+-			const uint32_t tmp = (uint32_t)(crc >> 32)
+-					^ aligned_read32ne(buf);
+-#else
+-			const uint32_t tmp = (uint32_t)crc
+-					^ aligned_read32ne(buf);
+-#endif
+-			buf += 4;
+-
+-			crc = lzma_crc64_table[3][A(tmp)]
+-			    ^ lzma_crc64_table[2][B(tmp)]
+-			    ^ S32(crc)
+-			    ^ lzma_crc64_table[1][C(tmp)]
+-			    ^ lzma_crc64_table[0][D(tmp)];
+-		}
+-	}
+-
+-	while (size-- != 0)
+-		crc = lzma_crc64_table[0][*buf++ ^ A1(crc)] ^ S8(crc);
+-
+-#ifdef WORDS_BIGENDIAN
+-	crc = bswap64(crc);
+-#endif
+-
+-	return ~crc;
+-}
+-#endif
+-static inline bool
+-is_arch_extension_supported(void)
+-{
+-	return (getauxval(AT_HWCAP) & HWCAP_CRC32)!=0;
+-}
+-
+diff --git a/src/liblzma/check/crc32_arm64.h b/src/liblzma/check/crc32_arm64.h
+new file mode 100644
+index 00000000..a1888ea7
+--- /dev/null
++++ b/src/liblzma/check/crc32_arm64.h
+@@ -0,0 +1,119 @@
++///////////////////////////////////////////////////////////////////////////////
++//
++/// \file       crc32_arm64.h
++/// \brief      CRC32 calculation with ARM64 optimization
++//
++//  Authors:    Chenxi Mao
++//              Jia Tan
++//
++//  This file has been put into the public domain.
++//  You can do whatever you want with this file.
++//
++///////////////////////////////////////////////////////////////////////////////
++
++
++#ifndef LZMA_CRC32_ARM64_H
++#define LZMA_CRC32_ARM64_H
++
++// MSVC always has the CRC intrinsics available when building for ARM64
++// there is no need to include any header files.
++#ifndef _MSC_VER
++#	include <arm_acle.h>
++#endif
++
++#if defined(CRC32_GENERIC) && defined(CRC32_ARCH_OPTIMIZED)
++#	if defined(HAVE_GETAUXVAL) || defined(HAVE_ELF_AUX_INFO)
++#		include <sys/auxv.h>
++#	elif defined(_WIN32)
++#		include <processthreadsapi.h>
++#	elif defined(__APPLE__) && defined(HAVE_SYSCTLBYNAME)
++#		include <sys/sysctl.h>
++#	endif
++#endif
++
++// Some EDG-based compilers support ARM64 and define __GNUC__
++// (such as Nvidia's nvcc), but do not support function attributes.
++//
++// NOTE: Build systems check for this too, keep them in sync with this.
++#if (defined(__GNUC__) || defined(__clang__)) && !defined(__EDG__)
++#	define crc_attr_target \
++        __attribute__((__target__("+crc")))
++#else
++#	define crc_attr_target
++#endif
++
++
++crc_attr_target
++static uint32_t
++crc32_arch_optimized(const uint8_t *buf, size_t size, uint32_t crc)
++{
++	crc = ~crc;
++
++	// Align the input buffer because this was shown to be
++	// significantly faster than unaligned accesses.
++	const size_t align_amount = my_min(size, (8 - (uintptr_t)buf) & 7);
++
++	for (const uint8_t *limit = buf + align_amount; buf < limit; ++buf)
++		crc = __crc32b(crc, *buf);
++
++	size -= align_amount;
++
++	// Process 8 bytes at a time. The end point is determined by
++	// ignoring the least significant three bits of size to ensure
++	// we do not process past the bounds of the buffer. This guarentees
++	// that limit is a multiple of 8 and is strictly less than size.
++	for (const uint8_t *limit = buf + (size & ~((size_t)7));
++			buf < limit; buf += 8)
++		crc = __crc32d(crc, aligned_read64le(buf));
++
++	// Process the remaining bytes that are not 8 byte aligned.
++	for (const uint8_t *limit = buf + (size & 7); buf < limit; ++buf)
++		crc = __crc32b(crc, *buf);
++
++	return ~crc;
++}
++
++
++#if defined(CRC32_GENERIC) && defined(CRC32_ARCH_OPTIMIZED)
++static inline bool
++is_arch_extension_supported(void)
++{
++#if defined(HAVE_GETAUXVAL)
++	return (getauxval(AT_HWCAP) & HWCAP_CRC32) != 0;
++
++#elif defined(HAVE_ELF_AUX_INFO)
++	unsigned long feature_flags;
++
++	elf_aux_info(AT_HWCAP, &feature_flags, sizeof(feature_flags));
++	return feature_flags & HWCAP_CRC32 != 0;
++
++#elif defined(_WIN32)
++	return IsProcessorFeaturePresent(
++			PF_ARM_V8_CRC32_INSTRUCTIONS_AVAILABLE);
++
++#elif defined(__APPLE__) && defined(HAVE_SYSCTLBYNAME)
++	int has_crc32 = 0;
++	size_t size = sizeof(has_crc32);
++
++	// The sysctlbyname() function requires a string identifier for the
++	// CPU feature it tests. The Apple documentation lists the string
++	// "hw.optional.armv8_crc32", which can be found here:
++	// (https://developer.apple.com/documentation/kernel/1387446-sysctlbyname/determining_instruction_set_characteristics#3915619)
++	int err = sysctlbyname("hw.optional.armv8_crc32", &has_crc32,
++			&size, NULL, 0);
++
++	return !err && has_crc32;
++
++#else
++	// If a runtime detection method cannot be found, then this must
++	// be a compile time error. The checks in crc_common.h should ensure
++	// a runtime detection method is always found if this function is
++	// built. It would be possible to just return false here, but this
++	// is inefficient for binary size and runtime since only the generic
++	// method could ever be used.
++#	error Runtime detection method unavailable.
++#endif
++}
++#endif
++
++#endif // LZMA_CRC32_ARM64_H
+diff --git a/src/liblzma/check/crc32_fast.c b/src/liblzma/check/crc32_fast.c
+index be034bdc..0b667d8b 100644
+--- a/src/liblzma/check/crc32_fast.c
++++ b/src/liblzma/check/crc32_fast.c
+@@ -19,8 +19,7 @@
+ #	define BUILDING_CRC32_CLMUL
+ #	include "crc_x86_clmul.h"
+ #elif defined(CRC32_ARM64)
+-#	define BUILDING_CRC32_AARCH64
+-#	include "crc32_aarch64.h"
++#	include "crc32_arm64.h"
+ #endif
+ 
+ 
+diff --git a/src/liblzma/check/crc64_fast.c b/src/liblzma/check/crc64_fast.c
+index 3d94ed3f..d1ab6862 100644
+--- a/src/liblzma/check/crc64_fast.c
++++ b/src/liblzma/check/crc64_fast.c
+@@ -17,9 +17,6 @@
+ #if defined(CRC_X86_CLMUL)
+ #	define BUILDING_CRC64_CLMUL
+ #	include "crc_x86_clmul.h"
+-#elif defined(CRC32_ARM64)
+-#	define BUILDING_CRC64_AARCH64
+-#	include "crc32_aarch64.h"
+ #endif
+ 
+ 

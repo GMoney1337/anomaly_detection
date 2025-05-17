@@ -1,0 +1,12 @@
+diff --git a/THANKS b/THANKS
+index 56e5ed41..e6ab48ae 100644
+--- a/THANKS
++++ b/THANKS
+@@ -26,6 +26,7 @@ In alphabetical order:
+   - Dan Shechter
+   - Paul Townsend
+   - Mohammed Adnène Trojette
++  - Bert Wesarg
+   - Ralf Wildenhues
+   - Andreas Zieringer
+ 

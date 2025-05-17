@@ -1,0 +1,37 @@
+diff --git a/src/common/tuklib_gettext.h b/src/common/tuklib_gettext.h
+index 24852134..ff189040 100644
+--- a/src/common/tuklib_gettext.h
++++ b/src/common/tuklib_gettext.h
+@@ -33,12 +33,12 @@
+ 			textdomain(package); \
+ 		} while (0)
+ #	define _(msgid) gettext(msgid)
+-#	define N_(msgid1, msgid2, n) ngettext(msgid1, msgid2, n)
+ #else
+ #	define tuklib_gettext_init(package, localedir) \
+ 		setlocale(LC_ALL, "")
+ #	define _(msgid) (msgid)
+-#	define N_(msgid1, msgid2, n) ((n) == 1 ? (msgid1) : (msgid2))
++#	define ngettext(msgid1, msgid2, n) ((n) == 1 ? (msgid1) : (msgid2))
+ #endif
++#define N_(msgid) msgid
+ 
+ #endif
+diff --git a/src/xz/list.c b/src/xz/list.c
+index ad3c8720..e136cc2e 100644
+--- a/src/xz/list.c
++++ b/src/xz/list.c
+@@ -909,11 +909,11 @@ print_totals_basic(void)
+ 	// Since we print totals only when there are at least two files,
+ 	// the English message will always use "%s files". But some other
+ 	// languages need different forms for different plurals so we
+-	// have to translate this with N_().
++	// have to translate this with ngettext().
+ 	//
+ 	// TRANSLATORS: %s is an integer. Only the plural form of this
+ 	// message is used (e.g. "2 files"). Test with "xz -l foo.xz bar.xz".
+-	printf(N_("%s file", "%s files\n",
++	printf(ngettext("%s file\n", "%s files\n",
+ 			totals.files <= ULONG_MAX ? totals.files
+ 				: (totals.files % 1000000) + 1000000),
+ 			uint64_to_str(totals.files, 0));

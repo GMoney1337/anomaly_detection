@@ -1,0 +1,112 @@
+diff --git a/INSTALL b/INSTALL
+index 787ee5fa..c9b1d7ac 100644
+--- a/INSTALL
++++ b/INSTALL
+@@ -468,14 +468,14 @@ XZ Utils Installation
+                                 too. This is the default for 32-bit x86
+                                 Windows builds. Unless the compiler
+                                 supports __attribute__((__constructor__)),
+-                                the `win95' threading is incompatible with
++                                the 'win95' threading is incompatible with
+                                 --enable-small.
+ 
+                         vista   Use Windows Vista compatible threads. The
+                                 resulting binaries won't run on Windows XP
+                                 or older. This is the default for Windows
+                                 excluding 32-bit x86 builds (that is, on
+-                                x86-64 the default is `vista').
++                                x86-64 the default is 'vista').
+ 
+                         no      Disable threading support. This is the
+                                 same as using --disable-threads.
+@@ -494,7 +494,7 @@ XZ Utils Installation
+                 the options --files or --files0 weren't used. This is a
+                 common use case, for example, (de)compressing .tar.xz
+                 files via GNU tar. The sandbox is also used for
+-                single-file `xz --test' or `xz --list'.
++                single-file 'xz --test' or 'xz --list'.
+ 
+                 Supported METHODs:
+ 
+diff --git a/doc/examples/01_compress_easy.c b/doc/examples/01_compress_easy.c
+index ec32a379..132a1bdf 100644
+--- a/doc/examples/01_compress_easy.c
++++ b/doc/examples/01_compress_easy.c
+@@ -27,7 +27,7 @@ show_usage_and_exit(const char *argv0)
+ {
+ 	fprintf(stderr, "Usage: %s PRESET < INFILE > OUTFILE\n"
+ 			"PRESET is a number 0-9 and can optionally be "
+-			"followed by `e' to indicate extreme preset\n",
++			"followed by 'e' to indicate extreme preset\n",
+ 			argv0);
+ 	exit(EXIT_FAILURE);
+ }
+diff --git a/doc/examples/11_file_info.c b/doc/examples/11_file_info.c
+index 9e7b0c8e..1e2c25b1 100644
+--- a/doc/examples/11_file_info.c
++++ b/doc/examples/11_file_info.c
+@@ -33,7 +33,7 @@ print_file_size(lzma_stream *strm, FILE *infile, const char *filename)
+ 	// large files on 32-bit systems (POSIX versions fseeko() and
+ 	// ftello() can support large files).
+ 	if (fseek(infile, 0, SEEK_END)) {
+-		fprintf(stderr, "Error seeking the file `%s': %s\n",
++		fprintf(stderr, "Error seeking the file '%s': %s\n",
+ 				filename, strerror(errno));
+ 		return false;
+ 	}
+@@ -80,7 +80,7 @@ print_file_size(lzma_stream *strm, FILE *infile, const char *filename)
+ 
+ 			if (ferror(infile)) {
+ 				fprintf(stderr,
+-					"Error reading from `%s': %s\n",
++					"Error reading from '%s': %s\n",
+ 					filename, strerror(errno));
+ 				return false;
+ 			}
+@@ -104,7 +104,7 @@ print_file_size(lzma_stream *strm, FILE *infile, const char *filename)
+ 			// switch fseeko() or lseek().
+ 			if (fseek(infile, (long)(strm->seek_pos), SEEK_SET)) {
+ 				fprintf(stderr, "Error seeking the "
+-						"file `%s': %s\n",
++						"file '%s': %s\n",
+ 						filename, strerror(errno));
+ 				return false;
+ 			}
+@@ -133,24 +133,24 @@ print_file_size(lzma_stream *strm, FILE *infile, const char *filename)
+ 
+ 		case LZMA_FORMAT_ERROR:
+ 			// .xz magic bytes weren't found.
+-			fprintf(stderr, "The file `%s' is not "
++			fprintf(stderr, "The file '%s' is not "
+ 					"in the .xz format\n", filename);
+ 			return false;
+ 
+ 		case LZMA_OPTIONS_ERROR:
+-			fprintf(stderr, "The file `%s' has .xz headers that "
++			fprintf(stderr, "The file '%s' has .xz headers that "
+ 					"are not supported by this liblzma "
+ 					"version\n", filename);
+ 			return false;
+ 
+ 		case LZMA_DATA_ERROR:
+-			fprintf(stderr, "The file `%s' is corrupt\n",
++			fprintf(stderr, "The file '%s' is corrupt\n",
+ 					filename);
+ 			return false;
+ 
+ 		case LZMA_MEM_ERROR:
+ 			fprintf(stderr, "Memory allocation failed when "
+-					"decoding the file `%s'\n", filename);
++					"decoding the file '%s'\n", filename);
+ 			return false;
+ 
+ 		// LZMA_MEMLIMIT_ERROR shouldn't happen because we used
+@@ -183,7 +183,7 @@ main(int argc, char **argv)
+ 		FILE *infile = fopen(argv[i], "rb");
+ 
+ 		if (infile == NULL) {
+-			fprintf(stderr, "Cannot open the file `%s': %s\n",
++			fprintf(stderr, "Cannot open the file '%s': %s\n",
+ 					argv[i], strerror(errno));
+ 			success = false;
+ 		}

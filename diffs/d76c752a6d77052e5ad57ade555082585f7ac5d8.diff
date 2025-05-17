@@ -1,0 +1,67 @@
+diff --git a/src/scripts/xzdiff.in b/src/scripts/xzdiff.in
+index 234d6c70..389921d8 100644
+--- a/src/scripts/xzdiff.in
++++ b/src/scripts/xzdiff.in
+@@ -65,8 +65,9 @@ for file; do
+   test "X$file" = X- || <"$file" || exit 2
+ done
+ 
+-xz1=$xz
+-xz2=$xz
++# xz needs -qQ to ignore warnings like unsupported check type.
++xz1="$xz -qQ"
++xz2="$xz -qQ"
+ xz_status=0
+ exec 3>&1
+ 
+diff --git a/src/scripts/xzgrep.in b/src/scripts/xzgrep.in
+index 449f0e61..490e47d7 100644
+--- a/src/scripts/xzgrep.in
++++ b/src/scripts/xzgrep.in
+@@ -180,7 +180,7 @@ for i; do
+     *[-.]bz2 | *[-.]tbz | *.tbz2) uncompress="bzip2 -cdf";;
+     *[-.]lzo | *[-.]tzo) uncompress="lzop -cdf";;
+     *[-.]zst | *[-.]tzst) uncompress="zstd -cdfq";; # zstd needs -q.
+-    *) uncompress="$xz -cdf";;
++    *) uncompress="$xz -cdfqQ";; # -qQ to ignore warnings like unsupp. check.
+   esac
+   # xz_status will hold the decompressor's exit status.
+   # Exit status of grep (and in rare cases, printf or sed) is
+diff --git a/src/scripts/xzless.in b/src/scripts/xzless.in
+index 0fc91763..79a849e2 100644
+--- a/src/scripts/xzless.in
++++ b/src/scripts/xzless.in
+@@ -50,9 +50,9 @@ fi
+ if test "$(less -V | { read _ ver _ && echo ${ver%%.*}; })" -ge 429; then
+ 	# less 429 or later: LESSOPEN pipe will be used on
+ 	# standard input if $LESSOPEN begins with |-.
+-	LESSOPEN="|-$xz -cdfq -- %s"
++	LESSOPEN="|-$xz -cdfqQ -- %s"
+ else
+-	LESSOPEN="|$xz -cdfq -- %s"
++	LESSOPEN="|$xz -cdfqQ -- %s"
+ fi
+ export LESSMETACHARS LESSOPEN
+ 
+diff --git a/src/scripts/xzmore.in b/src/scripts/xzmore.in
+index 6ba1344d..5188fdab 100644
+--- a/src/scripts/xzmore.in
++++ b/src/scripts/xzmore.in
+@@ -52,7 +52,7 @@ if test $# = 0; then
+ 	if test -t 0; then
+ 		printf '%s\n' "$usage"; exit 1
+ 	else
+-		$xz -cdfq | eval "${PAGER:-more}"
++		$xz -cdfqQ | eval "${PAGER:-more}"
+ 	fi
+ else
+ 	FIRST=1
+@@ -70,7 +70,7 @@ else
+ 		fi
+ 		if test "$ANS" != 's'; then
+ 			printf '%s\n' "------> $FILE <------"
+-			$xz -cdfq -- "$FILE" | eval "${PAGER:-more}"
++			$xz -cdfqQ -- "$FILE" | eval "${PAGER:-more}"
+ 		fi
+ 		if test -t 1; then
+ 			FIRST=0

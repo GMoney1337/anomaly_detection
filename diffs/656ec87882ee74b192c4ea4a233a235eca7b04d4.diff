@@ -1,0 +1,219 @@
+diff --git a/src/liblzma/delta/Makefile.am b/src/liblzma/delta/Makefile.am
+index fc09f5b8..899d9bc0 100644
+--- a/src/liblzma/delta/Makefile.am
++++ b/src/liblzma/delta/Makefile.am
+@@ -19,7 +19,8 @@ libdelta_la_CPPFLAGS = \
+ 
+ libdelta_la_SOURCES = \
+ 	delta_common.c \
+-	delta_common.h
++	delta_common.h \
++	delta_private.h
+ 
+ if COND_ENCODER_DELTA
+ libdelta_la_SOURCES += \
+diff --git a/src/liblzma/delta/delta_common.c b/src/liblzma/delta/delta_common.c
+index 90b5552b..ee2abd65 100644
+--- a/src/liblzma/delta/delta_common.c
++++ b/src/liblzma/delta/delta_common.c
+@@ -18,6 +18,7 @@
+ ///////////////////////////////////////////////////////////////////////////////
+ 
+ #include "delta_common.h"
++#include "delta_private.h"
+ 
+ 
+ static void
+@@ -47,15 +48,14 @@ lzma_delta_coder_init(lzma_next_coder *next, lzma_allocator *allocator,
+ 	// Coding function is different for encoder and decoder.
+ 	next->code = code;
+ 
+-	// Set the delta distance.
+-	if (filters[0].options == NULL)
+-		return LZMA_PROG_ERROR;
+-	next->coder->distance
+-			= ((lzma_options_delta *)(filters[0].options))->dist;
+-	if (next->coder->distance < LZMA_DELTA_DIST_MIN
+-			|| next->coder->distance > LZMA_DELTA_DIST_MAX)
++	// Validate the options.
++	if (lzma_delta_coder_memusage(filters[0].options) == UINT64_MAX)
+ 		return LZMA_OPTIONS_ERROR;
+ 
++	// Set the delta distance.
++	const lzma_options_delta *opt = filters[0].options;
++	next->coder->distance = opt->dist;
++
+ 	// Initialize the rest of the variables.
+ 	next->coder->pos = 0;
+ 	memzero(next->coder->history, LZMA_DELTA_DIST_MAX);
+@@ -64,3 +64,17 @@ lzma_delta_coder_init(lzma_next_coder *next, lzma_allocator *allocator,
+ 	return lzma_next_filter_init(&next->coder->next,
+ 			allocator, filters + 1);
+ }
++
++
++extern uint64_t
++lzma_delta_coder_memusage(const void *options)
++{
++	const lzma_options_delta *opt = options;
++
++	if (opt == NULL || opt->type != LZMA_DELTA_TYPE_BYTE
++			|| opt->dist < LZMA_DELTA_DIST_MIN
++			|| opt->dist > LZMA_DELTA_DIST_MAX)
++		return UINT64_MAX;
++
++	return sizeof(lzma_coder);
++}
+diff --git a/src/liblzma/delta/delta_common.h b/src/liblzma/delta/delta_common.h
+index e7b3eeda..a01de547 100644
+--- a/src/liblzma/delta/delta_common.h
++++ b/src/liblzma/delta/delta_common.h
+@@ -22,23 +22,6 @@
+ 
+ #include "common.h"
+ 
+-struct lzma_coder_s {
+-	/// Next coder in the chain
+-	lzma_next_coder next;
+-
+-	/// Delta distance
+-	size_t distance;
+-
+-	/// Position in history[]
+-	uint8_t pos;
+-
+-	/// Buffer to hold history of the original data
+-	uint8_t history[LZMA_DELTA_DIST_MAX];
+-};
+-
+-
+-extern lzma_ret lzma_delta_coder_init(
+-		lzma_next_coder *next, lzma_allocator *allocator,
+-		const lzma_filter_info *filters, lzma_code_function code);
++extern uint64_t lzma_delta_coder_memusage(const void *options);
+ 
+ #endif
+diff --git a/src/liblzma/delta/delta_decoder.c b/src/liblzma/delta/delta_decoder.c
+index 26dc40fe..0211a38a 100644
+--- a/src/liblzma/delta/delta_decoder.c
++++ b/src/liblzma/delta/delta_decoder.c
+@@ -18,7 +18,7 @@
+ ///////////////////////////////////////////////////////////////////////////////
+ 
+ #include "delta_decoder.h"
+-#include "delta_common.h"
++#include "delta_private.h"
+ 
+ 
+ static void
+diff --git a/src/liblzma/delta/delta_decoder.h b/src/liblzma/delta/delta_decoder.h
+index 84852bf3..7a71feae 100644
+--- a/src/liblzma/delta/delta_decoder.h
++++ b/src/liblzma/delta/delta_decoder.h
+@@ -20,7 +20,7 @@
+ #ifndef LZMA_DELTA_DECODER_H
+ #define LZMA_DELTA_DECODER_H
+ 
+-#include "common.h"
++#include "delta_common.h"
+ 
+ extern lzma_ret lzma_delta_decoder_init(lzma_next_coder *next,
+ 		lzma_allocator *allocator, const lzma_filter_info *filters);
+diff --git a/src/liblzma/delta/delta_encoder.c b/src/liblzma/delta/delta_encoder.c
+index bb772a6c..751aa92d 100644
+--- a/src/liblzma/delta/delta_encoder.c
++++ b/src/liblzma/delta/delta_encoder.c
+@@ -18,7 +18,7 @@
+ ///////////////////////////////////////////////////////////////////////////////
+ 
+ #include "delta_encoder.h"
+-#include "delta_common.h"
++#include "delta_private.h"
+ 
+ 
+ /// Copies and encodes the data at the same time. This is used when Delta
+@@ -101,18 +101,12 @@ lzma_delta_encoder_init(lzma_next_coder *next, lzma_allocator *allocator,
+ extern lzma_ret
+ lzma_delta_props_encode(const void *options, uint8_t *out)
+ {
+-	if (options == NULL)
++	// The caller must have already validated the options, so it's
++	// LZMA_PROG_ERROR if they are invalid.
++	if (lzma_delta_coder_memusage(options) == UINT64_MAX)
+ 		return LZMA_PROG_ERROR;
+ 
+ 	const lzma_options_delta *opt = options;
+-
+-	// It's possible that newer liblzma versions will support larger
+-	// distance values.
+-	if (opt->type != LZMA_DELTA_TYPE_BYTE
+-			|| opt->dist < LZMA_DELTA_DIST_MIN
+-			|| opt->dist > LZMA_DELTA_DIST_MAX)
+-		return LZMA_OPTIONS_ERROR;
+-
+ 	out[0] = opt->dist - LZMA_DELTA_DIST_MIN;
+ 
+ 	return LZMA_OK;
+diff --git a/src/liblzma/delta/delta_encoder.h b/src/liblzma/delta/delta_encoder.h
+index b8b29c61..a709d1ca 100644
+--- a/src/liblzma/delta/delta_encoder.h
++++ b/src/liblzma/delta/delta_encoder.h
+@@ -20,7 +20,7 @@
+ #ifndef LZMA_DELTA_ENCODER_H
+ #define LZMA_DELTA_ENCODER_H
+ 
+-#include "common.h"
++#include "delta_common.h"
+ 
+ extern lzma_ret lzma_delta_encoder_init(lzma_next_coder *next,
+ 		lzma_allocator *allocator, const lzma_filter_info *filters);
+diff --git a/src/liblzma/delta/delta_private.h b/src/liblzma/delta/delta_private.h
+new file mode 100644
+index 00000000..e1d59340
+--- /dev/null
++++ b/src/liblzma/delta/delta_private.h
+@@ -0,0 +1,44 @@
++///////////////////////////////////////////////////////////////////////////////
++//
++/// \file       delta_private.h
++/// \brief      Private common stuff for Delta encoder and decoder
++//
++//  Copyright (C) 2007 Lasse Collin
++//
++//  This library is free software; you can redistribute it and/or
++//  modify it under the terms of the GNU Lesser General Public
++//  License as published by the Free Software Foundation; either
++//  version 2.1 of the License, or (at your option) any later version.
++//
++//  This library is distributed in the hope that it will be useful,
++//  but WITHOUT ANY WARRANTY; without even the implied warranty of
++//  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
++//  Lesser General Public License for more details.
++//
++///////////////////////////////////////////////////////////////////////////////
++
++#ifndef LZMA_DELTA_PRIVATE_H
++#define LZMA_DELTA_PRIVATE_H
++
++#include "delta_common.h"
++
++struct lzma_coder_s {
++	/// Next coder in the chain
++	lzma_next_coder next;
++
++	/// Delta distance
++	size_t distance;
++
++	/// Position in history[]
++	uint8_t pos;
++
++	/// Buffer to hold history of the original data
++	uint8_t history[LZMA_DELTA_DIST_MAX];
++};
++
++
++extern lzma_ret lzma_delta_coder_init(
++		lzma_next_coder *next, lzma_allocator *allocator,
++		const lzma_filter_info *filters, lzma_code_function code);
++
++#endif

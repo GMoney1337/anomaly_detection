@@ -1,0 +1,195 @@
+diff --git a/.github/SECURITY.md b/.github/SECURITY.md
+index 9ddfe8e9..ea929104 100644
+--- a/.github/SECURITY.md
++++ b/.github/SECURITY.md
+@@ -4,7 +4,7 @@
+ 
+ We provide security updates to the development branch and the stable
+ branches. Security patches for old releases are available on the
+-[project website](https://xz.tukaani.org/xz-utils/).
++[project website](https://tukaani.org/xz).
+ 
+ ## Reporting a Vulnerability
+ 
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+index 0e4d464f..9a4b69c5 100644
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -111,7 +111,7 @@ include(cmake/tuklib_mbstr.cmake)
+ 
+ set(PACKAGE_NAME "XZ Utils")
+ set(PACKAGE_BUGREPORT "xz@tukaani.org")
+-set(PACKAGE_URL "https://xz.tukaani.org/xz-utils/")
++set(PACKAGE_URL "https://tukaani.org/xz/")
+ 
+ # Get the package version from version.h into PACKAGE_VERSION variable.
+ file(READ src/liblzma/api/lzma/version.h PACKAGE_VERSION)
+diff --git a/COPYING b/COPYING
+index a31477d6..a06e0989 100644
+--- a/COPYING
++++ b/COPYING
+@@ -65,8 +65,7 @@ XZ Utils Licensing
+     it is not legally required by the license terms. Here is an example
+     of a good notice to put into "about box" or into documentation:
+ 
+-        This software includes code from XZ Utils
+-        <https://xz.tukaani.org/xz-utils/>.
++        This software includes code from XZ Utils <https://tukaani.org/xz/>.
+ 
+     The following license texts are included in the following files:
+       - COPYING.0BSD: BSD Zero Clause License
+diff --git a/README b/README
+index ac812ff1..def70d08 100644
+--- a/README
++++ b/README
+@@ -290,11 +290,11 @@ XZ Utils
+     XZ Embedded is a limited implementation written for use in the Linux
+     kernel, but it is also suitable for other embedded use.
+ 
+-        https://xz.tukaani.org/xz-embedded/
++        https://tukaani.org/xz/embedded.html
+ 
+     XZ for Java is a complete implementation written in pure Java.
+ 
+-        https://xz.tukaani.org/xz-for-java/
++        https://tukaani.org/xz/java.html
+ 
+ 
+ 6. Contact information
+diff --git a/configure.ac b/configure.ac
+index f7d3de0b..fb4f3d66 100644
+--- a/configure.ac
++++ b/configure.ac
+@@ -17,7 +17,7 @@
+ AC_PREREQ([2.69])
+ 
+ AC_INIT([XZ Utils], m4_esyscmd([/bin/sh build-aux/version.sh]),
+-	[xz@tukaani.org], [xz], [https://xz.tukaani.org/xz-utils/])
++	[xz@tukaani.org], [xz], [https://tukaani.org/xz/])
+ AC_CONFIG_SRCDIR([src/liblzma/common/common.h])
+ AC_CONFIG_AUX_DIR([build-aux])
+ AC_CONFIG_MACRO_DIR([m4])
+diff --git a/doc/faq.txt b/doc/faq.txt
+index a49e7e74..3f9068b4 100644
+--- a/doc/faq.txt
++++ b/doc/faq.txt
+@@ -240,5 +240,5 @@ A:  Give --enable-small to the configure script. Use also appropriate
+     If the result is still too big, take a look at XZ Embedded. It is
+     a separate project, which provides a limited but significantly
+     smaller XZ decoder implementation than XZ Utils. You can find it
+-    at <https://xz.tukaani.org/xz-embedded/>.
++    at <https://tukaani.org/xz/embedded.html>.
+ 
+diff --git a/doc/lzma-file-format.txt b/doc/lzma-file-format.txt
+index 1dd365eb..8cce5dcc 100644
+--- a/doc/lzma-file-format.txt
++++ b/doc/lzma-file-format.txt
+@@ -40,11 +40,11 @@ The .lzma File Format
+ 
+ 0.2. Changes
+ 
+-        Last modified: 2024-01-16 18:00+0800
++        Last modified: 2024-04-08 17:35+0300
+ 
+-        Compared to the previous version (2022-07-13 21:00+0300)
+-        the section 2 was modified to change links from http to
+-        https and to update XZ links.
++        From version 2011-04-12 11:55+0300 to 2022-07-13 21:00+0300:
++        The section 1.1.3 was modified to allow End of Payload Marker
++        with a known Uncompressed Size.
+ 
+ 
+ 1. File Format
+@@ -166,8 +166,8 @@ The .lzma File Format
+         https://tukaani.org/lzma/
+ 
+         XZ Utils - The next generation of LZMA Utils
+-        https://xz.tukaani.org/xz-utils/
++        https://tukaani.org/xz/
+ 
+         The .xz file format - The successor of the .lzma format
+-        https://xz.tukaani.org/format/xz-file-format.txt
++        https://tukaani.org/xz/xz-file-format.txt
+ 
+diff --git a/dos/config.h b/dos/config.h
+index 49d48d60..634c5cc8 100644
+--- a/dos/config.h
++++ b/dos/config.h
+@@ -145,7 +145,7 @@
+ #define PACKAGE_NAME "XZ Utils"
+ 
+ /* Define to the home page for this package. */
+-#define PACKAGE_URL "https://xz.tukaani.org/xz-utils/"
++#define PACKAGE_URL "https://tukaani.org/xz/"
+ 
+ /* The size of 'size_t', as computed by sizeof. */
+ #define SIZEOF_SIZE_T 4
+diff --git a/src/liblzma/api/lzma.h b/src/liblzma/api/lzma.h
+index d55349f4..1bdea878 100644
+--- a/src/liblzma/api/lzma.h
++++ b/src/liblzma/api/lzma.h
+@@ -10,7 +10,7 @@
+  * headers) streams are supported. Multiple compression algorithms (filters)
+  * are supported. Currently LZMA2 is the primary filter.
+  *
+- * liblzma is part of XZ Utils <https://xz.tukaani.org/xz-utils/>. XZ Utils
++ * liblzma is part of XZ Utils <https://tukaani.org/xz/>. XZ Utils
+  * includes a gzip-like command line tool named xz and some other tools.
+  * XZ Utils is developed and maintained by Lasse Collin and Jia Tan.
+  *
+diff --git a/src/xz/xz.1 b/src/xz/xz.1
+index 6c340629..79cca649 100644
+--- a/src/xz/xz.1
++++ b/src/xz/xz.1
+@@ -4,7 +4,7 @@
+ .\" Authors: Lasse Collin
+ .\"          Jia Tan
+ .\"
+-.TH XZ 1 "2024-02-25" "Tukaani" "XZ Utils"
++.TH XZ 1 "2024-04-08" "Tukaani" "XZ Utils"
+ .
+ .SH NAME
+ xz, unxz, xzcat, lzma, unlzma, lzcat \- Compress or decompress .xz and .lzma files
+@@ -3176,8 +3176,8 @@ have the same number of bytes per pixel.
+ .BR bzip2 (1),
+ .BR 7z (1)
+ .PP
+-XZ Utils: <https://xz.tukaani.org/xz-utils/>
++XZ Utils: <https://tukaani.org/xz/>
+ .br
+-XZ Embedded: <https://xz.tukaani.org/xz-embedded/>
++XZ Embedded: <https://tukaani.org/xz/embedded.html>
+ .br
+ LZMA SDK: <https://7-zip.org/sdk.html>
+diff --git a/src/xzdec/xzdec.1 b/src/xzdec/xzdec.1
+index 0ae0fddd..5198efb4 100644
+--- a/src/xzdec/xzdec.1
++++ b/src/xzdec/xzdec.1
+@@ -2,7 +2,7 @@
+ .\"
+ .\" Author: Lasse Collin
+ .\"
+-.TH XZDEC 1 "2024-01-19" "Tukaani" "XZ Utils"
++.TH XZDEC 1 "2024-04-08" "Tukaani" "XZ Utils"
+ .SH NAME
+ xzdec, lzmadec \- Small .xz and .lzma decompressors
+ .SH SYNOPSIS
+@@ -141,4 +141,4 @@ decompressor, consider using XZ Embedded.
+ .SH "SEE ALSO"
+ .BR xz (1)
+ .PP
+-XZ Embedded: <https://xz.tukaani.org/xz-embedded/>
++XZ Embedded: <https://tukaani.org/xz/embedded.html>
+diff --git a/windows/README-Windows.txt b/windows/README-Windows.txt
+index c7820f8c..5dc2ac72 100644
+--- a/windows/README-Windows.txt
++++ b/windows/README-Windows.txt
+@@ -8,7 +8,7 @@ Introduction
+     This package includes command line tools (xz.exe and a few
+     others) and the liblzma compression library from XZ Utils.
+     You can find the latest version and full source code from
+-    <https://xz.tukaani.org/xz-utils/>.
++    <https://tukaani.org/xz/>.
+ 
+     The parts of the XZ Utils source code, that are relevant to this
+     binary package, are under the BSD Zero Clause License (0BSD).

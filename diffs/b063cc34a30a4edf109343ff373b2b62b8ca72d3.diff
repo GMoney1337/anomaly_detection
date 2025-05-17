@@ -1,0 +1,79 @@
+diff --git a/configure.ac b/configure.ac
+index 706ab5a8..41726b78 100644
+--- a/configure.ac
++++ b/configure.ac
+@@ -15,20 +15,15 @@
+ # of malloc(), stat(), or lstat(), since we don't use those functions in
+ # a way that would cause the problems the autoconf macros check.
+ 
+-AC_PREREQ([2.61])
++AC_PREREQ([2.64])
+ 
+ AC_INIT([XZ Utils], m4_esyscmd([/bin/sh version.sh]),
+-	[lasse.collin@tukaani.org], [xz])
++	[lasse.collin@tukaani.org], [xz], [http://tukaani.org/xz/])
+ AC_CONFIG_SRCDIR([src/liblzma/common/common.h])
+ AC_CONFIG_AUX_DIR([build-aux])
+ AC_CONFIG_MACRO_DIR([m4])
+ AC_CONFIG_HEADER([config.h])
+ 
+-PACKAGE_HOMEPAGE=http://tukaani.org/xz/
+-AC_DEFINE_UNQUOTED([PACKAGE_HOMEPAGE], ["$PACKAGE_HOMEPAGE"],
+-	[Define to the URL of the home page of this package.])
+-AC_SUBST([PACKAGE_HOMEPAGE])
+-
+ echo
+ echo "$PACKAGE_STRING"
+ 
+diff --git a/src/liblzma/liblzma.pc.in b/src/liblzma/liblzma.pc.in
+index eb3f6c75..7f11f1a2 100644
+--- a/src/liblzma/liblzma.pc.in
++++ b/src/liblzma/liblzma.pc.in
+@@ -12,7 +12,7 @@ includedir=@includedir@
+ 
+ Name: liblzma
+ Description: General purpose data compression library
+-URL: @PACKAGE_HOMEPAGE@
++URL: @PACKAGE_URL@
+ Version: @PACKAGE_VERSION@
+ Cflags: -I${includedir}
+ Libs: -L${libdir} -llzma
+diff --git a/src/lzmainfo/lzmainfo.c b/src/lzmainfo/lzmainfo.c
+index caef7b50..af8e66cc 100644
+--- a/src/lzmainfo/lzmainfo.c
++++ b/src/lzmainfo/lzmainfo.c
+@@ -34,7 +34,7 @@ _("Usage: %s [--help] [--version] [FILE]...\n"
+ 
+ 	printf(_("Report bugs to <%s> (in English or Finnish).\n"),
+ 			PACKAGE_BUGREPORT);
+-	printf(_("%s home page: <%s>\n"), PACKAGE_NAME, PACKAGE_HOMEPAGE);
++	printf(_("%s home page: <%s>\n"), PACKAGE_NAME, PACKAGE_URL);
+ 
+ 	tuklib_exit(EXIT_SUCCESS, EXIT_FAILURE, true);
+ }
+diff --git a/src/xz/message.c b/src/xz/message.c
+index 6c26d0b4..865f7599 100644
+--- a/src/xz/message.c
++++ b/src/xz/message.c
+@@ -1165,7 +1165,7 @@ message_help(bool long_help)
+ 	// address for translation bugs. Thanks.
+ 	printf(_("Report bugs to <%s> (in English or Finnish).\n"),
+ 			PACKAGE_BUGREPORT);
+-	printf(_("%s home page: <%s>\n"), PACKAGE_NAME, PACKAGE_HOMEPAGE);
++	printf(_("%s home page: <%s>\n"), PACKAGE_NAME, PACKAGE_URL);
+ 
+ 	tuklib_exit(E_SUCCESS, E_ERROR, verbosity != V_SILENT);
+ }
+diff --git a/src/xzdec/xzdec.c b/src/xzdec/xzdec.c
+index 0abccebb..2b166861 100644
+--- a/src/xzdec/xzdec.c
++++ b/src/xzdec/xzdec.c
+@@ -82,7 +82,7 @@ help(void)
+ "%" PRIu64 " MiB RAM.\n"
+ "\n"
+ "Report bugs to <" PACKAGE_BUGREPORT "> (in English or Finnish).\n"
+-PACKAGE_NAME " home page: <" PACKAGE_HOMEPAGE ">\n",
++PACKAGE_NAME " home page: <" PACKAGE_URL ">\n",
+ 		progname, memlimit / (1024 * 1024));
+ 	tuklib_exit(EXIT_SUCCESS, EXIT_FAILURE, display_errors);
+ }

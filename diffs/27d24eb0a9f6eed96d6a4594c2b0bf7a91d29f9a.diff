@@ -1,0 +1,13 @@
+diff --git a/src/xz/message.c b/src/xz/message.c
+index 9fa2a621..e5591994 100644
+--- a/src/xz/message.c
++++ b/src/xz/message.c
+@@ -211,7 +211,7 @@ message_set_files(unsigned int files)
+ static void
+ print_filename(void)
+ {
+-	if (files_total != 1 || filename != stdin_filename) {
++	if (!opt_robot && (files_total != 1 || filename != stdin_filename)) {
+ 		signals_block();
+ 
+ 		FILE *file = opt_mode == MODE_LIST ? stdout : stderr;

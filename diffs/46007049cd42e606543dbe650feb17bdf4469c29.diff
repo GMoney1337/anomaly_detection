@@ -1,0 +1,13 @@
+diff --git a/src/liblzma/lzma/fastpos_tablegen.c b/src/liblzma/lzma/fastpos_tablegen.c
+index d4484c82..57ed1503 100644
+--- a/src/liblzma/lzma/fastpos_tablegen.c
++++ b/src/liblzma/lzma/fastpos_tablegen.c
+@@ -13,6 +13,8 @@
+ 
+ #include <inttypes.h>
+ #include <stdio.h>
++
++#define lzma_attr_visibility_hidden
+ #include "fastpos.h"
+ 
+ 

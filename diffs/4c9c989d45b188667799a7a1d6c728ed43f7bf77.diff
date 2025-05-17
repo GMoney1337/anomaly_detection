@@ -1,0 +1,39 @@
+diff --git a/.gitignore b/.gitignore
+index 7c85aab0..206906c2 100644
+--- a/.gitignore
++++ b/.gitignore
+@@ -9,6 +9,7 @@ Makefile.in
+ /autom4te.cache
+ /Doxyfile
+ /aclocal.m4
++/build-aux
+ /compile
+ /config.guess
+ /config.h
+diff --git a/Makefile.am b/Makefile.am
+index 1ddbdd81..6543361f 100644
+--- a/Makefile.am
++++ b/Makefile.am
+@@ -16,7 +16,6 @@ SUBDIRS += src po tests
+ 
+ EXTRA_DIST = \
+ 	version.sh \
+-	config.rpath \
+ 	Doxyfile.in \
+ 	extra \
+ 	doc \
+diff --git a/configure.ac b/configure.ac
+index 86eac38e..d46ebee1 100644
+--- a/configure.ac
++++ b/configure.ac
+@@ -20,8 +20,9 @@ AC_PREREQ([2.61])
+ AC_INIT([XZ Utils], m4_esyscmd([/bin/sh version.sh]),
+ 	[lasse.collin@tukaani.org], [xz])
+ AC_CONFIG_SRCDIR([src/liblzma/common/common.h])
+-AC_CONFIG_HEADER([config.h])
++AC_CONFIG_AUX_DIR([build-aux])
+ AC_CONFIG_MACRO_DIR([m4])
++AC_CONFIG_HEADER([config.h])
+ 
+ PACKAGE_HOMEPAGE=http://tukaani.org/xz/
+ AC_DEFINE_UNQUOTED([PACKAGE_HOMEPAGE], ["$PACKAGE_HOMEPAGE"],

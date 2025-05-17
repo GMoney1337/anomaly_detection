@@ -1,0 +1,93 @@
+diff --git a/src/xz/message.c b/src/xz/message.c
+index 3f2b813d..c73099e6 100644
+--- a/src/xz/message.c
++++ b/src/xz/message.c
+@@ -77,6 +77,17 @@ static uint64_t start_time;
+ //    gettimeofday().
+ #ifdef SIGALRM
+ 
++const int message_progress_sigs[] = {
++	SIGALRM,
++#ifdef SIGINFO
++	SIGINFO,
++#endif
++#ifdef SIGUSR1
++	SIGUSR1,
++#endif
++	0
++};
++
+ /// The signal handler for SIGALRM sets this to true. It is set back to false
+ /// once the progress message has been updated.
+ static volatile sig_atomic_t progress_needs_updating = false;
+@@ -142,34 +153,15 @@ message_init(void)
+ */
+ 
+ #ifdef SIGALRM
+-	// DJGPP lacks SA_RESTART, but it shouldn't give EINTR
+-	// in most places either.
+-#	if defined(__DJGPP__) && !defined(SA_RESTART)
+-#		define SA_RESTART 0
+-#	endif
+-
+ 	// Establish the signal handlers which set a flag to tell us that
+-	// progress info should be updated. Since these signals don't
+-	// require any quick action, we set SA_RESTART. That way we don't
+-	// need to block them either in signals_block() to keep stdio
+-	// functions from getting EINTR.
+-	static const int sigs[] = {
+-		SIGALRM,
+-#ifdef SIGINFO
+-		SIGINFO,
+-#endif
+-#ifdef SIGUSR1
+-		SIGUSR1,
+-#endif
+-	};
+-
++	// progress info should be updated.
+ 	struct sigaction sa;
+ 	sigemptyset(&sa.sa_mask);
+-	sa.sa_flags = SA_RESTART;
++	sa.sa_flags = 0;
+ 	sa.sa_handler = &progress_signal_handler;
+ 
+-	for (size_t i = 0; i < ARRAY_SIZE(sigs); ++i)
+-		if (sigaction(sigs[i], &sa, NULL))
++	for (size_t i = 0; message_progress_sigs[i] != 0; ++i)
++		if (sigaction(message_progress_sigs[i], &sa, NULL))
+ 			message_signal_handler();
+ #endif
+ 
+diff --git a/src/xz/message.h b/src/xz/message.h
+index 37e60821..ba1d3222 100644
+--- a/src/xz/message.h
++++ b/src/xz/message.h
+@@ -20,6 +20,10 @@ enum message_verbosity {
+ };
+ 
+ 
++/// \brief      Signals used for progress message handling
++extern const int message_progress_sigs[];
++
++
+ /// \brief      Initializes the message functions
+ ///
+ /// If an error occurs, this function doesn't return.
+diff --git a/src/xz/signals.c b/src/xz/signals.c
+index 7e65b2a3..ff524d18 100644
+--- a/src/xz/signals.c
++++ b/src/xz/signals.c
+@@ -71,6 +71,12 @@ signals_init(void)
+ 	for (size_t i = 0; i < ARRAY_SIZE(sigs); ++i)
+ 		sigaddset(&hooked_signals, sigs[i]);
+ 
++#ifdef SIGALRM
++	// Add also the signals from message.c to hooked_signals.
++	for (size_t i = 0; message_progress_sigs[i] != 0; ++i)
++		sigaddset(&hooked_signals, message_progress_sigs[i]);
++#endif
++
+ 	struct sigaction sa;
+ 
+ 	// All the signals that we handle we also blocked while the signal

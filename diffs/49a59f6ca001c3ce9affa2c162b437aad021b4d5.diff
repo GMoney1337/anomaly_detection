@@ -1,0 +1,112 @@
+diff --git a/src/xz/hardware.c b/src/xz/hardware.c
+index 8f6a86e4..1fdecea1 100644
+--- a/src/xz/hardware.c
++++ b/src/xz/hardware.c
+@@ -235,9 +235,22 @@ memlimit_show(const char *str, size_t str_columns, uint64_t value)
+ extern void
+ hardware_memlimit_show(void)
+ {
++	uint32_t cputhreads = 1;
++#ifdef MYTHREAD_ENABLED
++	cputhreads = lzma_cputhreads();
++	if (cputhreads == 0)
++		cputhreads = 1;
++#endif
++
+ 	if (opt_robot) {
+-		printf("%" PRIu64 "\t%" PRIu64 "\t%" PRIu64 "\n", total_ram,
+-				memlimit_compress, memlimit_decompress);
++		printf("%" PRIu64 "\t%" PRIu64 "\t%" PRIu64 "\t%" PRIu64
++				"\t%" PRIu64 "\t%" PRIu32 "\n",
++				total_ram,
++				memlimit_compress,
++				memlimit_decompress,
++				hardware_memlimit_mtdec_get(),
++				memlimit_mt_default,
++				cputhreads);
+ 	} else {
+ 		const char *msgs[] = {
+ 			_("Amount of physical memory (RAM):"),
+@@ -263,13 +276,6 @@ hardware_memlimit_show(void)
+ 				width_max = w;
+ 		}
+ 
+-		uint32_t cputhreads = 1;
+-#ifdef MYTHREAD_ENABLED
+-		cputhreads = lzma_cputhreads();
+-		if (cputhreads == 0)
+-			cputhreads = 1;
+-#endif
+-
+ 		puts(_("Hardware information:"));
+ 		memlimit_show(msgs[0], width_max, total_ram);
+ 		printf("  %-*s  %" PRIu32 "\n",
+diff --git a/src/xz/xz.1 b/src/xz/xz.1
+index 7267b56e..e11f4ac2 100644
+--- a/src/xz/xz.1
++++ b/src/xz/xz.1
+@@ -5,7 +5,7 @@
+ .\" This file has been put into the public domain.
+ .\" You can do whatever you want with this file.
+ .\"
+-.TH XZ 1 "2022-10-25" "Tukaani" "XZ Utils"
++.TH XZ 1 "2022-11-07" "Tukaani" "XZ Utils"
+ .
+ .SH NAME
+ xz, unxz, xzcat, lzma, unlzma, lzcat \- Compress or decompress .xz and .lzma files
+@@ -1960,15 +1960,50 @@ and
+ .B "xz \-\-robot \-\-info\-memory"
+ prints a single line with three tab-separated columns:
+ .IP 1. 4
+-Total amount of physical memory (RAM) in bytes
++Total amount of physical memory (RAM) in bytes.
+ .IP 2. 4
+-Memory usage limit for compression in bytes.
+-A special value of zero indicates the default setting,
++Memory usage limit for compression in bytes
++.RB ( \-\-memlimit\-compress ).
++A special value of
++.B 0
++indicates the default setting
+ which for single-threaded mode is the same as no limit.
+ .IP 3. 4
+-Memory usage limit for decompression in bytes.
+-A special value of zero indicates the default setting,
++Memory usage limit for decompression in bytes
++.RB ( \-\-memlimit\-decompress ).
++A special value of
++.B 0
++indicates the default setting
+ which for single-threaded mode is the same as no limit.
++.IP 4. 4
++Since
++.B xz
++5.3.4alpha:
++Memory usage for multi-threaded decompression in bytes
++.RB ( \-\-memlimit\-mt\-decompress ).
++This is never zero because a system-specific default value
++shown in the column 5
++is used if no limit has been specified explicitly.
++This is also never greater than the value in the column 3
++even if a larger value has been specified with
++.BR \-\-memlimit\-mt\-decompress .
++.IP 5. 4
++Since
++.B xz
++5.3.4alpha:
++A system-specific default memory usage limit
++that is used to limit the number of threads
++when compressing with an automatic number of threads
++.RB ( \-\-threads=0 )
++and no memory usage limit has been specified
++.RB ( \-\-memlimit\-compress ).
++This is also used as the default value for
++.BR \-\-memlimit\-mt\-decompress .
++.IP 6. 4
++Since
++.B xz
++5.3.4alpha:
++Number of available processor threads.
+ .PP
+ In the future, the output of
+ .B "xz \-\-robot \-\-info\-memory"

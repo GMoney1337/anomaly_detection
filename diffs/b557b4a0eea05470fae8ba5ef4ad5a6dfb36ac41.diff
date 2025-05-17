@@ -1,0 +1,15 @@
+diff --git a/src/liblzma/api/lzma/bcj.h b/src/liblzma/api/lzma/bcj.h
+index ba6cacb9..10719b88 100644
+--- a/src/liblzma/api/lzma/bcj.h
++++ b/src/liblzma/api/lzma/bcj.h
+@@ -53,8 +53,8 @@
+        /**<
+         * Filter for ARM64 binaries.
+         *
+-        * \note         Unlike the older filters above, this doesn't
+-        *               support any options (must be NULL).
++        * \note         In contrast to the other BCJ filters, this uses
++        *               its own options structure, lzma_options_arm64.
+         */
+ 
+ /**

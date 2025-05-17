@@ -1,0 +1,12 @@
+diff --git a/THANKS b/THANKS
+index 4e82d8fb..a89390bf 100644
+--- a/THANKS
++++ b/THANKS
+@@ -21,6 +21,7 @@ In alphabetical order:
+   - Alexandre Sauvé
+   - Andreas Schwab
+   - Julian Seward
++  - Dan Shechter
+   - Paul Townsend
+   - Mohammed Adnène Trojette
+   - Ralf Wildenhues

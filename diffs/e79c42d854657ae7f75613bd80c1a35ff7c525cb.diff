@@ -1,0 +1,13 @@
+diff --git a/src/liblzma/lz/lz_decoder.h b/src/liblzma/lz/lz_decoder.h
+index 9041d0bd..79b8c8c5 100644
+--- a/src/liblzma/lz/lz_decoder.h
++++ b/src/liblzma/lz/lz_decoder.h
+@@ -126,7 +126,7 @@ dict_is_empty(const lzma_dict *const dict)
+ static inline bool
+ dict_is_distance_valid(const lzma_dict *const dict, const size_t distance)
+ {
+-	return dict->full >= distance;
++	return dict->full > distance;
+ }
+ 
+ 

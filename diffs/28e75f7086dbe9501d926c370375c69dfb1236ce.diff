@@ -1,0 +1,12 @@
+diff --git a/src/liblzma/Makefile.am b/src/liblzma/Makefile.am
+index 46a80835..14e168f4 100644
+--- a/src/liblzma/Makefile.am
++++ b/src/liblzma/Makefile.am
+@@ -52,5 +52,5 @@ endif
+ 
+ ## pkg-config
+ pkgconfigdir = $(libdir)/pkgconfig
+-pkgconfig_DATA = lzma.pc
+-EXTRA_DIST = lzma.pc.in
++pkgconfig_DATA = liblzma.pc
++EXTRA_DIST = liblzma.pc.in

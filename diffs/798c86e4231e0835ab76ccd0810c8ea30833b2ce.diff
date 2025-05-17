@@ -1,0 +1,12 @@
+diff --git a/tests/test_files.sh b/tests/test_files.sh
+index 2ea9328b..b550b757 100755
+--- a/tests/test_files.sh
++++ b/tests/test_files.sh
+@@ -15,6 +15,7 @@ XZDEC=../src/xzdec/xzdec
+ test -x "$XZ" || XZ=
+ test -x "$XZDEC" || XZDEC=
+ if test -z "$XZ$XZDEC"; then
++	echo "xz and xzdec were not built, skipping this test."
+ 	exit 77
+ fi
+ 

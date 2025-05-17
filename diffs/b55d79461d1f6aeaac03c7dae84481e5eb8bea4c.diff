@@ -1,0 +1,89 @@
+diff --git a/src/xz/coder.c b/src/xz/coder.c
+index 3c6a01cb..f36d1bf2 100644
+--- a/src/xz/coder.c
++++ b/src/xz/coder.c
+@@ -902,16 +902,19 @@ coder_run(const char *filename)
+ 				mytime_set_start_time();
+ 
+ 				// Initialize the progress indicator.
++				const bool is_passthru = init_ret
++						== CODER_INIT_PASSTHRU;
+ 				const uint64_t in_size
+ 						= pair->src_st.st_size <= 0
+ 						? 0 : pair->src_st.st_size;
+-				message_progress_start(&strm, in_size);
++				message_progress_start(&strm,
++						is_passthru, in_size);
+ 
+ 				// Do the actual coding or passthru.
+-				if (init_ret == CODER_INIT_NORMAL)
+-					success = coder_normal(pair);
+-				else
++				if (is_passthru)
+ 					success = coder_passthru(pair);
++				else
++					success = coder_normal(pair);
+ 
+ 				message_progress_end(success);
+ 			}
+diff --git a/src/xz/message.c b/src/xz/message.c
+index 7e9ec53b..f138af50 100644
+--- a/src/xz/message.c
++++ b/src/xz/message.c
+@@ -56,6 +56,11 @@ static bool progress_active = false;
+ /// Pointer to lzma_stream used to do the encoding or decoding.
+ static lzma_stream *progress_strm;
+ 
++/// This is true if we are in passthru mode (not actually compressing or
++/// decompressing) and thus cannot use lzma_get_progress(progress_strm, ...).
++/// That is, we are using coder_passthru() in coder.c.
++static bool progress_is_from_passthru;
++
+ /// Expected size of the input stream is needed to show completion percentage
+ /// and estimate remaining time.
+ static uint64_t expected_in_size;
+@@ -241,11 +246,12 @@ message_filename(const char *src_name)
+ 
+ 
+ extern void
+-message_progress_start(lzma_stream *strm, uint64_t in_size)
++message_progress_start(lzma_stream *strm, bool is_passthru, uint64_t in_size)
+ {
+ 	// Store the pointer to the lzma_stream used to do the coding.
+ 	// It is needed to find out the position in the stream.
+ 	progress_strm = strm;
++	progress_is_from_passthru = is_passthru;
+ 
+ 	// Store the expected size of the file. If we aren't printing any
+ 	// statistics, then is will be unused. But since it is possible
+@@ -507,7 +513,15 @@ progress_pos(uint64_t *in_pos,
+ 		uint64_t *compressed_pos, uint64_t *uncompressed_pos)
+ {
+ 	uint64_t out_pos;
+-	lzma_get_progress(progress_strm, in_pos, &out_pos);
++	if (progress_is_from_passthru) {
++		// In passthru mode the progress info is in total_in/out but
++		// the *progress_strm itself isn't initialized and thus we
++		// cannot use lzma_get_progress().
++		*in_pos = progress_strm->total_in;
++		out_pos = progress_strm->total_out;
++	} else {
++		lzma_get_progress(progress_strm, in_pos, &out_pos);
++	}
+ 
+ 	// It cannot have processed more input than it has been given.
+ 	assert(*in_pos <= progress_strm->total_in);
+diff --git a/src/xz/message.h b/src/xz/message.h
+index 74599bd9..894ac783 100644
+--- a/src/xz/message.h
++++ b/src/xz/message.h
+@@ -150,7 +150,8 @@ extern void message_filename(const char *src_name);
+ /// \param      strm      Pointer to lzma_stream used for the coding.
+ /// \param      in_size   Size of the input file, or zero if unknown.
+ ///
+-extern void message_progress_start(lzma_stream *strm, uint64_t in_size);
++extern void message_progress_start(lzma_stream *strm,
++		bool is_passthru, uint64_t in_size);
+ 
+ 
+ /// Update the progress info if in verbose mode and enough time has passed

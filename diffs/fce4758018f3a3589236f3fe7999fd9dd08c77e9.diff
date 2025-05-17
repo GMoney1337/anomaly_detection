@@ -1,0 +1,113 @@
+diff --git a/.github/SECURITY.md b/.github/SECURITY.md
+index 756d4e39..e9b3458a 100644
+--- a/.github/SECURITY.md
++++ b/.github/SECURITY.md
+@@ -4,7 +4,7 @@
+ 
+ We provide security updates to the development branch and the stable
+ branches. Security patches for old releases are available on the
+-[project website](https://tukaani.org/xz).
++[project website](https://xz.tukaani.org/xz-utils/).
+ 
+ ## Reporting a Vulnerability
+ 
+diff --git a/COPYING b/COPYING
+index e54eeacf..4990c5f5 100644
+--- a/COPYING
++++ b/COPYING
+@@ -58,7 +58,8 @@ XZ Utils Licensing
+     naturally it is not legally required. Here is an example of a good
+     notice to put into "about box" or into documentation:
+ 
+-        This software includes code from XZ Utils <https://tukaani.org/xz/>.
++        This software includes code from XZ Utils
++        <https://xz.tukaani.org/xz-utils/>.
+ 
+     The following license texts are included in the following files:
+       - COPYING.LGPLv2.1: GNU Lesser General Public License version 2.1
+diff --git a/README b/README
+index 9e76301b..9a29c1b2 100644
+--- a/README
++++ b/README
+@@ -287,11 +287,11 @@ XZ Utils
+     XZ Embedded is a limited implementation written for use in the Linux
+     kernel, but it is also suitable for other embedded use.
+ 
+-        https://tukaani.org/xz/embedded.html
++        https://xz.tukaani.org/xz-embedded/
+ 
+     XZ for Java is a complete implementation written in pure Java.
+ 
+-        https://tukaani.org/xz/java.html
++        https://xz.tukaani.org/xz-for-java/
+ 
+ 
+ 6. Contact information
+diff --git a/doc/faq.txt b/doc/faq.txt
+index 3f9068b4..a49e7e74 100644
+--- a/doc/faq.txt
++++ b/doc/faq.txt
+@@ -240,5 +240,5 @@ A:  Give --enable-small to the configure script. Use also appropriate
+     If the result is still too big, take a look at XZ Embedded. It is
+     a separate project, which provides a limited but significantly
+     smaller XZ decoder implementation than XZ Utils. You can find it
+-    at <https://tukaani.org/xz/embedded.html>.
++    at <https://xz.tukaani.org/xz-embedded/>.
+ 
+diff --git a/doc/lzma-file-format.txt b/doc/lzma-file-format.txt
+index 4865defd..1dd365eb 100644
+--- a/doc/lzma-file-format.txt
++++ b/doc/lzma-file-format.txt
+@@ -40,11 +40,11 @@ The .lzma File Format
+ 
+ 0.2. Changes
+ 
+-        Last modified: 2022-07-13 21:00+0300
++        Last modified: 2024-01-16 18:00+0800
+ 
+-        Compared to the previous version (2011-04-12 11:55+0300)
+-        the section 1.1.3 was modified to allow End of Payload Marker
+-        with a known Uncompressed Size.
++        Compared to the previous version (2022-07-13 21:00+0300)
++        the section 2 was modified to change links from http to
++        https and to update XZ links.
+ 
+ 
+ 1. File Format
+@@ -157,17 +157,17 @@ The .lzma File Format
+ 2. References
+ 
+         LZMA SDK - The original LZMA implementation
+-        http://7-zip.org/sdk.html
++        https://7-zip.org/sdk.html
+ 
+         7-Zip
+-        http://7-zip.org/
++        https://7-zip.org/
+ 
+         LZMA Utils - LZMA adapted to POSIX-like systems
+-        http://tukaani.org/lzma/
++        https://tukaani.org/lzma/
+ 
+         XZ Utils - The next generation of LZMA Utils
+-        http://tukaani.org/xz/
++        https://xz.tukaani.org/xz-utils/
+ 
+         The .xz file format - The successor of the .lzma format
+-        http://tukaani.org/xz/xz-file-format.txt
++        https://xz.tukaani.org/format/xz-file-format.txt
+ 
+diff --git a/windows/README-Windows.txt b/windows/README-Windows.txt
+index 87e8f464..9d277773 100644
+--- a/windows/README-Windows.txt
++++ b/windows/README-Windows.txt
+@@ -7,7 +7,8 @@ Introduction
+ 
+     This package includes command line tools (xz.exe and a few others)
+     and the liblzma compression library from XZ Utils. You can find the
+-    latest version and full source code from <https://tukaani.org/xz/>.
++    latest version and full source code from
++    <https://xz.tukaani.org/xz-utils/>.
+ 
+     The parts of the XZ Utils source code, that are relevant to this
+     binary package, are in the public domain. XZ Utils have been built

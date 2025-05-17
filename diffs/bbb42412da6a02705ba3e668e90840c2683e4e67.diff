@@ -1,0 +1,21 @@
+diff --git a/tests/Makefile.am b/tests/Makefile.am
+index 0523191d..ebc33a7b 100644
+--- a/tests/Makefile.am
++++ b/tests/Makefile.am
+@@ -26,15 +26,10 @@ EXTRA_DIST = \
+ AM_CPPFLAGS = \
+ 	-I$(top_srcdir)/src/common \
+ 	-I$(top_srcdir)/src/liblzma/api \
+-	-I$(top_srcdir)/src/liblzma \
+-	-I$(top_builddir)/lib
++	-I$(top_srcdir)/src/liblzma
+ 
+ LDADD = $(top_builddir)/src/liblzma/liblzma.la
+ 
+-if COND_GNULIB
+-LDADD += $(top_builddir)/lib/libgnu.a
+-endif
+-
+ LDADD += $(LTLIBINTL)
+ 
+ check_PROGRAMS = \

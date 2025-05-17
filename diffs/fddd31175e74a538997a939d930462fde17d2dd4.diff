@@ -1,0 +1,22 @@
+diff --git a/src/common/tuklib_config.h b/src/common/tuklib_config.h
+index 8f2e9618..9d470ba7 100644
+--- a/src/common/tuklib_config.h
++++ b/src/common/tuklib_config.h
+@@ -1,7 +1,10 @@
+-#include "sysdefs.h"
+-
+-// sysdefs.h takes care of these.
+-// #include <stddef.h>
+-// #include <stdbool.h>
+-// #include <inttypes.h>
+-// #include <limits.h>
++// If config.h isn't available, assume that the headers required by
++// tuklib_common.h are available. This is required by crc32_tablegen.c.
++#ifdef HAVE_CONFIG_H
++#	include "sysdefs.h"
++#else
++#	include <stddef.h>
++#	include <stdbool.h>
++#	include <inttypes.h>
++#	include <limits.h>
++#endif

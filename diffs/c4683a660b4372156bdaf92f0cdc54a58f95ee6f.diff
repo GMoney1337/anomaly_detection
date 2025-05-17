@@ -1,0 +1,12 @@
+diff --git a/THANKS b/THANKS
+index a89390bf..93813356 100644
+--- a/THANKS
++++ b/THANKS
+@@ -15,6 +15,7 @@ In alphabetical order:
+   - Stephan Kulow
+   - Andraž 'ruskie' Levstik
+   - Jim Meyering
++  - Hongbo Ni
+   - Igor Pavlov
+   - Mikko Pouru
+   - Bernhard Reutner-Fischer

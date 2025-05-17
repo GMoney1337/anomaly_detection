@@ -1,0 +1,13 @@
+diff --git a/src/liblzma/check/crc32_table.c b/src/liblzma/check/crc32_table.c
+index fb1b6585..a78a629e 100644
+--- a/src/liblzma/check/crc32_table.c
++++ b/src/liblzma/check/crc32_table.c
+@@ -28,7 +28,7 @@
+ 
+ 
+ #if !defined(HAVE_ENCODERS) && (defined(X86_CLMUL_NO_TABLE) \
+-		|| defined(ARM64_CRC32_NO_TABLE_))
++		|| defined(ARM64_CRC32_NO_TABLE))
+ // No table needed. Use a typedef to avoid an empty translation unit.
+ typedef void lzma_crc32_dummy;
+ 

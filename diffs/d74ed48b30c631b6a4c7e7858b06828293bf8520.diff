@@ -1,0 +1,13 @@
+diff --git a/po/uk.po b/po/uk.po
+index bfec0419..d50cae99 100644
+--- a/po/uk.po
++++ b/po/uk.po
+@@ -1,7 +1,7 @@
+ # SPDX-License-Identifier: 0BSD
+ #
+ # Ukrainian translation for xz.
+-# This file is distributed under the same license as the xz package.
++# This file is published under the BSD Zero Clause License.
+ # Copyright (C) The XZ Utils authors and contributors
+ #
+ # Yuri Chornoivan <yurchor@ukr.net>, 2019, 2022, 2023, 2024.

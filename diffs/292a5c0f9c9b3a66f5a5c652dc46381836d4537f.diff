@@ -1,0 +1,12 @@
+diff --git a/THANKS b/THANKS
+index 03e731b6..4301f205 100644
+--- a/THANKS
++++ b/THANKS
+@@ -66,6 +66,7 @@ has been important. :-) In alphabetical order:
+   - Bela Lubkin
+   - Gregory Margo
+   - Julien Marrec
++  - Martin Matuška
+   - Jim Meyering
+   - Arkadiusz Miskiewicz
+   - Conley Moorhous

@@ -1,0 +1,378 @@
+diff --git a/AUTHORS b/AUTHORS
+index 63a9815b..bda87975 100644
+--- a/AUTHORS
++++ b/AUTHORS
+@@ -16,11 +16,11 @@ Authors of XZ Utils
+ 
+     Some scripts have been adapted from gzip. The original versions
+     were written by Jean-loup Gailly, Charles Levert, and Paul Eggert.
+-    Andrew Dudman helped adapting the script and their man pages for
++    Andrew Dudman helped adapting the scripts and their man pages for
+     XZ Utils.
+ 
+-    The GNU Autotools based build system contains files from many authors,
+-    which I'm not trying list here.
++    The GNU Autotools-based build system contains files from many authors,
++    which I'm not trying to list here.
+ 
+     Several people have contributed fixes or reported bugs. Most of them
+     are mentioned in the file THANKS.
+diff --git a/README b/README
+index a8c5d61e..276a6977 100644
+--- a/README
++++ b/README
+@@ -5,7 +5,7 @@ XZ Utils
+     0. Overview
+     1. Documentation
+        1.1. Overall documentation
+-       1.2. Documentation for command line tools
++       1.2. Documentation for command-line tools
+        1.3. Documentation for liblzma
+     2. Version numbering
+     3. Reporting bugs
+@@ -17,21 +17,21 @@ XZ Utils
+ 0. Overview
+ -----------
+ 
+-    XZ Utils provide a general-purpose data compression library and
+-    command line tools. The native file format is the .xz format, but
++    XZ Utils provide a general-purpose data-compression library plus
++    command-line tools. The native file format is the .xz format, but
+     also the legacy .lzma format is supported. The .xz format supports
+-    multiple compression algorithms, which are called "filters" in
++    multiple compression algorithms, which are called "filters" in the
+     context of XZ Utils. The primary filter is currently LZMA2. With
+     typical files, XZ Utils create about 30 % smaller files than gzip.
+ 
+     To ease adapting support for the .xz format into existing applications
+     and scripts, the API of liblzma is somewhat similar to the API of the
+-    popular zlib library. For the same reason, the command line tool xz
+-    has similar command line syntax than that of gzip.
++    popular zlib library. For the same reason, the command-line tool xz
++    has a command-line syntax similar to that of gzip.
+ 
+-    When aiming for the highest compression ratio, LZMA2 encoder uses
++    When aiming for the highest compression ratio, the LZMA2 encoder uses
+     a lot of CPU time and may use, depending on the settings, even
+-    hundreds of megabytes of RAM. However, in fast modes, LZMA2 encoder
++    hundreds of megabytes of RAM. However, in fast modes, the LZMA2 encoder
+     competes with bzip2 in compression speed, RAM usage, and compression
+     ratio.
+ 
+@@ -44,8 +44,8 @@ XZ Utils
+     since that needs to be done only once to benefit many people.
+ 
+     With some file types, combining (or "chaining") LZMA2 with an
+-    additional filter can improve compression ratio. A filter chain may
+-    contain up to four filters, although usually only one two is used.
++    additional filter can improve the compression ratio. A filter chain may
++    contain up to four filters, although usually only one or two are used.
+     For example, putting a BCJ (Branch/Call/Jump) filter before LZMA2
+     in the filter chain can improve compression ratio of executable files.
+ 
+@@ -88,9 +88,9 @@ XZ Utils
+     packages.
+ 
+ 
+-1.2. Documentation for command line tools
++1.2. Documentation for command-line tools
+ 
+-    The command line tools are documented as man pages. In source code
++    The command-line tools are documented as man pages. In source code
+     releases (and possibly also in some binary packages), the man pages
+     are also provided in plain text (ASCII only) and PDF formats in the
+     directory "doc/man" to make the man pages more accessible to those
+@@ -109,7 +109,7 @@ XZ Utils
+     written yet.
+ 
+     For now, if you have never used liblzma, libbzip2, or zlib, I
+-    recommend learning *basics* of zlib API. Once you know that, it
++    recommend learning the *basics* of the zlib API. Once you know that, it
+     should be easier to learn liblzma.
+ 
+         http://zlib.net/manual.html
+@@ -125,11 +125,11 @@ XZ Utils
+         API and ABI break.
+ 
+       - Y is the minor version. It is incremented when new features are
+-        added without breaking existing API or ABI. Even Y indicates
+-        stable release and odd Y indicates unstable (alpha or beta
++        added without breaking the existing API or ABI. An even Y indicates
++        a stable release and an odd Y indicates unstable (alpha or beta
+         version).
+ 
+-      - Z is the revision. This has different meaning for stable and
++      - Z is the revision. This has a different meaning for stable and
+         unstable releases:
+ 
+           * Stable: Z is incremented when bugs get fixed without adding
+@@ -141,10 +141,10 @@ XZ Utils
+             in earlier unstable releases having the same X.Y may break.
+ 
+       - S indicates stability of the release. It is missing from the
+-        stable releases where Y is an even number. When Y is odd, S
++        stable releases, where Y is an even number. When Y is odd, S
+         is either "alpha" or "beta" to make it very clear that such
+         versions are not stable releases. The same X.Y.Z combination is
+-        not used for more than one stability level i.e. after X.Y.Zalpha,
++        not used for more than one stability level, i.e. after X.Y.Zalpha,
+         the next version can be X.Y.(Z+1)beta but not X.Y.Zbeta.
+ 
+ 
+@@ -180,7 +180,7 @@ XZ Utils
+     Don't send core dump files or any executables. If you have a small
+     example file(s) (total size less than 256 KiB), please include
+     it/them as an attachment. If you have bigger test files, put them
+-    online somewhere and include an URL to the file(s) in the bug report.
++    online somewhere and include a URL to the file(s) in the bug report.
+ 
+     Always include the exact version number of XZ Utils in the bug report.
+     If you are using a snapshot from the git repository, use "git describe"
+@@ -197,7 +197,7 @@ XZ Utils
+ 
+     The messages from the xz tool have been translated into a few
+     languages. Before starting to translate into a new language, ask
+-    the author that someone else hasn't already started working on it.
++    the author whether someone else hasn't already started working on it.
+ 
+     Test your translation. Testing includes comparing the translated
+     output to the original English version by running the same commands
+@@ -218,7 +218,7 @@ XZ Utils
+     Note especially the following:
+ 
+       - The output of --help and --long-help must look nice on
+-        a 80-column terminal. It's OK to add extra lines if needed.
++        an 80-column terminal. It's OK to add extra lines if needed.
+ 
+       - In contrast, don't add extra lines to error messages and such.
+         They are often preceded with e.g. a filename on the same line,
+diff --git a/doc/faq.txt b/doc/faq.txt
+index 36182c2c..333bee09 100644
+--- a/doc/faq.txt
++++ b/doc/faq.txt
+@@ -26,7 +26,7 @@ Q:  There are many LZMA related projects. How does XZ Utils relate to them?
+ A:  7-Zip and LZMA SDK are the original projects. LZMA SDK is roughly
+     a subset of the 7-Zip source tree.
+ 
+-    p7zip is 7-Zip's command line tools ported to POSIX-like systems.
++    p7zip is 7-Zip's command-line tools ported to POSIX-like systems.
+ 
+     LZMA Utils provide a gzip-like lzma tool for POSIX-like systems.
+     LZMA Utils are based on LZMA SDK. XZ Utils are the successor to
+@@ -42,7 +42,7 @@ Q:  Why is liblzma named liblzma if its primary file format is .xz?
+ A:  When the designing of the .xz format began, the idea was to replace
+     the .lzma format and use the same .lzma suffix. It would have been
+     quite OK to reuse the suffix when there were very few .lzma files
+-    around. However, the old .lzma format become popular before the
++    around. However, the old .lzma format became popular before the
+     new format was finished. The new format was renamed to .xz but the
+     name of liblzma wasn't changed.
+ 
+@@ -73,7 +73,7 @@ A:  For now, no. Since XZ Utils supports the .lzma format, it's usually
+ 
+     Technically, there is a way to make the conversion relatively fast
+     (roughly twice the time that normal decompression takes). Writing
+-    such a tool would take quite a bit time though, and would probably
++    such a tool would take quite a bit of time though, and would probably
+     be useful to only a few people. If you really want such a conversion
+     tool, contact Lasse Collin and offer some money.
+ 
+@@ -84,7 +84,7 @@ Q:  I have installed xz, but my tar doesn't recognize .tar.xz files.
+ A:  xz -dc foo.tar.xz | tar xf -
+ 
+ 
+-Q:  Can I recover parts of a broken .xz file (e.g. corrupted CD-R)?
++Q:  Can I recover parts of a broken .xz file (e.g. a corrupted CD-R)?
+ 
+ A:  It may be possible if the file consists of multiple blocks, which
+     typically is not the case if the file was created in single-threaded
+@@ -94,7 +94,7 @@ A:  It may be possible if the file consists of multiple blocks, which
+ Q:  Is (some part of) XZ Utils patented?
+ 
+ A:  Lasse Collin is not aware of any patents that could affect XZ Utils.
+-    However, due to nature of software patents, it's not possible to
++    However, due to the nature of software patents, it's not possible to
+     guarantee that XZ Utils isn't affected by any third party patent(s).
+ 
+ 
+@@ -105,8 +105,8 @@ A:  The .xz format is documented in xz-file-format.txt. It is a container
+     filters.
+ 
+     Documenting LZMA and LZMA2 is planned, but for now, there is no other
+-    documentation that the source code. Before you begin, you should know
+-    the basics of LZ77 and range coding algorithms. LZMA is based on LZ77,
++    documentation than the source code. Before you begin, you should know
++    the basics of LZ77 and range-coding algorithms. LZMA is based on LZ77,
+     but LZMA is a lot more complex. Range coding is used to compress
+     the final bitstream like Huffman coding is used in Deflate.
+ 
+@@ -148,7 +148,7 @@ A:  See the documentation in XZ Embedded. In short, something like
+ 
+         xz --check=crc32 --powerpc --lzma2=preset=6e,dict=64KiB
+ 
+-    Adjust dictionary size to get a good compromise between
++    Adjust the dictionary size to get a good compromise between
+     compression ratio and decompressor memory usage. Note that
+     in single-call decompression mode of XZ Embedded, a big
+     dictionary doesn't increase memory usage.
+@@ -184,10 +184,10 @@ A:  It is planned and has been taken into account when designing
+     The third method is pigz-style threading (I use that name, because
+     pigz <http://www.zlib.net/pigz/> uses that method). It doesn't
+     affect compression ratio significantly and scales to many cores.
+-    The memory usage scales linearly when threads are added. It isn't
+-    significant with pigz, because Deflate uses only 32 KiB dictionary,
++    The memory usage scales linearly when threads are added. This isn't
++    significant with pigz, because Deflate uses only a 32 KiB dictionary,
+     but with LZMA2 the memory usage will increase dramatically just like
+-    with the independent blocks method. There is also a constant
++    with the independent-blocks method. There is also a constant
+     computational overhead, which may make pigz-method a bit dull on
+     dual-core compared to the parallel match finder method, but with more
+     cores the overhead is not a big deal anymore.
+@@ -197,7 +197,7 @@ A:  It is planned and has been taken into account when designing
+     can cut the memory usage by 50 %.
+ 
+     It is possible that the single-threaded method will be modified to
+-    create files indentical to the pigz-style method. We'll see once
++    create files identical to the pigz-style method. We'll see once
+     pigz-style threading has been implemented in liblzma.
+ 
+ 
+diff --git a/doc/history.txt b/doc/history.txt
+index c97492e8..9d3c6032 100644
+--- a/doc/history.txt
++++ b/doc/history.txt
+@@ -4,11 +4,11 @@ History of LZMA Utils and XZ Utils
+ 
+ Tukaani distribution
+ 
+-    In 2005, there was a small group working on Tukaani distribution, which
+-    was a Slackware fork. One of the project goals was to fit the distro on
++    In 2005, there was a small group working on the Tukaani distribution, which
++    was a Slackware fork. One of the project's goals was to fit the distro on
+     a single 700 MiB ISO-9660 image. Using LZMA instead of gzip helped a
+     lot. Roughly speaking, one could fit data that took 1000 MiB in gzipped
+-    form into 700 MiB with LZMA. Naturally compression ratio varied across
++    form into 700 MiB with LZMA. Naturally, the compression ratio varied across
+     packages, but this was what we got on average.
+ 
+     Slackware packages have traditionally had .tgz as the filename suffix,
+@@ -30,13 +30,13 @@ Tukaani distribution
+ First steps of LZMA Utils
+ 
+     The first version of LZMA Utils (4.22.0) included a shell script called
+-    lzmash. It was wrapper that had gzip-like command line interface. It
++    lzmash. It was a wrapper that had a gzip-like command-line interface. It
+     used the LZMA_Alone tool from LZMA SDK to do all the real work. zgrep,
+-    zdiff, and related scripts from gzip were adapted work with LZMA and
++    zdiff, and related scripts from gzip were adapted to work with LZMA and
+     were part of the first LZMA Utils release too.
+ 
+     LZMA Utils 4.22.0 included also lzmadec, which was a small (less than
+-    10 KiB) decoder-only command line tool. It was written on top of the
++    10 KiB) decoder-only command-line tool. It was written on top of the
+     decoder-only C code found from the LZMA SDK. lzmadec was convenient in
+     situations where LZMA_Alone (a few hundred KiB) would be too big.
+ 
+@@ -48,31 +48,31 @@ Second generation
+     The lzmash script was an ugly and not very secure hack. The last
+     version of LZMA Utils to use lzmash was 4.27.1.
+ 
+-    LZMA Utils 4.32.0beta1 introduced a new lzma command line tool written
++    LZMA Utils 4.32.0beta1 introduced a new lzma command-line tool written
+     by Ville Koskinen. It was written in C++, and used the encoder and
+-    decoder from C++ LZMA SDK with little modifications. This tool replaced
+-    both the lzmash script and the LZMA_Alone command line tool in LZMA
++    decoder from C++ LZMA SDK with some little modifications. This tool replaced
++    both the lzmash script and the LZMA_Alone command-line tool in LZMA
+     Utils.
+ 
+     Introducing this new tool caused some temporary incompatibilities,
+-    because LZMA_Alone executable was simply named lzma like the new
+-    command line tool, but they had completely different command line
++    because the LZMA_Alone executable was simply named lzma like the new
++    command-line tool, but they had a completely different command-line
+     interface. The file format was still the same.
+ 
+     Lasse wrote liblzmadec, which was a small decoder-only library based
+-    on the C code found from LZMA SDK. liblzmadec had API similar to zlib,
++    on the C code found from LZMA SDK. liblzmadec had an API similar to zlib,
+     although there were some significant differences, which made it
+     non-trivial to use it in some applications designed for zlib and
+     libbzip2.
+ 
+-    The lzmadec command line tool was converted to use liblzmadec.
++    The lzmadec command-line tool was converted to use liblzmadec.
+ 
+-    Alexandre Sauvé helped converting build system to use GNU Autotools.
+-    This made is easier to test for certain less portable features needed
+-    by the new command line tool.
++    Alexandre Sauvé helped converting the build system to use GNU Autotools.
++    This made it easier to test for certain less portable features needed
++    by the new command-line tool.
+ 
+-    Since the new command line tool never got completely finished (for
+-    example, it didn't support LZMA_OPT environment variable), the intent
++    Since the new command-line tool never got completely finished (for
++    example, it didn't support the LZMA_OPT environment variable), the intent
+     was to not call 4.32.x stable. Similarly, liblzmadec wasn't polished,
+     but appeared to work well enough, so some people started using it too.
+ 
+@@ -85,16 +85,16 @@ Second generation
+ 
+ File format problems
+ 
+-    The file format used by LZMA_Alone was primitive. It was designed for
+-    embedded systems in mind, and thus provided only minimal set of
+-    features. The two biggest problems for non-embedded use were lack of
+-    magic bytes and integrity check.
++    The file format used by LZMA_Alone was primitive. It was designed with
++    embedded systems in mind, and thus provided only a minimal set of
++    features. The two biggest problems for non-embedded use were the lack of
++    magic bytes and an integrity check.
+ 
+     Igor and Lasse started developing a new file format with some help
+     from Ville Koskinen. Also Mark Adler, Mikko Pouru, H. Peter Anvin,
+     and Lars Wirzenius helped with some minor things at some point of the
+     development. Designing the new format took quite a long time (actually,
+-    too long time would be more appropriate expression). It was mostly
++    too long a time would be a more appropriate expression). It was mostly
+     because Lasse was quite slow at getting things done due to personal
+     reasons.
+ 
+@@ -102,7 +102,7 @@ File format problems
+     that was already used by the old file format. Switching to the new
+     format wouldn't have caused much trouble when the old format wasn't
+     used by many people. But since the development of the new format took
+-    so long time, the old format got quite popular, and it was decided
++    such a long time, the old format got quite popular, and it was decided
+     that the new file format must use a different suffix.
+ 
+     It was decided to use .xz as the suffix of the new file format. The
+@@ -125,13 +125,13 @@ Transition to XZ Utils
+     The early versions of XZ Utils were called LZMA Utils. The first
+     releases were 4.42.0alphas. They dropped the rest of the C++ LZMA SDK.
+     The code was still directly based on LZMA SDK but ported to C and
+-    converted from callback API to stateful API. Later, Igor Pavlov made
+-    C version of the LZMA encoder too; these ports from C++ to C were
++    converted from a callback API to a stateful API. Later, Igor Pavlov made
++    a C version of the LZMA encoder too; these ports from C++ to C were
+     independent in LZMA SDK and LZMA Utils.
+ 
+     The core of the new LZMA Utils was liblzma, a compression library with
+-    zlib-like API. liblzma supported both the old and new file format. The
+-    gzip-like lzma command line tool was rewritten to use liblzma.
++    a zlib-like API. liblzma supported both the old and new file format. The
++    gzip-like lzma command-line tool was rewritten to use liblzma.
+ 
+     The new LZMA Utils code base was renamed to XZ Utils when the name
+     of the new file format had been decided. The liblzma compression
+@@ -139,7 +139,7 @@ Transition to XZ Utils
+     caused unnecessary breakage in applications already using the early
+     liblzma snapshots.
+ 
+-    The xz command line tool can emulate the gzip-like lzma tool by
++    The xz command-line tool can emulate the gzip-like lzma tool by
+     creating appropriate symlinks (e.g. lzma -> xz). Thus, practically
+     all scripts using the lzma tool from LZMA Utils will work as is with
+     XZ Utils (and will keep using the old .lzma format). Still, the .lzma

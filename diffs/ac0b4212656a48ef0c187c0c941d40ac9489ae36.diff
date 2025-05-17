@@ -1,0 +1,12 @@
+diff --git a/src/common/tuklib_mbstr_width.c b/src/common/tuklib_mbstr_width.c
+index 4bbe9647..2eab2341 100644
+--- a/src/common/tuklib_mbstr_width.c
++++ b/src/common/tuklib_mbstr_width.c
+@@ -11,6 +11,7 @@
+ ///////////////////////////////////////////////////////////////////////////////
+ 
+ #include "tuklib_mbstr.h"
++#include <string.h>
+ 
+ #if defined(HAVE_MBRTOWC) && defined(HAVE_WCWIDTH)
+ #	include <wchar.h>

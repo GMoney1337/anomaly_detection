@@ -1,0 +1,60 @@
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+index 57013fa2..fae52cd1 100644
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -1803,4 +1803,18 @@ if(BUILD_TESTING)
+             SKIP_RETURN_CODE 77
+         )
+     endforeach()
++
++    if(UNIX AND HAVE_DECODERS)
++        file(MAKE_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/test_scripts")
++
++        add_test(NAME test_scripts.sh
++            COMMAND "${CMAKE_CURRENT_SOURCE_DIR}/tests/test_scripts.sh" ".."
++            WORKING_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/test_scripts"
++        )
++
++        set_tests_properties(test_scripts.sh PROPERTIES
++            ENVIRONMENT "srcdir=${CMAKE_CURRENT_SOURCE_DIR}/tests"
++            SKIP_RETURN_CODE 77
++        )
++    endif()
+ endif()
+diff --git a/tests/test_scripts.sh b/tests/test_scripts.sh
+index 9b938466..ca9600ec 100755
+--- a/tests/test_scripts.sh
++++ b/tests/test_scripts.sh
+@@ -8,9 +8,11 @@
+ ###############################################################################
+ 
+ # If scripts weren't built, this test is skipped.
+-XZ=../src/xz/xz
+-XZDIFF=../src/scripts/xzdiff
+-XZGREP=../src/scripts/xzgrep
++# When this is run from CMake, $1 is a relative path
++# to the directory with the executables and the scripts.
++XZ=${1:-../src/xz}/xz
++XZDIFF=${1:-../src/scripts}/xzdiff
++XZGREP=${1:-../src/scripts}/xzgrep
+ 
+ for i in XZ XZDIFF XZGREP; do
+ 	eval test -x "\$$i" && continue
+@@ -21,14 +23,15 @@ done
+ # Installing the scripts in this case is a bit silly but they
+ # could still be used with other decompression tools so configure
+ # doesn't automatically disable scripts if decoders are disabled.
+-if grep 'define HAVE_DECODERS' ../config.h > /dev/null ; then
++if test ! -f ../config.h \
++		|| grep 'define HAVE_DECODERS' ../config.h > /dev/null ; then
+ 	:
+ else
+ 	echo "Decompression support is disabled, skipping this test."
+ 	exit 77
+ fi
+ 
+-PATH=`pwd`/../src/xz:$PATH
++PATH=`pwd`/${1:-../src/xz}:$PATH
+ export PATH
+ 
+ test -z "$srcdir" && srcdir=.

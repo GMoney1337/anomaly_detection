@@ -1,0 +1,43 @@
+diff --git a/src/xz/main.c b/src/xz/main.c
+index 14502573..0685bc27 100644
+--- a/src/xz/main.c
++++ b/src/xz/main.c
+@@ -188,7 +188,8 @@ main(int argc, char **argv)
+ 	// Set up the locale and message translations.
+ 	tuklib_gettext_init(PACKAGE, LOCALEDIR);
+ 
+-	// Initialize handling of error/warning/other messages.
++	// Initialize progress message handling. It's not always needed
++	// but it's simpler to do this unconditionally.
+ 	message_init();
+ 
+ 	// Set hardware-dependent default values. These can be overridden
+diff --git a/src/xz/message.c b/src/xz/message.c
+index 46d7f0c8..0dfbebe1 100644
+--- a/src/xz/message.c
++++ b/src/xz/message.c
+@@ -42,7 +42,7 @@ static bool current_filename_printed = false;
+ 
+ /// True if we should print progress indicator and update it automatically
+ /// if also verbose >= V_VERBOSE.
+-static bool progress_automatic;
++static bool progress_automatic = false;
+ 
+ /// True if message_progress_start() has been called but
+ /// message_progress_end() hasn't been called yet.
+diff --git a/src/xz/message.h b/src/xz/message.h
+index fd3333a7..1734f0ea 100644
+--- a/src/xz/message.h
++++ b/src/xz/message.h
+@@ -23,7 +23,10 @@ enum message_verbosity {
+ extern const int message_progress_sigs[];
+ 
+ 
+-/// \brief      Initializes the message functions
++/// \brief      Initializes the progress message functions
++///
++/// message_fatal() and such can be called even before message_init()
++/// has been called.
+ ///
+ /// If an error occurs, this function doesn't return.
+ ///

@@ -1,0 +1,13 @@
+diff --git a/po4a/update-po b/po4a/update-po
+index 3c993072..b1cc9f53 100755
+--- a/po4a/update-po
++++ b/po4a/update-po
+@@ -26,7 +26,7 @@ fi
+ if test ! -f po4a.conf; then
+ 	cd `dirname "$0"` || exit 1
+ 	if test ! -f po4a.conf; then
+-		echo "update-po: Error: Cannot find po4a.conf." >&2
++		echo "po4a/update-po: Error: Cannot find po4a.conf." >&2
+ 		exit 1
+ 	fi
+ fi

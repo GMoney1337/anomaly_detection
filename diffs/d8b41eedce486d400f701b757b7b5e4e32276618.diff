@@ -1,0 +1,15 @@
+diff --git a/src/xz/message.c b/src/xz/message.c
+index ad93573a..6eed5f7e 100644
+--- a/src/xz/message.c
++++ b/src/xz/message.c
+@@ -912,8 +912,8 @@ message_filters_to_str(const lzma_filter *filters, bool all_known)
+ 		case LZMA_FILTER_LZMA1:
+ 		case LZMA_FILTER_LZMA2: {
+ 			const lzma_options_lzma *opt = filters[i].options;
+-			const char *mode;
+-			const char *mf;
++			const char *mode = NULL;
++			const char *mf = NULL;
+ 
+ 			if (all_known) {
+ 				switch (opt->mode) {

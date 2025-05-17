@@ -1,0 +1,12 @@
+diff --git a/po/xz.pot-header b/po/xz.pot-header
+index 56272e0b..6d277c90 100644
+--- a/po/xz.pot-header
++++ b/po/xz.pot-header
+@@ -2,6 +2,6 @@
+ #
+ # SOME DESCRIPTIVE TITLE.
+ # Copyright (C) The XZ Utils authors and contributors
+-# This file is distributed under the BSD Zero Clause License.
++# This file is published under the BSD Zero Clause License.
+ # FIRST AUTHOR <EMAIL@ADDRESS>, YEAR.
+ #

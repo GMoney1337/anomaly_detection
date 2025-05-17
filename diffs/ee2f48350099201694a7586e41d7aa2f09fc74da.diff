@@ -1,0 +1,252 @@
+diff --git a/tests/ossfuzz/Makefile b/tests/ossfuzz/Makefile
+index 008cd7df..a25bd0db 100644
+--- a/tests/ossfuzz/Makefile
++++ b/tests/ossfuzz/Makefile
+@@ -8,5 +8,8 @@ all: $(FUZZ_TARGET_BINS)
+ 	$(CXX) $(CXXFLAGS) $(LIB_FUZZING_ENGINE) $(<:.c=.o) -o $(OUT)/$@ \
+ 		../../src/liblzma/.libs/liblzma.a ;
+ 
++# The generated binaries are not removed, just the object files. The
++# binaries are created to the $(OUT) directory and must be removed by the
++# fuzzing framework.
+ clean:
+ 	rm -f *.o
+diff --git a/tests/ossfuzz/config/fuzz_decode_stream.options b/tests/ossfuzz/config/fuzz_decode_stream.options
+index 61799737..d8f9edba 100644
+--- a/tests/ossfuzz/config/fuzz_decode_stream.options
++++ b/tests/ossfuzz/config/fuzz_decode_stream.options
+@@ -1,3 +1,2 @@
+ [libfuzzer]
+-max_len = 4096
+ dict = fuzz_xz.dict
+diff --git a/tests/ossfuzz/config/fuzz_lzma.dict b/tests/ossfuzz/config/fuzz_lzma.dict
+index 38d4da3e..82a2b871 100644
+--- a/tests/ossfuzz/config/fuzz_lzma.dict
++++ b/tests/ossfuzz/config/fuzz_lzma.dict
+@@ -1,22 +1,20 @@
+ # first 5 header bytes of .lzma archives based on the info from
+-# https://github.com/tukaani-project/xz/blob/master/doc/lzma-file-format.txt
++# /doc/lzma-file-format.txt
+ 
+-# byte 0 value (properties=0x5d) is created by encoding
+-# common values (lc=3, lp=0, pb=2) using the algorithm,
+-# described in the documentation above
++# byte 0 is created by encoding LZMA property values (lc, lp, pb)
++# using the algorithm described in the documentation above.
+ 
+-
+-# compression preset 1    (dictionary size = 0x00100000)
++# lc=3, lp=0, pb=2 and dictionary size = 0x00100000
+ "\x5d\x00\x00\x10\x00"
+-# compression preset 2    (dictionary size = 0x00200000)
+-"\x5d\x00\x00\x20\x00"
+-# compression preset 3, 4 (dictionary size = 0x00400000)
+-"\x5d\x00\x00\x40\x00"
+-# compression preset 5, 6 (dictionary size = 0x00800000)
+-"\x5d\x00\x00\x80\x00"
+-# compression preset 7    (dictionary size = 0x01000000)
+-"\x5d\x00\x00\x00\x01"
+-# compression preset 8    (dictionary size = 0x02000000)
+-"\x5d\x00\x00\x00\x02"
+-# compression preset 9    (dictionary size = 0x04000000)
+-"\x5d\x00\x00\x00\x04"
++
++# lc=3, lp=1, pb=3 and dictionary size = 0x00100000
++"\x93\x00\x00\x10\x00"
++
++# lc=2, lp=2, pb=4 and dictionary size = 0x00100000
++"\xc8\x00\x00\x10\x00"
++
++# lc=1, lp=3, pb=1 and dictionary size = 0x00200000
++"\x49\x00\x00\x20\x00"
++
++# lc=0, lp=4, pb=0 and dictionary size = 0x00200000
++"\x24\x00\x00\x20\x00"
+diff --git a/tests/ossfuzz/fuzz_common.h b/tests/ossfuzz/fuzz_common.h
+index ce3f9345..14742f2e 100644
+--- a/tests/ossfuzz/fuzz_common.h
++++ b/tests/ossfuzz/fuzz_common.h
+@@ -1,9 +1,10 @@
+ ///////////////////////////////////////////////////////////////////////////////
+ //
+-/// \file       fuzz_decode_auto.c
+-/// \brief      Fuzz test program for liblzma lzma_auto_decoder()
++/// \file       fuzz_common.h
++/// \brief      Common macros and functions needed by the fuzz targets
+ //
+-//  Author:     Maksym Vatsyk
++//  Authors:    Maksym Vatsyk
++//              Lasse Collin
+ //
+ //  This file has been put into the public domain.
+ //  You can do whatever you want with this file.
+@@ -21,13 +22,12 @@
+ #define MEM_LIMIT (300 << 20) // 300 MiB
+ 
+ 
+-// Output buffer for decompressed data. This is write only; nothing cares
+-// about the actual data written here.
+-static uint8_t outbuf[4096];
+-
+-
+ static void
+ fuzz_code(lzma_stream *stream, const uint8_t *inbuf, size_t inbuf_size) {
++	// Output buffer for decompressed data. This is write only; nothing
++	// cares about the actual data written here.
++	uint8_t outbuf[4096];
++
+ 	// Give the whole input buffer at once to liblzma.
+ 	// Output buffer isn't initialized as liblzma only writes to it.
+ 	stream->next_in = inbuf;
+diff --git a/tests/ossfuzz/fuzz_decode_alone.c b/tests/ossfuzz/fuzz_decode_alone.c
+index d07874bc..2fb7bc09 100644
+--- a/tests/ossfuzz/fuzz_decode_alone.c
++++ b/tests/ossfuzz/fuzz_decode_alone.c
+@@ -1,11 +1,10 @@
+ ///////////////////////////////////////////////////////////////////////////////
+ //
+-/// \file       fuzz_decode_auto.c
+-/// \brief      Fuzz test program for liblzma lzma_auto_decoder()
++/// \file       fuzz_decode_alone.c
++/// \brief      Fuzz test program for liblzma .lzma decoding
+ //
+-//  Author:     Maksym Vatsyk
+-//
+-//  Based on Lasse Collin's original fuzzer for liblzma
++//  Authors:    Maksym Vatsyk
++//              Lasse Collin
+ //
+ //  This file has been put into the public domain.
+ //  You can do whatever you want with this file.
+@@ -25,11 +24,13 @@ LLVMFuzzerTestOneInput(const uint8_t *inbuf, size_t inbuf_size)
+ 	lzma_stream strm = LZMA_STREAM_INIT;
+ 	// Initialize a LZMA alone decoder using the memory usage limit
+ 	// defined in fuzz_common.h
+-	if (lzma_alone_decoder(&strm, MEM_LIMIT) != LZMA_OK) {
++	lzma_ret ret = lzma_alone_decoder(&strm, MEM_LIMIT);
++
++	if (ret != LZMA_OK) {
+ 		// This should never happen unless the system has
+ 		// no free memory or address space to allow the small
+ 		// allocations that the initialization requires.
+-		fprintf(stderr, "lzma_alone_decoder() failed\n");
++		fprintf(stderr, "lzma_alone_decoder() failed (%d)\n", ret);
+ 		abort();
+ 	}
+ 
+diff --git a/tests/ossfuzz/fuzz_decode_stream.c b/tests/ossfuzz/fuzz_decode_stream.c
+index 1da8ecb3..e06613e3 100644
+--- a/tests/ossfuzz/fuzz_decode_stream.c
++++ b/tests/ossfuzz/fuzz_decode_stream.c
+@@ -1,10 +1,10 @@
+ ///////////////////////////////////////////////////////////////////////////////
+ //
+ /// \file       fuzz_decode_stream.c
+-/// \brief      Fuzz test program for liblzma
+-//
+-//  Author:     Lasse Collin
++/// \brief      Fuzz test program for single threaded .xz decoding
+ //
++//  Authors:    Lasse Collin
++//              Maksym Vatsyk
+ //
+ //  This file has been put into the public domain.
+ //  You can do whatever you want with this file.
+@@ -22,7 +22,7 @@ extern int
+ LLVMFuzzerTestOneInput(const uint8_t *inbuf, size_t inbuf_size)
+ {
+ 	lzma_stream strm = LZMA_STREAM_INIT;
+-	// Initialize a LZMA alone decoder using the memory usage limit
++	// Initialize a LZMA decoder using the memory usage limit
+ 	// defined in fuzz_common.h
+ 	//
+ 	// Enable support for concatenated .xz files which is used when
+@@ -34,13 +34,14 @@ LLVMFuzzerTestOneInput(const uint8_t *inbuf, size_t inbuf_size)
+ 	// The flag LZMA_IGNORE_CHECK doesn't disable verification of
+ 	// header CRC32 values. Those checks are disabled when liblzma is
+ 	// built with the #define FUZZING_BUILD_MODE_UNSAFE_FOR_PRODUCTION.
++	lzma_ret ret = lzma_stream_decoder(&strm, MEM_LIMIT,
++			LZMA_CONCATENATED | LZMA_IGNORE_CHECK);
+ 
+-	if (lzma_stream_decoder(&strm, MEM_LIMIT,
+-			LZMA_CONCATENATED | LZMA_IGNORE_CHECK) != LZMA_OK) {
++	if (ret != LZMA_OK) {
+ 		// This should never happen unless the system has
+ 		// no free memory or address space to allow the small
+ 		// allocations that the initialization requires.
+-		fprintf(stderr, "lzma_stream_decoder() failed\n");
++		fprintf(stderr, "lzma_stream_decoder() failed (%d)\n", ret);
+ 		abort();
+ 	}
+ 
+diff --git a/tests/ossfuzz/fuzz_encode_stream.c b/tests/ossfuzz/fuzz_encode_stream.c
+index 8ae8780e..f5770baa 100644
+--- a/tests/ossfuzz/fuzz_encode_stream.c
++++ b/tests/ossfuzz/fuzz_encode_stream.c
+@@ -1,11 +1,10 @@
+ ///////////////////////////////////////////////////////////////////////////////
+ //
+ /// \file       fuzz_encode_stream.c
+-/// \brief      Fuzz test program for liblzma lzma_stream_encoder() w/ LZMA2
++/// \brief      Fuzz test program for .xz encoding
+ //
+-//  Author:     Maksym Vatsyk
+-//
+-//  Based on Lasse Collin's original fuzzer for liblzma
++//  Authors:    Maksym Vatsyk
++//              Lasse Collin
+ //
+ //  This file has been put into the public domain.
+ //  You can do whatever you want with this file.
+@@ -27,9 +26,15 @@ LLVMFuzzerTestOneInput(const uint8_t *inbuf, size_t inbuf_size)
+ 		return 0;
+ 	}
+ 
+-	// set LZMA preset level based on the first input byte
++	// Set the LZMA options based on the first input byte. The fuzzer
++	// will learn through its mutational genetic algorithm with the
++	// code coverage feedback that the first byte must be one of the
++	// values with a switch case label. This allows us to have one fuzz
++	// target cover many critical code paths so the fuzz resources can
++	// be used efficiently.
+ 	uint32_t preset_level;
+-	uint8_t decider = inbuf[0];
++	const uint8_t decider = inbuf[0];
++
+ 	switch (decider) {
+ 	case 0:
+ 	case 1:
+@@ -53,21 +58,24 @@ LLVMFuzzerTestOneInput(const uint8_t *inbuf, size_t inbuf_size)
+ 		abort();
+ 	}
+ 
+-	// Initialize filter chain for lzma_stream_decoder() call
+-	// Use single LZMA2 filter for encoding
+-	lzma_filter filters[2];
+-	filters[0].id = LZMA_FILTER_LZMA2;
+-	filters[0].options = &opt_lzma;
+-	filters[1].id = LZMA_VLI_UNKNOWN;
++	// Set the filter chain as only LZMA2.
++	lzma_filter filters[2] = {
++		{
++			.id = LZMA_FILTER_LZMA2,
++			.options = &opt_lzma,
++		}, {
++			.id = LZMA_VLI_UNKNOWN,
++		}
++	};
+ 
+ 	// initialize empty LZMA stream
+ 	lzma_stream strm = LZMA_STREAM_INIT;
+ 
+ 	// Initialize the stream encoder using the above
+ 	// stream, filter chain and CRC64.
+-	if (lzma_stream_encoder(&strm,
+-			filters, LZMA_CHECK_CRC64) != LZMA_OK) {
+-		fprintf(stderr, "lzma_stream_encoder() failed\n");
++	lzma_ret ret = lzma_stream_encoder(&strm, filters, LZMA_CHECK_CRC64);
++	if (ret != LZMA_OK) {
++		fprintf(stderr, "lzma_stream_encoder() failed (%d)\n", ret);
+ 		abort();
+ 	}
+ 

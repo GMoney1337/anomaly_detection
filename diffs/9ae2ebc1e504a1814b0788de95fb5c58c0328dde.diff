@@ -1,0 +1,57 @@
+diff --git a/tests/ossfuzz/Makefile b/tests/ossfuzz/Makefile
+index a25bd0db..742e0636 100644
+--- a/tests/ossfuzz/Makefile
++++ b/tests/ossfuzz/Makefile
+@@ -1,3 +1,5 @@
++# SPDX-License-Identifier: 0BSD
++
+ FUZZ_TARGET_SRCS = $(wildcard *.c)
+ FUZZ_TARGET_BINS = $(FUZZ_TARGET_SRCS:.c=)
+ 
+diff --git a/tests/ossfuzz/config/fuzz_decode_alone.options b/tests/ossfuzz/config/fuzz_decode_alone.options
+index 0747b68c..1351d96c 100644
+--- a/tests/ossfuzz/config/fuzz_decode_alone.options
++++ b/tests/ossfuzz/config/fuzz_decode_alone.options
+@@ -1,3 +1,5 @@
++# SPDX-License-Identifier: 0BSD
++
+ [libfuzzer]
+ max_len = 4096
+ dict = fuzz_lzma.dict
+diff --git a/tests/ossfuzz/config/fuzz_decode_stream.options b/tests/ossfuzz/config/fuzz_decode_stream.options
+index d8f9edba..bbf43ac4 100644
+--- a/tests/ossfuzz/config/fuzz_decode_stream.options
++++ b/tests/ossfuzz/config/fuzz_decode_stream.options
+@@ -1,2 +1,4 @@
++# SPDX-License-Identifier: 0BSD
++
+ [libfuzzer]
+ dict = fuzz_xz.dict
+diff --git a/tests/ossfuzz/config/fuzz_encode_stream.options b/tests/ossfuzz/config/fuzz_encode_stream.options
+index 9fda93fc..86d4f0c6 100644
+--- a/tests/ossfuzz/config/fuzz_encode_stream.options
++++ b/tests/ossfuzz/config/fuzz_encode_stream.options
+@@ -1,2 +1,4 @@
++# SPDX-License-Identifier: 0BSD
++
+ [libfuzzer]
+ max_len = 4096
+diff --git a/tests/ossfuzz/config/fuzz_lzma.dict b/tests/ossfuzz/config/fuzz_lzma.dict
+index 82a2b871..b9d5dff7 100644
+--- a/tests/ossfuzz/config/fuzz_lzma.dict
++++ b/tests/ossfuzz/config/fuzz_lzma.dict
+@@ -1,3 +1,5 @@
++# SPDX-License-Identifier: 0BSD
++
+ # first 5 header bytes of .lzma archives based on the info from
+ # /doc/lzma-file-format.txt
+ 
+diff --git a/tests/ossfuzz/config/fuzz_xz.dict b/tests/ossfuzz/config/fuzz_xz.dict
+index 932d67c2..6ba4f24a 100644
+--- a/tests/ossfuzz/config/fuzz_xz.dict
++++ b/tests/ossfuzz/config/fuzz_xz.dict
+@@ -1,2 +1,4 @@
++# SPDX-License-Identifier: 0BSD
++
+ "\xFD7zXZ\x00"
+ "YZ"

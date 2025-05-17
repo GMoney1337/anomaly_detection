@@ -1,0 +1,15 @@
+diff --git a/src/liblzma/rangecoder/range_common.h b/src/liblzma/rangecoder/range_common.h
+index 0e642419..2c74dc15 100644
+--- a/src/liblzma/rangecoder/range_common.h
++++ b/src/liblzma/rangecoder/range_common.h
+@@ -14,9 +14,7 @@
+ #ifndef LZMA_RANGE_COMMON_H
+ #define LZMA_RANGE_COMMON_H
+ 
+-#ifdef HAVE_CONFIG_H
+-#	include "common.h"
+-#endif
++#include "common.h"
+ 
+ 
+ ///////////////

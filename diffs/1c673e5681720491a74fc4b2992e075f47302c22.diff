@@ -1,0 +1,99 @@
+diff --git a/src/scripts/xzdiff.in b/src/scripts/xzdiff.in
+index 0fa446f6..e6e38429 100644
+--- a/src/scripts/xzdiff.in
++++ b/src/scripts/xzdiff.in
+@@ -126,10 +126,12 @@ elif test $# -eq 2; then
+                 ( ($xz2 -cdfq -- "$2" 4>&-; echo $? >&4) 3>&- 5<&- </dev/null |
+                 eval "$cmp" /dev/fd/5 - >&3) 5<&0
+             )
++            cmp_status=$?
+             case $xz_status in
+               *[1-9]*) xz_status=1;;
+               *) xz_status=0;;
+             esac
++            (exit $cmp_status)
+           else
+             F=`expr "/$2" : '.*/\(.*\)[-.][ablmotxz2]*$'` || F=$prog
+             tmp=
+diff --git a/tests/Makefile.am b/tests/Makefile.am
+index d0807ae4..0469264a 100644
+--- a/tests/Makefile.am
++++ b/tests/Makefile.am
+@@ -10,6 +10,7 @@ EXTRA_DIST = \
+ 	tests.h \
+ 	test_files.sh \
+ 	test_compress.sh \
++	test_scripts.sh \
+ 	bcj_test.c \
+ 	compress_prepared_bcj_sparc \
+ 	compress_prepared_bcj_x86
+@@ -42,7 +43,8 @@ TESTS = \
+ 	test_block_header \
+ 	test_index \
+ 	test_files.sh \
+-	test_compress.sh
++	test_compress.sh \
++	test_scripts.sh
+ 
+ clean-local:
+ 	-rm -f compress_generated_*
+diff --git a/tests/test_scripts.sh b/tests/test_scripts.sh
+new file mode 100755
+index 00000000..891fc76a
+--- /dev/null
++++ b/tests/test_scripts.sh
+@@ -0,0 +1,54 @@
++#!/bin/sh
++
++###############################################################################
++#
++# Author: Jonathan Nieder
++#
++# This file has been put into the public domain.
++# You can do whatever you want with this file.
++#
++###############################################################################
++
++# If scripts weren't built, this test is skipped.
++XZ=../src/xz/xz
++XZDIFF=../src/scripts/xzdiff
++test -x "$XZ" || XZ=
++test -r "$XZDIFF" || XZDIFF=
++if test -z "$XZ" || test -z "$XZDIFF"; then
++	(exit 77)
++	exit 77
++fi
++
++PATH=`pwd`/../src/xz:$PATH
++export PATH
++
++preimage=$srcdir/files/good-1-check-crc32.xz
++samepostimage=$srcdir/files/good-1-check-crc64.xz
++otherpostimage=$srcdir/files/good-1-lzma2-1.xz
++
++sh "$XZDIFF" "$preimage" "$samepostimage" >/dev/null
++status=$?
++if test "$status" != 0 ; then
++	echo "xzdiff with no changes exited with status $status != 0"
++	(exit 1)
++	exit 1
++fi
++
++sh "$XZDIFF" "$preimage" "$otherpostimage" >/dev/null
++status=$?
++if test "$status" != 1 ; then
++	echo "xzdiff with changes exited with status $status != 1"
++	(exit 1)
++	exit 1
++fi
++
++sh "$XZDIFF" "$preimage" "$srcdir/files/missing.xz" >/dev/null 2>&1
++status=$?
++if test "$status" != 2 ; then
++	echo "xzdiff with missing operand exited with status $status != 2"
++	(exit 1)
++	exit 1
++fi
++
++(exit 0)
++exit 0

@@ -1,0 +1,60 @@
+diff --git a/src/liblzma/api/lzma/container.h b/src/liblzma/api/lzma/container.h
+index ad3f9905..8e4af420 100644
+--- a/src/liblzma/api/lzma/container.h
++++ b/src/liblzma/api/lzma/container.h
+@@ -792,7 +792,7 @@ extern LZMA_API(lzma_ret) lzma_stream_decoder_mt(
+  * as it doesn't support any decoder flags. It will return LZMA_STREAM_END
+  * after one .lzma stream.)
+  *
+-  * \param       strm       Pointer to lzma_stream that is at least initialized
++ * \param       strm        Pointer to lzma_stream that is at least initialized
+  *                          with LZMA_STREAM_INIT.
+  * \param       memlimit    Memory usage limit as bytes. Use UINT64_MAX
+  *                          to effectively disable the limiter. liblzma
+diff --git a/src/liblzma/api/lzma/index.h b/src/liblzma/api/lzma/index.h
+index 7d8a9950..b17025e3 100644
+--- a/src/liblzma/api/lzma/index.h
++++ b/src/liblzma/api/lzma/index.h
+@@ -233,7 +233,7 @@ typedef struct {
+ 	} block;
+ 
+ 	/**
+-	 * \private     Internal struct.
++	 * \private     Internal data
+ 	 *
+ 	 * Internal data which is used to store the state of the iterator.
+ 	 * The exact format may vary between liblzma versions, so don't
+@@ -673,7 +673,7 @@ extern LZMA_API(lzma_bool) lzma_index_iter_locate(
+  *                        function succeeds, the memory allocated for src
+  *                        is freed or moved to be part of dest, and all
+  *                        iterators pointing to src will become invalid.
+-* \param       allocator  lzma_allocator for custom allocator functions.
++ * \param       allocator lzma_allocator for custom allocator functions.
+  *                        Set to NULL to use malloc() and free().
+  *
+  * \return      Possible lzma_ret values:
+@@ -793,7 +793,7 @@ extern LZMA_API(lzma_ret) lzma_index_buffer_encode(const lzma_index *i,
+  *                          lzma_index is allowed to require. The value
+  *                          pointed by this pointer is modified if and only
+  *                          if LZMA_MEMLIMIT_ERROR is returned.
+-  * \param      allocator   lzma_allocator for custom allocator functions.
++ * \param       allocator   lzma_allocator for custom allocator functions.
+  *                          Set to NULL to use malloc() and free().
+  * \param       in          Beginning of the input buffer
+  * \param       in_pos      The next byte will be read from in[*in_pos].
+diff --git a/src/liblzma/api/lzma/vli.h b/src/liblzma/api/lzma/vli.h
+index 7f3e398a..6b049021 100644
+--- a/src/liblzma/api/lzma/vli.h
++++ b/src/liblzma/api/lzma/vli.h
+@@ -67,9 +67,8 @@ typedef uint64_t lzma_vli;
+  * This is useful to test that application has given acceptable values
+  * for example in the uncompressed_size and compressed_size variables.
+  *
+- * \return      True if the integer is representable as VLI or if it
+- *              indicates unknown value. False if the integer cannot be
+- *              represented as VLI.
++ * \return      True if the integer is representable as a VLI or if it
++ *              indicates an unknown value. False otherwise.
+  */
+ #define lzma_vli_is_valid(vli) \
+ 	((vli) <= LZMA_VLI_MAX || (vli) == LZMA_VLI_UNKNOWN)

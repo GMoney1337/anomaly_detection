@@ -1,0 +1,333 @@
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+index 6a12abc3..ee7cdc8b 100644
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -1179,7 +1179,7 @@ if(NOT MSVC AND HAVE_GETOPT_LONG)
+         # of these environments set the UNIX variable so they will try to
+         # make the symlinks. The ability for Cygwin and MSYS2 to make
+         # broken symlinks is determined by the CYGWIN and MSYS2 environment
+-        # variables, repectively. Broken symlinks are needed for the man
++        # variables, respectively. Broken symlinks are needed for the man
+         # page symlinks and for determining if the xz and lzma symlinks need
+         # to depend on the xz target or not. If broken symlinks cannot be
+         # made then the xz binary must be created before the symlinks.
+@@ -1205,7 +1205,7 @@ if(NOT MSVC AND HAVE_GETOPT_LONG)
+             # So, the only case we care about for broken symlinks is
+             # "nativestrict" since all other values mean that broken
+             # symlinks are allowed. If the env variable is not set the
+-            # default is "native". If the env varaiable is set but not
++            # default is "native". If the env variable is set but not
+             # assigned one of the four values, then the default is the same
+             # as option 1 "lnk".
+             string(FIND "$ENV{CYGWIN}" "winsymlinks:nativestrict" SYMLINK_POS)
+diff --git a/NEWS b/NEWS
+index 2f4d35ad..2c05f26a 100644
+--- a/NEWS
++++ b/NEWS
+@@ -999,7 +999,7 @@ XZ Utils Release Notes
+           of the deprecated egrep and fgrep commands.
+ 
+         - Fixed parsing of the options -E, -F, -G, -P, and -X. The
+-          problem occurred when multiple options were specied in
++          problem occurred when multiple options were specified in
+           a single argument, for example,
+ 
+               echo foo | xzgrep -Fe foo
+diff --git a/configure.ac b/configure.ac
+index 193e2d6d..8470e3e8 100644
+--- a/configure.ac
++++ b/configure.ac
+@@ -711,7 +711,7 @@ fi
+ # used when creating a static library.
+ #
+ # Libtool always uses -DPIC when building shared libraries by default and
+-# doesn't use it for static libs by default. This can be overriden with
++# doesn't use it for static libs by default. This can be overridden with
+ # --with-pic and --without-pic though. As long as neither --with-pic nor
+ # --without-pic is used then we can use #ifdef PIC to detect if the file is
+ # being built for a shared library.
+diff --git a/src/liblzma/api/lzma/container.h b/src/liblzma/api/lzma/container.h
+index 5a891da9..4cbb1b7b 100644
+--- a/src/liblzma/api/lzma/container.h
++++ b/src/liblzma/api/lzma/container.h
+@@ -496,7 +496,7 @@ extern LZMA_API(lzma_ret) lzma_alone_encoder(
+ /**
+  * \brief       Calculate output buffer size for single-call Stream encoder
+  *
+- * When trying to compress uncompressible data, the encoded size will be
++ * When trying to compress incompressible data, the encoded size will be
+  * slightly bigger than the input data. This function calculates how much
+  * output buffer space is required to be sure that lzma_stream_buffer_encode()
+  * doesn't return LZMA_BUF_ERROR.
+@@ -512,7 +512,7 @@ extern LZMA_API(lzma_ret) lzma_alone_encoder(
+  * \note        The limit calculated by this function applies only to
+  *              single-call encoding. Multi-call encoding may (and probably
+  *              will) have larger maximum expansion when encoding
+- *              uncompressible data. Currently there is no function to
++ *              incompressible data. Currently there is no function to
+  *              calculate the maximum expansion of multi-call encoding.
+  *
+  * \param       uncompressed_size   Size in bytes of the uncompressed
+diff --git a/src/liblzma/api/lzma/filter.h b/src/liblzma/api/lzma/filter.h
+index b38bc6ac..1d887b4f 100644
+--- a/src/liblzma/api/lzma/filter.h
++++ b/src/liblzma/api/lzma/filter.h
+@@ -254,7 +254,7 @@ extern LZMA_API(lzma_ret) lzma_raw_decoder(
+  *    chain to be used for the next Block(s).
+  *
+  *  - After LZMA_SYNC_FLUSH: Raw encoder (lzma_raw_encoder()),
+- *    Block encocder (lzma_block_encoder()), and single-threaded .xz Stream
++ *    Block encoder (lzma_block_encoder()), and single-threaded .xz Stream
+  *    encoder (lzma_stream_encoder()) allow changing certain filter-specific
+  *    options in the middle of encoding. The actual filters in the chain
+  *    (Filter IDs) must not be changed! Currently only the lc, lp, and pb
+diff --git a/src/liblzma/api/lzma/lzma12.h b/src/liblzma/api/lzma/lzma12.h
+index ad4ce7b1..8ef6ea5b 100644
+--- a/src/liblzma/api/lzma/lzma12.h
++++ b/src/liblzma/api/lzma/lzma12.h
+@@ -56,7 +56,7 @@
+  *
+  * Usually you want this instead of LZMA1. Compared to LZMA1, LZMA2 adds
+  * support for LZMA_SYNC_FLUSH, uncompressed chunks (smaller expansion
+- * when trying to compress uncompressible data), possibility to change
++ * when trying to compress incompressible data), possibility to change
+  * lc/lp/pb in the middle of encoding, and some other internal improvements.
+  */
+ #define LZMA_FILTER_LZMA2       LZMA_VLI_C(0x21)
+@@ -417,7 +417,7 @@ typedef struct {
+ 	 *     like it is with LZMA_FILTER_LZMA1. Without this flag the
+ 	 *     end marker isn't written and the application has to store
+ 	 *     the uncompressed size somewhere outside the compressed stream.
+-	 *     To decompress streams without the end marker, the appliation
++	 *     To decompress streams without the end marker, the application
+ 	 *     has to set the correct uncompressed size in ext_size_low and
+ 	 *     ext_size_high.
+ 	 *
+diff --git a/src/liblzma/common/block_buffer_encoder.c b/src/liblzma/common/block_buffer_encoder.c
+index a47342ef..fdef02de 100644
+--- a/src/liblzma/common/block_buffer_encoder.c
++++ b/src/liblzma/common/block_buffer_encoder.c
+@@ -277,7 +277,7 @@ block_buffer_encode(lzma_block *block, const lzma_allocator *allocator,
+ 		if (ret != LZMA_BUF_ERROR)
+ 			return ret;
+ 
+-		// The data was uncompressible (at least with the options
++		// The data was incompressible (at least with the options
+ 		// given to us) or the output buffer was too small. Use the
+ 		// uncompressed chunks of LZMA2 to wrap the data into a valid
+ 		// Block. If we haven't been given enough output space, even
+diff --git a/src/liblzma/common/common.h b/src/liblzma/common/common.h
+index 11fec52c..4d9cab53 100644
+--- a/src/liblzma/common/common.h
++++ b/src/liblzma/common/common.h
+@@ -47,7 +47,7 @@
+ // to 2 then symbol versioning is done only if also PIC is defined.
+ // By default Libtool defines PIC when building a shared library and
+ // doesn't define it when building a static library but it can be
+-// overriden with --with-pic and --without-pic. configure let's rely
++// overridden with --with-pic and --without-pic. configure let's rely
+ // on PIC if neither --with-pic or --without-pic was used.
+ #if defined(HAVE_SYMBOL_VERSIONS_LINUX) \
+ 		&& (HAVE_SYMBOL_VERSIONS_LINUX == 2 && !defined(PIC))
+diff --git a/src/liblzma/common/file_info.c b/src/liblzma/common/file_info.c
+index a6b7e145..799bb024 100644
+--- a/src/liblzma/common/file_info.c
++++ b/src/liblzma/common/file_info.c
+@@ -350,7 +350,7 @@ file_info_decode(void *coder_ptr, const lzma_allocator *allocator,
+ 		// coder->temp[coder->temp_size - LZMA_STREAM_HEADER_SIZE].
+ 		//
+ 		// Otherwise we will need to seek. The seeking is done so
+-		// that Stream Footer wil be at the end of coder->temp.
++		// that Stream Footer will be at the end of coder->temp.
+ 		// This way it's likely that we also get a complete Index
+ 		// field into coder->temp without needing a separate seek
+ 		// for that (unless the Index field is big).
+diff --git a/src/liblzma/common/lzip_decoder.c b/src/liblzma/common/lzip_decoder.c
+index 58c08674..88cc7ffd 100644
+--- a/src/liblzma/common/lzip_decoder.c
++++ b/src/liblzma/common/lzip_decoder.c
+@@ -186,7 +186,7 @@ lzip_decode(void *coder_ptr, const lzma_allocator *allocator,
+ 		// The five lowest bits are for the base-2 logarithm of
+ 		// the dictionary size and the highest three bits are
+ 		// the fractional part (0/16 to 7/16) that will be
+-		// substracted to get the final value.
++		// subtracted to get the final value.
+ 		//
+ 		// For example, with 0xB5:
+ 		//     b2log = 21
+diff --git a/src/liblzma/common/stream_decoder_mt.c b/src/liblzma/common/stream_decoder_mt.c
+index b8ba4d39..76212b46 100644
+--- a/src/liblzma/common/stream_decoder_mt.c
++++ b/src/liblzma/common/stream_decoder_mt.c
+@@ -629,7 +629,7 @@ get_thread(struct lzma_stream_coder *coder, const lzma_allocator *allocator)
+ 			coder->thr = coder->threads_free;
+ 			coder->threads_free = coder->threads_free->next;
+ 
+-			// The thread is no longer in the cache so substract
++			// The thread is no longer in the cache so subtract
+ 			// it from the cached memory usage. Don't add it
+ 			// to mem_in_use though; the caller will handle it
+ 			// since it knows how much memory it will actually
+@@ -1359,7 +1359,7 @@ stream_decode_mt(void *coder_ptr, const lzma_allocator *allocator,
+ 		// towards more favorable conditions (less memory in use,
+ 		// more in cache).
+ 		//
+-		// These are initalized to silence warnings.
++		// These are initialized to silence warnings.
+ 		uint64_t mem_in_use = 0;
+ 		uint64_t mem_cached = 0;
+ 		struct worker_thread *thr = NULL;
+@@ -1425,7 +1425,7 @@ stream_decode_mt(void *coder_ptr, const lzma_allocator *allocator,
+ 		}
+ 
+ 		// Update the memory usage counters. Note that coder->mem_*
+-		// may have changed since we read them so we must substract
++		// may have changed since we read them so we must subtract
+ 		// or add the changes.
+ 		mythread_sync(coder->mutex) {
+ 			coder->mem_cached -= mem_freed;
+@@ -1438,7 +1438,7 @@ stream_decode_mt(void *coder_ptr, const lzma_allocator *allocator,
+ 			// coder->mem_cached might count the same thing twice.
+ 			// If so, this will get corrected in get_thread() when
+ 			// a worker_thread is picked from coder->free_threads
+-			// and its memory usage is substracted from mem_cached.
++			// and its memory usage is subtracted from mem_cached.
+ 			coder->mem_in_use += coder->mem_next_in
+ 					+ coder->mem_next_filters;
+ 		}
+diff --git a/src/liblzma/common/string_conversion.c b/src/liblzma/common/string_conversion.c
+index a70105d6..d2c1e809 100644
+--- a/src/liblzma/common/string_conversion.c
++++ b/src/liblzma/common/string_conversion.c
+@@ -197,7 +197,7 @@ typedef struct {
+ /// (default is uint32_t).
+ ///
+ /// Stringifying a filter is done by processing a given number of options
+-/// in oder from the beginning of an option_map array. The integer is
++/// in order from the beginning of an option_map array. The integer is
+ /// read from filter_options at .offset using the type from .type.
+ ///
+ /// If the integer is zero and .flags has OPTMAP_NO_STRFY_ZERO then the
+@@ -538,7 +538,7 @@ static const struct {
+ ///
+ /// The input string starts at *str and the address in str_end is the first
+ /// char that is not part of the string anymore. So no '\0' terminator is
+-/// used. *str is advanced everytime something has been decoded successfully.
++/// used. *str is advanced every time something has been decoded successfully.
+ static const char *
+ parse_options(const char **const str, const char *str_end,
+ 		void *filter_options,
+@@ -844,7 +844,7 @@ parse_filter(const char **const str, const char *str_end, lzma_filter *filter,
+ 
+ /// Converts the string to a filter chain (array of lzma_filter structures).
+ ///
+-/// *str is advanced everytime something has been decoded successfully.
++/// *str is advanced every time something has been decoded successfully.
+ /// This way the caller knows where in the string a possible error occurred.
+ static const char *
+ str_to_filters(const char **const str, lzma_filter *filters, uint32_t flags,
+diff --git a/src/liblzma/lz/lz_encoder.h b/src/liblzma/lz/lz_encoder.h
+index 2027b39f..b71f1180 100644
+--- a/src/liblzma/lz/lz_encoder.h
++++ b/src/liblzma/lz/lz_encoder.h
+@@ -192,7 +192,7 @@ typedef struct {
+ //
+ // Algorithms such as LZMA2 first try to compress a chunk, and then check
+ // if the encoded result is smaller than the uncompressed one. If the chunk
+-// was uncompressible, it is better to store it in uncompressed form in
++// was incompressible, it is better to store it in uncompressed form in
+ // the output stream. To do this, the whole uncompressed chunk has to be
+ // still available in the history buffer. before_size achieves that.
+ 
+diff --git a/src/liblzma/lzma/lzma_encoder.c b/src/liblzma/lzma/lzma_encoder.c
+index dc62f44f..559c63ed 100644
+--- a/src/liblzma/lzma/lzma_encoder.c
++++ b/src/liblzma/lzma/lzma_encoder.c
+@@ -633,7 +633,7 @@ lzma_lzma_encoder_create(void **coder_ptr, const lzma_allocator *allocator,
+ 			// Currently the maximum encoder dictionary size
+ 			// is 1.5 GiB due to lz_encoder.c and here we need
+ 			// to be below 2 GiB to make the rounded up value
+-			// fit in an uint32_t and avoid an infite while-loop
++			// fit in an uint32_t and avoid an infinite while-loop
+ 			// (and undefined behavior due to a too large shift).
+ 			// So do the same check as in LZ encoder,
+ 			// limiting to 1.5 GiB.
+@@ -673,7 +673,7 @@ lzma_lzma_encoder_create(void **coder_ptr, const lzma_allocator *allocator,
+ 	coder->uncomp_size = 0;
+ 	coder->uncomp_size_ptr = NULL;
+ 
+-	// Output size limitting is disabled by default.
++	// Output size limiting is disabled by default.
+ 	coder->out_limit = 0;
+ 
+ 	// Determine if end marker is wanted:
+diff --git a/src/xz/hardware.c b/src/xz/hardware.c
+index ccdc3b9e..c6948821 100644
+--- a/src/xz/hardware.c
++++ b/src/xz/hardware.c
+@@ -42,7 +42,7 @@ static uint64_t memlimit_decompress = 0;
+ ///
+ ///   - Default value for --memlimit-mt-decompress
+ ///
+-/// This value is caluclated in hardware_init() and cannot be changed later.
++/// This value is calculated in hardware_init() and cannot be changed later.
+ static uint64_t memlimit_mt_default;
+ 
+ /// Memory usage limit for multithreaded decompression. This is a soft limit:
+@@ -147,7 +147,7 @@ hardware_memlimit_set(uint64_t new_memlimit,
+ 		// for the xz program and so on. Don't use 4000 MiB because
+ 		// it could look like someone mixed up base-2 and base-10.
+ #ifdef __mips__
+-		// For MIPS32, due to architectural pecularities,
++		// For MIPS32, due to architectural peculiarities,
+ 		// the limit is even lower.
+ 		const uint64_t limit_max = UINT64_C(2000) << 20;
+ #else
+diff --git a/tests/test_filter_flags.c b/tests/test_filter_flags.c
+index 5cfccea9..6d9f0b93 100644
+--- a/tests/test_filter_flags.c
++++ b/tests/test_filter_flags.c
+@@ -50,7 +50,7 @@ static lzma_filter bcj_filters_encoders[] = {
+ #endif
+ };
+ 
+-// HAVE_ENCODERS ifdef not termianted here because decoders are
++// HAVE_ENCODERS ifdef not terminated here because decoders are
+ // only used if encoders are, but encoders can still be used
+ // even if decoders are not.
+ 
+@@ -174,7 +174,7 @@ verify_filter_flags_encode(lzma_filter *filter, bool should_encode)
+ 			&filter_id_vli_size, size), LZMA_OK);
+ 	assert_uint_eq(filter->id, filter_id);
+ 
+-	// Next decode the Size of Properites and ensure it equals
++	// Next decode the Size of Properties and ensure it equals
+ 	// the expected size.
+ 	// Expected size should be:
+ 	// total filter flag length - size of filter id VLI + size of
+diff --git a/tests/test_index.c b/tests/test_index.c
+index 168e919f..d2c3c0c1 100644
+--- a/tests/test_index.c
++++ b/tests/test_index.c
+@@ -672,7 +672,7 @@ test_lzma_index_iter_rewind(void)
+ 		assert_uint_eq(iter.block.number_in_file, i + 1);
+ 	}
+ 
+-	// Rewind back to the begining and iterate over the Blocks again
++	// Rewind back to the beginning and iterate over the Blocks again
+ 	lzma_index_iter_rewind(&iter);
+ 
+ 	// Should be able to re-iterate over the Blocks again.
+diff --git a/tests/test_vli.c b/tests/test_vli.c
+index e82e7270..996b775b 100644
+--- a/tests/test_vli.c
++++ b/tests/test_vli.c
+@@ -90,7 +90,7 @@ encode_single_call_mode(lzma_vli input, const uint8_t *expected,
+ 
+ // Helper function for test_lzma_vli_encode
+ // Encodes an input VLI one byte at a time with the multi call
+-// method. Then compares agaist a pre-computed value
++// method. Then compares against a pre-computed value
+ static void
+ encode_multi_call_mode(lzma_vli input, const uint8_t *expected,
+ 		uint32_t expected_len)

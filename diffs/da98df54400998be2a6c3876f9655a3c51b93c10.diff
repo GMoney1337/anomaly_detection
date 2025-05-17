@@ -1,0 +1,189 @@
+diff --git a/src/lzma/args.c b/src/lzma/args.c
+index 30df4522..70c3978e 100644
+--- a/src/lzma/args.c
++++ b/src/lzma/args.c
+@@ -60,7 +60,7 @@ enum {
+ 	OPT_ARMTHUMB,
+ 	OPT_SPARC,
+ 	OPT_DELTA,
+-	OPT_LZMA,
++	OPT_LZMA1,
+ 	OPT_LZMA2,
+ 
+ 	OPT_FILES,
+@@ -108,7 +108,7 @@ static const struct option long_opts[] = {
+ 	{ "armthumb",           no_argument,       NULL,   OPT_ARMTHUMB },
+ 	{ "sparc",              no_argument,       NULL,   OPT_SPARC },
+ 	{ "delta",              optional_argument, NULL,   OPT_DELTA },
+-	{ "lzma",               optional_argument, NULL,   OPT_LZMA },
++	{ "lzma1",              optional_argument, NULL,   OPT_LZMA1 },
+ 	{ "lzma2",              optional_argument, NULL,   OPT_LZMA2 },
+ 
+ 	// Other
+@@ -300,7 +300,7 @@ parse_real(int argc, char **argv)
+ 			add_filter(LZMA_FILTER_DELTA, optarg);
+ 			break;
+ 
+-		case OPT_LZMA:
++		case OPT_LZMA1:
+ 			add_filter(LZMA_FILTER_LZMA, optarg);
+ 			break;
+ 
+@@ -316,7 +316,8 @@ parse_real(int argc, char **argv)
+ 				"auto",
+ 				"native",
+ 				"alone",
+-// 				"gzip",
++				// "gzip",
++				"raw",
+ 				NULL
+ 			};
+ 
+@@ -471,10 +472,10 @@ set_compression_settings(void)
+ 		my_exit(ERROR);
+ 	}
+ 
+-	uint64_t memory_usage = lzma_memusage_encoder(opt_filters);
+-			/* opt_mode == MODE_COMPRESS
++	// If using --format=raw, we can be decoding.
++	uint64_t memory_usage = opt_mode == MODE_COMPRESS
+ 			? lzma_memusage_encoder(opt_filters)
+-			: lzma_memusage_decoder(opt_filters); */
++			: lzma_memusage_decoder(opt_filters);
+ 
+ 	// Don't go over the memory limits when the default
+ 	// setting is used.
+@@ -546,7 +547,7 @@ parse_args(int argc, char **argv)
+ 		opt_stdout = true;
+ 	}
+ 
+-	if (opt_mode == MODE_COMPRESS)
++	if (opt_mode == MODE_COMPRESS || opt_header == HEADER_RAW)
+ 		set_compression_settings();
+ 
+ 	// If no filenames are given, use stdin.
+diff --git a/src/lzma/args.h b/src/lzma/args.h
+index b60e7545..abc810cb 100644
+--- a/src/lzma/args.h
++++ b/src/lzma/args.h
+@@ -35,6 +35,7 @@ enum header_type {
+ 	HEADER_NATIVE,
+ 	HEADER_ALONE,
+ 	// HEADER_GZIP,
++	HEADER_RAW,
+ };
+ 
+ 
+diff --git a/src/lzma/help.c b/src/lzma/help.c
+index 7f8be669..d4888653 100644
+--- a/src/lzma/help.c
++++ b/src/lzma/help.c
+@@ -57,7 +57,7 @@ show_help(void)
+ "  -c, --stdout        write to standard output and don't delete input files\n"
+ "  -S, --suffix=.SUF   use suffix `.SUF' on compressed files instead of `.lzma'\n"
+ "  -F, --format=FMT    file format to encode or decode; possible values are\n"
+-"                      `auto', `native', `single', `multi', and `alone'\n"
++"                      `auto' (default), `native', `alone', and `raw'\n"
+ "      --files=[FILE]  read filenames to process from FILE; if FILE is\n"
+ "                      omitted, filenames are read from the standard input;\n"
+ "                      filenames must be terminated with the newline character\n"
+@@ -79,9 +79,9 @@ show_help(void)
+ 	puts(_(
+ " Custom filter chain for compression (alternative for using presets):\n"
+ "\n"
+-"  --lzma=[OPTS]       LZMA filter; OPTS is a comma-separated list of zero or\n"
+-"                      more of the following options (valid values; default):\n"
+-"                        dict=NUM   dictionary size in bytes (1 - 1Gi; 8Mi)\n"
++"  --lzma1=[OPTS]      LZMA1 or LZMA2; OPTS is a comma-separated list of zero or\n"
++"  --lzma2=[OPTS]      more of the following options (valid values; default):\n"
++"                        dict=NUM   dictionary size in bytes (1 - 1GiB; 8MiB)\n"
+ "                        lc=NUM     number of literal context bits (0-8; 3)\n"
+ "                        lp=NUM     number of literal position bits (0-4; 0)\n"
+ "                        pb=NUM     number of position bits (0-4; 2)\n"
+@@ -108,18 +108,6 @@ show_help(void)
+ "                        rle=NUM     run-length encoder chunk size (0-256; 0)\n"
+ ));
+ 
+-/*
+-These aren't implemented yet.
+-
+-	puts(_(
+-" Metadata options:\n"
+-"\n"
+-"  -N, --name          save or restore the original filename and time stamp\n"
+-"  -n, --no-name       do not save or restore filename and time stamp (default)\n"
+-"  -S, --sign=KEY      sign the data with GnuPG when compressing, or verify\n"
+-"                      the signature when decompressing\n"));
+-*/
+-
+ 	puts(_(
+ " Resource usage options:\n"
+ "\n"
+@@ -166,8 +154,8 @@ show_version(void)
+ 	printf(
+ "lzma (LZMA Utils) " PACKAGE_VERSION "\n"
+ "\n"
+-"Copyright (C) 1999-2006 Igor Pavlov\n"
+-"Copyright (C) 2007 Lasse Collin\n"
++"Copyright (C) 1999-2008 Igor Pavlov\n"
++"Copyright (C) 2007-2008 Lasse Collin\n"
+ "\n"
+ "This program is free software; you can redistribute it and/or modify\n"
+ "it under the terms of the GNU General Public License as published by\n"
+diff --git a/src/lzma/process.c b/src/lzma/process.c
+index 42c625e3..084b2c57 100644
+--- a/src/lzma/process.c
++++ b/src/lzma/process.c
+@@ -155,18 +155,44 @@ single_init(thread_data *t)
+ 	lzma_ret ret;
+ 
+ 	if (opt_mode == MODE_COMPRESS) {
+-		if (opt_header == HEADER_ALONE) {
+-			ret = lzma_alone_encoder(&t->strm,
+-					opt_filters[0].options);
+-		} else {
++		switch (opt_header) {
++		case HEADER_AUTO:
++		case HEADER_NATIVE:
+ 			ret = lzma_stream_encoder(&t->strm,
+ 					opt_filters, opt_check);
++			break;
++
++		case HEADER_ALONE:
++			ret = lzma_alone_encoder(&t->strm,
++					opt_filters[0].options);
++			break;
++
++		case HEADER_RAW:
++			ret = lzma_raw_encoder(&t->strm, opt_filters);
++			break;
+ 		}
+ 	} else {
+-		// TODO Restrict file format if requested on the command line.
+-		ret = lzma_auto_decoder(&t->strm, opt_memory,
+-				LZMA_WARN_UNSUPPORTED_CHECK
+-					| LZMA_CONCATENATED);
++		const uint32_t flags = LZMA_WARN_UNSUPPORTED_CHECK
++				| LZMA_CONCATENATED;
++
++		switch (opt_header) {
++		case HEADER_AUTO:
++			ret = lzma_auto_decoder(&t->strm, opt_memory, flags);
++			break;
++
++		case HEADER_NATIVE:
++			ret = lzma_stream_decoder(&t->strm, opt_memory, flags);
++			break;
++
++		case HEADER_ALONE:
++			ret = lzma_alone_decoder(&t->strm, opt_memory);
++			break;
++
++		case HEADER_RAW:
++			// Memory usage has already been checked in args.c.
++			ret = lzma_raw_decoder(&t->strm, opt_filters);
++			break;
++		}
+ 	}
+ 
+ 	if (ret != LZMA_OK) {

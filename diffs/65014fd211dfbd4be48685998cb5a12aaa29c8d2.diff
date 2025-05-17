@@ -1,0 +1,100 @@
+diff --git a/dos/Makefile b/dos/Makefile
+index 9d563126..0b8a088c 100644
+--- a/dos/Makefile
++++ b/dos/Makefile
+@@ -223,12 +223,12 @@ xzdec-clean:
+ 
+ XZ_SRCS = \
+ 	../src/xz/args.c \
++	../src/xz/coder.c \
++	../src/xz/file_io.c \
+ 	../src/xz/hardware.c \
+-	../src/xz/io.c \
+ 	../src/xz/main.c \
+ 	../src/xz/message.c \
+ 	../src/xz/options.c \
+-	../src/xz/process.c \
+ 	../src/xz/signals.c \
+ 	../src/xz/suffix.c \
+ 	../src/xz/util.c
+diff --git a/src/xz/Makefile.am b/src/xz/Makefile.am
+index ff88a839..121a2d1c 100644
+--- a/src/xz/Makefile.am
++++ b/src/xz/Makefile.am
+@@ -10,10 +10,12 @@ bin_PROGRAMS = xz
+ xz_SOURCES = \
+ 	args.c \
+ 	args.h \
++	coder.c \
++	coder.h \
++	file_io.c \
++	file_io.h \
+ 	hardware.c \
+ 	hardware.h \
+-	io.c \
+-	io.h \
+ 	main.c \
+ 	main.h \
+ 	message.c \
+@@ -21,8 +23,6 @@ xz_SOURCES = \
+ 	options.c \
+ 	options.h \
+ 	private.h \
+-	process.c \
+-	process.h \
+ 	signals.c \
+ 	signals.h \
+ 	suffix.c \
+diff --git a/src/xz/process.c b/src/xz/coder.c
+similarity index 100%
+rename from src/xz/process.c
+rename to src/xz/coder.c
+diff --git a/src/xz/process.h b/src/xz/coder.h
+similarity index 100%
+rename from src/xz/process.h
+rename to src/xz/coder.h
+diff --git a/src/xz/io.c b/src/xz/file_io.c
+similarity index 100%
+rename from src/xz/io.c
+rename to src/xz/file_io.c
+diff --git a/src/xz/io.h b/src/xz/file_io.h
+similarity index 100%
+rename from src/xz/io.h
+rename to src/xz/file_io.h
+diff --git a/src/xz/private.h b/src/xz/private.h
+index 1ed37cd0..6141b88c 100644
+--- a/src/xz/private.h
++++ b/src/xz/private.h
+@@ -44,11 +44,11 @@
+ #endif
+ 
+ #include "main.h"
+-#include "process.h"
++#include "coder.h"
+ #include "message.h"
+ #include "args.h"
+ #include "hardware.h"
+-#include "io.h"
++#include "file_io.h"
+ #include "options.h"
+ #include "signals.h"
+ #include "suffix.h"
+diff --git a/windows/Makefile b/windows/Makefile
+index 192348bd..0ff45a81 100644
+--- a/windows/Makefile
++++ b/windows/Makefile
+@@ -273,12 +273,12 @@ xz: xz-dynamic.exe xz.exe
+ 
+ XZ_SRCS = \
+ 	../src/xz/args.c \
++	../src/xz/coder.c \
++	../src/xz/file_io.c \
+ 	../src/xz/hardware.c \
+-	../src/xz/io.c \
+ 	../src/xz/main.c \
+ 	../src/xz/message.c \
+ 	../src/xz/options.c \
+-	../src/xz/process.c \
+ 	../src/xz/signals.c \
+ 	../src/xz/suffix.c \
+ 	../src/xz/util.c

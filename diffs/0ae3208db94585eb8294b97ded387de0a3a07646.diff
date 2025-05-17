@@ -1,0 +1,46 @@
+diff --git a/tests/files/README b/tests/files/README
+index e8f4160e..42742629 100644
+--- a/tests/files/README
++++ b/tests/files/README
+@@ -70,6 +70,12 @@
+     good-single-delta-lzma.tiff.lzma is an image file that compresses
+     better with Delta+LZMA than with plain LZMA.
+ 
++    good-single-lzma-flush_1.lzma has a flush marker in the middle of
++    the file, and no EOPM.
++
++    good-single-lzma-flush_2.lzma has a flush marker in the middle of
++    the file and just before EOPM.
++
+ 
+ 2.2. Bad Files
+ 
+@@ -115,6 +121,12 @@
+     but it seemed to be a bad idea since it would increase worst-case CPU
+     usage.
+ 
++    bad-single-lzma-flush_beginning.lzma has flush marker in the beginning
++    of the LZMA data.
++
++    bad-single-lzma-flush_twice.lzma has two flush markers with no data
++    between them.
++
+ 
+ 2.3. Malicious Files
+ 
+diff --git a/tests/files/bad-single-lzma-flush_beginning.lzma b/tests/files/bad-single-lzma-flush_beginning.lzma
+new file mode 100644
+index 00000000..1952c043
+Binary files /dev/null and b/tests/files/bad-single-lzma-flush_beginning.lzma differ
+diff --git a/tests/files/bad-single-lzma-flush_twice.lzma b/tests/files/bad-single-lzma-flush_twice.lzma
+new file mode 100644
+index 00000000..d71dac00
+Binary files /dev/null and b/tests/files/bad-single-lzma-flush_twice.lzma differ
+diff --git a/tests/files/good-single-lzma-flush_1.lzma b/tests/files/good-single-lzma-flush_1.lzma
+new file mode 100644
+index 00000000..7de086fa
+Binary files /dev/null and b/tests/files/good-single-lzma-flush_1.lzma differ
+diff --git a/tests/files/good-single-lzma-flush_2.lzma b/tests/files/good-single-lzma-flush_2.lzma
+new file mode 100644
+index 00000000..c444a217
+Binary files /dev/null and b/tests/files/good-single-lzma-flush_2.lzma differ

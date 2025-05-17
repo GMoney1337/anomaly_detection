@@ -1,0 +1,481 @@
+diff --git a/src/liblzma/lzma/lzma_common.h b/src/liblzma/lzma/lzma_common.h
+index 2bb73157..f677fcce 100644
+--- a/src/liblzma/lzma/lzma_common.h
++++ b/src/liblzma/lzma/lzma_common.h
+@@ -31,8 +31,6 @@
+ ///////////////
+ 
+ #define REP_DISTANCES 4
+-#define STATES 12
+-#define LIT_STATES 7
+ 
+ #define POS_SLOT_BITS 6
+ #define DICT_LOG_SIZE_MAX 30
+@@ -105,25 +103,62 @@
+ // State //
+ ///////////
+ 
+-// Used for updating strm->data->state in both encoder and decoder.
++/// This enum is used to track which events have occurred most recently and
++/// in which order. This information is used to predict the next event.
++///
++/// Events:
++///  - Literal: One 8-bit byte
++///  - Match: Repeat a chunk of data at some distance
++///  - Long repeat: Multi-byte match at a recently seen distance
++///  - Short repeat: One-byte repeat at a recently seen distance
++///
++/// The event names are in from STATE_oldest_older_previous. REP means
++/// either short or long repeated match, and NONLIT means any non-literal.
++typedef enum {
++	STATE_LIT_LIT,
++	STATE_MATCH_LIT_LIT,
++	STATE_REP_LIT_LIT,
++	STATE_SHORTREP_LIT_LIT,
++	STATE_MATCH_LIT,
++	STATE_REP_LIT,
++	STATE_SHORTREP_LIT,
++	STATE_LIT_MATCH,
++	STATE_LIT_LONGREP,
++	STATE_LIT_SHORTREP,
++	STATE_NONLIT_MATCH,
++	STATE_NONLIT_REP,
++} lzma_lzma_state;
++
++
++/// Total number of states
++#define STATES 12
++
++/// The lowest 7 states indicate that the previous state was a literal.
++#define LIT_STATES 7
++
+ 
+-#define update_char(index) \
+-	index = ((index) < 4 \
+-			? 0 \
+-			: ((index) < 10 \
+-				? (index) - 3 \
+-				: (index) - 6))
++/// Indicate that the latest state was a literal.
++#define update_literal(state) \
++	state = ((state) <= STATE_SHORTREP_LIT_LIT \
++			? STATE_LIT_LIT \
++			: ((state) <= STATE_LIT_SHORTREP \
++				? (state) - 3 \
++				: (state) - 6))
+ 
+-#define update_match(index) \
+-	index = ((index) < LIT_STATES ? 7 : 10)
++/// Indicate that the latest state was a match.
++#define update_match(state) \
++	state = ((state) < LIT_STATES ? STATE_LIT_MATCH : STATE_NONLIT_MATCH)
+ 
+-#define update_rep(index) \
+-	index = ((index) < LIT_STATES ? 8 : 11)
++/// Indicate that the latest state was a long repeated match.
++#define update_long_rep(state) \
++	state = ((state) < LIT_STATES ? STATE_LIT_LONGREP : STATE_NONLIT_REP)
+ 
+-#define update_short_rep(index) \
+-	index = ((index) < LIT_STATES ? 9 : 11)
++/// Indicate that the latest state was a short match.
++#define update_short_rep(state) \
++	state = ((state) < LIT_STATES ? STATE_LIT_SHORTREP : STATE_NONLIT_REP)
+ 
+-#define is_char_state(index) \
+-	((index) < LIT_STATES)
++/// Test if the previous state was a literal.
++#define is_literal_state(state) \
++	((state) < LIT_STATES)
+ 
+ #endif
+diff --git a/src/liblzma/lzma/lzma_decoder.c b/src/liblzma/lzma/lzma_decoder.c
+index fce9594a..d42241da 100644
+--- a/src/liblzma/lzma/lzma_decoder.c
++++ b/src/liblzma/lzma/lzma_decoder.c
+@@ -106,7 +106,7 @@ struct lzma_coder_s {
+ 	lzma_range_decoder rc;
+ 
+ 	// State
+-	uint32_t state;
++	lzma_lzma_state state;
+ 	uint32_t rep0;      ///< Distance of the latest match
+ 	uint32_t rep1;      ///< Distance of second latest match
+ 	uint32_t rep2;      ///< Distance of third latest match
+@@ -143,10 +143,10 @@ struct lzma_coder_s {
+ 	probability pos_align_decoder[1 << ALIGN_BITS];
+ 
+ 	/// Length of a match
+-	lzma_length_decoder len_decoder;
++	lzma_length_decoder match_len_decoder;
+ 
+ 	/// Length of a repeated match.
+-	lzma_length_decoder rep_match_len_decoder;
++	lzma_length_decoder rep_len_decoder;
+ 
+ 	/// True when we have produced at least one byte of output since the
+ 	/// beginning of the stream or the latest flush marker.
+@@ -179,7 +179,7 @@ decode_dummy(const lzma_coder *restrict coder,
+ 					coder->literal_coder, now_pos, lz_get_byte(coder->lz, 0));
+ 			uint32_t symbol = 1;
+ 
+-			if (is_char_state(state)) {
++			if (is_literal_state(state)) {
+ 				// Decode literal without match byte.
+ 				do {
+ 					if_bit_0(subcoder[symbol]) {
+@@ -222,8 +222,7 @@ decode_dummy(const lzma_coder *restrict coder,
+ 
+ 		if_bit_0(coder->is_rep[state]) {
+ 			update_bit_0_dummy();
+-			length_decode_dummy(len, coder->len_decoder, pos_state);
+-			update_match(state);
++			length_decode_dummy(len, coder->match_len_decoder, pos_state);
+ 
+ 			const uint32_t len_to_pos_state = get_len_to_pos_state(len);
+ 			uint32_t pos_slot = 0;
+@@ -291,7 +290,7 @@ decode_dummy(const lzma_coder *restrict coder,
+ 				}
+ 			}
+ 
+-			length_decode_dummy(len, coder->rep_match_len_decoder, pos_state);
++			length_decode_dummy(len, coder->rep_len_decoder, pos_state);
+ 		}
+ 	} while (0);
+ 
+@@ -364,7 +363,7 @@ decode_real(lzma_coder *restrict coder, const uint8_t *restrict in,
+ 					now_pos, lz_get_byte(coder->lz, 0));
+ 			uint32_t symbol = 1;
+ 
+-			if (is_char_state(state)) {
++			if (is_literal_state(state)) {
+ 				// Decode literal without match byte.
+ 				do {
+ 					if_bit_0(subcoder[symbol]) {
+@@ -408,7 +407,7 @@ decode_real(lzma_coder *restrict coder, const uint8_t *restrict in,
+ 			// decoder state, and start a new decoding loop.
+ 			coder->lz.dict[coder->lz.pos++] = (uint8_t)(symbol);
+ 			++now_pos;
+-			update_char(state);
++			update_literal(state);
+ 			has_produced_output = true;
+ 			continue;
+ 		}
+@@ -429,7 +428,7 @@ decode_real(lzma_coder *restrict coder, const uint8_t *restrict in,
+ 			// the value to distance.
+ 
+ 			// Decode the length of the match.
+-			length_decode(len, coder->len_decoder, pos_state);
++			length_decode(len, coder->match_len_decoder, pos_state);
+ 
+ 			update_match(state);
+ 
+@@ -594,10 +593,10 @@ decode_real(lzma_coder *restrict coder, const uint8_t *restrict in,
+ 				rep0 = distance;
+ 			}
+ 
+-			// Decode the length of the repeated match.
+-			length_decode(len, coder->rep_match_len_decoder, pos_state);
++			update_long_rep(state);
+ 
+-			update_rep(state);
++			// Decode the length of the repeated match.
++			length_decode(len, coder->rep_len_decoder, pos_state);
+ 		}
+ 
+ 
+@@ -746,23 +745,25 @@ lzma_lzma_decoder_init(lzma_next_coder *next, lzma_allocator *allocator,
+ 
+ 	// Len decoders (also bit/bittree)
+ 	const uint32_t num_pos_states = 1 << next->coder->pos_bits;
+-	bit_reset(next->coder->len_decoder.choice);
+-	bit_reset(next->coder->len_decoder.choice2);
+-	bit_reset(next->coder->rep_match_len_decoder.choice);
+-	bit_reset(next->coder->rep_match_len_decoder.choice2);
++	bit_reset(next->coder->match_len_decoder.choice);
++	bit_reset(next->coder->match_len_decoder.choice2);
++	bit_reset(next->coder->rep_len_decoder.choice);
++	bit_reset(next->coder->rep_len_decoder.choice2);
+ 
+ 	for (uint32_t pos_state = 0; pos_state < num_pos_states; ++pos_state) {
+-		bittree_reset(next->coder->len_decoder.low[pos_state], LEN_LOW_BITS);
+-		bittree_reset(next->coder->len_decoder.mid[pos_state], LEN_MID_BITS);
++		bittree_reset(next->coder->match_len_decoder.low[pos_state],
++				LEN_LOW_BITS);
++		bittree_reset(next->coder->match_len_decoder.mid[pos_state],
++				LEN_MID_BITS);
+ 
+-		bittree_reset(next->coder->rep_match_len_decoder.low[pos_state],
++		bittree_reset(next->coder->rep_len_decoder.low[pos_state],
+ 				LEN_LOW_BITS);
+-		bittree_reset(next->coder->rep_match_len_decoder.mid[pos_state],
++		bittree_reset(next->coder->rep_len_decoder.mid[pos_state],
+ 				LEN_MID_BITS);
+ 	}
+ 
+-	bittree_reset(next->coder->len_decoder.high, LEN_HIGH_BITS);
+-	bittree_reset(next->coder->rep_match_len_decoder.high, LEN_HIGH_BITS);
++	bittree_reset(next->coder->match_len_decoder.high, LEN_HIGH_BITS);
++	bittree_reset(next->coder->rep_len_decoder.high, LEN_HIGH_BITS);
+ 
+ 	next->coder->has_produced_output = false;
+ 
+diff --git a/src/liblzma/lzma/lzma_encoder.c b/src/liblzma/lzma/lzma_encoder.c
+index 01c823ca..f7aec876 100644
+--- a/src/liblzma/lzma/lzma_encoder.c
++++ b/src/liblzma/lzma/lzma_encoder.c
+@@ -170,7 +170,7 @@ lzma_lzma_encode(lzma_coder *coder, uint8_t *restrict out,
+ 			lzma_read_match_distances(coder, &len, &num_distance_pairs);
+ 
+ 			bit_encode_0(coder->is_match[coder->state][0]);
+-			update_char(coder->state);
++			update_literal(coder->state);
+ 
+ 			const uint8_t cur_byte = coder->lz.buffer[
+ 					coder->lz.read_pos - coder->additional_offset];
+@@ -244,7 +244,7 @@ lzma_lzma_encode(lzma_coder *coder, uint8_t *restrict out,
+ 			probability *subcoder = literal_get_subcoder(coder->literal_coder,
+ 					coder->now_pos, coder->previous_byte);
+ 
+-			if (is_char_state(coder->state)) {
++			if (is_literal_state(coder->state)) {
+ 				literal_encode(subcoder, cur_byte);
+ 			} else {
+ 				const uint8_t match_byte = coder->lz.buffer[
+@@ -254,7 +254,7 @@ lzma_lzma_encode(lzma_coder *coder, uint8_t *restrict out,
+ 				literal_encode_matched(subcoder, match_byte, cur_byte);
+ 			}
+ 
+-			update_char(coder->state);
++			update_literal(coder->state);
+ 			coder->previous_byte = cur_byte;
+ 
+ 		} else {
+@@ -294,16 +294,16 @@ lzma_lzma_encode(lzma_coder *coder, uint8_t *restrict out,
+ 				if (len == 1) {
+ 					update_short_rep(coder->state);
+ 				} else {
+-					length_encode(coder->rep_match_len_encoder,
++					length_encode(coder->rep_len_encoder,
+ 							len - MATCH_MIN_LEN, pos_state,
+ 							best_compression);
+-					update_rep(coder->state);
++					update_long_rep(coder->state);
+ 				}
+ 
+ 			} else {
+ 				bit_encode_0(coder->is_rep[coder->state]);
+ 				update_match(coder->state);
+-				length_encode(coder->len_encoder, len - MATCH_MIN_LEN,
++				length_encode(coder->match_len_encoder, len - MATCH_MIN_LEN,
+ 						pos_state, best_compression);
+ 				pos -= REP_DISTANCES;
+ 
+@@ -364,7 +364,7 @@ lzma_lzma_encode(lzma_coder *coder, uint8_t *restrict out,
+ 
+ 			const uint32_t len = coder->lz.sequence == SEQ_FLUSH
+ 					? LEN_SPECIAL_FLUSH : LEN_SPECIAL_EOPM;
+-			length_encode(coder->len_encoder, len - MATCH_MIN_LEN,
++			length_encode(coder->match_len_encoder, len - MATCH_MIN_LEN,
+ 					pos_state, best_compression);
+ 
+ 			const uint32_t pos_slot = (1 << POS_SLOT_BITS) - 1;
+diff --git a/src/liblzma/lzma/lzma_encoder_getoptimum.c b/src/liblzma/lzma/lzma_encoder_getoptimum.c
+index 23a075f0..535508ee 100644
+--- a/src/liblzma/lzma/lzma_encoder_getoptimum.c
++++ b/src/liblzma/lzma/lzma_encoder_getoptimum.c
+@@ -63,7 +63,7 @@ do { \
+ #define get_rep_price(price_target, rep_index, len, state, pos_state) \
+ do { \
+ 	get_pure_rep_price(price_target, rep_index, state, pos_state); \
+-	price_target += length_get_price(coder->rep_match_len_encoder, \
++	price_target += length_get_price(coder->rep_len_encoder, \
+ 			(len) - MATCH_MIN_LEN, pos_state); \
+ } while (0)
+ 
+@@ -80,7 +80,7 @@ do { \
+ 				+ align_prices[(pos) & ALIGN_MASK]; \
+ 	} \
+ 	price_target += length_get_price( \
+-			coder->len_encoder, (len) - MATCH_MIN_LEN, pos_state); \
++			coder->match_len_encoder, (len) - MATCH_MIN_LEN, pos_state); \
+ } while (0)
+ 
+ 
+@@ -368,7 +368,7 @@ lzma_get_optimum(lzma_coder *restrict coder,
+ 			+ literal_get_price(
+ 				literal_get_subcoder(coder->literal_coder,
+ 					position, coder->previous_byte),
+-				!is_char_state(coder->state), match_byte, current_byte);
++				!is_literal_state(coder->state), match_byte, current_byte);
+ 
+ 	make_as_char(coder->optimum[1]);
+ 
+@@ -424,7 +424,7 @@ lzma_get_optimum(lzma_coder *restrict coder,
+ 		do {
+ 			const uint32_t cur_and_len_price = price
+ 					+ length_get_price(
+-					coder->rep_match_len_encoder,
++					coder->rep_len_encoder,
+ 					rep_len - 2, pos_state);
+ 
+ 			if (cur_and_len_price < coder->optimum[rep_len].price) {
+@@ -513,7 +513,7 @@ lzma_get_optimum(lzma_coder *restrict coder,
+ 			state = coder->optimum[coder->optimum[cur].pos_prev_2].state;
+ 
+ 			if (coder->optimum[cur].back_prev_2 < REP_DISTANCES)
+-				update_rep(state);
++				update_long_rep(state);
+ 			else
+ 				update_match(state);
+ 
+@@ -521,7 +521,7 @@ lzma_get_optimum(lzma_coder *restrict coder,
+ 			state = coder->optimum[pos_prev].state;
+ 		}
+ 
+-		update_char(state);
++		update_literal(state);
+ 
+ 	} else {
+ 		state = coder->optimum[pos_prev].state;
+@@ -531,17 +531,17 @@ lzma_get_optimum(lzma_coder *restrict coder,
+ 		if (is_short_rep(coder->optimum[cur]))
+ 			update_short_rep(state);
+ 		else
+-			update_char(state);
++			update_literal(state);
+ 	} else {
+ 		uint32_t pos;
+ 		if (coder->optimum[cur].prev_1_is_char && coder->optimum[cur].prev_2) {
+ 			pos_prev = coder->optimum[cur].pos_prev_2;
+ 			pos = coder->optimum[cur].back_prev_2;
+-			update_rep(state);
++			update_long_rep(state);
+ 		} else {
+ 			pos = coder->optimum[cur].back_prev;
+ 			if (pos < REP_DISTANCES)
+-				update_rep(state);
++				update_long_rep(state);
+ 			else
+ 				update_match(state);
+ 		}
+@@ -582,7 +582,7 @@ lzma_get_optimum(lzma_coder *restrict coder,
+ 			+ literal_get_price(
+ 				literal_get_subcoder(coder->literal_coder,
+ 					position, buf[-1]),
+-        		!is_char_state(state), match_byte, current_byte);
++        		!is_literal_state(state), match_byte, current_byte);
+ 
+ 	bool next_is_char = false;
+ 
+@@ -638,7 +638,7 @@ lzma_get_optimum(lzma_coder *restrict coder,
+ 
+ 		if (len_test_2 >= 2) {
+ 			uint32_t state_2 = state;
+-			update_char(state_2);
++			update_literal(state_2);
+ 
+ 			const uint32_t pos_state_next = (position + 1) & pos_mask;
+ 			const uint32_t next_rep_match_price = cur_and_1_price
+@@ -689,7 +689,7 @@ lzma_get_optimum(lzma_coder *restrict coder,
+ 
+ 		do {
+ 			const uint32_t cur_and_len_price = price
+-					+ length_get_price(coder->rep_match_len_encoder,
++					+ length_get_price(coder->rep_len_encoder,
+ 							len_test - 2, pos_state);
+ 
+ 			if (cur_and_len_price < coder->optimum[cur + len_test].price) {
+@@ -717,12 +717,12 @@ lzma_get_optimum(lzma_coder *restrict coder,
+ 
+ 		if (len_test_2 >= 2) {
+ 			uint32_t state_2 = state;
+-			update_rep(state_2);
++			update_long_rep(state_2);
+ 
+ 			uint32_t pos_state_next = (position + len_test) & pos_mask;
+ 
+ 			const uint32_t cur_and_len_char_price = price
+-					+ length_get_price(coder->rep_match_len_encoder,
++					+ length_get_price(coder->rep_len_encoder,
+ 						len_test - 2, pos_state)
+ 					+ bit_get_price_0(coder->is_match[state_2][pos_state_next])
+ 					+ literal_get_price(
+@@ -730,7 +730,7 @@ lzma_get_optimum(lzma_coder *restrict coder,
+ 							position + len_test, buf[len_test - 1]),
+ 						true, *(buf + len_test - back_offset), buf[len_test]);
+ 
+-			update_char(state_2);
++			update_literal(state_2);
+ 
+ 			pos_state_next = (position + len_test + 1) & pos_mask;
+ 
+@@ -801,7 +801,7 @@ lzma_get_optimum(lzma_coder *restrict coder,
+ 						len_to_pos_state][pos_slot]
+ 						+ align_prices[cur_back & ALIGN_MASK];
+ 
+-			cur_and_len_price += length_get_price(coder->len_encoder,
++			cur_and_len_price += length_get_price(coder->match_len_encoder,
+ 					len_test - MATCH_MIN_LEN, pos_state);
+ 
+ 			if (cur_and_len_price < coder->optimum[cur + len_test].price) {
+@@ -843,7 +843,7 @@ lzma_get_optimum(lzma_coder *restrict coder,
+ 								*(buf + len_test - back_offset),
+ 								buf[len_test]);
+ 
+-					update_char(state_2);
++					update_literal(state_2);
+ 					pos_state_next = (pos_state_next + 1) & pos_mask;
+ 
+ 					const uint32_t next_rep_match_price
+diff --git a/src/liblzma/lzma/lzma_encoder_init.c b/src/liblzma/lzma/lzma_encoder_init.c
+index bbe3de7a..0e3fb769 100644
+--- a/src/liblzma/lzma/lzma_encoder_init.c
++++ b/src/liblzma/lzma/lzma_encoder_init.c
+@@ -174,10 +174,11 @@ lzma_lzma_encoder_init(lzma_next_coder *next, lzma_allocator *allocator,
+ 	bittree_reset(next->coder->pos_align_encoder, ALIGN_BITS);
+ 
+ 	// Length encoders
+-	length_encoder_reset(&next->coder->len_encoder, 1U << options->pos_bits,
++	length_encoder_reset(&next->coder->match_len_encoder,
++			1U << options->pos_bits,
+ 			options->fast_bytes + 1 - MATCH_MIN_LEN);
+ 
+-	length_encoder_reset(&next->coder->rep_match_len_encoder,
++	length_encoder_reset(&next->coder->rep_len_encoder,
+ 			1U << options->pos_bits,
+ 			next->coder->fast_bytes + 1 - MATCH_MIN_LEN);
+ 
+diff --git a/src/liblzma/lzma/lzma_encoder_private.h b/src/liblzma/lzma/lzma_encoder_private.h
+index e403577c..0feaf26a 100644
+--- a/src/liblzma/lzma/lzma_encoder_private.h
++++ b/src/liblzma/lzma/lzma_encoder_private.h
+@@ -60,7 +60,7 @@ typedef struct {
+ 
+ 
+ typedef struct {
+-	uint32_t state;
++	lzma_lzma_state state;
+ 
+ 	bool prev_1_is_char;
+ 	bool prev_2;
+@@ -88,7 +88,7 @@ struct lzma_coder_s {
+ 	lzma_range_encoder rc;
+ 
+ 	// State
+-	uint32_t state;
++	lzma_lzma_state state;
+ 	uint8_t previous_byte;
+ 	uint32_t rep_distances[REP_DISTANCES];
+ 
+@@ -117,8 +117,8 @@ struct lzma_coder_s {
+ 	probability pos_align_encoder[1 << ALIGN_BITS];
+ 
+ 	// Length encoders
+-	lzma_length_encoder len_encoder;
+-	lzma_length_encoder rep_match_len_encoder;
++	lzma_length_encoder match_len_encoder;
++	lzma_length_encoder rep_len_encoder;
+ 
+ 	// Optimal
+ 	lzma_optimal optimum[OPTS];

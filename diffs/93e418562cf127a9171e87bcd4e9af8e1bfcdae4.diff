@@ -1,0 +1,227 @@
+diff --git a/src/liblzma/Makefile.am b/src/liblzma/Makefile.am
+index 6d5753b1..a4d2c1e6 100644
+--- a/src/liblzma/Makefile.am
++++ b/src/liblzma/Makefile.am
+@@ -12,7 +12,7 @@ CLEANFILES =
+ doc_DATA =
+ 
+ lib_LTLIBRARIES = liblzma.la
+-liblzma_la_SOURCES =
++liblzma_la_SOURCES = $(top_srcdir)/src/common/tuklib_physmem.c
+ liblzma_la_CPPFLAGS = \
+ 	-I$(top_srcdir)/src/liblzma/api \
+ 	-I$(top_srcdir)/src/liblzma/common \
+@@ -23,7 +23,8 @@ liblzma_la_CPPFLAGS = \
+ 	-I$(top_srcdir)/src/liblzma/subblock \
+ 	-I$(top_srcdir)/src/liblzma/delta \
+ 	-I$(top_srcdir)/src/liblzma/simple \
+-	-I$(top_srcdir)/src/common
++	-I$(top_srcdir)/src/common \
++	-DTUKLIB_SYMBOL_PREFIX=lzma_
+ liblzma_la_LDFLAGS = -no-undefined -version-info 0:0:0
+ 
+ include $(srcdir)/common/Makefile.inc
+diff --git a/src/liblzma/api/Makefile.am b/src/liblzma/api/Makefile.am
+index 0992d221..4536b0ac 100644
+--- a/src/liblzma/api/Makefile.am
++++ b/src/liblzma/api/Makefile.am
+@@ -14,6 +14,7 @@ nobase_include_HEADERS = \
+ 	lzma/container.h \
+ 	lzma/delta.h \
+ 	lzma/filter.h \
++	lzma/hardware.h \
+ 	lzma/index.h \
+ 	lzma/index_hash.h \
+ 	lzma/lzma.h \
+diff --git a/src/liblzma/api/lzma.h b/src/liblzma/api/lzma.h
+index dab29636..f5ab30d1 100644
+--- a/src/liblzma/api/lzma.h
++++ b/src/liblzma/api/lzma.h
+@@ -308,6 +308,9 @@ extern "C" {
+ #include "lzma/index.h"
+ #include "lzma/index_hash.h"
+ 
++/* Hardware information */
++#include "lzma/hardware.h"
++
+ /*
+  * All subheaders included. Undefine LZMA_H_INTERNAL to prevent applications
+  * re-including the subheaders.
+diff --git a/src/liblzma/api/lzma/hardware.h b/src/liblzma/api/lzma/hardware.h
+new file mode 100644
+index 00000000..f44cb602
+--- /dev/null
++++ b/src/liblzma/api/lzma/hardware.h
+@@ -0,0 +1,51 @@
++/**
++ * \file        lzma/hardware.h
++ * \brief       Hardware information
++ *
++ * Since liblzma can consume a lot of system resources, it also provides
++ * ways to limit the resource usage. Applications linking against liblzma
++ * need to do the actual decisions how much resources to let liblzma to use.
++ * To ease making these decisions, liblzma provides functions to find out
++ * the relevant capabilities of the underlaying hardware. Currently there
++ * is only a function to find out the amount of RAM, but in the future there
++ * will be also a function to detect how many concurrent threads the system
++ * can run.
++ *
++ * \note        On some operating systems, these function may temporarily
++ *              load a shared library or open file descriptor(s) to find out
++ *              the requested hardware information. Unless the application
++ *              assumes that specific file descriptors are not touched by
++ *              other threads, this should have no effect on thread safety.
++ *              Possible operations involving file descriptors will restart
++ *              the syscalls if they return EINTR.
++ */
++
++/*
++ * Author: Lasse Collin
++ *
++ * This file has been put into the public domain.
++ * You can do whatever you want with this file.
++ *
++ * See ../lzma.h for information about liblzma as a whole.
++ */
++
++#ifndef LZMA_H_INTERNAL
++#	error Never include this file directly. Use <lzma.h> instead.
++#endif
++
++
++/**
++ * \brief       Get the total amount of physical memory (RAM) in bytes
++ *
++ * This function may be useful when determining a reasonable memory
++ * usage limit for decompressing or how much memory it is OK to use
++ * for compressing. For example, the default limit used by the xz
++ * command line tool is 40 % of RAM.
++ *
++ * \return      On success, the total amount of physical memory in bytes
++ *              is returned. If the amount of RAM cannot be determined,
++ *              zero is returned. This can happen if an error occurs
++ *              or if there is no code in liblzma to detect the amount
++ *              of RAM on the specific operating system.
++ */
++extern LZMA_API(uint64_t) lzma_physmem(void) lzma_nothrow;
+diff --git a/src/liblzma/common/Makefile.inc b/src/liblzma/common/Makefile.inc
+index aaaeee93..29f43ff1 100644
+--- a/src/liblzma/common/Makefile.inc
++++ b/src/liblzma/common/Makefile.inc
+@@ -14,6 +14,7 @@ liblzma_la_SOURCES += \
+ 	common/easy_preset.h \
+ 	common/filter_common.c \
+ 	common/filter_common.h \
++	common/hardware_physmem.c \
+ 	common/index.c \
+ 	common/index.h \
+ 	common/stream_flags_common.c \
+diff --git a/src/liblzma/common/hardware_physmem.c b/src/liblzma/common/hardware_physmem.c
+new file mode 100644
+index 00000000..7405b658
+--- /dev/null
++++ b/src/liblzma/common/hardware_physmem.c
+@@ -0,0 +1,25 @@
++///////////////////////////////////////////////////////////////////////////////
++//
++/// \file       hardware_physmem.c
++/// \brief      Get the total amount of physical memory (RAM)
++//
++//  Author:     Jonathan Nieder
++//
++//  This file has been put into the public domain.
++//  You can do whatever you want with this file.
++//
++///////////////////////////////////////////////////////////////////////////////
++
++#include "common.h"
++
++#include "tuklib_physmem.h"
++
++
++extern LZMA_API(uint64_t)
++lzma_physmem(void)
++{
++	// It is simpler to make lzma_physmem() a wrapper for
++	// tuklib_physmem() than to hack appropriate symbol visiblity
++	// support for the tuklib modules.
++	return tuklib_physmem();
++}
+diff --git a/src/xz/Makefile.am b/src/xz/Makefile.am
+index cc617053..08ac236f 100644
+--- a/src/xz/Makefile.am
++++ b/src/xz/Makefile.am
+@@ -32,7 +32,6 @@ xz_SOURCES = \
+ 	$(top_srcdir)/src/common/tuklib_open_stdxxx.c \
+ 	$(top_srcdir)/src/common/tuklib_progname.c \
+ 	$(top_srcdir)/src/common/tuklib_exit.c \
+-	$(top_srcdir)/src/common/tuklib_physmem.c \
+ 	$(top_srcdir)/src/common/tuklib_cpucores.c
+ 
+ if COND_W32
+diff --git a/src/xz/hardware.c b/src/xz/hardware.c
+index d5f4b9b4..d91b4cee 100644
+--- a/src/xz/hardware.c
++++ b/src/xz/hardware.c
+@@ -11,7 +11,6 @@
+ ///////////////////////////////////////////////////////////////////////////////
+ 
+ #include "private.h"
+-#include "tuklib_physmem.h"
+ #include "tuklib_cpucores.h"
+ 
+ 
+@@ -66,7 +65,7 @@ hardware_memlimit_set_percentage(uint32_t percentage)
+ 	assert(percentage > 0);
+ 	assert(percentage <= 100);
+ 
+-	uint64_t mem = tuklib_physmem();
++	uint64_t mem = lzma_physmem();
+ 
+ 	// If we cannot determine the amount of RAM, use the assumption
+ 	// defined by the configure script.
+diff --git a/src/xzdec/Makefile.am b/src/xzdec/Makefile.am
+index 9a1b4342..ad487721 100644
+--- a/src/xzdec/Makefile.am
++++ b/src/xzdec/Makefile.am
+@@ -17,8 +17,7 @@ bin_PROGRAMS = xzdec lzmadec
+ xzdec_SOURCES = \
+ 	xzdec.c \
+ 	$(top_srcdir)/src/common/tuklib_progname.c \
+-	$(top_srcdir)/src/common/tuklib_exit.c \
+-	$(top_srcdir)/src/common/tuklib_physmem.c
++	$(top_srcdir)/src/common/tuklib_exit.c
+ 
+ if COND_W32
+ xzdec_SOURCES += xzdec_w32res.rc
+@@ -43,8 +42,7 @@ xzdec_LDADD += $(LTLIBINTL)
+ lzmadec_SOURCES = \
+ 	xzdec.c \
+ 	$(top_srcdir)/src/common/tuklib_progname.c \
+-	$(top_srcdir)/src/common/tuklib_exit.c \
+-	$(top_srcdir)/src/common/tuklib_physmem.c
++	$(top_srcdir)/src/common/tuklib_exit.c
+ 
+ if COND_W32
+ lzmadec_SOURCES += lzmadec_w32res.rc
+diff --git a/src/xzdec/xzdec.c b/src/xzdec/xzdec.c
+index 4f40f1d6..0abccebb 100644
+--- a/src/xzdec/xzdec.c
++++ b/src/xzdec/xzdec.c
+@@ -21,7 +21,6 @@
+ #include "getopt.h"
+ #include "tuklib_progname.h"
+ #include "tuklib_exit.h"
+-#include "tuklib_physmem.h"
+ 
+ #ifdef TUKLIB_DOSLIKE
+ #	include <fcntl.h>
+@@ -104,7 +103,7 @@ version(void)
+ static void
+ memlimit_set_percentage(uint32_t percentage)
+ {
+-	uint64_t mem = tuklib_physmem();
++	uint64_t mem = lzma_physmem();
+ 
+ 	// If we cannot determine the amount of RAM, use the assumption
+ 	// set by the configure script.

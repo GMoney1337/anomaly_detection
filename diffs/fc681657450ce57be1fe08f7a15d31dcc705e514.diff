@@ -1,0 +1,432 @@
+diff --git a/src/liblzma/lz/lz_encoder.c b/src/liblzma/lz/lz_encoder.c
+index d5f84826..6a39d0f5 100644
+--- a/src/liblzma/lz/lz_encoder.c
++++ b/src/liblzma/lz/lz_encoder.c
+@@ -86,12 +86,16 @@ fill_window(lzma_coder *coder, lzma_allocator *allocator, const uint8_t *in,
+ 	if (coder->mf.read_pos >= coder->mf.size - coder->mf.keep_size_after)
+ 		move_window(&coder->mf);
+ 
++	// Maybe this is ugly, but lzma_mf uses uint32_t for most things
++	// (which I find cleanest), but we need size_t here when filling
++	// the history window.
++	size_t write_pos = coder->mf.write_pos;
+ 	size_t in_used;
+ 	lzma_ret ret;
+ 	if (coder->next.code == NULL) {
+ 		// Not using a filter, simply memcpy() as much as possible.
+ 		in_used = lzma_bufcpy(in, in_pos, in_size, coder->mf.buffer,
+-				&coder->mf.write_pos, coder->mf.size);
++				&write_pos, coder->mf.size);
+ 
+ 		ret = action != LZMA_RUN && *in_pos == in_size
+ 				? LZMA_STREAM_END : LZMA_OK;
+@@ -100,11 +104,13 @@ fill_window(lzma_coder *coder, lzma_allocator *allocator, const uint8_t *in,
+ 		const size_t in_start = *in_pos;
+ 		ret = coder->next.code(coder->next.coder, allocator,
+ 				in, in_pos, in_size,
+-				coder->mf.buffer, &coder->mf.write_pos,
++				coder->mf.buffer, &write_pos,
+ 				coder->mf.size, action);
+ 		in_used = *in_pos - in_start;
+ 	}
+ 
++	coder->mf.write_pos = write_pos;
++
+ 	// If end of stream has been reached or flushing completed, we allow
+ 	// the encoder to process all the input (that is, read_pos is allowed
+ 	// to reach write_pos). Otherwise we keep keep_size_after bytes
+@@ -181,9 +187,12 @@ static bool
+ lz_encoder_prepare(lzma_mf *mf, lzma_allocator *allocator,
+ 		const lzma_lz_options *lz_options)
+ {
++	// For now, the dictionary size is limited to 1.5 GiB. This may grow
++	// in the future if needed, but it needs a little more work than just
++	// changing this check.
+ 	if (lz_options->dictionary_size < LZMA_DICTIONARY_SIZE_MIN
+ 			|| lz_options->dictionary_size
+-				> LZMA_DICTIONARY_SIZE_MAX
++				> (UINT32_C(1) << 30) + (UINT32_C(1) << 29)
+ 			|| lz_options->find_len_max
+ 				> lz_options->match_len_max)
+ 		return true;
+@@ -198,6 +207,13 @@ lz_encoder_prepare(lzma_mf *mf, lzma_allocator *allocator,
+ 	// memmove()s become more expensive when the size of the buffer
+ 	// increases, we reserve more space when a large dictionary is
+ 	// used to make the memmove() calls rarer.
++	//
++	// This works with dictionaries up to about 3 GiB. If bigger
++	// dictionary is wanted, some extra work is needed:
++	//   - Several variables in lzma_mf have to be changed from uint32_t
++	//     to size_t.
++	//   - Memory usage calculation needs something too, e.g. use uint64_t
++	//     for mf->size.
+ 	uint32_t reserve = lz_options->dictionary_size / 2;
+ 	if (reserve > (UINT32_C(1) << 30))
+ 		reserve /= 2;
+@@ -208,8 +224,6 @@ lz_encoder_prepare(lzma_mf *mf, lzma_allocator *allocator,
+ 	const uint32_t old_size = mf->size;
+ 	mf->size = mf->keep_size_before + reserve + mf->keep_size_after;
+ 
+-	// FIXME Integer overflows
+-
+ 	// Deallocate the old history buffer if it exists but has different
+ 	// size than what is needed now.
+ 	if (mf->buffer != NULL && old_size != mf->size) {
+@@ -220,7 +234,23 @@ lz_encoder_prepare(lzma_mf *mf, lzma_allocator *allocator,
+ 	// Match finder options
+ 	mf->match_len_max = lz_options->match_len_max;
+ 	mf->find_len_max = lz_options->find_len_max;
+-	mf->cyclic_buffer_size = lz_options->dictionary_size + 1;
++
++	// cyclic_size has to stay smaller than 2 Gi. Note that this doesn't
++	// mean limitting dictionary size to less than 2 GiB. With a match
++	// finder that uses multibyte resolution (hashes start at e.g. every
++	// fourth byte), cyclic_size would stay below 2 Gi even when
++	// dictionary size is greater than 2 GiB.
++	//
++	// It would be possible to allow cyclic_size >= 2 Gi, but then we
++	// would need to be careful to use 64-bit types in various places
++	// (size_t could do since we would need bigger than 32-bit address
++	// space anyway). It would also require either zeroing a multigigabyte
++	// buffer at initialization (waste of time and RAM) or allow
++	// normalization in lz_encoder_mf.c to access uninitialized
++	// memory to keep the code simpler. The current way is simple and
++	// still allows pretty big dictionaries, so I don't expect these
++	// limits to change.
++	mf->cyclic_size = lz_options->dictionary_size + 1;
+ 
+ 	// Validate the match finder ID and setup the function pointers.
+ 	switch (lz_options->match_finder) {
+@@ -298,9 +328,15 @@ lz_encoder_prepare(lzma_mf *mf, lzma_allocator *allocator,
+ 		hs += HASH_4_SIZE;
+ */
+ 
++	// If the above code calculating hs is modified, make sure that
++	// this assertion stays valid (UINT32_MAX / 5 is not strictly the
++	// exact limit). If it doesn't, you need to calculate that
++	// hash_size_sum + sons_count cannot overflow.
++	assert(hs < UINT32_MAX / 5);
++
+ 	const uint32_t old_count = mf->hash_size_sum + mf->sons_count;
+ 	mf->hash_size_sum = hs;
+-	mf->sons_count = mf->cyclic_buffer_size;
++	mf->sons_count = mf->cyclic_size;
+ 	if (is_bt)
+ 		mf->sons_count *= 2;
+ 
+@@ -335,11 +371,11 @@ lz_encoder_init(lzma_mf *mf, lzma_allocator *allocator)
+ 			return true;
+ 	}
+ 
+-	// Use cyclic_buffer_size as initial mf->offset. This allows
++	// Use cyclic_size as initial mf->offset. This allows
+ 	// avoiding a few branches in the match finders. The downside is
+ 	// that match finder needs to be normalized more often, which may
+ 	// hurt performance with huge dictionaries.
+-	mf->offset = mf->cyclic_buffer_size;
++	mf->offset = mf->cyclic_size;
+ 	mf->read_pos = 0;
+ 	mf->read_ahead = 0;
+ 	mf->read_limit = 0;
+@@ -364,7 +400,7 @@ lz_encoder_init(lzma_mf *mf, lzma_allocator *allocator)
+ 	}
+ 
+ 	mf->son = mf->hash + mf->hash_size_sum;
+-	mf->cyclic_buffer_pos = 0;
++	mf->cyclic_pos = 0;
+ 
+ 	// Initialize the hash table. Since EMPTY_HASH_VALUE is zero, we
+ 	// can use memset().
+diff --git a/src/liblzma/lz/lz_encoder.h b/src/liblzma/lz/lz_encoder.h
+index 45bb8462..8442dfa0 100644
+--- a/src/liblzma/lz/lz_encoder.h
++++ b/src/liblzma/lz/lz_encoder.h
+@@ -53,18 +53,20 @@ struct lzma_mf_s {
+ 
+ 	/// Number of bytes that must be kept in buffer after read_pos.
+ 	/// That is, read_pos <= write_pos - keep_size_after as long as
+-	/// stream_end_was_reached is false (once it is true, read_pos
+-	/// is allowed to reach write_pos).
++	/// action is LZMA_RUN; when action != LZMA_RUN, read_pos is allowed
++	/// to reach write_pos so that the last bytes get encoded too.
+ 	uint32_t keep_size_after;
+ 
+ 	/// Match finders store locations of matches using 32-bit integers.
+ 	/// To avoid adjusting several megabytes of integers every time the
+-	/// input window is moved with move_window(), we only adjust the
+-	/// offset of the buffer. Thus, buffer[match_finder_pos - offset]
+-	/// is the byte pointed by match_finder_pos.
++	/// input window is moved with move_window, we only adjust the
++	/// offset of the buffer. Thus, buffer[value_in_hash_table - offset]
++	/// is the byte pointed by value_in_hash_table.
+ 	uint32_t offset;
+ 
+-	/// buffer[read_pos] is the current byte.
++	/// buffer[read_pos] is the next byte to run through the match
++	/// finder. This is incremented in the match finder once the byte
++	/// has been processed.
+ 	uint32_t read_pos;
+ 
+ 	/// Number of bytes that have been ran through the match finder, but
+@@ -103,8 +105,8 @@ struct lzma_mf_s {
+ 
+ 	uint32_t *hash;
+ 	uint32_t *son;
+-	uint32_t cyclic_buffer_pos;
+-	uint32_t cyclic_buffer_size; // Must be dictionary_size + 1.
++	uint32_t cyclic_pos;
++	uint32_t cyclic_size; // Must be dictionary size + 1.
+ 	uint32_t hash_mask;
+ 
+ 	/// Maximum number of loops in the match finder
+diff --git a/src/liblzma/lz/lz_encoder_mf.c b/src/liblzma/lz/lz_encoder_mf.c
+index b1c20f50..208bb2ae 100644
+--- a/src/liblzma/lz/lz_encoder_mf.c
++++ b/src/liblzma/lz/lz_encoder_mf.c
+@@ -121,7 +121,7 @@ normalize(lzma_mf *mf)
+ 	// In future we may not want to touch the lowest bits, because there
+ 	// may be match finders that use larger resolution than one byte.
+ 	const uint32_t subvalue
+-			= (MUST_NORMALIZE_POS - mf->cyclic_buffer_size);
++			= (MUST_NORMALIZE_POS - mf->cyclic_size);
+ 				// & (~(UINT32_C(1) << 10) - 1);
+ 
+ 	const uint32_t count = mf->hash_size_sum + mf->sons_count;
+@@ -155,8 +155,8 @@ normalize(lzma_mf *mf)
+ static void
+ move_pos(lzma_mf *mf)
+ {
+-	if (++mf->cyclic_buffer_pos == mf->cyclic_buffer_size)
+-		mf->cyclic_buffer_pos = 0;
++	if (++mf->cyclic_pos == mf->cyclic_size)
++		mf->cyclic_pos = 0;
+ 
+ 	++mf->read_pos;
+ 	assert(mf->read_pos <= mf->write_pos);
+@@ -177,7 +177,7 @@ move_pos(lzma_mf *mf)
+ /// function (with small amount of input, it may start using mf->pending
+ /// again if flushing).
+ ///
+-/// Due to this rewinding, we don't touch cyclic_buffer_pos or test for
++/// Due to this rewinding, we don't touch cyclic_pos or test for
+ /// normalization. It will be done when the match finder's skip function
+ /// catches up after a flush.
+ static void
+@@ -227,8 +227,7 @@ move_pending(lzma_mf *mf)
+ #define call_find(func, len_best) \
+ do { \
+ 	matches_count = func(len_limit, pos, cur, cur_match, mf->loops, \
+-				mf->son, mf->cyclic_buffer_pos, \
+-				mf->cyclic_buffer_size, \
++				mf->son, mf->cyclic_pos, mf->cyclic_size, \
+ 				matches + matches_count, len_best) \
+ 			- matches; \
+ 	move_pos(mf); \
+@@ -249,8 +248,8 @@ do { \
+ /// \param      cur_match       Start position of the current match candidate
+ /// \param      loops           Maximum length of the hash chain
+ /// \param      son             lzma_mf.son (contains the hash chain)
+-/// \param      cyclic_buffer_pos
+-/// \param      cyclic_buffer_size
++/// \param      cyclic_pos
++/// \param      cyclic_size
+ /// \param      matches         Array to hold the matches.
+ /// \param      len_best        The length of the longest match found so far.
+ static lzma_match *
+@@ -261,22 +260,21 @@ hc_find_func(
+ 		uint32_t cur_match,
+ 		uint32_t loops,
+ 		uint32_t *const son,
+-		const uint32_t cyclic_buffer_pos,
+-		const uint32_t cyclic_buffer_size,
++		const uint32_t cyclic_pos,
++		const uint32_t cyclic_size,
+ 		lzma_match *matches,
+ 		uint32_t len_best)
+ {
+-	son[cyclic_buffer_pos] = cur_match;
++	son[cyclic_pos] = cur_match;
+ 
+ 	while (true) {
+ 		const uint32_t delta = pos - cur_match;
+-		if (loops-- == 0 || delta >= cyclic_buffer_size)
++		if (loops-- == 0 || delta >= cyclic_size)
+ 			return matches;
+ 
+ 		const uint8_t *const pb = cur - delta;
+-		cur_match = son[cyclic_buffer_pos - delta
+-				+ (delta > cyclic_buffer_pos
+-					? cyclic_buffer_size : 0)];
++		cur_match = son[cyclic_pos - delta
++				+ (delta > cyclic_pos ? cyclic_size : 0)];
+ 
+ 		if (pb[len_best] == cur[len_best] && pb[0] == cur[0]) {
+ 			uint32_t len = 0;
+@@ -297,23 +295,6 @@ hc_find_func(
+ 	}
+ }
+ 
+-/*
+-#define hc_header_find(len_min, ret_op) \
+-	uint32_t len_limit = mf_avail(mf); \
+-	if (mf->find_len_max <= len_limit) { \
+-		len_limit = mf->find_len_max; \
+-	} else if (len_limit < (len_min)) { \
+-		move_pending(mf); \
+-		ret_op; \
+-	} \
+-#define header_hc(len_min, ret_op) \
+-do { \
+-	if (mf_avail(mf) < (len_min)) { \
+-		move_pending(mf); \
+-		ret_op; \
+-	} \
+-} while (0)
+-*/
+ 
+ #define hc_find(len_best) \
+ 	call_find(hc_find_func, len_best)
+@@ -321,7 +302,7 @@ do { \
+ 
+ #define hc_skip() \
+ do { \
+-	mf->son[mf->cyclic_buffer_pos] = cur_match; \
++	mf->son[mf->cyclic_pos] = cur_match; \
+ 	move_pos(mf); \
+ } while (0)
+ 
+@@ -344,7 +325,7 @@ lzma_mf_hc3_find(lzma_mf *mf, lzma_match *matches)
+ 
+ 	uint32_t len_best = 2;
+ 
+-	if (delta2 < mf->cyclic_buffer_size && *(cur - delta2) == *cur) {
++	if (delta2 < mf->cyclic_size && *(cur - delta2) == *cur) {
+ 		for ( ; len_best != len_limit; ++len_best)
+ 			if (*(cur + len_best - delta2) != cur[len_best])
+ 				break;
+@@ -409,14 +390,14 @@ lzma_mf_hc4_find(lzma_mf *mf, lzma_match *matches)
+ 
+ 	uint32_t len_best = 1;
+ 
+-	if (delta2 < mf->cyclic_buffer_size && *(cur - delta2) == *cur) {
++	if (delta2 < mf->cyclic_size && *(cur - delta2) == *cur) {
+ 		len_best = 2;
+ 		matches[0].len = 2;
+ 		matches[0].dist = delta2 - 1;
+ 		matches_count = 1;
+ 	}
+ 
+-	if (delta2 != delta3 && delta3 < mf->cyclic_buffer_size
++	if (delta2 != delta3 && delta3 < mf->cyclic_size
+ 			&& *(cur - delta3) == *cur) {
+ 		len_best = 3;
+ 		matches[matches_count++].dist = delta3 - 1;
+@@ -484,28 +465,28 @@ bt_find_func(
+ 		uint32_t cur_match,
+ 		uint32_t loops,
+ 		uint32_t *const son,
+-		const uint32_t cyclic_buffer_pos,
+-		const uint32_t cyclic_buffer_size,
++		const uint32_t cyclic_pos,
++		const uint32_t cyclic_size,
+ 		lzma_match *matches,
+ 		uint32_t len_best)
+ {
+-	uint32_t *ptr0 = son + (cyclic_buffer_pos << 1) + 1;
+-	uint32_t *ptr1 = son + (cyclic_buffer_pos << 1);
++	uint32_t *ptr0 = son + (cyclic_pos << 1) + 1;
++	uint32_t *ptr1 = son + (cyclic_pos << 1);
+ 
+ 	uint32_t len0 = 0;
+ 	uint32_t len1 = 0;
+ 
+ 	while (true) {
+ 		const uint32_t delta = pos - cur_match;
+-		if (loops-- == 0 || delta >= cyclic_buffer_size) {
++		if (loops-- == 0 || delta >= cyclic_size) {
+ 			*ptr0 = EMPTY_HASH_VALUE;
+ 			*ptr1 = EMPTY_HASH_VALUE;
+ 			return matches;
+ 		}
+ 
+-		uint32_t *const pair = son + ((cyclic_buffer_pos - delta
+-				+ (delta > cyclic_buffer_pos
+-					? cyclic_buffer_size : 0)) << 1);
++		uint32_t *const pair = son + ((cyclic_pos - delta
++				+ (delta > cyclic_pos ? cyclic_size : 0))
++				<< 1);
+ 
+ 		const uint8_t *const pb = cur - delta;
+ 		uint32_t len = MIN(len0, len1);
+@@ -552,26 +533,26 @@ bt_skip_func(
+ 		uint32_t cur_match,
+ 		uint32_t loops,
+ 		uint32_t *const son,
+-		const uint32_t cyclic_buffer_pos,
+-		const uint32_t cyclic_buffer_size)
++		const uint32_t cyclic_pos,
++		const uint32_t cyclic_size)
+ {
+-	uint32_t *ptr0 = son + (cyclic_buffer_pos << 1) + 1;
+-	uint32_t *ptr1 = son + (cyclic_buffer_pos << 1);
++	uint32_t *ptr0 = son + (cyclic_pos << 1) + 1;
++	uint32_t *ptr1 = son + (cyclic_pos << 1);
+ 
+ 	uint32_t len0 = 0;
+ 	uint32_t len1 = 0;
+ 
+ 	while (true) {
+ 		const uint32_t delta = pos - cur_match;
+-		if (loops-- == 0 || delta >= cyclic_buffer_size) {
++		if (loops-- == 0 || delta >= cyclic_size) {
+ 			*ptr0 = EMPTY_HASH_VALUE;
+ 			*ptr1 = EMPTY_HASH_VALUE;
+ 			return;
+ 		}
+ 
+-		uint32_t *pair = son + ((cyclic_buffer_pos - delta
+-				+ (delta > cyclic_buffer_pos
+-					? cyclic_buffer_size : 0)) << 1);
++		uint32_t *pair = son + ((cyclic_pos - delta
++				+ (delta > cyclic_pos ? cyclic_size : 0))
++				<< 1);
+ 		const uint8_t *pb = cur - delta;
+ 		uint32_t len = MIN(len0, len1);
+ 
+@@ -608,8 +589,8 @@ bt_skip_func(
+ #define bt_skip() \
+ do { \
+ 	bt_skip_func(len_limit, pos, cur, cur_match, mf->loops, \
+-			mf->son, mf->cyclic_buffer_pos, \
+-			mf->cyclic_buffer_size); \
++			mf->son, mf->cyclic_pos, \
++			mf->cyclic_size); \
+ 	move_pos(mf); \
+ } while (0)
+ 
+@@ -665,7 +646,7 @@ lzma_mf_bt3_find(lzma_mf *mf, lzma_match *matches)
+ 
+ 	uint32_t len_best = 2;
+ 
+-	if (delta2 < mf->cyclic_buffer_size && *(cur - delta2) == *cur) {
++	if (delta2 < mf->cyclic_size && *(cur - delta2) == *cur) {
+ 		for ( ; len_best != len_limit; ++len_best)
+ 			if (*(cur + len_best - delta2) != cur[len_best])
+ 				break;
+@@ -724,14 +705,14 @@ lzma_mf_bt4_find(lzma_mf *mf, lzma_match *matches)
+ 
+ 	uint32_t len_best = 1;
+ 
+-	if (delta2 < mf->cyclic_buffer_size && *(cur - delta2) == *cur) {
++	if (delta2 < mf->cyclic_size && *(cur - delta2) == *cur) {
+ 		len_best = 2;
+ 		matches[0].len = 2;
+ 		matches[0].dist = delta2 - 1;
+ 		matches_count = 1;
+ 	}
+ 
+-	if (delta2 != delta3 && delta3 < mf->cyclic_buffer_size
++	if (delta2 != delta3 && delta3 < mf->cyclic_size
+ 			&& *(cur - delta3) == *cur) {
+ 		len_best = 3;
+ 		matches[matches_count++].dist = delta3 - 1;

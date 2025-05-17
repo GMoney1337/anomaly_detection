@@ -1,0 +1,26 @@
+diff --git a/src/liblzma/api/lzma/hardware.h b/src/liblzma/api/lzma/hardware.h
+index 47481f25..7040aae4 100644
+--- a/src/liblzma/api/lzma/hardware.h
++++ b/src/liblzma/api/lzma/hardware.h
+@@ -57,7 +57,7 @@ extern LZMA_API(uint64_t) lzma_physmem(void) lzma_nothrow;
+  * If the hardware supports more than one thread per CPU core, the number
+  * of hardware threads is returned if that information is available.
+  *
+- * \brief       On success, the number of available CPU threads or cores is
++ * \return      On success, the number of available CPU threads or cores is
+  *              returned. If this information isn't available or an error
+  *              occurs, zero is returned.
+  */
+diff --git a/src/liblzma/api/lzma/index_hash.h b/src/liblzma/api/lzma/index_hash.h
+index 9287f1df..8ff41633 100644
+--- a/src/liblzma/api/lzma/index_hash.h
++++ b/src/liblzma/api/lzma/index_hash.h
+@@ -52,7 +52,7 @@ extern LZMA_API(void) lzma_index_hash_end(
+ /**
+  * \brief       Add a new Record to an Index hash
+  *
+- * \param       index             Pointer to a lzma_index_hash structure
++ * \param       index_hash        Pointer to a lzma_index_hash structure
+  * \param       unpadded_size     Unpadded Size of a Block
+  * \param       uncompressed_size Uncompressed Size of a Block
+  *

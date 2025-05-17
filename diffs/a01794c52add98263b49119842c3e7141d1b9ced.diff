@@ -1,0 +1,12 @@
+diff --git a/THANKS b/THANKS
+index f56e91ce..ee86a149 100644
+--- a/THANKS
++++ b/THANKS
+@@ -91,6 +91,7 @@ has been important. :-) In alphabetical order:
+   - Andreas Schwab
+   - Dan Shechter
+   - Stuart Shelton
++  - Sebastian Andrzej Siewior
+   - Brad Smith
+   - Jonathan Stott
+   - Dan Stromberg

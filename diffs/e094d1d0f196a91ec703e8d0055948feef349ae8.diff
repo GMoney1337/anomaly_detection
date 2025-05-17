@@ -1,0 +1,24 @@
+diff --git a/m4/tuklib_cpucores.m4 b/m4/tuklib_cpucores.m4
+index a2b09a72..63063982 100644
+--- a/m4/tuklib_cpucores.m4
++++ b/m4/tuklib_cpucores.m4
+@@ -95,7 +95,6 @@ AC_COMPILE_IFELSE([AC_LANG_SOURCE([[
+ #ifdef __QNX__
+ compile error
+ #endif
+-#include <sys/types.h>
+ #ifdef HAVE_SYS_PARAM_H
+ #	include <sys/param.h>
+ #endif
+diff --git a/m4/tuklib_physmem.m4 b/m4/tuklib_physmem.m4
+index 8a57ca29..59317859 100644
+--- a/m4/tuklib_physmem.m4
++++ b/m4/tuklib_physmem.m4
+@@ -88,7 +88,6 @@ main(void)
+ ]])], [tuklib_cv_physmem_method=sysconf], [
+ 
+ AC_COMPILE_IFELSE([AC_LANG_SOURCE([[
+-#include <sys/types.h>
+ #ifdef HAVE_SYS_PARAM_H
+ #	include <sys/param.h>
+ #endif

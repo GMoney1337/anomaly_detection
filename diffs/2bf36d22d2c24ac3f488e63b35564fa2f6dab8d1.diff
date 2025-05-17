@@ -1,0 +1,98 @@
+diff --git a/tests/test_block_header.c b/tests/test_block_header.c
+index c6767e38..b50198ce 100644
+--- a/tests/test_block_header.c
++++ b/tests/test_block_header.c
+@@ -337,7 +337,7 @@ test4(void)
+ 
+ 
+ int
+-main()
++main(void)
+ {
+ 	lzma_init();
+ 
+diff --git a/tests/test_check.c b/tests/test_check.c
+index 14df375a..cb6b8ec1 100644
+--- a/tests/test_check.c
++++ b/tests/test_check.c
+@@ -79,7 +79,7 @@ test_crc64(void)
+ 
+ 
+ int
+-main()
++main(void)
+ {
+ 	bool error = false;
+ 
+diff --git a/tests/test_filter_flags.c b/tests/test_filter_flags.c
+index 0a16f21a..bab344ae 100644
+--- a/tests/test_filter_flags.c
++++ b/tests/test_filter_flags.c
+@@ -310,7 +310,7 @@ test_lzma(void)
+ 
+ 
+ int
+-main()
++main(void)
+ {
+ 	lzma_init();
+ 
+diff --git a/tests/test_index.c b/tests/test_index.c
+index 399963d3..2c006045 100644
+--- a/tests/test_index.c
++++ b/tests/test_index.c
+@@ -21,21 +21,21 @@
+ 
+ 
+ int
+-main()
++main(void)
+ {
+-	lzma_index index[3] = {
+-		{ 22, 33, index + 1 },
+-		{ 44, 55, index + 2 },
++	lzma_index my_index[3] = {
++		{ 22, 33, my_index + 1 },
++		{ 44, 55, my_index + 2 },
+ 		{ 66, 77, NULL },
+ 	};
+ 
+-	lzma_index *i = lzma_index_dup(index, NULL);
++	lzma_index *i = lzma_index_dup(my_index, NULL);
+ 	expect(i != NULL);
+ 
+-	expect(lzma_index_is_equal(index, i));
++	expect(lzma_index_is_equal(my_index, i));
+ 
+ 	i->next->next->uncompressed_size = 99;
+-	expect(!lzma_index_is_equal(index, i));
++	expect(!lzma_index_is_equal(my_index, i));
+ 
+ 	lzma_index_free(i, NULL);
+ 
+diff --git a/tests/test_info.c b/tests/test_info.c
+index e7899ef3..c073fafe 100644
+--- a/tests/test_info.c
++++ b/tests/test_info.c
+@@ -693,7 +693,7 @@ test9(void)
+ 
+ 
+ int
+-main()
++main(void)
+ {
+ 	lzma_init();
+ 
+diff --git a/tests/test_stream_flags.c b/tests/test_stream_flags.c
+index 4cd22576..99e55d5e 100644
+--- a/tests/test_stream_flags.c
++++ b/tests/test_stream_flags.c
+@@ -162,7 +162,7 @@ test_decode_invalid(void)
+ 
+ 
+ int
+-main()
++main(void)
+ {
+ 	lzma_init();
+ 

@@ -1,0 +1,16 @@
+diff --git a/tests/files/README b/tests/files/README
+index 1ee81bda..18c4d583 100644
+--- a/tests/files/README
++++ b/tests/files/README
+@@ -245,3 +245,7 @@
+     bad-1-lzma2-8.xz is like good-1-lzma2-4.xz but doesn't set new
+     properties in the third LZMA2 chunk.
+ 
++    bad-1-lzma2-9.xz has LZMA2 stream that is truncated at the end of
++    a LZMA2 chunk and has no end marker. The uncompressed size of the
++    partial LZMA2 stream exceeds the value stored in the Block Header.
++
+diff --git a/tests/files/bad-1-lzma2-9.xz b/tests/files/bad-1-lzma2-9.xz
+new file mode 100644
+index 00000000..cf191010
+Binary files /dev/null and b/tests/files/bad-1-lzma2-9.xz differ

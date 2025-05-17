@@ -1,0 +1,13 @@
+diff --git a/src/xz/coder.c b/src/xz/coder.c
+index c1c2c455..7d505c6e 100644
+--- a/src/xz/coder.c
++++ b/src/xz/coder.c
+@@ -522,7 +522,7 @@ coder_set_compression_settings(void)
+ 	// Print memory usage info before possible dictionary
+ 	// size auto-adjusting.
+ 	//
+-	// NOTE: If only encoder support was built, we cannot show the
++	// NOTE: If only encoder support was built, we cannot show
+ 	// what the decoder memory usage will be.
+ 	message_mem_needed(V_DEBUG, memory_usage);
+ 

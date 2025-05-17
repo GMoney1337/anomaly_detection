@@ -1,0 +1,48 @@
+diff --git a/src/liblzma/api/lzma/vli.h b/src/liblzma/api/lzma/vli.h
+index f30e8210..7fa7b7f1 100644
+--- a/src/liblzma/api/lzma/vli.h
++++ b/src/liblzma/api/lzma/vli.h
+@@ -114,7 +114,7 @@ typedef uint64_t lzma_vli;
+  *              - LZMA_PROG_ERROR: Arguments are not sane.
+  */
+ extern LZMA_API(lzma_ret) lzma_vli_encode(lzma_vli vli,
+-		size_t *lzma_restrict vli_pos, uint8_t *lzma_restrict out,
++		size_t *vli_pos, uint8_t *lzma_restrict out,
+ 		size_t *lzma_restrict out_pos, size_t out_size) lzma_nothrow;
+ 
+ 
+@@ -154,7 +154,7 @@ extern LZMA_API(lzma_ret) lzma_vli_encode(lzma_vli vli,
+  *              - LZMA_PROG_ERROR: Arguments are not sane.
+  */
+ extern LZMA_API(lzma_ret) lzma_vli_decode(lzma_vli *lzma_restrict vli,
+-		size_t *lzma_restrict vli_pos, const uint8_t *lzma_restrict in,
++		size_t *vli_pos, const uint8_t *lzma_restrict in,
+ 		size_t *lzma_restrict in_pos, size_t in_size) lzma_nothrow;
+ 
+ 
+diff --git a/src/liblzma/common/vli_decoder.c b/src/liblzma/common/vli_decoder.c
+index ffb27cad..44a1ecfe 100644
+--- a/src/liblzma/common/vli_decoder.c
++++ b/src/liblzma/common/vli_decoder.c
+@@ -14,7 +14,7 @@
+ 
+ 
+ extern LZMA_API(lzma_ret)
+-lzma_vli_decode(lzma_vli *restrict vli, size_t *restrict vli_pos,
++lzma_vli_decode(lzma_vli *restrict vli, size_t *vli_pos,
+ 		const uint8_t *restrict in, size_t *restrict in_pos,
+ 		size_t in_size)
+ {
+diff --git a/src/liblzma/common/vli_encoder.c b/src/liblzma/common/vli_encoder.c
+index ebc9f344..f8642694 100644
+--- a/src/liblzma/common/vli_encoder.c
++++ b/src/liblzma/common/vli_encoder.c
+@@ -14,7 +14,7 @@
+ 
+ 
+ extern LZMA_API(lzma_ret)
+-lzma_vli_encode(lzma_vli vli, size_t *restrict vli_pos,
++lzma_vli_encode(lzma_vli vli, size_t *vli_pos,
+ 		uint8_t *restrict out, size_t *restrict out_pos,
+ 		size_t out_size)
+ {

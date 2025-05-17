@@ -1,0 +1,47 @@
+diff --git a/src/common/sysdefs.h b/src/common/sysdefs.h
+index 51f06cf0..69370ba4 100644
+--- a/src/common/sysdefs.h
++++ b/src/common/sysdefs.h
+@@ -180,4 +180,10 @@ typedef unsigned char _Bool;
+ #	define ARRAY_SIZE(array) (sizeof(array) / sizeof((array)[0]))
+ #endif
+ 
++#if (__GNUC__ == 4 && __GNUC_MINOR__ >= 3) || __GNUC__ > 4
++#	define lzma_attr_alloc_size(x) __attribute__((__alloc_size__(x)))
++#else
++#	define lzma_attr_alloc_size(x)
++#endif
++
+ #endif
+diff --git a/src/liblzma/common/common.h b/src/liblzma/common/common.h
+index 3a85168f..b8194323 100644
+--- a/src/liblzma/common/common.h
++++ b/src/liblzma/common/common.h
+@@ -205,7 +205,7 @@ struct lzma_internal_s {
+ 
+ /// Allocates memory
+ extern void *lzma_alloc(size_t size, lzma_allocator *allocator)
+-		lzma_attribute((malloc));
++		lzma_attribute((malloc)) lzma_attr_alloc_size(1);
+ 
+ /// Frees memory
+ extern void lzma_free(void *ptr, lzma_allocator *allocator);
+diff --git a/src/xz/util.h b/src/xz/util.h
+index fea8cc66..4b2d3e2f 100644
+--- a/src/xz/util.h
++++ b/src/xz/util.h
+@@ -19,11 +19,12 @@
+ 
+ 
+ /// \brief      Safe realloc() that never returns NULL
+-extern void *xrealloc(void *ptr, size_t size);
++extern void *xrealloc(void *ptr, size_t size)
++		lzma_attribute((malloc)) lzma_attr_alloc_size(2);
+ 
+ 
+ /// \brief      Safe strdup() that never returns NULL
+-extern char *xstrdup(const char *src);
++extern char *xstrdup(const char *src) lzma_attribute((malloc));
+ 
+ 
+ /// \brief      Fancy version of strtoull()

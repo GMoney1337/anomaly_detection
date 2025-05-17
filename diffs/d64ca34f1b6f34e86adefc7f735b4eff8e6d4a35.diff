@@ -1,0 +1,85 @@
+diff --git a/src/liblzma/api/lzma.h b/src/liblzma/api/lzma.h
+index bb617213..d4c69323 100644
+--- a/src/liblzma/api/lzma.h
++++ b/src/liblzma/api/lzma.h
+@@ -154,15 +154,19 @@
+  ******************/
+ 
+ /*
+- * Some systems require that the functions are declared specially
+- * in the headers.
++ * Some systems require (or at least recommend) that the functions and
++ * function pointers are declared specially in the headers.
+  */
++#ifdef _WIN32
++#	define LZMA_API_CALL __cdecl
++#	define LZMA_API_IMPORT __declspec(dllimport)
++#else
++#	define LZMA_API_CALL
++#	define LZMA_API_IMPORT
++#endif
++
+ #ifndef LZMA_API
+-#	if defined(_WIN32)
+-#		define LZMA_API __cdecl __declspec(dllimport)
+-#	else
+-#		define LZMA_API
+-#	endif
++#	define LZMA_API LZMA_API_CALL LZMA_API_IMPORT
+ #endif
+ 
+ 
+diff --git a/src/liblzma/api/lzma/base.h b/src/liblzma/api/lzma/base.h
+index 9fe3ca66..4944e690 100644
+--- a/src/liblzma/api/lzma/base.h
++++ b/src/liblzma/api/lzma/base.h
+@@ -376,7 +376,7 @@ typedef struct {
+ 	 *              returned NULL if some function from liblzma
+ 	 *              returns LZMA_MEM_ERROR.
+ 	 */
+-	void *(*alloc)(void *opaque, size_t nmemb, size_t size);
++	void *(LZMA_API_CALL *alloc)(void *opaque, size_t nmemb, size_t size);
+ 
+ 	/**
+ 	 * \brief       Pointer to a custom memory freeing function
+@@ -390,7 +390,7 @@ typedef struct {
+ 	 *                      or when it is set to NULL, a pointer returned
+ 	 *                      by the standard malloc().
+ 	 */
+-	void (*free)(void *opaque, void *ptr);
++	void (LZMA_API_CALL *free)(void *opaque, void *ptr);
+ 
+ 	/**
+ 	 * \brief       Pointer passed to .alloc() and .free()
+diff --git a/src/liblzma/common/common.h b/src/liblzma/common/common.h
+index 2642c5bd..4d5b773a 100644
+--- a/src/liblzma/common/common.h
++++ b/src/liblzma/common/common.h
+@@ -24,20 +24,16 @@
+ #include "../../common/mythread.h"
+ #include "../../common/integer.h"
+ 
+-// Don't use ifdef...
+-#if HAVE_VISIBILITY
+-#	define LZMA_VISIBILITY __attribute__((__visibility__("default")))
++#if defined(_WIN32)
++#	define LZMA_API_EXPORT __declspec(dllexport)
++// Don't use ifdef or defined() below.
++#elif HAVE_VISIBILITY
++#	define LZMA_API_EXPORT __attribute__((__visibility__("default")))
+ #else
+-#	define LZMA_VISIBILITY
++#	define LZMA_API_EXPORT
+ #endif
+ 
+-#ifdef _WIN32
+-#	define LZMA_EXPORT __cdecl __declspec(dllexport)
+-#else
+-#	define LZMA_EXPORT
+-#endif
+-
+-#define LZMA_API LZMA_VISIBILITY LZMA_EXPORT
++#define LZMA_API LZMA_API_CALL LZMA_API_EXPORT
+ 
+ #include "lzma.h"
+ 

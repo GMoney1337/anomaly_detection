@@ -1,0 +1,108 @@
+diff --git a/src/common/physmem.h b/src/common/physmem.h
+index 1d40b299..597227ac 100644
+--- a/src/common/physmem.h
++++ b/src/common/physmem.h
+@@ -14,17 +14,6 @@
+ #ifndef PHYSMEM_H
+ #define PHYSMEM_H
+ 
+-#ifdef HAVE_CONFIG_H
+-#	include <config.h>
+-#endif
+-
+-#include <sys/types.h>
+-#include <inttypes.h>
+-
+-#ifdef HAVE_LIMITS_H
+-#	include <limits.h>
+-#endif
+-
+ #if defined(HAVE_PHYSMEM_SYSCTL) || defined(HAVE_NCPU_SYSCTL)
+ #	ifdef HAVE_SYS_PARAM_H
+ #		include <sys/param.h>
+diff --git a/src/liblzma/check/crc32_init.c b/src/liblzma/check/crc32_init.c
+index eee90400..996ad266 100644
+--- a/src/liblzma/check/crc32_init.c
++++ b/src/liblzma/check/crc32_init.c
+@@ -13,12 +13,9 @@
+ ///////////////////////////////////////////////////////////////////////////////
+ 
+ #ifdef HAVE_CONFIG_H
+-#	include <config.h>
++#	include "sysdefs.h"
+ #endif
+ 
+-#include <sys/types.h>
+-#include <inttypes.h>
+-
+ #ifdef WORDS_BIGENDIAN
+ #	include "check_byteswap.h"
+ #endif
+diff --git a/src/liblzma/check/crc32_tablegen.c b/src/liblzma/check/crc32_tablegen.c
+index f05d7536..f793d594 100644
+--- a/src/liblzma/check/crc32_tablegen.c
++++ b/src/liblzma/check/crc32_tablegen.c
+@@ -3,7 +3,7 @@
+ /// \file       crc32_tablegen.c
+ /// \brief      Generates CRC32 crc32_table.c
+ ///
+-/// Compiling: gcc -std=c99 -o crc32_tablegen crc32_tablegen.c crc32_init.c
++/// Compiling: gcc -std=c99 -o crc32_tablegen crc32_tablegen.c
+ /// Add -DWORDS_BIGENDIAN to generate big endian table.
+ //
+ //  This code has been put into the public domain.
+@@ -18,10 +18,7 @@
+ #include <inttypes.h>
+ #include <stdio.h>
+ 
+-
+-extern void lzma_crc32_init(void);
+-
+-extern uint32_t lzma_crc32_table[8][256];
++#include "crc32_init.c"
+ 
+ 
+ int
+diff --git a/src/liblzma/check/crc64_init.c b/src/liblzma/check/crc64_init.c
+index 49c59e93..b0963f65 100644
+--- a/src/liblzma/check/crc64_init.c
++++ b/src/liblzma/check/crc64_init.c
+@@ -13,12 +13,9 @@
+ ///////////////////////////////////////////////////////////////////////////////
+ 
+ #ifdef HAVE_CONFIG_H
+-#	include <config.h>
++#	include "sysdefs.h"
+ #endif
+ 
+-#include <sys/types.h>
+-#include <inttypes.h>
+-
+ #ifdef WORDS_BIGENDIAN
+ #	include "check_byteswap.h"
+ #endif
+diff --git a/src/liblzma/check/crc64_tablegen.c b/src/liblzma/check/crc64_tablegen.c
+index 4b35ac1f..78e39068 100644
+--- a/src/liblzma/check/crc64_tablegen.c
++++ b/src/liblzma/check/crc64_tablegen.c
+@@ -3,7 +3,7 @@
+ /// \file       crc64_tablegen.c
+ /// \brief      Generates CRC64 crc64_table.c
+ ///
+-/// Compiling: gcc -std=c99 -o crc64_tablegen crc64_tablegen.c crc64_init.c
++/// Compiling: gcc -std=c99 -o crc64_tablegen crc64_tablegen.c
+ /// Add -DWORDS_BIGENDIAN to generate big endian table.
+ //
+ //  This code has been put into the public domain.
+@@ -18,10 +18,7 @@
+ #include <inttypes.h>
+ #include <stdio.h>
+ 
+-
+-extern void lzma_crc64_init(void);
+-
+-extern uint64_t lzma_crc64_table[4][256];
++#include "crc64_init.c"
+ 
+ 
+ int

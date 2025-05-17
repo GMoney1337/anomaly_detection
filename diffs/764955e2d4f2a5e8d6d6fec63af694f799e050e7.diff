@@ -1,0 +1,71 @@
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+index 11871f0a..01c73cd5 100644
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -79,7 +79,7 @@ set(CMAKE_MACOSX_BUNDLE OFF)
+ add_compile_definitions(
+     # Package info:
+     PACKAGE_NAME="XZ Utils"
+-    PACKAGE_BUGREPORT="lasse.collin@tukaani.org"
++    PACKAGE_BUGREPORT="xz@tukaani.org"
+     PACKAGE_URL="https://tukaani.org/xz/"
+ 
+     # Features:
+diff --git a/README b/README
+index 8cd07ba0..b9081ed4 100644
+--- a/README
++++ b/README
+@@ -294,11 +294,10 @@ XZ Utils
+ ----------------------
+ 
+     If you have questions, bug reports, patches etc. related to XZ Utils,
+-    contact Lasse Collin <lasse.collin@tukaani.org> (in Finnish or English).
+-    I'm sometimes slow at replying. If you haven't got a reply within two
+-    weeks, assume that your email has got lost and resend it or use IRC.
++    the project maintainers Lasse Collin and Jia Tan can be reached via
++    <xz@tukaani.org>.
+ 
+-    You can find me also from #tukaani on Freenode; my nick is Larhzu.
+-    The channel tends to be pretty quiet, so just ask your question and
+-    someone may wake up.
++    You might find Lasse also from #tukaani on Libera Chat (IRC).
++    The nick is Larhzu. The channel tends to be pretty quiet,
++    so just ask your question and someone might wake up.
+ 
+diff --git a/configure.ac b/configure.ac
+index 30ed89a6..7c77215b 100644
+--- a/configure.ac
++++ b/configure.ac
+@@ -18,7 +18,7 @@
+ AC_PREREQ([2.69])
+ 
+ AC_INIT([XZ Utils], m4_esyscmd([/bin/sh build-aux/version.sh]),
+-	[lasse.collin@tukaani.org], [xz], [https://tukaani.org/xz/])
++	[xz@tukaani.org], [xz], [https://tukaani.org/xz/])
+ AC_CONFIG_SRCDIR([src/liblzma/common/common.h])
+ AC_CONFIG_AUX_DIR([build-aux])
+ AC_CONFIG_MACRO_DIR([m4])
+diff --git a/dos/config.h b/dos/config.h
+index 371baa44..67b72f8f 100644
+--- a/dos/config.h
++++ b/dos/config.h
+@@ -137,7 +137,7 @@
+ #define NDEBUG 1
+ 
+ /* Define to the address where bug reports for this package should be sent. */
+-#define PACKAGE_BUGREPORT "lasse.collin@tukaani.org"
++#define PACKAGE_BUGREPORT "xz@tukaani.org"
+ 
+ /* Define to the full name of this package. */
+ #define PACKAGE_NAME "XZ Utils"
+diff --git a/windows/README-Windows.txt b/windows/README-Windows.txt
+index 85ee3a09..83f902ef 100644
+--- a/windows/README-Windows.txt
++++ b/windows/README-Windows.txt
+@@ -118,5 +118,5 @@ Other compilers
+ Reporting bugs
+ --------------
+ 
+-    Report bugs to <lasse.collin@tukaani.org> (in English or Finnish).
++    Report bugs to <xz@tukaani.org>.
+ 

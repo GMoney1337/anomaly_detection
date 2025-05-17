@@ -1,0 +1,13 @@
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+index b4a9e5d1..584f1af1 100644
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -46,7 +46,7 @@
+ #
+ #############################################################################
+ 
+-cmake_minimum_required(VERSION 3.13...3.25 FATAL_ERROR)
++cmake_minimum_required(VERSION 3.13...3.26 FATAL_ERROR)
+ 
+ include(CMakePushCheckState)
+ include(CheckIncludeFile)

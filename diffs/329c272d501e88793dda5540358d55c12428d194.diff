@@ -1,0 +1,26 @@
+diff --git a/src/liblzma/check/crc32.c b/src/liblzma/check/crc32.c
+index 091e1422..698cf768 100644
+--- a/src/liblzma/check/crc32.c
++++ b/src/liblzma/check/crc32.c
+@@ -18,7 +18,7 @@
+ // If you make any changes, do some bench marking! Seemingly unrelated
+ // changes can very easily ruin the performance (and very probably is
+ // very compiler dependent).
+-extern uint32_t
++extern LZMA_API uint32_t
+ lzma_crc32(const uint8_t *buf, size_t size, uint32_t crc)
+ {
+ 	crc = ~crc;
+diff --git a/src/liblzma/check/crc64.c b/src/liblzma/check/crc64.c
+index e31bc7ff..00fbfd53 100644
+--- a/src/liblzma/check/crc64.c
++++ b/src/liblzma/check/crc64.c
+@@ -23,7 +23,7 @@
+ 
+ 
+ // See comments in crc32.c.
+-extern uint64_t
++extern LZMA_API uint64_t
+ lzma_crc64(const uint8_t *buf, size_t size, uint64_t crc)
+ {
+ 	crc = ~crc;

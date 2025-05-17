@@ -1,0 +1,10 @@
+diff --git a/build-aux/ci_build.sh b/build-aux/ci_build.sh
+index 3b462e63..0a9dc09b 100755
+--- a/build-aux/ci_build.sh
++++ b/build-aux/ci_build.sh
+@@ -1,4 +1,4 @@
+-#!/bin/sh
++#!/bin/bash
+ #
+ #############################################################################
+ #

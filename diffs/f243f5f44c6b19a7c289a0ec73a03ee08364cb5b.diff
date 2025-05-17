@@ -1,0 +1,26 @@
+diff --git a/src/liblzma/lz/lz_encoder.c b/src/liblzma/lz/lz_encoder.c
+index 01dfc06f..48bc487d 100644
+--- a/src/liblzma/lz/lz_encoder.c
++++ b/src/liblzma/lz/lz_encoder.c
+@@ -139,7 +139,7 @@ fill_window(lzma_coder *coder, const lzma_allocator *allocator,
+ 			&& coder->mf.read_pos < coder->mf.read_limit) {
+ 		// Match finder may update coder->pending and expects it to
+ 		// start from zero, so use a temporary variable.
+-		const size_t pending = coder->mf.pending;
++		const uint32_t pending = coder->mf.pending;
+ 		coder->mf.pending = 0;
+ 
+ 		// Rewind read_pos so that the match finder can hash
+diff --git a/src/liblzma/lzma/lzma_encoder.c b/src/liblzma/lzma/lzma_encoder.c
+index 31cb4f04..4c5f99c3 100644
+--- a/src/liblzma/lzma/lzma_encoder.c
++++ b/src/liblzma/lzma/lzma_encoder.c
+@@ -464,7 +464,7 @@ length_encoder_reset(lzma_length_encoder *lencoder,
+ 	bittree_reset(lencoder->high, LEN_HIGH_BITS);
+ 
+ 	if (!fast_mode)
+-		for (size_t pos_state = 0; pos_state < num_pos_states;
++		for (uint32_t pos_state = 0; pos_state < num_pos_states;
+ 				++pos_state)
+ 			length_update_prices(lencoder, pos_state);
+ 

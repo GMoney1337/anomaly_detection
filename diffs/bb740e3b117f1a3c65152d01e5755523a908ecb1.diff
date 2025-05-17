@@ -1,0 +1,54 @@
+diff --git a/cmake/tuklib_progname.cmake b/cmake/tuklib_progname.cmake
+index 0fa1d3d7..d4ab0066 100644
+--- a/cmake/tuklib_progname.cmake
++++ b/cmake/tuklib_progname.cmake
+@@ -13,7 +13,6 @@ include(CheckSymbolExists)
+ function(tuklib_progname TARGET_OR_ALL)
+     # NOTE: This glibc extension requires _GNU_SOURCE.
+     check_symbol_exists(program_invocation_name errno.h
+-                        HAVE_DECL_PROGRAM_INVOCATION_NAME)
+-    tuklib_add_definition_if("${TARGET_OR_ALL}"
+-                             HAVE_DECL_PROGRAM_INVOCATION_NAME)
++                        HAVE_PROGRAM_INVOCATION_NAME)
++    tuklib_add_definition_if("${TARGET_OR_ALL}" HAVE_PROGRAM_INVOCATION_NAME)
+ endfunction()
+diff --git a/m4/tuklib_progname.m4 b/m4/tuklib_progname.m4
+index f3e158bd..2133e327 100644
+--- a/m4/tuklib_progname.m4
++++ b/m4/tuklib_progname.m4
+@@ -21,5 +21,8 @@
+ 
+ AC_DEFUN_ONCE([TUKLIB_PROGNAME], [
+ AC_REQUIRE([TUKLIB_COMMON])
+-AC_CHECK_DECLS([program_invocation_name], [], [], [#include <errno.h>])
++AC_CHECK_DECL([program_invocation_name], [AC_DEFINE(
++	[HAVE_PROGRAM_INVOCATION_NAME], [1],
++	[Define to 1 if PROGRAM_INVOCATION_NAME is declared in <errno.h>])],
++	[], [#include <errno.h>])
+ ])dnl
+diff --git a/src/common/tuklib_progname.c b/src/common/tuklib_progname.c
+index 7cb7e203..e2ef4e55 100644
+--- a/src/common/tuklib_progname.c
++++ b/src/common/tuklib_progname.c
+@@ -14,7 +14,7 @@
+ #include <string.h>
+ 
+ 
+-#if !HAVE_DECL_PROGRAM_INVOCATION_NAME
++#ifndef HAVE_PROGRAM_INVOCATION_NAME
+ char *progname = NULL;
+ #endif
+ 
+diff --git a/src/common/tuklib_progname.h b/src/common/tuklib_progname.h
+index 791b1251..bb80f25e 100644
+--- a/src/common/tuklib_progname.h
++++ b/src/common/tuklib_progname.h
+@@ -18,7 +18,7 @@
+ 
+ TUKLIB_DECLS_BEGIN
+ 
+-#if HAVE_DECL_PROGRAM_INVOCATION_NAME
++#ifdef HAVE_PROGRAM_INVOCATION_NAME
+ #	define progname program_invocation_name
+ #else
+ #	define progname TUKLIB_SYMBOL(tuklib_progname)

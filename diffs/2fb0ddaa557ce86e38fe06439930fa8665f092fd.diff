@@ -1,0 +1,320 @@
+diff --git a/Doxyfile.in b/Doxyfile.in
+index 386706ab..1364ff2d 100644
+--- a/Doxyfile.in
++++ b/Doxyfile.in
+@@ -564,7 +564,7 @@ REFERENCES_RELATION    = YES
+ # If the REFERENCES_LINK_SOURCE tag is set to YES (the default)
+ # and SOURCE_BROWSER tag is set to YES, then the hyperlinks from
+ # functions in REFERENCES_RELATION and REFERENCED_BY_RELATION lists will
+-# link to the source code.  Otherwise they will link to the documentstion.
++# link to the source code.  Otherwise they will link to the documentation.
+ 
+ REFERENCES_LINK_SOURCE = YES
+ 
+diff --git a/NEWS b/NEWS
+index 3e1be4d9..a3d354b2 100644
+--- a/NEWS
++++ b/NEWS
+@@ -32,7 +32,7 @@ XZ Utils Release Notes
+     * xz:
+ 
+         - Fix "xz --list --robot missing_or_bad_file.xz" which would
+-          try to print an unitialized string and thus produce garbage
++          try to print an uninitialized string and thus produce garbage
+           output. Since the exit status is non-zero, most uses of such
+           a command won't try to interpret the garbage output.
+ 
+diff --git a/doc/examples/11_file_info.c b/doc/examples/11_file_info.c
+index c38c0411..9e7b0c8e 100644
+--- a/doc/examples/11_file_info.c
++++ b/doc/examples/11_file_info.c
+@@ -1,7 +1,7 @@
+ ///////////////////////////////////////////////////////////////////////////////
+ //
+ /// \file       11_file_info.c
+-/// \brief      Get uncmopressed size of .xz file(s)
++/// \brief      Get uncompressed size of .xz file(s)
+ ///
+ /// Usage:      ./11_file_info INFILE1.xz [INFILEn.xz]...
+ ///
+diff --git a/src/liblzma/api/lzma/block.h b/src/liblzma/api/lzma/block.h
+index 7bdcfd7c..962f3877 100644
+--- a/src/liblzma/api/lzma/block.h
++++ b/src/liblzma/api/lzma/block.h
+@@ -448,7 +448,7 @@ extern LZMA_API(lzma_vli) lzma_block_total_size(const lzma_block *block)
+  *              - LZMA_MEM_ERROR
+  *              - LZMA_OPTIONS_ERROR
+  *              - LZMA_UNSUPPORTED_CHECK: block->check specifies a Check ID
+- *                that is not supported by this buid of liblzma. Initializing
++ *                that is not supported by this build of liblzma. Initializing
+  *                the encoder failed.
+  *              - LZMA_PROG_ERROR
+  */
+diff --git a/src/liblzma/api/lzma/hardware.h b/src/liblzma/api/lzma/hardware.h
+index 5321d9af..47481f25 100644
+--- a/src/liblzma/api/lzma/hardware.h
++++ b/src/liblzma/api/lzma/hardware.h
+@@ -6,7 +6,7 @@
+  * ways to limit the resource usage. Applications linking against liblzma
+  * need to do the actual decisions how much resources to let liblzma to use.
+  * To ease making these decisions, liblzma provides functions to find out
+- * the relevant capabilities of the underlaying hardware. Currently there
++ * the relevant capabilities of the underlying hardware. Currently there
+  * is only a function to find out the amount of RAM, but in the future there
+  * will be also a function to detect how many concurrent threads the system
+  * can run.
+diff --git a/src/liblzma/api/lzma/lzma12.h b/src/liblzma/api/lzma/lzma12.h
+index 4e32fa3a..df5f23b6 100644
+--- a/src/liblzma/api/lzma/lzma12.h
++++ b/src/liblzma/api/lzma/lzma12.h
+@@ -301,7 +301,7 @@ typedef struct {
+ 	 * (2^ pb =2^2=4), which is often a good choice when there's
+ 	 * no better guess.
+ 	 *
+-	 * When the aligment is known, setting pb accordingly may reduce
++	 * When the alignment is known, setting pb accordingly may reduce
+ 	 * the file size a little. E.g. with text files having one-byte
+ 	 * alignment (US-ASCII, ISO-8859-*, UTF-8), setting pb=0 can
+ 	 * improve compression slightly. For UTF-16 text, pb=1 is a good
+diff --git a/src/liblzma/api/lzma/vli.h b/src/liblzma/api/lzma/vli.h
+index 9ad13f2e..1b7a952a 100644
+--- a/src/liblzma/api/lzma/vli.h
++++ b/src/liblzma/api/lzma/vli.h
+@@ -54,7 +54,7 @@
+  *
+  * Valid VLI values are in the range [0, LZMA_VLI_MAX]. Unknown value is
+  * indicated with LZMA_VLI_UNKNOWN, which is the maximum value of the
+- * underlaying integer type.
++ * underlying integer type.
+  *
+  * lzma_vli will be uint64_t for the foreseeable future. If a bigger size
+  * is needed in the future, it is guaranteed that 2 * LZMA_VLI_MAX will
+diff --git a/src/liblzma/common/file_info.c b/src/liblzma/common/file_info.c
+index deb644f9..a6b7e145 100644
+--- a/src/liblzma/common/file_info.c
++++ b/src/liblzma/common/file_info.c
+@@ -283,7 +283,7 @@ file_info_decode(void *coder_ptr, const lzma_allocator *allocator,
+ 
+ 		// This is the only Stream Header/Footer decoding where we
+ 		// want to return LZMA_FORMAT_ERROR if the Magic Bytes don't
+-		// match. Elsewehere it will be converted to LZMA_DATA_ERROR.
++		// match. Elsewhere it will be converted to LZMA_DATA_ERROR.
+ 		return_if_error(lzma_stream_header_decode(
+ 				&coder->first_header_flags, coder->temp));
+ 
+@@ -828,7 +828,7 @@ lzma_file_info_decoder_init(lzma_next_coder *next,
+ 	// won't return 0 (which would indicate an error).
+ 	coder->memlimit = my_max(1, memlimit);
+ 
+-	// Preprare thse for reading the first Stream Header into coder->temp.
++	// Prepare these for reading the first Stream Header into coder->temp.
+ 	coder->temp_pos = 0;
+ 	coder->temp_size = LZMA_STREAM_HEADER_SIZE;
+ 
+diff --git a/src/liblzma/common/hardware_physmem.c b/src/liblzma/common/hardware_physmem.c
+index 7405b658..a2bbbe29 100644
+--- a/src/liblzma/common/hardware_physmem.c
++++ b/src/liblzma/common/hardware_physmem.c
+@@ -19,7 +19,7 @@ extern LZMA_API(uint64_t)
+ lzma_physmem(void)
+ {
+ 	// It is simpler to make lzma_physmem() a wrapper for
+-	// tuklib_physmem() than to hack appropriate symbol visiblity
++	// tuklib_physmem() than to hack appropriate symbol visibility
+ 	// support for the tuklib modules.
+ 	return tuklib_physmem();
+ }
+diff --git a/src/liblzma/common/index.c b/src/liblzma/common/index.c
+index 007e1570..a41e8f33 100644
+--- a/src/liblzma/common/index.c
++++ b/src/liblzma/common/index.c
+@@ -105,7 +105,7 @@ typedef struct {
+ 
+ 
+ typedef struct {
+-	/// Every index_stream is a node in the tree of Sreams.
++	/// Every index_stream is a node in the tree of Streams.
+ 	index_tree_node node;
+ 
+ 	/// Number of this Stream (first one is 1)
+@@ -166,7 +166,7 @@ struct lzma_index_s {
+ 	lzma_vli index_list_size;
+ 
+ 	/// How many Records to allocate at once in lzma_index_append().
+-	/// This defaults to INDEX_GROUP_SIZE but can be overriden with
++	/// This defaults to INDEX_GROUP_SIZE but can be overridden with
+ 	/// lzma_index_prealloc().
+ 	size_t prealloc;
+ 
+diff --git a/src/liblzma/common/stream_encoder_mt.c b/src/liblzma/common/stream_encoder_mt.c
+index 2efe44c2..448d871c 100644
+--- a/src/liblzma/common/stream_encoder_mt.c
++++ b/src/liblzma/common/stream_encoder_mt.c
+@@ -958,7 +958,7 @@ stream_encoder_mt_init(lzma_next_coder *next, const lzma_allocator *allocator,
+ 	// Validate the filter chain so that we can give an error in this
+ 	// function instead of delaying it to the first call to lzma_code().
+ 	// The memory usage calculation verifies the filter chain as
+-	// a side effect so we take advatange of that.
++	// a side effect so we take advantage of that.
+ 	if (lzma_raw_encoder_memusage(filters) == UINT64_MAX)
+ 		return LZMA_OPTIONS_ERROR;
+ 
+diff --git a/src/liblzma/common/vli_decoder.c b/src/liblzma/common/vli_decoder.c
+index c181828b..af2799d1 100644
+--- a/src/liblzma/common/vli_decoder.c
++++ b/src/liblzma/common/vli_decoder.c
+@@ -72,7 +72,7 @@ lzma_vli_decode(lzma_vli *restrict vli, size_t *vli_pos,
+ 		// corrupt.
+ 		//
+ 		// If we need bigger integers in future, old versions liblzma
+-		// will confusingly indicate the file being corrupt istead of
++		// will confusingly indicate the file being corrupt instead of
+ 		// unsupported. I suppose it's still better this way, because
+ 		// in the foreseeable future (writing this in 2008) the only
+ 		// reason why files would appear having over 63-bit integers
+diff --git a/src/liblzma/lz/lz_decoder.c b/src/liblzma/lz/lz_decoder.c
+index c7086440..bb21d0d0 100644
+--- a/src/liblzma/lz/lz_decoder.c
++++ b/src/liblzma/lz/lz_decoder.c
+@@ -241,7 +241,7 @@ lzma_lz_decoder_init(lzma_next_coder *next, const lzma_allocator *allocator,
+ 	if (lz_options.dict_size < 4096)
+ 		lz_options.dict_size = 4096;
+ 
+-	// Make dictionary size a multipe of 16. Some LZ-based decoders like
++	// Make dictionary size a multiple of 16. Some LZ-based decoders like
+ 	// LZMA use the lowest bits lzma_dict.pos to know the alignment of the
+ 	// data. Aligned buffer is also good when memcpying from the
+ 	// dictionary to the output buffer, since applications are
+diff --git a/src/scripts/xzgrep.in b/src/scripts/xzgrep.in
+index a1fd19cf..a570a905 100644
+--- a/src/scripts/xzgrep.in
++++ b/src/scripts/xzgrep.in
+@@ -200,7 +200,7 @@ for i; do
+   )
+   r=$?
+ 
+-  # fail occured previously, nothing worse can happen
++  # fail occurred previously, nothing worse can happen
+   test $res -gt 1 && continue
+ 
+   test "$xz_status" -eq 0 || test "$xz_status" -eq 2 \
+diff --git a/src/xz/args.c b/src/xz/args.c
+index 341f29e1..688d7c3a 100644
+--- a/src/xz/args.c
++++ b/src/xz/args.c
+@@ -88,7 +88,7 @@ parse_block_list(char *str)
+ 			// There is no string, that is, a comma follows
+ 			// another comma. Use the previous value.
+ 			//
+-			// NOTE: We checked earler that the first char
++			// NOTE: We checked earlier that the first char
+ 			// of the whole list cannot be a comma.
+ 			assert(i > 0);
+ 			opt_block_list[i] = opt_block_list[i - 1];
+diff --git a/src/xz/coder.c b/src/xz/coder.c
+index f36d1bf2..f5e8e847 100644
+--- a/src/xz/coder.c
++++ b/src/xz/coder.c
+@@ -635,7 +635,7 @@ coder_normal(file_pair *pair)
+ 	// only a single block is created.
+ 	uint64_t block_remaining = UINT64_MAX;
+ 
+-	// next_block_remining for when we are in single-threaded mode and
++	// next_block_remaining for when we are in single-threaded mode and
+ 	// the Block in --block-list is larger than the --block-size=SIZE.
+ 	uint64_t next_block_remaining = 0;
+ 
+@@ -718,7 +718,7 @@ coder_normal(file_pair *pair)
+ 				|| action == LZMA_FULL_BARRIER)) {
+ 			if (action == LZMA_SYNC_FLUSH) {
+ 				// Flushing completed. Write the pending data
+-				// out immediatelly so that the reading side
++				// out immediately so that the reading side
+ 				// can decompress everything compressed so far.
+ 				if (io_write(pair, &out_buf, IO_BUFFER_SIZE
+ 						- strm.avail_out))
+diff --git a/src/xz/list.c b/src/xz/list.c
+index 7d7ad98f..7d2df876 100644
+--- a/src/xz/list.c
++++ b/src/xz/list.c
+@@ -58,7 +58,7 @@ typedef struct {
+ 
+ 
+ /// Strings ending in a colon. These are used for lines like
+-/// "  Foo:   123 MiB". These are groupped because translated strings
++/// "  Foo:   123 MiB". These are grouped because translated strings
+ /// may have different maximum string length, and we want to pad all
+ /// strings so that the values are aligned nicely.
+ static const char *colon_strs[] = {
+@@ -258,7 +258,7 @@ init_headings(void)
+ {
+ 	// Before going through the heading strings themselves, treat
+ 	// the Check heading specially: Look at the widths of the various
+-	// check names and increase the width of the Check column if neeeded.
++	// check names and increase the width of the Check column if needed.
+ 	// The width of the heading name "Check" will then be handled normally
+ 	// with other heading names in the second loop in this function.
+ 	for (unsigned i = 0; i < ARRAY_SIZE(check_names); ++i) {
+diff --git a/src/xz/main.c b/src/xz/main.c
+index af550c45..d74caf37 100644
+--- a/src/xz/main.c
++++ b/src/xz/main.c
+@@ -159,7 +159,7 @@ main(int argc, char **argv)
+ 	// Initialize handling of error/warning/other messages.
+ 	message_init();
+ 
+-	// Set hardware-dependent default values. These can be overriden
++	// Set hardware-dependent default values. These can be overridden
+ 	// on the command line, thus this must be done before args_parse().
+ 	hardware_init();
+ 
+diff --git a/src/xz/mytime.h b/src/xz/mytime.h
+index ea291eed..4505724c 100644
+--- a/src/xz/mytime.h
++++ b/src/xz/mytime.h
+@@ -43,5 +43,5 @@ extern void mytime_set_flush_time(void);
+ ///
+ /// This returns -1 if no timed flushing is used.
+ ///
+-/// The return value is inteded for use with poll().
++/// The return value is intended for use with poll().
+ extern int mytime_get_flush_timeout(void);
+diff --git a/src/xz/private.h b/src/xz/private.h
+index e61563ac..d97c22cc 100644
+--- a/src/xz/private.h
++++ b/src/xz/private.h
+@@ -1,7 +1,7 @@
+ ///////////////////////////////////////////////////////////////////////////////
+ //
+ /// \file       private.h
+-/// \brief      Common includes, definions, and prototypes
++/// \brief      Common includes, definitions, and prototypes
+ //
+ //  Author:     Lasse Collin
+ //
+diff --git a/src/xz/xz.1 b/src/xz/xz.1
+index 63087ca7..691bd2f8 100644
+--- a/src/xz/xz.1
++++ b/src/xz/xz.1
+@@ -1052,7 +1052,7 @@ if using more threads would exceed the memory usage limit.
+ Currently the only threading method is to split the input into
+ blocks and compress them independently from each other.
+ The default block size depends on the compression level and
+-can be overriden with the
++can be overridden with the
+ .BI \-\-block\-size= size
+ option.
+ .IP ""
+diff --git a/windows/build.bash b/windows/build.bash
+index 4a6a2843..9a3ebe0c 100644
+--- a/windows/build.bash
++++ b/windows/build.bash
+@@ -112,7 +112,7 @@ buildit()
+ 	strip -vg "$DESTDIR/"*.a
+ }
+ 
+-# Copy files and convert newlines from LF to CR+LF. Optinally add a suffix
++# Copy files and convert newlines from LF to CR+LF. Optionally add a suffix
+ # to the destination filename.
+ #
+ # The first argument is the destination directory. The second argument is

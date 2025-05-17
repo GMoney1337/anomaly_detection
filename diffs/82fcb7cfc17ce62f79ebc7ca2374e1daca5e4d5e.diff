@@ -1,0 +1,15 @@
+diff --git a/tests/test_memlimit.c b/tests/test_memlimit.c
+index 4e16903d..c45a44b5 100644
+--- a/tests/test_memlimit.c
++++ b/tests/test_memlimit.c
+@@ -20,7 +20,10 @@
+ 
+ static uint8_t *in;
+ static size_t in_size;
++
++#ifdef HAVE_DECODERS
+ static uint8_t out[8192];
++#endif
+ 
+ 
+ static void

@@ -1,0 +1,12 @@
+diff --git a/THANKS b/THANKS
+index 22a4f3ae..d5d505dc 100644
+--- a/THANKS
++++ b/THANKS
+@@ -94,6 +94,7 @@ has been important. :-) In alphabetical order:
+   - Cary Lewis
+   - Wim Lewis
+   - Xin Li
++  - Yifeng Li
+   - Eric Lindblad
+   - Lorenzo De Liso
+   - H.J. Lu

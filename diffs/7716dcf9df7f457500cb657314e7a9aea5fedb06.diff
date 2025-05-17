@@ -1,0 +1,14 @@
+diff --git a/src/liblzma/common/stream_encoder_mt.c b/src/liblzma/common/stream_encoder_mt.c
+index 70fe247c..6188507f 100644
+--- a/src/liblzma/common/stream_encoder_mt.c
++++ b/src/liblzma/common/stream_encoder_mt.c
+@@ -1095,8 +1095,7 @@ lzma_stream_encoder_mt_memusage(const lzma_mt *options)
+ 	const uint64_t inbuf_memusage = options->threads * block_size;
+ 
+ 	// Memory usage of the filter encoders
+-	uint64_t filters_memusage
+-			= lzma_raw_encoder_memusage(options->filters);
++	uint64_t filters_memusage = lzma_raw_encoder_memusage(filters);
+ 	if (filters_memusage == UINT64_MAX)
+ 		return UINT64_MAX;
+ 

@@ -1,0 +1,12 @@
+diff --git a/tests/ossfuzz/Makefile b/tests/ossfuzz/Makefile
+index 67ddbe5a..747fb662 100644
+--- a/tests/ossfuzz/Makefile
++++ b/tests/ossfuzz/Makefile
+@@ -1,6 +1,6 @@
+ fuzz: fuzz.c
+ 	$(CC) $(CFLAGS) -c fuzz.c -I ../../src/liblzma/api/
+-	$(CXX) $(CXXFLAGS) -lFuzzingEngine fuzz.o -o $(OUT)/fuzz \
++	$(CXX) $(CXXFLAGS) $(LIB_FUZZING_ENGINE) fuzz.o -o $(OUT)/fuzz \
+ 	      ../../src/liblzma/.libs/liblzma.a
+ 
+ clean:

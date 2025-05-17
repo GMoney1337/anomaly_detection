@@ -1,0 +1,37 @@
+diff --git a/src/common/sysdefs.h b/src/common/sysdefs.h
+index b6918179..df7ecf40 100644
+--- a/src/common/sysdefs.h
++++ b/src/common/sysdefs.h
+@@ -189,7 +189,8 @@ typedef unsigned char _Bool;
+ #	define ARRAY_SIZE(array) (sizeof(array) / sizeof((array)[0]))
+ #endif
+ 
+-#if (__GNUC__ == 4 && __GNUC_MINOR__ >= 3) || __GNUC__ > 4
++#if defined(__GNUC__) \
++		&& ((__GNUC__ == 4 && __GNUC_MINOR__ >= 3) || __GNUC__ > 4)
+ #	define lzma_attr_alloc_size(x) __attribute__((__alloc_size__(x)))
+ #else
+ #	define lzma_attr_alloc_size(x)
+diff --git a/src/liblzma/api/lzma.h b/src/liblzma/api/lzma.h
+index aa88e424..122dab80 100644
+--- a/src/liblzma/api/lzma.h
++++ b/src/liblzma/api/lzma.h
+@@ -224,7 +224,8 @@
+ #		else
+ #			define lzma_nothrow throw()
+ #		endif
+-#	elif __GNUC__ > 3 || (__GNUC__ == 3 && __GNUC_MINOR__ >= 3)
++#	elif defined(__GNUC__) && (__GNUC__ > 3 \
++			|| (__GNUC__ == 3 && __GNUC_MINOR__ >= 3))
+ #		define lzma_nothrow __attribute__((__nothrow__))
+ #	else
+ #		define lzma_nothrow
+@@ -241,7 +242,7 @@
+  * break anything if these are sometimes enabled and sometimes not, only
+  * affects warnings and optimizations.
+  */
+-#if __GNUC__ >= 3
++#if defined(__GNUC__) && __GNUC__ >= 3
+ #	ifndef lzma_attribute
+ #		define lzma_attribute(attr) __attribute__(attr)
+ #	endif

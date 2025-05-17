@@ -1,0 +1,12 @@
+diff --git a/src/liblzma/check/crc32_arm64.h b/src/liblzma/check/crc32_arm64.h
+index a1888ea7..a9722bdb 100644
+--- a/src/liblzma/check/crc32_arm64.h
++++ b/src/liblzma/check/crc32_arm64.h
+@@ -5,6 +5,7 @@
+ //
+ //  Authors:    Chenxi Mao
+ //              Jia Tan
++//              Hans Jansen
+ //
+ //  This file has been put into the public domain.
+ //  You can do whatever you want with this file.

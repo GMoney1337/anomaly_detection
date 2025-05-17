@@ -1,0 +1,61 @@
+diff --git a/src/liblzma/common/common.c b/src/liblzma/common/common.c
+index 02a10641..adb50d78 100644
+--- a/src/liblzma/common/common.c
++++ b/src/liblzma/common/common.c
+@@ -35,7 +35,8 @@ lzma_version_string(void)
+ // Memory allocation //
+ ///////////////////////
+ 
+-extern void * lzma_attr_alloc_size(1)
++lzma_attr_alloc_size(1)
++extern void *
+ lzma_alloc(size_t size, const lzma_allocator *allocator)
+ {
+ 	// Some malloc() variants return NULL if called with size == 0.
+@@ -53,7 +54,8 @@ lzma_alloc(size_t size, const lzma_allocator *allocator)
+ }
+ 
+ 
+-extern void * lzma_attr_alloc_size(1)
++lzma_attr_alloc_size(1)
++extern void *
+ lzma_alloc_zero(size_t size, const lzma_allocator *allocator)
+ {
+ 	// Some calloc() variants return NULL if called with size == 0.
+diff --git a/src/liblzma/common/common.h b/src/liblzma/common/common.h
+index cea9f9b3..176c3a8f 100644
+--- a/src/liblzma/common/common.h
++++ b/src/liblzma/common/common.h
+@@ -297,14 +297,14 @@ struct lzma_internal_s {
+ 
+ 
+ /// Allocates memory
+-extern void *lzma_alloc(size_t size, const lzma_allocator *allocator)
+-		lzma_attr_alloc_size(1);
++lzma_attr_alloc_size(1)
++extern void *lzma_alloc(size_t size, const lzma_allocator *allocator);
+ 
+ /// Allocates memory and zeroes it (like calloc()). This can be faster
+ /// than lzma_alloc() + memzero() while being backward compatible with
+ /// custom allocators.
+-extern void * lzma_attr_alloc_size(1)
+-		lzma_alloc_zero(size_t size, const lzma_allocator *allocator);
++lzma_attr_alloc_size(1)
++extern void *lzma_alloc_zero(size_t size, const lzma_allocator *allocator);
+ 
+ /// Frees memory
+ extern void lzma_free(void *ptr, const lzma_allocator *allocator);
+diff --git a/src/liblzma/common/memcmplen.h b/src/liblzma/common/memcmplen.h
+index 3c12422b..abf01d51 100644
+--- a/src/liblzma/common/memcmplen.h
++++ b/src/liblzma/common/memcmplen.h
+@@ -49,7 +49,8 @@
+ ///             It's rounded up to 2^n. This extra amount needs to be
+ ///             allocated in the buffers being used. It needs to be
+ ///             initialized too to keep Valgrind quiet.
+-static inline uint32_t lzma_attribute((__always_inline__))
++lzma_attribute((__always_inline__))
++static inline uint32_t
+ lzma_memcmplen(const uint8_t *buf1, const uint8_t *buf2,
+ 		uint32_t len, uint32_t limit)
+ {

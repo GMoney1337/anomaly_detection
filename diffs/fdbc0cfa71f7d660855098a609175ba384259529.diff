@@ -1,0 +1,182 @@
+diff --git a/configure.ac b/configure.ac
+index 19fecca4..b08db799 100644
+--- a/configure.ac
++++ b/configure.ac
+@@ -24,7 +24,8 @@
+ 
+ AC_PREREQ([2.61])
+ 
+-AC_INIT([XZ Utils], [4.999.8beta], [lasse.collin@tukaani.org], [xz])
++AC_INIT([XZ Utils], m4_esyscmd([/bin/sh version.sh]),
++	[lasse.collin@tukaani.org], [xz])
+ AC_CONFIG_SRCDIR([src/liblzma/common/common.h])
+ AC_CONFIG_HEADER([config.h])
+ 
+diff --git a/src/liblzma/api/lzma/version.h b/src/liblzma/api/lzma/version.h
+index 90d064a6..599c2cde 100644
+--- a/src/liblzma/api/lzma/version.h
++++ b/src/liblzma/api/lzma/version.h
+@@ -21,6 +21,27 @@
+ #endif
+ 
+ 
++/*
++ * Version number splitted in components
++ */
++#define LZMA_VERSION_MAJOR 4
++#define LZMA_VERSION_MINOR 999
++#define LZMA_VERSION_PATCH 8
++#define LZMA_VERSION_STABILITY LZMA_VERSION_STABILITY_BETA
++
++#ifndef LZMA_VERSION_COMMIT
++#	define LZMA_VERSION_COMMIT ""
++#endif
++
++
++/*
++ * Map symbolic stability levels to integers.
++ */
++#define LZMA_VERSION_STABILITY_ALPHA 0
++#define LZMA_VERSION_STABILITY_BETA 1
++#define LZMA_VERSION_STABILITY_STABLE 2
++
++
+ /**
+  * \brief       Compile-time version number
+  *
+@@ -37,11 +58,52 @@
+  * \note        The version number of liblzma has nothing to with
+  *              the version number of Igor Pavlov's LZMA SDK.
+  */
+-#define LZMA_VERSION UINT32_C(49990081)
++#define LZMA_VERSION (LZMA_VERSION_MAJOR * UINT32_C(10000000) \
++		+ LZMA_VERSION_MINOR * UINT32_C(10000) \
++		+ LZMA_VERSION_PATCH * UINT32_C(10) \
++		+ LZMA_VERSION_STABILITY)
++
++
++/*
++ * Macros to construct the compile-time version string
++ */
++#if LZMA_VERSION_STABILITY == LZMA_VERSION_STABILITY_ALPHA
++#	define LZMA_VERSION_STABILITY_STRING "alpha"
++#elif LZMA_VERSION_STABILITY == LZMA_VERSION_STABILITY_BETA
++#	define LZMA_VERSION_STABILITY_STRING "beta"
++#elif LZMA_VERSION_STABILITY == LZMA_VERSION_STABILITY_STABLE
++#	define LZMA_VERSION_STABILITY_STRING ""
++#else
++#	error Incorrect LZMA_VERSION_STABILITY
++#endif
++
++#define LZMA_VERSION_STRING_C_(major, minor, patch, stability, commit) \
++		#major "." #minor "." #patch stability commit
++
++#define LZMA_VERSION_STRING_C(major, minor, patch, stability, commit) \
++		LZMA_VERSION_STRING_C_(major, minor, patch, stability, commit)
+ 
+ 
+ /**
+- * \brief       liblzma version number as an integer
++ * \brief       Compile-time version as a string
++ *
++ * This can be for example "4.999.5alpha", "4.999.8beta", or "5.0.0" (stable
++ * versions don't have any "stable" suffix). In future, a snapshot built
++ * from source code repository may include an additional suffix, for example
++ * "4.999.8beta-21-g1d92". The commit ID won't be available in numeric form
++ * in LZMA_VERSION macro.
++ */
++#define LZMA_VERSION_STRING LZMA_VERSION_STRING_C( \
++		LZMA_VERSION_MAJOR, LZMA_VERSION_MINOR, \
++		LZMA_VERSION_PATCH, LZMA_VERSION_STABILITY_STRING, \
++		LZMA_VERSION_COMMIT)
++
++
++/* #ifndef is needed for use with MinGW's windres. */
++#ifndef LZMA_H_INTERNAL_RC
++
++/**
++ * \brief       Run-time version number as an integer
+  *
+  * Returns the value of LZMA_VERSION macro at the compile time of liblzma.
+  * This allows the application to compare if it was built against the same,
+@@ -51,9 +113,11 @@ extern LZMA_API(uint32_t) lzma_version_number(void) lzma_attr_const;
+ 
+ 
+ /**
+- * \brief       Version number of liblzma as a string
++ * \brief       Run-time version as a string
+  *
+  * This function may be useful if you want to display which version of
+  * liblzma your application is currently using.
+  */
+ extern LZMA_API(const char *) lzma_version_string(void) lzma_attr_const;
++
++#endif
+diff --git a/src/liblzma/common/common.c b/src/liblzma/common/common.c
+index b1733973..b058a87e 100644
+--- a/src/liblzma/common/common.c
++++ b/src/liblzma/common/common.c
+@@ -34,7 +34,7 @@ lzma_version_number(void)
+ extern LZMA_API(const char *)
+ lzma_version_string(void)
+ {
+-	return PACKAGE_VERSION;
++	return LZMA_VERSION_STRING;
+ }
+ 
+ 
+diff --git a/src/xz/message.c b/src/xz/message.c
+index 33eb0b3b..fd519c8f 100644
+--- a/src/xz/message.c
++++ b/src/xz/message.c
+@@ -892,7 +892,7 @@ message_version(void)
+ {
+ 	// It is possible that liblzma version is different than the command
+ 	// line tool version, so print both.
+-	printf("xz " PACKAGE_VERSION "\n");
++	printf("xz " LZMA_VERSION_STRING "\n");
+ 	printf("liblzma %s\n", lzma_version_string());
+ 	my_exit(E_SUCCESS);
+ }
+diff --git a/src/xzdec/xzdec.c b/src/xzdec/xzdec.c
+index 44543f4d..57e98776 100644
+--- a/src/xzdec/xzdec.c
++++ b/src/xzdec/xzdec.c
+@@ -101,7 +101,7 @@ help(void)
+ static void lzma_attribute((noreturn))
+ version(void)
+ {
+-	printf(TOOL_FORMAT "dec " PACKAGE_VERSION "\n"
++	printf(TOOL_FORMAT "dec " LZMA_VERSION_STRING "\n"
+ 			"liblzma %s\n", lzma_version_string());
+ 
+ 	my_exit();
+diff --git a/version.sh b/version.sh
+new file mode 100644
+index 00000000..404a9e2a
+--- /dev/null
++++ b/version.sh
+@@ -0,0 +1,23 @@
++#!/bin/sh
++#
++#############################################################################
++#
++# Get the version string from version.h and print it out without
++# trailing newline. This makes it suitable for use in configure.ac.
++#
++#############################################################################
++#
++# Author: Lasse Collin
++#
++# This file has been put into the public domain.
++# You can do whatever you want with this file.
++#
++#############################################################################
++
++sed -n 's/LZMA_VERSION_STABILITY_ALPHA/alpha/
++	s/LZMA_VERSION_STABILITY_BETA/beta/
++	s/LZMA_VERSION_STABILITY_STABLE//
++	s/^#define LZMA_VERSION_[MPS][AIT][AJNT][A-Z]* //p' \
++	src/liblzma/api/lzma/version.h \
++	| tr '\n' '|' \
++	| sed 's/|/./; s/|/./; s/|//g'

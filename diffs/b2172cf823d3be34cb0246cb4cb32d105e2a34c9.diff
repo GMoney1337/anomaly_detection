@@ -1,0 +1,13 @@
+diff --git a/src/liblzma/api/lzma.h b/src/liblzma/api/lzma.h
+index dc90deb1..632e824a 100644
+--- a/src/liblzma/api/lzma.h
++++ b/src/liblzma/api/lzma.h
+@@ -103,7 +103,7 @@
+ 		 * before including lzma.h.
+ 		 */
+ #		ifndef UINT32_C
+-#			define UINT32_C(n) n # U
++#			define UINT32_C(n) n ## U
+ #		endif
+ 
+ #		ifndef UINT64_C

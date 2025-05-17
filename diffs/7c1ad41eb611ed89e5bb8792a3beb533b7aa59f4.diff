@@ -1,0 +1,13 @@
+diff --git a/src/liblzma/subblock/subblock_encoder.c b/src/liblzma/subblock/subblock_encoder.c
+index 0987df96..e1af4a45 100644
+--- a/src/liblzma/subblock/subblock_encoder.c
++++ b/src/liblzma/subblock/subblock_encoder.c
+@@ -98,7 +98,7 @@ struct lzma_coder_s {
+ 		bool got_input;
+ 
+ 		uint8_t *flags;
+-		size_t flags_size;
++		uint32_t flags_size;
+ 
+ 		lzma_next_coder subcoder;
+ 

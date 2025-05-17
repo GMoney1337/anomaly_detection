@@ -1,0 +1,12 @@
+diff --git a/THANKS b/THANKS
+index ece92c48..072187e2 100644
+--- a/THANKS
++++ b/THANKS
+@@ -32,6 +32,7 @@ has been important. :-) In alphabetical order:
+   - Andrew Dudman
+   - Markus Duft
+   - İsmail Dönmez
++  - Paul Eggert
+   - Robert Elz
+   - Gilles Espinasse
+   - Denis Excoffier

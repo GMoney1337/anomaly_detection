@@ -1,0 +1,13 @@
+diff --git a/src/xzdec/xzdec.c b/src/xzdec/xzdec.c
+index 0f82cf3e..00c2f66e 100644
+--- a/src/xzdec/xzdec.c
++++ b/src/xzdec/xzdec.c
+@@ -395,7 +395,7 @@ error:
+ int
+ main(int argc, char **argv)
+ {
+-	// Initialize progname which we will be used in error messages.
++	// Initialize progname which will be used in error messages.
+ 	tuklib_progname_init(argv);
+ 
+ #ifdef HAVE_PLEDGE

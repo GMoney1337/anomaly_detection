@@ -1,0 +1,28 @@
+diff --git a/dos/config.h b/dos/config.h
+index 9c9fff02..dfd6f797 100644
+--- a/dos/config.h
++++ b/dos/config.h
+@@ -140,6 +140,9 @@
+ /* Define to the address where bug reports for this package should be sent. */
+ #define PACKAGE_BUGREPORT "lasse.collin@tukaani.org"
+ 
++/* Define to the URL of the home page of this package. */
++#define PACKAGE_HOMEPAGE "http://tukaani.org/xz/"
++
+ /* Define to the full name of this package. */
+ #define PACKAGE_NAME "XZ Utils"
+ 
+diff --git a/windows/config.h b/windows/config.h
+index 4d337134..915f6bd3 100644
+--- a/windows/config.h
++++ b/windows/config.h
+@@ -143,6 +143,9 @@
+ /* Define to the address where bug reports for this package should be sent. */
+ #define PACKAGE_BUGREPORT "lasse.collin@tukaani.org"
+ 
++/* Define to the URL of the home page of this package. */
++#define PACKAGE_HOMEPAGE "http://tukaani.org/xz/"
++
+ /* Define to the full name of this package. */
+ #define PACKAGE_NAME "XZ Utils"
+ 

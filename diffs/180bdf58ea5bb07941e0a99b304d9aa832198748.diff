@@ -1,0 +1,10 @@
+diff --git a/src/xz/xz.1 b/src/xz/xz.1
+index d893f00b..229e8180 100644
+--- a/src/xz/xz.1
++++ b/src/xz/xz.1
+@@ -1,4 +1,4 @@
+-'" t
++'\" t
+ .\"
+ .\" Author: Lasse Collin
+ .\"

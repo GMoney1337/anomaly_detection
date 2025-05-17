@@ -1,0 +1,129 @@
+diff --git a/m4/tuklib_integer.m4 b/m4/tuklib_integer.m4
+index e9741ef6..9e104729 100644
+--- a/m4/tuklib_integer.m4
++++ b/m4/tuklib_integer.m4
+@@ -64,8 +64,8 @@ main(void)
+ AC_MSG_CHECKING([if unaligned memory access should be used])
+ AC_ARG_ENABLE([unaligned-access], AS_HELP_STRING([--enable-unaligned-access],
+ 		[Enable if the system supports *fast* unaligned memory access
+-		with 16-bit and 32-bit integers. By default, this is enabled
+-		only on x86, x86_64, big endian PowerPC,
++		with 16-bit, 32-bit, and 64-bit integers. By default,
++		this is enabled only on x86, x86_64, big endian PowerPC,
+ 		and some ARM systems.]),
+ 	[], [enable_unaligned_access=auto])
+ if test "x$enable_unaligned_access" = xauto ; then
+@@ -93,8 +93,8 @@ int main(void) { return 0; }
+ fi
+ if test "x$enable_unaligned_access" = xyes ; then
+ 	AC_DEFINE([TUKLIB_FAST_UNALIGNED_ACCESS], [1], [Define to 1 if
+-		the system supports fast unaligned access to 16-bit and
+-		32-bit integers.])
++		the system supports fast unaligned access to 16-bit,
++		32-bit, and 64-bit integers.])
+ 	AC_MSG_RESULT([yes])
+ else
+ 	AC_MSG_RESULT([no])
+diff --git a/src/common/tuklib_integer.h b/src/common/tuklib_integer.h
+index 6f44a7a0..b58ef68d 100644
+--- a/src/common/tuklib_integer.h
++++ b/src/common/tuklib_integer.h
+@@ -17,8 +17,8 @@
+ ///   - Byte swapping: bswapXX(num)
+ ///   - Byte order conversions to/from native (byteswaps if Y isn't
+ ///     the native endianness): convXXYe(num)
+-///   - Unaligned reads (16/32-bit only): readXXYe(ptr)
+-///   - Unaligned writes (16/32-bit only): writeXXYe(ptr, num)
++///   - Unaligned reads: readXXYe(ptr)
++///   - Unaligned writes: writeXXYe(ptr, num)
+ ///   - Aligned reads: aligned_readXXYe(ptr)
+ ///   - Aligned writes: aligned_writeXXYe(ptr, num)
+ ///
+@@ -343,6 +343,46 @@ read32le(const uint8_t *buf)
+ }
+ 
+ 
++static inline uint64_t
++read64be(const uint8_t *buf)
++{
++#if defined(WORDS_BIGENDIAN) || defined(TUKLIB_FAST_UNALIGNED_ACCESS)
++	uint64_t num = read64ne(buf);
++	return conv64be(num);
++#else
++	uint64_t num = (uint64_t)buf[0] << 56;
++	num |= (uint64_t)buf[1] << 48;
++	num |= (uint64_t)buf[2] << 40;
++	num |= (uint64_t)buf[3] << 32;
++	num |= (uint64_t)buf[4] << 24;
++	num |= (uint64_t)buf[5] << 16;
++	num |= (uint64_t)buf[6] << 8;
++	num |= (uint64_t)buf[7];
++	return num;
++#endif
++}
++
++
++static inline uint64_t
++read64le(const uint8_t *buf)
++{
++#if !defined(WORDS_BIGENDIAN) || defined(TUKLIB_FAST_UNALIGNED_ACCESS)
++	uint64_t num = read64ne(buf);
++	return conv64le(num);
++#else
++	uint64_t num = (uint64_t)buf[0];
++	num |= (uint64_t)buf[1] << 8;
++	num |= (uint64_t)buf[2] << 16;
++	num |= (uint64_t)buf[3] << 24;
++	num |= (uint64_t)buf[4] << 32;
++	num |= (uint64_t)buf[5] << 40;
++	num |= (uint64_t)buf[6] << 48;
++	num |= (uint64_t)buf[7] << 56;
++	return num;
++#endif
++}
++
++
+ // NOTE: Possible byte swapping must be done in a macro to allow the compiler
+ // to optimize byte swapping of constants when using glibc's or *BSD's
+ // byte swapping macros. The actual write is done in an inline function
+@@ -350,11 +390,13 @@ read32le(const uint8_t *buf)
+ #if defined(WORDS_BIGENDIAN) || defined(TUKLIB_FAST_UNALIGNED_ACCESS)
+ #	define write16be(buf, num) write16ne(buf, conv16be(num))
+ #	define write32be(buf, num) write32ne(buf, conv32be(num))
++#	define write64be(buf, num) write64ne(buf, conv64be(num))
+ #endif
+ 
+ #if !defined(WORDS_BIGENDIAN) || defined(TUKLIB_FAST_UNALIGNED_ACCESS)
+ #	define write16le(buf, num) write16ne(buf, conv16le(num))
+ #	define write32le(buf, num) write32ne(buf, conv32le(num))
++#	define write64le(buf, num) write64ne(buf, conv64le(num))
+ #endif
+ 
+ 
+diff --git a/src/liblzma/common/memcmplen.h b/src/liblzma/common/memcmplen.h
+index dcfd8d6f..a80428b9 100644
+--- a/src/liblzma/common/memcmplen.h
++++ b/src/liblzma/common/memcmplen.h
+@@ -51,10 +51,6 @@ lzma_memcmplen(const uint8_t *buf1, const uint8_t *buf2,
+ 			|| (defined(__INTEL_COMPILER) && defined(__x86_64__)) \
+ 			|| (defined(__INTEL_COMPILER) && defined(_M_X64)) \
+ 			|| (defined(_MSC_VER) && defined(_M_X64)))
+-	// NOTE: This will use 64-bit unaligned access which
+-	// TUKLIB_FAST_UNALIGNED_ACCESS wasn't meant to permit, but
+-	// it's convenient here at least as long as it's x86-64 only.
+-	//
+ 	// I keep this x86-64 only for now since that's where I know this
+ 	// to be a good method. This may be fine on other 64-bit CPUs too.
+ 	// On big endian one should use xor instead of subtraction and switch
+@@ -84,8 +80,9 @@ lzma_memcmplen(const uint8_t *buf1, const uint8_t *buf2,
+ 			|| (defined(__INTEL_COMPILER) && defined(__SSE2__)) \
+ 			|| (defined(_MSC_VER) && defined(_M_IX86_FP) \
+ 				&& _M_IX86_FP >= 2))
+-	// NOTE: Like above, this will use 128-bit unaligned access which
+-	// TUKLIB_FAST_UNALIGNED_ACCESS wasn't meant to permit.
++	// NOTE: This will use 128-bit unaligned access which
++	// TUKLIB_FAST_UNALIGNED_ACCESS wasn't meant to permit,
++	// but it's convenient here since this is x86-only.
+ 	//
+ 	// SSE2 version for 32-bit and 64-bit x86. On x86-64 the above
+ 	// version is sometimes significantly faster and sometimes

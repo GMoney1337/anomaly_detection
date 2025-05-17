@@ -1,0 +1,359 @@
+diff --git a/configure.ac b/configure.ac
+index 8f6340c4..beef9df3 100644
+--- a/configure.ac
++++ b/configure.ac
+@@ -709,8 +709,8 @@ AC_CONFIG_FILES([
+ 	src/liblzma/subblock/Makefile
+ 	src/liblzma/delta/Makefile
+ 	src/liblzma/simple/Makefile
+-	src/lzma/Makefile
+-	src/lzmadec/Makefile
++	src/xz/Makefile
++	src/xzdec/Makefile
+ 	src/scripts/Makefile
+ 	tests/Makefile
+ 	debug/Makefile
+diff --git a/po/POTFILES.in b/po/POTFILES.in
+index 72f744a9..4d1299a3 100644
+--- a/po/POTFILES.in
++++ b/po/POTFILES.in
+@@ -1,13 +1,10 @@
+ # List of source files which contain translatable strings.
+-src/lzma/help.c
+-src/lzma/alloc.c
+-src/lzma/args.c
+-src/lzma/error.c
+-src/lzma/io.c
+-src/lzma/list.c
+-src/lzma/main.c
+-src/lzma/options.c
+-src/lzma/process.c
+-src/lzma/suffix.c
+-src/lzma/util.c
+-lib/getopt.c
++src/xz/args.c
++src/xz/hardware.c
++src/xz/io.c
++src/xz/main.c
++src/xz/message.c
++src/xz/options.c
++src/xz/process.c
++src/xz/suffix.c
++src/xz/util.c
+diff --git a/src/Makefile.am b/src/Makefile.am
+index 531496c2..26e0588d 100644
+--- a/src/Makefile.am
++++ b/src/Makefile.am
+@@ -12,5 +12,5 @@
+ ##  Lesser General Public License for more details.
+ ##
+ 
+-SUBDIRS = liblzma lzma lzmadec scripts
++SUBDIRS = liblzma xz xzdec scripts
+ EXTRA_DIST = common
+diff --git a/src/lzma/Makefile.am b/src/xz/Makefile.am
+similarity index 69%
+rename from src/lzma/Makefile.am
+rename to src/xz/Makefile.am
+index e5c5c29a..16e55461 100644
+--- a/src/lzma/Makefile.am
++++ b/src/xz/Makefile.am
+@@ -12,9 +12,9 @@
+ ##  Lesser General Public License for more details.
+ ##
+ 
+-bin_PROGRAMS = lzma
++bin_PROGRAMS = xz
+ 
+-lzma_SOURCES = \
++xz_SOURCES = \
+ 	args.c \
+ 	args.h \
+ 	hardware.c \
+@@ -35,38 +35,40 @@ lzma_SOURCES = \
+ 	util.c \
+ 	util.h
+ 
+-## It must be able to find sysdefs.h, lzma_adv.h, and possible
+-## replacement headers.
+-lzma_CPPFLAGS = \
++xz_CPPFLAGS = \
+ 	-DLOCALEDIR=\"$(localedir)\" \
+ 	-I@top_srcdir@/src/common \
+ 	-I@top_srcdir@/src/liblzma/api \
+ 	-I@top_builddir@/lib \
+ 	-I@top_srcdir@/lib
+ 
+-lzma_CFLAGS = @PTHREAD_CFLAGS@
++xz_CFLAGS = @PTHREAD_CFLAGS@
+ 
+ ## Always link the command line tool statically against liblzma. It is
+ ## faster on x86, because no need for PIC. We also have one dependency less,
+-## which allows users to more freely copy the lzma binary to other boxes.
+-lzma_LDFLAGS = -static
+-lzma_LDADD = \
++## which allows users to more freely copy the xz binary to other boxes.
++xz_LDFLAGS = -static
++xz_LDADD = \
+ 	@top_builddir@/src/liblzma/liblzma.la \
+ 	@LTLIBINTL@ \
+ 	@PTHREAD_LIBS@
+ 
+ if COND_GNULIB
+-lzma_LDADD += @top_builddir@/lib/libgnu.a
++xz_LDADD += @top_builddir@/lib/libgnu.a
+ endif
+ 
+ 
+-## Create symlinks for unlzma and lzcat:
++## Create symlinks for unxz and xzcat for convenicen. Create symlinks also
++## for lzma, unlzma, and lzcat for compatibility with LZMA Utils 4.32.x.
+ install-exec-hook:
+ 	cd $(DESTDIR)$(bindir) && \
+-	rm -f unlzma lzcat && \
+-	$(LN_S) lzma unlzma && \
+-	$(LN_S) lzma lzcat
++	rm -f unxz xzcat lzma unlzma lzcat && \
++	$(LN_S) xz unxz && \
++	$(LN_S) xz xzcat && \
++	$(LN_S) xz lzma && \
++	$(LN_S) xz unlzma && \
++	$(LN_S) xz lzcat
+ 
+ uninstall-hook:
+ 	cd $(DESTDIR)$(bindir) && \
+-	rm -f unlzma lzcat
++	rm -f unxz xzcat lzma unlzma lzcat
+diff --git a/src/lzma/args.c b/src/xz/args.c
+similarity index 100%
+rename from src/lzma/args.c
+rename to src/xz/args.c
+diff --git a/src/lzma/args.h b/src/xz/args.h
+similarity index 100%
+rename from src/lzma/args.h
+rename to src/xz/args.h
+diff --git a/src/lzma/hardware.c b/src/xz/hardware.c
+similarity index 100%
+rename from src/lzma/hardware.c
+rename to src/xz/hardware.c
+diff --git a/src/lzma/hardware.h b/src/xz/hardware.h
+similarity index 100%
+rename from src/lzma/hardware.h
+rename to src/xz/hardware.h
+diff --git a/src/lzma/io.c b/src/xz/io.c
+similarity index 100%
+rename from src/lzma/io.c
+rename to src/xz/io.c
+diff --git a/src/lzma/io.h b/src/xz/io.h
+similarity index 100%
+rename from src/lzma/io.h
+rename to src/xz/io.h
+diff --git a/src/lzma/list.c b/src/xz/list.c
+similarity index 100%
+rename from src/lzma/list.c
+rename to src/xz/list.c
+diff --git a/src/lzma/main.c b/src/xz/main.c
+similarity index 100%
+rename from src/lzma/main.c
+rename to src/xz/main.c
+diff --git a/src/lzma/main.h b/src/xz/main.h
+similarity index 100%
+rename from src/lzma/main.h
+rename to src/xz/main.h
+diff --git a/src/lzma/message.c b/src/xz/message.c
+similarity index 100%
+rename from src/lzma/message.c
+rename to src/xz/message.c
+diff --git a/src/lzma/message.h b/src/xz/message.h
+similarity index 100%
+rename from src/lzma/message.h
+rename to src/xz/message.h
+diff --git a/src/lzma/options.c b/src/xz/options.c
+similarity index 100%
+rename from src/lzma/options.c
+rename to src/xz/options.c
+diff --git a/src/lzma/options.h b/src/xz/options.h
+similarity index 100%
+rename from src/lzma/options.h
+rename to src/xz/options.h
+diff --git a/src/lzma/private.h b/src/xz/private.h
+similarity index 100%
+rename from src/lzma/private.h
+rename to src/xz/private.h
+diff --git a/src/lzma/process.c b/src/xz/process.c
+similarity index 100%
+rename from src/lzma/process.c
+rename to src/xz/process.c
+diff --git a/src/lzma/process.h b/src/xz/process.h
+similarity index 100%
+rename from src/lzma/process.h
+rename to src/xz/process.h
+diff --git a/src/lzma/suffix.c b/src/xz/suffix.c
+similarity index 100%
+rename from src/lzma/suffix.c
+rename to src/xz/suffix.c
+diff --git a/src/lzma/suffix.h b/src/xz/suffix.h
+similarity index 100%
+rename from src/lzma/suffix.h
+rename to src/xz/suffix.h
+diff --git a/src/lzma/util.c b/src/xz/util.c
+similarity index 100%
+rename from src/lzma/util.c
+rename to src/xz/util.c
+diff --git a/src/lzma/util.h b/src/xz/util.h
+similarity index 100%
+rename from src/lzma/util.h
+rename to src/xz/util.h
+diff --git a/src/lzmadec/Makefile.am b/src/xzdec/Makefile.am
+similarity index 81%
+rename from src/lzmadec/Makefile.am
+rename to src/xzdec/Makefile.am
+index 650eb1c4..8c8cae80 100644
+--- a/src/lzmadec/Makefile.am
++++ b/src/xzdec/Makefile.am
+@@ -12,18 +12,18 @@
+ ##  Lesser General Public License for more details.
+ ##
+ 
+-bin_PROGRAMS = lzmadec
++bin_PROGRAMS = xzdec
+ 
+-lzmadec_SOURCES = lzmadec.c
+-lzmadec_CPPFLAGS = \
++xzdec_SOURCES = xzdec.c
++xzdec_CPPFLAGS = \
+ 	-I@top_srcdir@/src/common \
+ 	-I@top_srcdir@/src/liblzma/api \
+ 	-I@top_builddir@/lib
+-lzmadec_LDFLAGS = -static
+-lzmadec_LDADD = \
++xzdec_LDFLAGS = -static
++xzdec_LDADD = \
+ 	@top_builddir@/src/liblzma/liblzma.la \
+ 	@LTLIBINTL@
+ 
+ if COND_GNULIB
+-lzmadec_LDADD += @top_builddir@/lib/libgnu.a
++xzdec_LDADD += @top_builddir@/lib/libgnu.a
+ endif
+diff --git a/src/lzmadec/lzmadec.c b/src/xzdec/xzdec.c
+similarity index 99%
+rename from src/lzmadec/lzmadec.c
+rename to src/xzdec/xzdec.c
+index 0b2adb97..e100d049 100644
+--- a/src/lzmadec/lzmadec.c
++++ b/src/xzdec/xzdec.c
+@@ -1,6 +1,6 @@
+ ///////////////////////////////////////////////////////////////////////////////
+ //
+-/// \file       lzmadec.c
++/// \file       xzdec.c
+ /// \brief      Simple single-threaded tool to uncompress .lzma files
+ //
+ //  Copyright (C) 2007 Lasse Collin
+@@ -151,7 +151,7 @@ set_default_memlimit(void)
+ 
+ /// \brief      Converts a string to size_t
+ ///
+-/// This is rudely copied from src/lzma/util.c and modified a little. :-(
++/// This is rudely copied from src/xz/util.c and modified a little. :-(
+ ///
+ static size_t
+ str_to_uint64(const char *value)
+diff --git a/tests/test_compress.sh b/tests/test_compress.sh
+index 667d8fda..c02504f2 100755
+--- a/tests/test_compress.sh
++++ b/tests/test_compress.sh
+@@ -24,8 +24,8 @@ if test $? != 42 ; then
+ 	exit 77
+ fi
+ 
+-test_lzma() {
+-	if $LZMA -c "$@" "$FILE" > tmp_compressed; then
++test_xz() {
++	if $XZ -c "$@" "$FILE" > tmp_compressed; then
+ 		:
+ 	else
+ 		echo "Compressing failed: $* $FILE"
+@@ -33,7 +33,7 @@ test_lzma() {
+ 		exit 1
+ 	fi
+ 
+-	if $LZMA -cd tmp_compressed > tmp_uncompressed ; then
++	if $XZ -cd tmp_compressed > tmp_uncompressed ; then
+ 		:
+ 	else
+ 		echo "Decoding failed: $* $FILE"
+@@ -49,7 +49,7 @@ test_lzma() {
+ 		exit 1
+ 	fi
+ 
+-	if $LZMADEC tmp_compressed > tmp_uncompressed ; then
++	if $XZDEC tmp_compressed > tmp_uncompressed ; then
+ 		:
+ 	else
+ 		echo "Decoding failed: $* $FILE"
+@@ -69,10 +69,9 @@ test_lzma() {
+ 	echo . | tr -d '\n\r'
+ }
+ 
+-# TODO: Remove --format=xz once the command name has been changed.
+-LZMA="../src/lzma/lzma --memory=15Mi --threads=1 --format=xz"
+-LZMADEC="../src/lzmadec/lzmadec --memory=4Mi"
+-unset LZMA_OPT
++XZ="../src/xz/xz --memory=15MiB --threads=1"
++XZDEC="../src/xzdec/xzdec --memory=4MiB"
++unset XZ_OPT
+ 
+ # Create the required input files.
+ if ./create_compress_files ; then
+@@ -97,11 +96,11 @@ do
+ 	echo "  $MSG" | tr -d '\n\r'
+ 
+ 	# Don't test with empty arguments; it breaks some ancient
+-	# proprietary /bin/sh versions due to $@ used in test_lzma().
+-	test_lzma -1
+-	test_lzma -2
+-	test_lzma -3
+-	test_lzma -4
++	# proprietary /bin/sh versions due to $@ used in test_xz().
++	test_xz -1
++	test_xz -2
++	test_xz -3
++	test_xz -4
+ 
+ 	for ARGS in \
+ 		--subblock \
+@@ -122,8 +121,8 @@ do
+ 		--armthumb \
+ 		--sparc
+ 	do
+-		test_lzma $ARGS --lzma2=dict=64KiB,nice=32,mode=fast
+-		test_lzma --subblock $ARGS --lzma2=dict=64KiB,nice=32,mode=fast
++		test_xz $ARGS --lzma2=dict=64KiB,nice=32,mode=fast
++		test_xz --subblock $ARGS --lzma2=dict=64KiB,nice=32,mode=fast
+ 	done
+ 
+ 	echo
+diff --git a/tests/test_files.sh b/tests/test_files.sh
+index c670d728..b40a57a5 100755
+--- a/tests/test_files.sh
++++ b/tests/test_files.sh
+@@ -18,7 +18,7 @@
+ 
+ for I in "$srcdir"/files/good-*.xz
+ do
+-	if ../src/lzmadec/lzmadec "$I" > /dev/null 2> /dev/null ; then
++	if ../src/xzdec/xzdec "$I" > /dev/null 2> /dev/null ; then
+ 		:
+ 	else
+ 		echo "Good file failed: $I"
+@@ -29,7 +29,7 @@ done
+ 
+ for I in "$srcdir"/files/bad-*.xz
+ do
+-	if ../src/lzmadec/lzmadec "$I" > /dev/null 2> /dev/null ; then
++	if ../src/xzdec/xzdec "$I" > /dev/null 2> /dev/null ; then
+ 		echo "Bad file succeeded: $I"
+ 		(exit 1)
+ 		exit 1

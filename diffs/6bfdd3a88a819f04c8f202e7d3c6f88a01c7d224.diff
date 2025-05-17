@@ -1,0 +1,12 @@
+diff --git a/THANKS b/THANKS
+index a3943fbf..f3a01baa 100644
+--- a/THANKS
++++ b/THANKS
+@@ -40,6 +40,7 @@ has been important. :-) In alphabetical order:
+   - Paul Townsend
+   - Mohammed Adnène Trojette
+   - Patrick J. Volkerding
++  - Christian Weisgerber
+   - Bert Wesarg
+   - Ralf Wildenhues
+   - Charles Wilson

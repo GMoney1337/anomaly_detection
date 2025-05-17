@@ -1,0 +1,29 @@
+diff --git a/src/liblzma/lzma/lzma2_encoder.c b/src/liblzma/lzma/lzma2_encoder.c
+index e734bc53..28442c32 100644
+--- a/src/liblzma/lzma/lzma2_encoder.c
++++ b/src/liblzma/lzma/lzma2_encoder.c
+@@ -391,3 +391,13 @@ lzma_lzma2_props_encode(const void *options, uint8_t *out)
+ 
+ 	return LZMA_OK;
+ }
++
++
++extern uint64_t
++lzma_lzma2_block_size(const void *options)
++{
++	const lzma_options_lzma *const opt = options;
++
++	// Use at least 1 MiB to keep compression ratio better.
++	return my_max((uint64_t)(opt->dict_size) * 3, UINT64_C(1) << 20);
++}
+diff --git a/src/liblzma/lzma/lzma2_encoder.h b/src/liblzma/lzma/lzma2_encoder.h
+index ca19ef46..12881364 100644
+--- a/src/liblzma/lzma/lzma2_encoder.h
++++ b/src/liblzma/lzma/lzma2_encoder.h
+@@ -38,4 +38,6 @@ extern uint64_t lzma_lzma2_encoder_memusage(const void *options);
+ 
+ extern lzma_ret lzma_lzma2_props_encode(const void *options, uint8_t *out);
+ 
++extern uint64_t lzma_lzma2_block_size(const void *options);
++
+ #endif

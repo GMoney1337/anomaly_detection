@@ -1,0 +1,32 @@
+diff --git a/tests/files/README b/tests/files/README
+index b1d0b686..841ec2c1 100644
+--- a/tests/files/README
++++ b/tests/files/README
+@@ -105,6 +105,9 @@
+     Compressed Size and Uncompressed Size fields are present in the Data
+     Blocks. There is some Footer Padding between the Blocks.
+ 
++    good-multi-none-block_2.lzma has Index in Header Metadata Block. The
++    Uncompressed Size field is present in Data Blocks and no EOPM is used.
++
+ 
+ 2.2. Bad Files
+ 
+@@ -230,6 +233,9 @@
+     error before the end of the first Data Block; all Multi-Block decoders
+     must detect the file as corrupt at some point.
+ 
++    bad-multi-none-block_3.lzma has only the Compressed Size field in the
++    Block Header of the second Data Block and EOPM isn't used.
++
+ 
+ 2.3. Malicious Files
+ 
+diff --git a/tests/files/bad-multi-none-block_3.lzma b/tests/files/bad-multi-none-block_3.lzma
+new file mode 100644
+index 00000000..f5bc72be
+Binary files /dev/null and b/tests/files/bad-multi-none-block_3.lzma differ
+diff --git a/tests/files/good-multi-none-block_2.lzma b/tests/files/good-multi-none-block_2.lzma
+new file mode 100644
+index 00000000..901b030c
+Binary files /dev/null and b/tests/files/good-multi-none-block_2.lzma differ

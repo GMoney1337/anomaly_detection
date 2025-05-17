@@ -1,0 +1,9 @@
+diff --git a/m4/.gitignore b/m4/.gitignore
+index 985c2800..a7628601 100644
+--- a/m4/.gitignore
++++ b/m4/.gitignore
+@@ -1,3 +1,4 @@
++build-to-host.m4
+ codeset.m4
+ extern-inline.m4
+ fcntl-o.m4

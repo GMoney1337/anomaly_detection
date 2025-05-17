@@ -1,0 +1,26 @@
+diff --git a/configure.ac b/configure.ac
+index f6aff3c3..88aca89a 100644
+--- a/configure.ac
++++ b/configure.ac
+@@ -26,7 +26,7 @@ AC_PREREQ(2.61)
+ 
+ # [LZMA] instead of [LZMA utils] since I prefer to have lzma-version.tar.gz
+ # instead of lzma-utils-version.tar.gz.
+-AC_INIT([LZMA], [4.999.5alpha], [lasse.collin@tukaani.org])
++AC_INIT([LZMA], [4.999.6alpha], [lasse.collin@tukaani.org])
+ 
+ AC_CONFIG_SRCDIR([src/liblzma/common/common.h])
+ AC_CONFIG_HEADER([config.h])
+diff --git a/src/liblzma/api/lzma/version.h b/src/liblzma/api/lzma/version.h
+index 811f93e0..a296f450 100644
+--- a/src/liblzma/api/lzma/version.h
++++ b/src/liblzma/api/lzma/version.h
+@@ -35,7 +35,7 @@
+  * \note        The version number of LZMA Utils (and thus liblzma)
+  *              has nothing to with the version number of LZMA SDK.
+  */
+-#define LZMA_VERSION UINT32_C(49990050)
++#define LZMA_VERSION UINT32_C(49990060)
+ 
+ 
+ /**

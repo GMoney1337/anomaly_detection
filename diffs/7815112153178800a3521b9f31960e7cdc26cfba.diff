@@ -1,0 +1,27 @@
+diff --git a/INSTALL b/INSTALL
+index ee322891..cb7f9bf5 100644
+--- a/INSTALL
++++ b/INSTALL
+@@ -474,7 +474,8 @@ XZ Utils Installation
+     to POSIX. The configure script tries to find such a shell. If
+     it fails, you can force the shell to be used by passing
+     gl_cv_posix_shell=/path/to/posix-sh as an argument to the configure
+-    script.
++    script. Alternatively you can omit the installation of scripts and
++    this error by passing --disable-scripts to configure.
+ 
+ 
+ 4.3. configure works but build fails at crc32_x86.S
+diff --git a/configure.ac b/configure.ac
+index c0247b54..0efaaecc 100644
+--- a/configure.ac
++++ b/configure.ac
+@@ -474,7 +474,7 @@ AM_CONDITIONAL([COND_SYMVERS], [test "x$enable_symbol_versions" = xyes])
+ 
+ echo
+ gl_POSIX_SHELL
+-if test -z "$POSIX_SHELL" ; then
++if test -z "$POSIX_SHELL" && test "x$enable_scripts" = xyes ; then
+ 	AC_MSG_ERROR([No POSIX conforming shell (sh) was found.])
+ fi
+ 

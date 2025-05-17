@@ -1,0 +1,52 @@
+diff --git a/src/scripts/xzdiff.in b/src/scripts/xzdiff.in
+index ee5726e8..179218d9 100644
+--- a/src/scripts/xzdiff.in
++++ b/src/scripts/xzdiff.in
+@@ -31,7 +31,7 @@ case ${0##*/} in
+   *)     prog=xzdiff; cmp=${DIFF:-diff};;
+ esac
+ 
+-version="$prog (@PACKAGE_NAME@) @VERSION@"
++version="$prog (@PACKAGE_NAME@) @PACKAGE_VERSION@"
+ 
+ usage="Usage: ${0##*/} [OPTION]... FILE1 [FILE2]
+ Compare FILE1 to FILE2, using their uncompressed contents if they are
+diff --git a/src/scripts/xzgrep.in b/src/scripts/xzgrep.in
+index 74add3e0..dad51ca4 100644
+--- a/src/scripts/xzgrep.in
++++ b/src/scripts/xzgrep.in
+@@ -35,7 +35,7 @@ case ${0##*/} in
+   *)       prog=xzgrep; grep=${GREP:-grep};;
+ esac
+ 
+-version="$prog (@PACKAGE_NAME@) @VERSION@"
++version="$prog (@PACKAGE_NAME@) @PACKAGE_VERSION@"
+ 
+ usage="Usage: ${0##*/} [OPTION]... [-e] PATTERN [FILE]...
+ Look for instances of PATTERN in the input FILEs, using their
+diff --git a/src/scripts/xzless.in b/src/scripts/xzless.in
+index 08a64dc7..6346966b 100644
+--- a/src/scripts/xzless.in
++++ b/src/scripts/xzless.in
+@@ -24,7 +24,7 @@
+ # specified via XZ_OPT.
+ xz='@xz@ --format=auto'
+ 
+-version='xzless (@PACKAGE_NAME@) @VERSION@'
++version='xzless (@PACKAGE_NAME@) @PACKAGE_VERSION@'
+ 
+ usage="Usage: ${0##*/} [OPTION]... [FILE]...
+ Like 'less', but operate on the uncompressed contents of xz compressed FILEs.
+diff --git a/src/scripts/xzmore.in b/src/scripts/xzmore.in
+index 7cb31cbe..c571913f 100644
+--- a/src/scripts/xzmore.in
++++ b/src/scripts/xzmore.in
+@@ -24,7 +24,7 @@
+ # specified via XZ_OPT.
+ xz='@xz@ --format=auto'
+ 
+-version='xzmore (@PACKAGE_NAME@) @VERSION@'
++version='xzmore (@PACKAGE_NAME@) @PACKAGE_VERSION@'
+ 
+ usage="Usage: ${0##*/} [OPTION]... [FILE]...
+ Like 'more', but operate on the uncompressed contents of xz compressed FILEs.

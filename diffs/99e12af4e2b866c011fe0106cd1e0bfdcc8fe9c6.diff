@@ -1,0 +1,112 @@
+diff --git a/src/liblzma/common/info.c b/src/liblzma/common/info.c
+index b05bd031..ab7fc999 100644
+--- a/src/liblzma/common/info.c
++++ b/src/liblzma/common/info.c
+@@ -367,7 +367,7 @@ lzma_info_metadata_set(lzma_info *info, lzma_allocator *allocator,
+ 		lzma_bool eat_index)
+ {
+ 	// Validate *metadata.
+-	if (!lzma_vli_is_valid(metadata->header_metadata_size)
++	if (metadata->header_metadata_size > LZMA_VLI_VALUE_MAX
+ 			|| !lzma_vli_is_valid(metadata->total_size)
+ 			|| !lzma_vli_is_valid(metadata->uncompressed_size)) {
+ 		if (eat_index) {
+@@ -403,15 +403,10 @@ lzma_info_metadata_set(lzma_info *info, lzma_allocator *allocator,
+ 	}
+ 
+ 	// Size of Header Metadata
+-	if (!is_header_metadata) {
+-		// If it is marked unknown in Metadata, it means that
+-		// it's not present.
+-		const lzma_vli size = metadata->header_metadata_size
+-					!= LZMA_VLI_VALUE_UNKNOWN
+-				? metadata->header_metadata_size : 0;
++	if (!is_header_metadata)
+ 		return_if_error(lzma_info_size_set(
+-				info, LZMA_INFO_HEADER_METADATA, size));
+-	}
++				info, LZMA_INFO_HEADER_METADATA,
++				metadata->header_metadata_size));
+ 
+ 	// Total Size
+ 	if (metadata->total_size != LZMA_VLI_VALUE_UNKNOWN)
+diff --git a/src/liblzma/common/metadata_decoder.c b/src/liblzma/common/metadata_decoder.c
+index 5016af61..356a9e31 100644
+--- a/src/liblzma/common/metadata_decoder.c
++++ b/src/liblzma/common/metadata_decoder.c
+@@ -169,6 +169,12 @@ process(lzma_coder *coder, lzma_allocator *allocator)
+ 				return LZMA_DATA_ERROR;
+ 
+ 			--coder->todo_count;
++		} else {
++			// Zero indicates that Size of Header Metadata Block
++			// is not present. That is, after successful Metadata
++			// decoding, metadata->header_metadata_size is
++			// never LZMA_VLI_VALUE_UNKNOWN.
++			coder->metadata->header_metadata_size = 0;
+ 		}
+ 
+ 		coder->sequence = SEQ_TOTAL_SIZE;
+diff --git a/src/liblzma/common/metadata_encoder.c b/src/liblzma/common/metadata_encoder.c
+index 17587c5c..9f4a15b0 100644
+--- a/src/liblzma/common/metadata_encoder.c
++++ b/src/liblzma/common/metadata_encoder.c
+@@ -87,8 +87,7 @@ process(lzma_coder *coder)
+ 	case SEQ_FLAGS:
+ 		coder->buffer[coder->buffer_size] = 0;
+ 
+-		if (coder->metadata.header_metadata_size
+-				!= LZMA_VLI_VALUE_UNKNOWN)
++		if (coder->metadata.header_metadata_size != 0)
+ 			coder->buffer[coder->buffer_size] |= 0x01;
+ 
+ 		if (coder->metadata.total_size != LZMA_VLI_VALUE_UNKNOWN)
+@@ -109,8 +108,7 @@ process(lzma_coder *coder)
+ 		break;
+ 
+ 	case SEQ_HEADER_METADATA_SIZE:
+-		if (coder->metadata.header_metadata_size
+-				!= LZMA_VLI_VALUE_UNKNOWN)
++		if (coder->metadata.header_metadata_size != 0)
+ 			write_vli(coder->metadata.header_metadata_size);
+ 
+ 		coder->sequence = SEQ_TOTAL_SIZE;
+@@ -373,13 +371,14 @@ lzma_metadata_size(const lzma_metadata *metadata)
+ 	lzma_vli size = 1; // Metadata Flags
+ 
+ 	// Validate header_metadata_size, total_size, and uncompressed_size.
+-	if (!lzma_vli_is_valid(metadata->header_metadata_size)
++	if (metadata->header_metadata_size > LZMA_VLI_VALUE_MAX
+ 			|| !lzma_vli_is_valid(metadata->total_size)
++			|| metadata->total_size == 0
+ 			|| !lzma_vli_is_valid(metadata->uncompressed_size))
+ 		return 0;
+ 
+ 	// Add the sizes of these three fields.
+-	if (metadata->header_metadata_size != LZMA_VLI_VALUE_UNKNOWN)
++	if (metadata->header_metadata_size != 0)
+ 		size += lzma_vli_size(metadata->header_metadata_size);
+ 
+ 	if (metadata->total_size != LZMA_VLI_VALUE_UNKNOWN)
+diff --git a/tests/test_info.c b/tests/test_info.c
+index c073fafe..0de95431 100644
+--- a/tests/test_info.c
++++ b/tests/test_info.c
+@@ -527,7 +527,7 @@ test6(void)
+ 	// still present in Footer.
+ 	reset();
+ 	metadata = my_metadata;
+-	metadata.header_metadata_size = LZMA_VLI_VALUE_UNKNOWN;
++	metadata.header_metadata_size = 0;
+ 	expect(lzma_info_size_set(info, LZMA_INFO_HEADER_METADATA, 0)
+ 			== LZMA_OK);
+ 	expect(lzma_info_metadata_set(info, NULL, &metadata, true, false)
+@@ -539,7 +539,7 @@ test6(void)
+ 	// from Footer.
+ 	reset();
+ 	metadata = my_metadata;
+-	metadata.header_metadata_size = LZMA_VLI_VALUE_UNKNOWN;
++	metadata.header_metadata_size = 0;
+ 	expect(lzma_info_metadata_set(info, NULL, &my_metadata, true, false)
+ 			== LZMA_OK);
+ 	expect(lzma_info_size_set(info, LZMA_INFO_HEADER_METADATA,

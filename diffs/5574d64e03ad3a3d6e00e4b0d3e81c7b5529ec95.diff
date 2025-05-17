@@ -1,0 +1,31 @@
+diff --git a/src/common/tuklib_open_stdxxx.c b/src/common/tuklib_open_stdxxx.c
+index 70c8e73d..08bc60d8 100644
+--- a/src/common/tuklib_open_stdxxx.c
++++ b/src/common/tuklib_open_stdxxx.c
+@@ -23,7 +23,11 @@
+ extern void
+ tuklib_open_stdxxx(int err_status)
+ {
+-#ifndef TUKLIB_DOSLIKE
++#ifdef TUKLIB_DOSLIKE
++	// Do nothing, just silence warnings.
++	(void)err_status;
++
++#else
+ 	for (int i = 0; i <= 2; ++i) {
+ 		// We use fcntl() to check if the file descriptor is open.
+ 		if (fcntl(i, F_GETFD) == -1 && errno == EBADF) {
+diff --git a/src/xz/file_io.c b/src/xz/file_io.c
+index 4a960e83..71461e7e 100644
+--- a/src/xz/file_io.c
++++ b/src/xz/file_io.c
+@@ -327,6 +327,9 @@ io_open_src(file_pair *pair)
+ 			return true;
+ 		}
+ 	}
++#else
++	// Avoid warnings.
++	(void)follow_symlinks;
+ #endif
+ 
+ 	// Try to open the file. If we are accepting non-regular files,

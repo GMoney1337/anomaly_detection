@@ -1,0 +1,70 @@
+diff --git a/src/xz/args.c b/src/xz/args.c
+index 7af3e850..8b943530 100644
+--- a/src/xz/args.c
++++ b/src/xz/args.c
+@@ -5,7 +5,8 @@
+ ///
+ /// \note       Filter-specific options parsing is in options.c.
+ //
+-//  Author:     Lasse Collin
++//  Authors:    Lasse Collin
++//              Jia Tan
+ //
+ //  This file has been put into the public domain.
+ //  You can do whatever you want with this file.
+diff --git a/src/xz/args.h b/src/xz/args.h
+index a1a5930a..a1f42f8a 100644
+--- a/src/xz/args.h
++++ b/src/xz/args.h
+@@ -3,7 +3,8 @@
+ /// \file       args.h
+ /// \brief      Argument parsing
+ //
+-//  Author:     Lasse Collin
++//  Authors:    Lasse Collin
++//              Jia Tan
+ //
+ //  This file has been put into the public domain.
+ //  You can do whatever you want with this file.
+diff --git a/src/xz/coder.c b/src/xz/coder.c
+index ab2b07d3..3fefded9 100644
+--- a/src/xz/coder.c
++++ b/src/xz/coder.c
+@@ -3,7 +3,8 @@
+ /// \file       coder.c
+ /// \brief      Compresses or uncompresses a file
+ //
+-//  Author:     Lasse Collin
++//  Authors:    Lasse Collin
++//              Jia Tan
+ //
+ //  This file has been put into the public domain.
+ //  You can do whatever you want with this file.
+diff --git a/src/xz/coder.h b/src/xz/coder.h
+index 7a255939..7dfa466e 100644
+--- a/src/xz/coder.h
++++ b/src/xz/coder.h
+@@ -3,7 +3,8 @@
+ /// \file       coder.h
+ /// \brief      Compresses or uncompresses a file
+ //
+-//  Author:     Lasse Collin
++//  Authors:    Lasse Collin
++//              Jia Tan
+ //
+ //  This file has been put into the public domain.
+ //  You can do whatever you want with this file.
+diff --git a/src/xz/message.c b/src/xz/message.c
+index a888d29e..8caba650 100644
+--- a/src/xz/message.c
++++ b/src/xz/message.c
+@@ -3,7 +3,8 @@
+ /// \file       message.c
+ /// \brief      Printing messages
+ //
+-//  Author:     Lasse Collin
++//  Authors:    Lasse Collin
++//              Jia Tan
+ //
+ //  This file has been put into the public domain.
+ //  You can do whatever you want with this file.

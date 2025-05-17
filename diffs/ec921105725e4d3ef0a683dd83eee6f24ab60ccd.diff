@@ -1,0 +1,30 @@
+diff --git a/src/xz/xz.1 b/src/xz/xz.1
+index f4680f49..3ff89f00 100644
+--- a/src/xz/xz.1
++++ b/src/xz/xz.1
+@@ -1874,6 +1874,25 @@ headers.
+ .PD
+ .PP
+ The columns of the
++.B summary
++lines:
++.PD 0
++.RS
++.IP 2. 4
++Amount of memory (in bytes) required to decompress
++this file with this
++.B xz
++version
++.IP 3. 4
++.B yes
++or
++.B no
++indicating if all block headers have both compressed size and
++uncompressed size stored in them
++.RE
++.PD
++.PP
++The columns of the
+ .B totals
+ line:
+ .PD 0

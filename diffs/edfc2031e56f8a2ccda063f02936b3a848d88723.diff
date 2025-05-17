@@ -1,0 +1,12 @@
+diff --git a/THANKS b/THANKS
+index 93813356..56e5ed41 100644
+--- a/THANKS
++++ b/THANKS
+@@ -9,6 +9,7 @@ In alphabetical order:
+   - Nelson H. F. Beebe
+   - Anders F. Björklund
+   - İsmail Dönmez
++  - Mike Frysinger
+   - Jean-loup Gailly
+   - Per Øyvind Karlsen
+   - Ville Koskinen

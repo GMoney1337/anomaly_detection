@@ -1,0 +1,20 @@
+diff --git a/THANKS b/THANKS
+index adea5bb1..1d587dbd 100644
+--- a/THANKS
++++ b/THANKS
+@@ -47,6 +47,7 @@ has been important. :-) In alphabetical order:
+   - Andre Noll
+   - Peter O'Gorman
+   - Igor Pavlov
++  - Diego Elio Pettenò
+   - Elbert Pol
+   - Mikko Pouru
+   - Robert Readman
+@@ -63,6 +64,7 @@ has been important. :-) In alphabetical order:
+   - Mohammed Adnène Trojette
+   - Alexey Tourbin
+   - Patrick J. Volkerding
++  - Martin Väth
+   - Christian Weisgerber
+   - Bert Wesarg
+   - Ralf Wildenhues

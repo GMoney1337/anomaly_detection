@@ -1,0 +1,52 @@
+diff --git a/configure.ac b/configure.ac
+index 3d2abfa6..eae62c2b 100644
+--- a/configure.ac
++++ b/configure.ac
+@@ -444,7 +444,7 @@ gl_GETOPT
+ 
+ # Functions that are not mandatory i.e. we have alternatives for them
+ # or we can just drop some functionality:
+-AC_CHECK_FUNCS([memcpy memmove memset futimes futimesat])
++AC_CHECK_FUNCS([futimes futimesat])
+ 
+ # Check how to find out the amount of physical memory in the system. The
+ # lzma command line tool uses this to automatically limits its memory usage.
+diff --git a/src/common/sysdefs.h b/src/common/sysdefs.h
+index 8ebe476f..2c7fb6ff 100644
+--- a/src/common/sysdefs.h
++++ b/src/common/sysdefs.h
+@@ -132,19 +132,8 @@ typedef unsigned char _Bool;
+ // Macros //
+ ////////////
+ 
+-#ifndef HAVE_MEMCPY
+-#	define memcpy(dest, src, n) bcopy(src, dest, n)
+-#endif
+-
+-#ifndef HAVE_MEMMOVE
+-#	define memmove(dest, src, n) bcopy(src, dest, n)
+-#endif
+-
+-#ifdef HAVE_MEMSET
+-#	define memzero(s, n) memset(s, 0, n)
+-#else
+-#	define memzero(s, n) bzero(s, n)
+-#endif
++#undef memzero
++#define memzero(s, n) memset(s, 0, n)
+ 
+ #ifndef MIN
+ #	define MIN(x, y) ((x) < (y) ? (x) : (y))
+diff --git a/src/liblzma/common/allocator.c b/src/liblzma/common/allocator.c
+index c5970312..5ced9d16 100644
+--- a/src/liblzma/common/allocator.c
++++ b/src/liblzma/common/allocator.c
+@@ -35,7 +35,7 @@ lzma_alloc(size_t size, lzma_allocator *allocator)
+ 	else
+ 		ptr = malloc(size);
+ 
+-#if !defined(NDEBUG) && defined(HAVE_MEMSET)
++#ifndef NDEBUG
+ 	// This helps to catch some stupid mistakes, but also hides them from
+ 	// Valgrind. Uncomment when useful.
+ // 	if (ptr != NULL)

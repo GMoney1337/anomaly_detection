@@ -1,0 +1,13 @@
+diff --git a/src/lzma/args.c b/src/lzma/args.c
+index d6163ae7..24fc0939 100644
+--- a/src/lzma/args.c
++++ b/src/lzma/args.c
+@@ -68,7 +68,7 @@ enum {
+ };
+ 
+ 
+-static const char short_opts[] = "cC:dfFhlLkqrStT:vVz123456789";
++static const char short_opts[] = "cC:dfF:hlLkM:qrS:tT:vVz123456789";
+ 
+ 
+ static const struct option long_opts[] = {

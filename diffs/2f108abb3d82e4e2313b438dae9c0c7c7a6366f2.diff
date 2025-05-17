@@ -1,0 +1,50 @@
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+index d3aa6270..c21ab567 100644
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -127,7 +127,7 @@ tuklib_integer(ALL)
+ 
+ # Check for clock_gettime(). Do this before checking for threading so
+ # that we know there if CLOCK_MONOTONIC is available.
+-if(NOT WIN32 AND NOT DEFINED CACHE{HAVE_CLOCK_GETTIME})
++if(NOT WIN32 AND NOT DEFINED HAVE_CLOCK_GETTIME)
+     check_symbol_exists(clock_gettime time.h HAVE_CLOCK_GETTIME)
+     if(NOT HAVE_CLOCK_GETTIME)
+         # With glibc <= 2.17 or Solaris 10 this needs librt.
+diff --git a/cmake/tuklib_cpucores.cmake b/cmake/tuklib_cpucores.cmake
+index 5844e4b2..743d56b3 100644
+--- a/cmake/tuklib_cpucores.cmake
++++ b/cmake/tuklib_cpucores.cmake
+@@ -154,12 +154,12 @@ function(tuklib_cpucores_internal_check)
+ endfunction()
+ 
+ function(tuklib_cpucores TARGET_OR_ALL)
+-    if(NOT DEFINED CACHE{TUKLIB_CPUCORES_FOUND})
++    if(NOT DEFINED TUKLIB_CPUCORES_FOUND)
+         message(STATUS
+                 "Checking how to detect the number of available CPU cores")
+         tuklib_cpucores_internal_check()
+ 
+-        if(DEFINED CACHE{TUKLIB_CPUCORES_DEFINITIONS})
++        if(DEFINED TUKLIB_CPUCORES_DEFINITIONS)
+             set(TUKLIB_CPUCORES_FOUND 1 CACHE INTERNAL "")
+         else()
+             set(TUKLIB_CPUCORES_FOUND 0 CACHE INTERNAL "")
+diff --git a/cmake/tuklib_physmem.cmake b/cmake/tuklib_physmem.cmake
+index ea5bcc46..f5ed8889 100644
+--- a/cmake/tuklib_physmem.cmake
++++ b/cmake/tuklib_physmem.cmake
+@@ -130,11 +130,11 @@ function(tuklib_physmem_internal_check)
+ endfunction()
+ 
+ function(tuklib_physmem TARGET_OR_ALL)
+-    if(NOT DEFINED CACHE{TUKLIB_PHYSMEM_FOUND})
++    if(NOT DEFINED TUKLIB_PHYSMEM_FOUND)
+         message(STATUS "Checking how to detect the amount of physical memory")
+         tuklib_physmem_internal_check()
+ 
+-        if(DEFINED CACHE{TUKLIB_PHYSMEM_DEFINITIONS})
++        if(DEFINED TUKLIB_PHYSMEM_DEFINITIONS)
+             set(TUKLIB_PHYSMEM_FOUND 1 CACHE INTERNAL "")
+         else()
+             set(TUKLIB_PHYSMEM_FOUND 0 CACHE INTERNAL "")

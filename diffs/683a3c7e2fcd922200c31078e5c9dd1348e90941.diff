@@ -1,0 +1,40 @@
+diff --git a/src/xz/args.c b/src/xz/args.c
+index 3468e276..b831946f 100644
+--- a/src/xz/args.c
++++ b/src/xz/args.c
+@@ -726,9 +726,9 @@ args_parse(args_info *args, int argc, char **argv)
+ 
+ 	// If raw format is used and a custom suffix is not provided,
+ 	// then only stdout mode can be used when compressing or decompressing.
+-	if (opt_format == FORMAT_RAW && suffix_is_set() && !opt_stdout &&
+-			(opt_mode == MODE_COMPRESS ||
+-			opt_mode == MODE_DECOMPRESS))
++	if (opt_format == FORMAT_RAW && !suffix_is_set() && !opt_stdout
++			&& (opt_mode == MODE_COMPRESS
++				|| opt_mode == MODE_DECOMPRESS))
+ 		message_fatal(_("With --format=raw, --suffix=.SUF is "
+ 				"required unless writing to stdout"));
+ 
+diff --git a/src/xz/suffix.c b/src/xz/suffix.c
+index a9cdbd8a..6ce97878 100644
+--- a/src/xz/suffix.c
++++ b/src/xz/suffix.c
+@@ -397,5 +397,5 @@ suffix_set(const char *suffix)
+ extern bool
+ suffix_is_set(void)
+ {
+-	return custom_suffix == NULL;
++	return custom_suffix != NULL;
+ }
+diff --git a/src/xz/suffix.h b/src/xz/suffix.h
+index cb36dd61..135e9056 100644
+--- a/src/xz/suffix.h
++++ b/src/xz/suffix.h
+@@ -27,6 +27,7 @@ extern char *suffix_get_dest_name(const char *src_name);
+ /// and forgotten.
+ extern void suffix_set(const char *suffix);
+ 
++
+ /// \brief      Check if a custom suffix has been set
+ ///
+ /// Returns true if the internal tracking of the suffix string has been set

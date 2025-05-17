@@ -1,0 +1,26 @@
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+index 767cc064..f5a98fa1 100644
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -434,6 +434,8 @@ if(CMAKE_C_COMPILER_ID MATCHES GNU|Clang)
+                 -Wmissing-prototypes
+                 -Wmissing-declarations
+                 -Wredundant-decls
++                -Wimplicit-fallthrough
++                -Wimplicit-fallthrough=5
+ 
+                 -Wc99-compat
+                 -Wc11-extensions
+diff --git a/configure.ac b/configure.ac
+index c3447b2e..3eef0aea 100644
+--- a/configure.ac
++++ b/configure.ac
+@@ -1299,6 +1299,8 @@ AS_IF([test "$GCC" = yes], [
+ 			-Wmissing-prototypes \
+ 			-Wmissing-declarations \
+ 			-Wredundant-decls \
++			-Wimplicit-fallthrough \
++			-Wimplicit-fallthrough=5 \
+ 			\
+ 			-Wc99-compat \
+ 			-Wc11-extensions \

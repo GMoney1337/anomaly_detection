@@ -1,0 +1,232 @@
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+index 5fd5c341..b338ed8f 100644
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -548,6 +548,7 @@ add_library(liblzma
+     src/liblzma/check/crc_common.h
+     src/liblzma/check/crc_x86_clmul.h
+     src/liblzma/check/crc32_arm64.h
++    src/liblzma/check/crc32_loongarch.h
+     src/liblzma/common/block_util.c
+     src/liblzma/common/common.c
+     src/liblzma/common/common.h
+@@ -1341,6 +1342,30 @@ if(XZ_ARM64_CRC32)
+     endif()
+ endif()
+ 
++option(XZ_LOONGARCH_CRC32
++       "Use LoongArch CRC32 instructions if supported by the compiler" ON)
++
++if(XZ_LOONGARCH_CRC32)
++    # LoongArch CRC32 intrinsics are in larchintrin.h.
++    # These are supported by at least GCC and Clang.
++    #
++    # Only 64-bit LoongArch is currently supported.
++    # It doesn't need runtime detection.
++    check_c_source_compiles("
++            #if !(defined(__loongarch__) && __loongarch_grlen >= 64)
++            #   error
++            #endif
++
++            #include <larchintrin.h>
++            int main(void)
++            {
++                return __crc_w_w_w(1, 2);
++            }
++        "
++        HAVE_LOONGARCH_CRC32)
++    tuklib_add_definition_if(liblzma HAVE_LOONGARCH_CRC32)
++endif()
++
+ 
+ # Symbol visibility support:
+ #
+diff --git a/configure.ac b/configure.ac
+index 6ccb1df6..0ed30eb4 100644
+--- a/configure.ac
++++ b/configure.ac
+@@ -394,6 +394,16 @@ AC_ARG_ENABLE([arm64-crc32], AS_HELP_STRING([--disable-arm64-crc32],
+ 	[], [enable_arm64_crc32=yes])
+ 
+ 
++################################
++# LoongArch CRC32 instructions #
++################################
++
++AC_ARG_ENABLE([loongarch-crc32], AS_HELP_STRING([--disable-loongarch-crc32],
++		[Do not use LoongArch CRC32 instructions even if support for
++		them is detected.]),
++	[], [enable_loongarch_crc32=yes])
++
++
+ #####################
+ # Size optimization #
+ #####################
+@@ -1106,6 +1116,36 @@ AS_IF([test "x$enable_arm64_crc32" = xyes], [
+ ])
+ 
+ 
++# LoongArch CRC32 intrinsics are in larchintrin.h.
++# These are supported by at least GCC and Clang.
++#
++# Only 64-bit LoongArch is currently supported.
++# It doesn't need runtime detection.
++AC_MSG_CHECKING([if LoongArch CRC32 instructions are usable])
++AS_IF([test "x$enable_loongarch_crc32" = xno], [
++	AC_MSG_RESULT([no, --disable-loongarch-crc32 was used])
++], [
++	AC_LINK_IFELSE([AC_LANG_SOURCE([[
++#if !(defined(__loongarch__) && __loongarch_grlen >= 64)
++#	error
++#endif
++
++#include <larchintrin.h>
++int main(void)
++{
++	return __crc_w_w_w(1, 2);
++}
++	]])], [
++		AC_DEFINE([HAVE_LOONGARCH_CRC32], [1], [Define to 1 if
++			64-bit LoongArch CRC32 instructions are supported.])
++		enable_loongarch_crc32=yes
++	], [
++		enable_loongarch_crc32=no
++	])
++	AC_MSG_RESULT([$enable_loongarch_crc32])
++])
++
++
+ # Check for sandbox support. If one is found, set enable_sandbox=found.
+ #
+ # About -fsanitize: Of our three sandbox methods, only Landlock is
+diff --git a/src/liblzma/check/Makefile.inc b/src/liblzma/check/Makefile.inc
+index 8334924c..00a26e68 100644
+--- a/src/liblzma/check/Makefile.inc
++++ b/src/liblzma/check/Makefile.inc
+@@ -14,7 +14,8 @@ liblzma_la_SOURCES += \
+ 	check/check.h \
+ 	check/crc_common.h \
+ 	check/crc_x86_clmul.h \
+-	check/crc32_arm64.h
++	check/crc32_arm64.h \
++	check/crc32_loongarch.h
+ 
+ if COND_SMALL
+ liblzma_la_SOURCES += check/crc32_small.c
+diff --git a/src/liblzma/check/crc32_fast.c b/src/liblzma/check/crc32_fast.c
+index 725a025a..48a23dec 100644
+--- a/src/liblzma/check/crc32_fast.c
++++ b/src/liblzma/check/crc32_fast.c
+@@ -19,6 +19,8 @@
+ #	include "crc_x86_clmul.h"
+ #elif defined(CRC32_ARM64)
+ #	include "crc32_arm64.h"
++#elif defined(CRC32_LOONGARCH)
++#	include "crc32_loongarch.h"
+ #endif
+ 
+ 
+diff --git a/src/liblzma/check/crc32_loongarch.h b/src/liblzma/check/crc32_loongarch.h
+new file mode 100644
+index 00000000..ec738b83
+--- /dev/null
++++ b/src/liblzma/check/crc32_loongarch.h
+@@ -0,0 +1,65 @@
++// SPDX-License-Identifier: 0BSD
++
++///////////////////////////////////////////////////////////////////////////////
++//
++/// \file       crc32_loongarch.h
++/// \brief      CRC32 calculation with LoongArch optimization
++//
++//  Authors:    Xi Ruoyao
++//              Lasse Collin
++//
++///////////////////////////////////////////////////////////////////////////////
++
++#ifndef LZMA_CRC32_LOONGARCH_H
++#define LZMA_CRC32_LOONGARCH_H
++
++#include <larchintrin.h>
++
++
++static uint32_t
++crc32_arch_optimized(const uint8_t *buf, size_t size, uint32_t crc_unsigned)
++{
++	int32_t crc = (int32_t)~crc_unsigned;
++
++	if (size >= 8) {
++		const size_t align = (0 - (uintptr_t)buf) & 7;
++
++		if (align & 1)
++			crc = __crc_w_b_w((int8_t)*buf++, crc);
++
++		if (align & 2) {
++			crc = __crc_w_h_w((int16_t)aligned_read16le(buf), crc);
++			buf += 2;
++		}
++
++		if (align & 4) {
++			crc = __crc_w_w_w((int32_t)aligned_read32le(buf), crc);
++			buf += 4;
++		}
++
++		size -= align;
++
++		for (const uint8_t *limit = buf + (size & ~(size_t)7);
++				buf < limit; buf += 8)
++			crc = __crc_w_d_w((int64_t)aligned_read64le(buf), crc);
++
++		size &= 7;
++	}
++
++	if (size & 4) {
++		crc = __crc_w_w_w((int32_t)aligned_read32le(buf), crc);
++		buf += 4;
++	}
++
++	if (size & 2) {
++		crc = __crc_w_h_w((int16_t)aligned_read16le(buf), crc);
++		buf += 2;
++	}
++
++	if (size & 1)
++		crc = __crc_w_b_w((int8_t)*buf, crc);
++
++	return (uint32_t)~crc;
++}
++
++#endif // LZMA_CRC32_LOONGARCH_H
+diff --git a/src/liblzma/check/crc_common.h b/src/liblzma/check/crc_common.h
+index 48cd466e..afb551a8 100644
+--- a/src/liblzma/check/crc_common.h
++++ b/src/liblzma/check/crc_common.h
+@@ -83,6 +83,9 @@ extern const uint64_t lzma_crc64_table[4][256];
+ // CRC64 could be done with CLMUL but it's not implemented yet.
+ #undef CRC32_ARM64
+ 
++// 64-bit LoongArch has CRC32 instructions.
++#undef CRC32_LOONGARCH
++
+ 
+ // ARM64
+ //
+@@ -112,6 +115,18 @@ extern const uint64_t lzma_crc64_table[4][256];
+ #endif
+ 
+ 
++// LoongArch
++//
++// Only 64-bit LoongArch is supported for now. No runtime detection
++// is needed because the LoongArch specification says that the CRC32
++// instructions are a part of the Basic Integer Instructions and
++// they shall be implemented by 64-bit LoongArch implementations.
++#ifdef HAVE_LOONGARCH_CRC32
++#	define CRC32_ARCH_OPTIMIZED 1
++#	define CRC32_LOONGARCH 1
++#endif
++
++
+ // x86 and E2K
+ #if defined(HAVE_USABLE_CLMUL)
+ 	// If CLMUL is allowed unconditionally in the compiler options then

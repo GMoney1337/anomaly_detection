@@ -1,0 +1,68 @@
+diff --git a/tests/files/bad-single-data_after_eopm.lzma b/tests/files/bad-single-data_after_eopm.lzma
+new file mode 100644
+index 00000000..3c1e90f2
+Binary files /dev/null and b/tests/files/bad-single-data_after_eopm.lzma differ
+diff --git a/tests/files/bad-single-data_after_eopm_2.lzma b/tests/files/bad-single-data_after_eopm_2.lzma
+new file mode 100644
+index 00000000..008e3941
+Binary files /dev/null and b/tests/files/bad-single-data_after_eopm_2.lzma differ
+diff --git a/tests/files/bad-single-subblock_subblock.lzma b/tests/files/bad-single-subblock_subblock.lzma
+new file mode 100644
+index 00000000..4b6987d8
+Binary files /dev/null and b/tests/files/bad-single-subblock_subblock.lzma differ
+diff --git a/tests/files/good-cat-single-none-pad.lzma b/tests/files/good-cat-single-none-pad.lzma
+new file mode 100644
+index 00000000..74cb9987
+Binary files /dev/null and b/tests/files/good-cat-single-none-pad.lzma differ
+diff --git a/tests/files/good-single-delta-lzma.tiff.lzma b/tests/files/good-single-delta-lzma.tiff.lzma
+new file mode 100644
+index 00000000..94ff3a12
+Binary files /dev/null and b/tests/files/good-single-delta-lzma.tiff.lzma differ
+diff --git a/tests/files/good-single-lzma.lzma b/tests/files/good-single-lzma.lzma
+new file mode 100644
+index 00000000..0e120f2a
+Binary files /dev/null and b/tests/files/good-single-lzma.lzma differ
+diff --git a/tests/files/good-single-none-pad.lzma b/tests/files/good-single-none-pad.lzma
+new file mode 100644
+index 00000000..b32efa19
+Binary files /dev/null and b/tests/files/good-single-none-pad.lzma differ
+diff --git a/tests/files/good-single-none.lzma b/tests/files/good-single-none.lzma
+new file mode 100644
+index 00000000..a6b24ae8
+Binary files /dev/null and b/tests/files/good-single-none.lzma differ
+diff --git a/tests/files/good-single-subblock-lzma.lzma b/tests/files/good-single-subblock-lzma.lzma
+new file mode 100644
+index 00000000..1ab36e40
+Binary files /dev/null and b/tests/files/good-single-subblock-lzma.lzma differ
+diff --git a/tests/files/good-single-subblock_rle.lzma b/tests/files/good-single-subblock_rle.lzma
+new file mode 100644
+index 00000000..32d49cc0
+Binary files /dev/null and b/tests/files/good-single-subblock_rle.lzma differ
+diff --git a/tests/files/malicious-multi-metadata-64PiB.lzma b/tests/files/malicious-multi-metadata-64PiB.lzma
+new file mode 100644
+index 00000000..a29f8776
+Binary files /dev/null and b/tests/files/malicious-multi-metadata-64PiB.lzma differ
+diff --git a/tests/files/malicious-single-subblock-256MiB.lzma b/tests/files/malicious-single-subblock-256MiB.lzma
+new file mode 100644
+index 00000000..2199f2a3
+Binary files /dev/null and b/tests/files/malicious-single-subblock-256MiB.lzma differ
+diff --git a/tests/files/malicious-single-subblock-64PiB.lzma b/tests/files/malicious-single-subblock-64PiB.lzma
+new file mode 100644
+index 00000000..cbe2c49b
+Binary files /dev/null and b/tests/files/malicious-single-subblock-64PiB.lzma differ
+diff --git a/tests/files/malicious-single-subblock-loop.lzma b/tests/files/malicious-single-subblock-loop.lzma
+new file mode 100644
+index 00000000..7f0f5f78
+Binary files /dev/null and b/tests/files/malicious-single-subblock-loop.lzma differ
+diff --git a/tests/files/malicious-single-subblock-lzma.lzma b/tests/files/malicious-single-subblock-lzma.lzma
+new file mode 100644
+index 00000000..2cbbc18c
+Binary files /dev/null and b/tests/files/malicious-single-subblock-lzma.lzma differ
+diff --git a/tests/files/malicious-single-subblock1023-slow.lzma b/tests/files/malicious-single-subblock1023-slow.lzma
+new file mode 100644
+index 00000000..842defee
+Binary files /dev/null and b/tests/files/malicious-single-subblock1023-slow.lzma differ
+diff --git a/tests/files/malicious-single-subblock31-slow.lzma b/tests/files/malicious-single-subblock31-slow.lzma
+new file mode 100644
+index 00000000..0589a416
+Binary files /dev/null and b/tests/files/malicious-single-subblock31-slow.lzma differ

@@ -1,0 +1,26 @@
+diff --git a/src/liblzma/Makefile.am b/src/liblzma/Makefile.am
+index 43d0289e..f43280be 100644
+--- a/src/liblzma/Makefile.am
++++ b/src/liblzma/Makefile.am
+@@ -24,7 +24,7 @@ liblzma_la_CPPFLAGS = \
+ 	-I$(top_srcdir)/src/liblzma/simple \
+ 	-I$(top_srcdir)/src/common \
+ 	-DTUKLIB_SYMBOL_PREFIX=lzma_
+-liblzma_la_LDFLAGS = -no-undefined -version-info 7:0:2
++liblzma_la_LDFLAGS = -no-undefined -version-info 7:1:2
+ 
+ EXTRA_DIST += liblzma.map validate_map.sh
+ if COND_SYMVERS
+diff --git a/src/liblzma/api/lzma/version.h b/src/liblzma/api/lzma/version.h
+index d9614da7..9682155a 100644
+--- a/src/liblzma/api/lzma/version.h
++++ b/src/liblzma/api/lzma/version.h
+@@ -22,7 +22,7 @@
+  */
+ #define LZMA_VERSION_MAJOR 5
+ #define LZMA_VERSION_MINOR 2
+-#define LZMA_VERSION_PATCH 0
++#define LZMA_VERSION_PATCH 1
+ #define LZMA_VERSION_STABILITY LZMA_VERSION_STABILITY_STABLE
+ 
+ #ifndef LZMA_VERSION_COMMIT

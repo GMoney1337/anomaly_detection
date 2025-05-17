@@ -1,0 +1,28 @@
+diff --git a/doc/faq.txt b/doc/faq.txt
+index d01cf91b..e00db660 100644
+--- a/doc/faq.txt
++++ b/doc/faq.txt
+@@ -80,8 +80,8 @@ Q:  Which file formats are supported by LZMA Utils?
+ A:  Even when the raw LZMA stream is always the same, it can be wrapped
+     in different container formats. The preferred format is the new .lzma
+     format. It has magic bytes (the first six bytes: 0xFF 'L' 'Z' 'M'
+-    'A' 0x00). The format supports chaining up to seven filters filters,
+-    splitting data to multiple blocks for easier multi-threading and rough
++    'A' 0x00). The format supports chaining up to seven filters, splitting
++    data to multiple blocks for easier multi-threading and rough
+     random-access reading. The file integrity is verified using CRC32,
+     CRC64, or SHA256, and by verifying the uncompressed size of the file.
+ 
+diff --git a/doc/liblzma-advanced.txt b/doc/liblzma-advanced.txt
+index d829a33a..6e1c9834 100644
+--- a/doc/liblzma-advanced.txt
++++ b/doc/liblzma-advanced.txt
+@@ -247,7 +247,7 @@ y.x.1. Single-Block Stream
+     this prevents it from producing too much output in case of (possibly
+     intentionally) corrupt file.
+ 
+-    Calculate the the start offset of the Stream:
++    Calculate the start offset of the Stream:
+ 
+         backward_offset - backward_size - LZMA_STREAM_HEADER_SIZE
+ 

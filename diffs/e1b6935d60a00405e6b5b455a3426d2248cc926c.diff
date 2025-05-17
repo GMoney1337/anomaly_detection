@@ -1,0 +1,58 @@
+diff --git a/src/xz/util.c b/src/xz/util.c
+index deb5dcc2..19f5eee3 100644
+--- a/src/xz/util.c
++++ b/src/xz/util.c
+@@ -56,11 +56,17 @@ str_to_uint64(const char *name, const char *value, uint64_t min, uint64_t max)
+ 
+ 	do {
+ 		// Don't overflow.
+-		if (result > (UINT64_MAX - 9) / 10)
++		if (result > UINT64_MAX / 10)
+ 			goto error;
+ 
+ 		result *= 10;
+-		result += *value - '0';
++
++		// Another overflow check
++		const uint32_t add = *value - '0';
++		if (UINT64_MAX - add < result)
++			goto error;
++
++		result += add;
+ 		++value;
+ 	} while (*value >= '0' && *value <= '9');
+ 
+diff --git a/src/xzdec/xzdec.c b/src/xzdec/xzdec.c
+index 8518d362..7f2e0fdc 100644
+--- a/src/xzdec/xzdec.c
++++ b/src/xzdec/xzdec.c
+@@ -153,6 +153,9 @@ memlimit_init(void)
+ /// \brief      Convert a string to uint64_t
+ ///
+ /// This is rudely copied from src/xz/util.c and modified a little. :-(
++/// Since this function is used only for parsing the memory usage limit,
++/// this cheats a little and saturates too big values to UINT64_MAX instead
++/// of giving an error.
+ ///
+ /// \param      max     Return value when the string "max" was specified.
+ ///
+@@ -173,11 +176,17 @@ str_to_uint64(const char *value, uint64_t max)
+ 
+ 	do {
+ 		// Don't overflow.
+-		if (result > (UINT64_MAX - 9) / 10)
++		if (result > UINT64_MAX / 10)
+ 			return UINT64_MAX;
+ 
+ 		result *= 10;
+-		result += *value - '0';
++
++		// Another overflow check
++		const uint32_t add = *value - '0';
++		if (UINT64_MAX - add < result)
++			return UINT64_MAX;
++
++		result += add;
+ 		++value;
+ 	} while (*value >= '0' && *value <= '9');
+ 

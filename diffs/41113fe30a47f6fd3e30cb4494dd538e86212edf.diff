@@ -1,0 +1,73 @@
+diff --git a/src/liblzma/check/check.h b/src/liblzma/check/check.h
+index 783627bd..8ae95d59 100644
+--- a/src/liblzma/check/check.h
++++ b/src/liblzma/check/check.h
+@@ -99,10 +99,17 @@ typedef struct {
+ /// lzma_crc32_table[0] is needed by LZ encoder so we need to keep
+ /// the array two-dimensional.
+ #ifdef HAVE_SMALL
++lzma_attr_visibility_hidden
+ extern uint32_t lzma_crc32_table[1][256];
++
+ extern void lzma_crc32_init(void);
++
+ #else
++
++lzma_attr_visibility_hidden
+ extern const uint32_t lzma_crc32_table[8][256];
++
++lzma_attr_visibility_hidden
+ extern const uint64_t lzma_crc64_table[4][256];
+ #endif
+ 
+diff --git a/src/liblzma/common/stream_flags_common.h b/src/liblzma/common/stream_flags_common.h
+index 9f3122a3..84e96ba1 100644
+--- a/src/liblzma/common/stream_flags_common.h
++++ b/src/liblzma/common/stream_flags_common.h
+@@ -18,7 +18,10 @@
+ /// Size of the Stream Flags field
+ #define LZMA_STREAM_FLAGS_SIZE 2
+ 
++lzma_attr_visibility_hidden
+ extern const uint8_t lzma_header_magic[6];
++
++lzma_attr_visibility_hidden
+ extern const uint8_t lzma_footer_magic[2];
+ 
+ 
+diff --git a/src/liblzma/lz/lz_encoder_hash.h b/src/liblzma/lz/lz_encoder_hash.h
+index fb15c581..4d9971ae 100644
+--- a/src/liblzma/lz/lz_encoder_hash.h
++++ b/src/liblzma/lz/lz_encoder_hash.h
+@@ -17,6 +17,7 @@
+ 	// This is to make liblzma produce the same output on big endian
+ 	// systems that it does on little endian systems. lz_encoder.c
+ 	// takes care of including the actual table.
++	lzma_attr_visibility_hidden
+ 	extern const uint32_t lzma_lz_hash_table[256];
+ #	define hash_table lzma_lz_hash_table
+ #else
+diff --git a/src/liblzma/lzma/fastpos.h b/src/liblzma/lzma/fastpos.h
+index cba442c2..dbeb16f7 100644
+--- a/src/liblzma/lzma/fastpos.h
++++ b/src/liblzma/lzma/fastpos.h
+@@ -91,6 +91,7 @@ get_dist_slot_2(uint32_t dist)
+ 
+ #define FASTPOS_BITS 13
+ 
++lzma_attr_visibility_hidden
+ extern const uint8_t lzma_fastpos[1 << FASTPOS_BITS];
+ 
+ 
+diff --git a/src/liblzma/rangecoder/price.h b/src/liblzma/rangecoder/price.h
+index 8ae02ca7..45dbbbb2 100644
+--- a/src/liblzma/rangecoder/price.h
++++ b/src/liblzma/rangecoder/price.h
+@@ -22,6 +22,7 @@
+ 
+ 
+ /// Lookup table for the inline functions defined in this file.
++lzma_attr_visibility_hidden
+ extern const uint8_t lzma_rc_prices[RC_PRICE_TABLE_SIZE];
+ 
+ 

@@ -1,0 +1,13 @@
+diff --git a/src/xz/file_io.c b/src/xz/file_io.c
+index c12c6f57..e1a37d5f 100644
+--- a/src/xz/file_io.c
++++ b/src/xz/file_io.c
+@@ -221,7 +221,7 @@ io_sandbox_enter(int src_fd)
+ 	return;
+ 
+ error:
+-	message(V_DEBUG, _("Failed to enable the sandbox"));
++	message_fatal(_("Failed to enable the sandbox"));
+ }
+ #endif // ENABLE_SANDBOX
+ 

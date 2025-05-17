@@ -1,0 +1,14 @@
+diff --git a/src/common/tuklib_common.h b/src/common/tuklib_common.h
+index d2642f8b..791b8947 100644
+--- a/src/common/tuklib_common.h
++++ b/src/common/tuklib_common.h
+@@ -60,7 +60,8 @@
+ #	define tuklib_attr_noreturn
+ #endif
+ 
+-#if defined(_WIN32) || defined(__OS2__) || defined(__MSDOS__)
++#if (defined(_WIN32) && !defined(__CYGWIN__)) \
++		|| defined(__OS2__) || defined(__MSDOS__)
+ #	define TUKLIB_DOSLIKE 1
+ #endif
+ 

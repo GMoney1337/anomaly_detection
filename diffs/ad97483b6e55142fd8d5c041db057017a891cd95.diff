@@ -1,0 +1,192 @@
+diff --git a/src/liblzma/common/auto_decoder.c b/src/liblzma/common/auto_decoder.c
+index 05a9fbb4..dd108324 100644
+--- a/src/liblzma/common/auto_decoder.c
++++ b/src/liblzma/common/auto_decoder.c
+@@ -52,10 +52,10 @@ auto_decode(lzma_coder *coder, lzma_allocator *allocator,
+ 		coder->sequence = SEQ_CODE;
+ 
+ 		// Detect the file format. For now this is simple, since if
+-		// it doesn't start with 0xFF (the first magic byte of the
++		// it doesn't start with 0xFD (the first magic byte of the
+ 		// new format), it has to be LZMA_Alone, or something that
+ 		// we don't support at all.
+-		if (in[*in_pos] == 0xFF) {
++		if (in[*in_pos] == 0xFD) {
+ 			return_if_error(lzma_stream_decoder_init(
+ 					&coder->next, allocator,
+ 					coder->memlimit, coder->flags));
+diff --git a/src/liblzma/common/stream_flags_common.c b/src/liblzma/common/stream_flags_common.c
+index 1f7220ec..ae587717 100644
+--- a/src/liblzma/common/stream_flags_common.c
++++ b/src/liblzma/common/stream_flags_common.c
+@@ -20,7 +20,7 @@
+ #include "stream_flags_common.h"
+ 
+ 
+-const uint8_t lzma_header_magic[6] = { 0xFF, 0x4C, 0x5A, 0x4D, 0x41, 0x00 };
++const uint8_t lzma_header_magic[6] = { 0xFD, 0x37, 0x7A, 0x58, 0x5A, 0x00 };
+ const uint8_t lzma_footer_magic[2] = { 0x59, 0x5A };
+ 
+ 
+diff --git a/tests/files/bad-0-backward_size.lzma b/tests/files/bad-0-backward_size.lzma
+index 07c4695a..2b46fa93 100644
+Binary files a/tests/files/bad-0-backward_size.lzma and b/tests/files/bad-0-backward_size.lzma differ
+diff --git a/tests/files/bad-0-empty-truncated.lzma b/tests/files/bad-0-empty-truncated.lzma
+index 15b6fe36..f879af84 100644
+Binary files a/tests/files/bad-0-empty-truncated.lzma and b/tests/files/bad-0-empty-truncated.lzma differ
+diff --git a/tests/files/bad-0-nonempty_index.lzma b/tests/files/bad-0-nonempty_index.lzma
+index 2a612c61..ed6e81fa 100644
+Binary files a/tests/files/bad-0-nonempty_index.lzma and b/tests/files/bad-0-nonempty_index.lzma differ
+diff --git a/tests/files/bad-0cat-alone.lzma b/tests/files/bad-0cat-alone.lzma
+index 650c67f0..a915a3a1 100644
+Binary files a/tests/files/bad-0cat-alone.lzma and b/tests/files/bad-0cat-alone.lzma differ
+diff --git a/tests/files/bad-0catpad-empty.lzma b/tests/files/bad-0catpad-empty.lzma
+index 33892a24..97c13302 100644
+Binary files a/tests/files/bad-0catpad-empty.lzma and b/tests/files/bad-0catpad-empty.lzma differ
+diff --git a/tests/files/bad-0pad-empty.lzma b/tests/files/bad-0pad-empty.lzma
+index c5b985c0..45e00b74 100644
+Binary files a/tests/files/bad-0pad-empty.lzma and b/tests/files/bad-0pad-empty.lzma differ
+diff --git a/tests/files/bad-1-block_header-1.lzma b/tests/files/bad-1-block_header-1.lzma
+index a68119ff..e126a419 100644
+Binary files a/tests/files/bad-1-block_header-1.lzma and b/tests/files/bad-1-block_header-1.lzma differ
+diff --git a/tests/files/bad-1-block_header-2.lzma b/tests/files/bad-1-block_header-2.lzma
+index 7a2eb5e4..e3e8166d 100644
+Binary files a/tests/files/bad-1-block_header-2.lzma and b/tests/files/bad-1-block_header-2.lzma differ
+diff --git a/tests/files/bad-1-block_header-3.lzma b/tests/files/bad-1-block_header-3.lzma
+index 801a05c1..17955038 100644
+Binary files a/tests/files/bad-1-block_header-3.lzma and b/tests/files/bad-1-block_header-3.lzma differ
+diff --git a/tests/files/bad-1-block_header-4.lzma b/tests/files/bad-1-block_header-4.lzma
+index 0d005455..be31ce04 100644
+Binary files a/tests/files/bad-1-block_header-4.lzma and b/tests/files/bad-1-block_header-4.lzma differ
+diff --git a/tests/files/bad-1-check-crc32.lzma b/tests/files/bad-1-check-crc32.lzma
+index b82b6591..f8ec7d61 100644
+Binary files a/tests/files/bad-1-check-crc32.lzma and b/tests/files/bad-1-check-crc32.lzma differ
+diff --git a/tests/files/bad-1-check-crc64.lzma b/tests/files/bad-1-check-crc64.lzma
+index 57938927..eb406ce6 100644
+Binary files a/tests/files/bad-1-check-crc64.lzma and b/tests/files/bad-1-check-crc64.lzma differ
+diff --git a/tests/files/bad-1-check-sha256.lzma b/tests/files/bad-1-check-sha256.lzma
+index e47609cd..e33cee80 100644
+Binary files a/tests/files/bad-1-check-sha256.lzma and b/tests/files/bad-1-check-sha256.lzma differ
+diff --git a/tests/files/bad-1-lzma2-1.lzma b/tests/files/bad-1-lzma2-1.lzma
+index 0296e5ff..f7ff6dd3 100644
+Binary files a/tests/files/bad-1-lzma2-1.lzma and b/tests/files/bad-1-lzma2-1.lzma differ
+diff --git a/tests/files/bad-1-lzma2-2.lzma b/tests/files/bad-1-lzma2-2.lzma
+index faefa1b4..3b279195 100644
+Binary files a/tests/files/bad-1-lzma2-2.lzma and b/tests/files/bad-1-lzma2-2.lzma differ
+diff --git a/tests/files/bad-1-lzma2-3.lzma b/tests/files/bad-1-lzma2-3.lzma
+index fbe3297f..e1a20831 100644
+Binary files a/tests/files/bad-1-lzma2-3.lzma and b/tests/files/bad-1-lzma2-3.lzma differ
+diff --git a/tests/files/bad-1-lzma2-4.lzma b/tests/files/bad-1-lzma2-4.lzma
+index ef0dc491..e0eb7aaa 100644
+Binary files a/tests/files/bad-1-lzma2-4.lzma and b/tests/files/bad-1-lzma2-4.lzma differ
+diff --git a/tests/files/bad-1-lzma2-5.lzma b/tests/files/bad-1-lzma2-5.lzma
+index 797b7d35..437aeed0 100644
+Binary files a/tests/files/bad-1-lzma2-5.lzma and b/tests/files/bad-1-lzma2-5.lzma differ
+diff --git a/tests/files/bad-1-lzma2-6.lzma b/tests/files/bad-1-lzma2-6.lzma
+index 73db5bff..f87cab68 100644
+Binary files a/tests/files/bad-1-lzma2-6.lzma and b/tests/files/bad-1-lzma2-6.lzma differ
+diff --git a/tests/files/bad-1-lzma2-7.lzma b/tests/files/bad-1-lzma2-7.lzma
+index 845da22e..1a487ca7 100644
+Binary files a/tests/files/bad-1-lzma2-7.lzma and b/tests/files/bad-1-lzma2-7.lzma differ
+diff --git a/tests/files/bad-1-stream_flags-1.lzma b/tests/files/bad-1-stream_flags-1.lzma
+index cd0d6f43..fd77d474 100644
+Binary files a/tests/files/bad-1-stream_flags-1.lzma and b/tests/files/bad-1-stream_flags-1.lzma differ
+diff --git a/tests/files/bad-1-stream_flags-2.lzma b/tests/files/bad-1-stream_flags-2.lzma
+index 63dec85b..a4a582ad 100644
+Binary files a/tests/files/bad-1-stream_flags-2.lzma and b/tests/files/bad-1-stream_flags-2.lzma differ
+diff --git a/tests/files/bad-1-stream_flags-3.lzma b/tests/files/bad-1-stream_flags-3.lzma
+index 3b306ff7..f10b8d00 100644
+Binary files a/tests/files/bad-1-stream_flags-3.lzma and b/tests/files/bad-1-stream_flags-3.lzma differ
+diff --git a/tests/files/bad-1-vli-1.lzma b/tests/files/bad-1-vli-1.lzma
+index 7bcdd568..e2a08b9e 100644
+Binary files a/tests/files/bad-1-vli-1.lzma and b/tests/files/bad-1-vli-1.lzma differ
+diff --git a/tests/files/bad-1-vli-2.lzma b/tests/files/bad-1-vli-2.lzma
+index af2b614b..604e8186 100644
+Binary files a/tests/files/bad-1-vli-2.lzma and b/tests/files/bad-1-vli-2.lzma differ
+diff --git a/tests/files/bad-2-compressed_data_padding.lzma b/tests/files/bad-2-compressed_data_padding.lzma
+index c9de4748..1d0f58b7 100644
+Binary files a/tests/files/bad-2-compressed_data_padding.lzma and b/tests/files/bad-2-compressed_data_padding.lzma differ
+diff --git a/tests/files/bad-2-index-1.lzma b/tests/files/bad-2-index-1.lzma
+index cc6ba6dd..42efda0d 100644
+Binary files a/tests/files/bad-2-index-1.lzma and b/tests/files/bad-2-index-1.lzma differ
+diff --git a/tests/files/bad-2-index-2.lzma b/tests/files/bad-2-index-2.lzma
+index 8ce40b63..ee5e89c2 100644
+Binary files a/tests/files/bad-2-index-2.lzma and b/tests/files/bad-2-index-2.lzma differ
+diff --git a/tests/files/bad-2-index-3.lzma b/tests/files/bad-2-index-3.lzma
+index de27f55f..f51eaad8 100644
+Binary files a/tests/files/bad-2-index-3.lzma and b/tests/files/bad-2-index-3.lzma differ
+diff --git a/tests/files/bad-2-index-4.lzma b/tests/files/bad-2-index-4.lzma
+index 0a273477..1b5b78e4 100644
+Binary files a/tests/files/bad-2-index-4.lzma and b/tests/files/bad-2-index-4.lzma differ
+diff --git a/tests/files/good-0-empty.lzma b/tests/files/good-0-empty.lzma
+index 3256fe15..83b95e05 100644
+Binary files a/tests/files/good-0-empty.lzma and b/tests/files/good-0-empty.lzma differ
+diff --git a/tests/files/good-0cat-empty.lzma b/tests/files/good-0cat-empty.lzma
+index ef8e106a..e6fc3146 100644
+Binary files a/tests/files/good-0cat-empty.lzma and b/tests/files/good-0cat-empty.lzma differ
+diff --git a/tests/files/good-0catpad-empty.lzma b/tests/files/good-0catpad-empty.lzma
+index 7e5a81d4..4f86b7d1 100644
+Binary files a/tests/files/good-0catpad-empty.lzma and b/tests/files/good-0catpad-empty.lzma differ
+diff --git a/tests/files/good-0pad-empty.lzma b/tests/files/good-0pad-empty.lzma
+index 3bbc241b..c51e3a69 100644
+Binary files a/tests/files/good-0pad-empty.lzma and b/tests/files/good-0pad-empty.lzma differ
+diff --git a/tests/files/good-1-3delta-lzma2.lzma b/tests/files/good-1-3delta-lzma2.lzma
+index 2724ed4b..3edb4805 100644
+Binary files a/tests/files/good-1-3delta-lzma2.lzma and b/tests/files/good-1-3delta-lzma2.lzma differ
+diff --git a/tests/files/good-1-block_header-1.lzma b/tests/files/good-1-block_header-1.lzma
+index 0eeaf464..c0cc7200 100644
+Binary files a/tests/files/good-1-block_header-1.lzma and b/tests/files/good-1-block_header-1.lzma differ
+diff --git a/tests/files/good-1-block_header-2.lzma b/tests/files/good-1-block_header-2.lzma
+index 7afa25fa..5eb8575c 100644
+Binary files a/tests/files/good-1-block_header-2.lzma and b/tests/files/good-1-block_header-2.lzma differ
+diff --git a/tests/files/good-1-block_header-3.lzma b/tests/files/good-1-block_header-3.lzma
+index 85a1f8e8..5e8dc78b 100644
+Binary files a/tests/files/good-1-block_header-3.lzma and b/tests/files/good-1-block_header-3.lzma differ
+diff --git a/tests/files/good-1-check-crc32.lzma b/tests/files/good-1-check-crc32.lzma
+index b586af14..949a215d 100644
+Binary files a/tests/files/good-1-check-crc32.lzma and b/tests/files/good-1-check-crc32.lzma differ
+diff --git a/tests/files/good-1-check-crc64.lzma b/tests/files/good-1-check-crc64.lzma
+index 9b8cc1f6..6102c945 100644
+Binary files a/tests/files/good-1-check-crc64.lzma and b/tests/files/good-1-check-crc64.lzma differ
+diff --git a/tests/files/good-1-check-none.lzma b/tests/files/good-1-check-none.lzma
+index 7b7ccd5f..aab057d7 100644
+Binary files a/tests/files/good-1-check-none.lzma and b/tests/files/good-1-check-none.lzma differ
+diff --git a/tests/files/good-1-check-sha256.lzma b/tests/files/good-1-check-sha256.lzma
+index 0919afdb..141a4818 100644
+Binary files a/tests/files/good-1-check-sha256.lzma and b/tests/files/good-1-check-sha256.lzma differ
+diff --git a/tests/files/good-1-delta-lzma2.tiff.lzma b/tests/files/good-1-delta-lzma2.tiff.lzma
+index d52b70d4..744fb8d1 100644
+Binary files a/tests/files/good-1-delta-lzma2.tiff.lzma and b/tests/files/good-1-delta-lzma2.tiff.lzma differ
+diff --git a/tests/files/good-1-lzma2-1.lzma b/tests/files/good-1-lzma2-1.lzma
+index 386a1c15..96aff26e 100644
+Binary files a/tests/files/good-1-lzma2-1.lzma and b/tests/files/good-1-lzma2-1.lzma differ
+diff --git a/tests/files/good-1-lzma2-2.lzma b/tests/files/good-1-lzma2-2.lzma
+index 2397a849..19631d48 100644
+Binary files a/tests/files/good-1-lzma2-2.lzma and b/tests/files/good-1-lzma2-2.lzma differ
+diff --git a/tests/files/good-1-lzma2-3.lzma b/tests/files/good-1-lzma2-3.lzma
+index 096f65c1..11c84ee6 100644
+Binary files a/tests/files/good-1-lzma2-3.lzma and b/tests/files/good-1-lzma2-3.lzma differ
+diff --git a/tests/files/good-1-sparc-lzma2.lzma b/tests/files/good-1-sparc-lzma2.lzma
+index bfc7ac0b..9111e39b 100644
+Binary files a/tests/files/good-1-sparc-lzma2.lzma and b/tests/files/good-1-sparc-lzma2.lzma differ
+diff --git a/tests/files/good-1-x86-lzma2.lzma b/tests/files/good-1-x86-lzma2.lzma
+index 62fb01a2..4fbd0ee4 100644
+Binary files a/tests/files/good-1-x86-lzma2.lzma and b/tests/files/good-1-x86-lzma2.lzma differ
+diff --git a/tests/files/good-2-lzma2.lzma b/tests/files/good-2-lzma2.lzma
+index 49165309..dd34b66a 100644
+Binary files a/tests/files/good-2-lzma2.lzma and b/tests/files/good-2-lzma2.lzma differ
+diff --git a/tests/files/unsupported-block_header.lzma b/tests/files/unsupported-block_header.lzma
+index 2fa33a5b..ee697e4d 100644
+Binary files a/tests/files/unsupported-block_header.lzma and b/tests/files/unsupported-block_header.lzma differ
+diff --git a/tests/files/unsupported-check.lzma b/tests/files/unsupported-check.lzma
+index 6d8a295e..e2fe486b 100644
+Binary files a/tests/files/unsupported-check.lzma and b/tests/files/unsupported-check.lzma differ
+diff --git a/tests/files/unsupported-filter_flags-1.lzma b/tests/files/unsupported-filter_flags-1.lzma
+index c70571f9..b4acab24 100644
+Binary files a/tests/files/unsupported-filter_flags-1.lzma and b/tests/files/unsupported-filter_flags-1.lzma differ
+diff --git a/tests/files/unsupported-filter_flags-2.lzma b/tests/files/unsupported-filter_flags-2.lzma
+index 1fd68f9e..fa907dc2 100644
+Binary files a/tests/files/unsupported-filter_flags-2.lzma and b/tests/files/unsupported-filter_flags-2.lzma differ
+diff --git a/tests/files/unsupported-filter_flags-3.lzma b/tests/files/unsupported-filter_flags-3.lzma
+index dcaf21f8..939ab5fe 100644
+Binary files a/tests/files/unsupported-filter_flags-3.lzma and b/tests/files/unsupported-filter_flags-3.lzma differ

@@ -1,0 +1,13 @@
+diff --git a/build-aux/ci_build.bash b/build-aux/ci_build.bash
+index ddd6b13a..f35b0950 100755
+--- a/build-aux/ci_build.bash
++++ b/build-aux/ci_build.bash
+@@ -273,7 +273,7 @@ then
+ 	;;
+ 	cmake)
+ 		cd "$DEST_DIR"
+-		if ${WRAPPER} make test
++		if ${WRAPPER} make CTEST_OUTPUT_ON_FAILURE=1 test
+ 		then
+ 			:
+ 		else

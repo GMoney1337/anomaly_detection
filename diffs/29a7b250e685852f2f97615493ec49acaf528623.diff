@@ -1,0 +1,129 @@
+diff --git a/src/xz/main.c b/src/xz/main.c
+index e0905893..8196c6e7 100644
+--- a/src/xz/main.c
++++ b/src/xz/main.c
+@@ -13,10 +13,15 @@
+ #include "private.h"
+ #include <ctype.h>
+ 
+-
+ /// Exit status to use. This can be changed with set_exit_status().
+ static enum exit_status_type exit_status = E_SUCCESS;
+ 
++#if defined(_WIN32) && !defined(__CYGWIN__)
++/// exit_status has to be protected with a critical section due to
++/// how "signal handling" is done on Windows. See signals.c for details.
++static CRITICAL_SECTION exit_status_cs;
++#endif
++
+ /// True if --no-warn is specified. When this is true, we don't set
+ /// the exit status to E_WARNING when something worth a warning happens.
+ static bool no_warn = false;
+@@ -27,9 +32,17 @@ set_exit_status(enum exit_status_type new_status)
+ {
+ 	assert(new_status == E_WARNING || new_status == E_ERROR);
+ 
++#if defined(_WIN32) && !defined(__CYGWIN__)
++	EnterCriticalSection(&exit_status_cs);
++#endif
++
+ 	if (exit_status != E_ERROR)
+ 		exit_status = new_status;
+ 
++#if defined(_WIN32) && !defined(__CYGWIN__)
++	LeaveCriticalSection(&exit_status_cs);
++#endif
++
+ 	return;
+ }
+ 
+@@ -129,6 +142,10 @@ read_name(const args_info *args)
+ int
+ main(int argc, char **argv)
+ {
++#if defined(_WIN32) && !defined(__CYGWIN__)
++	InitializeCriticalSection(&exit_status_cs);
++#endif
++
+ 	// Set up the progname variable.
+ 	tuklib_progname_init(argv);
+ 
+@@ -262,11 +279,24 @@ main(int argc, char **argv)
+ 	// of calling tuklib_exit().
+ 	signals_exit();
+ 
++	// Make a local copy of exit_status to keep the Windows code
++	// thread safe. At this point it is fine if we miss the user
++	// pressing C-c and don't set the exit_status to E_ERROR on
++	// Windows.
++#if defined(_WIN32) && !defined(__CYGWIN__)
++	EnterCriticalSection(&exit_status_cs);
++#endif
++
++	enum exit_status_type es = exit_status;
++
++#if defined(_WIN32) && !defined(__CYGWIN__)
++	LeaveCriticalSection(&exit_status_cs);
++#endif
++
+ 	// Suppress the exit status indicating a warning if --no-warn
+ 	// was specified.
+-	if (exit_status == E_WARNING && no_warn)
+-		exit_status = E_SUCCESS;
++	if (es == E_WARNING && no_warn)
++		es = E_SUCCESS;
+ 
+-	tuklib_exit(exit_status, E_ERROR,
+-			message_verbosity_get() != V_SILENT);
++	tuklib_exit(es, E_ERROR, message_verbosity_get() != V_SILENT);
+ }
+diff --git a/src/xz/private.h b/src/xz/private.h
+index b5434357..15136bfe 100644
+--- a/src/xz/private.h
++++ b/src/xz/private.h
+@@ -26,6 +26,11 @@
+ #include "tuklib_progname.h"
+ #include "tuklib_exit.h"
+ 
++#if defined(_WIN32) && !defined(__CYGWIN__)
++#	define WIN32_LEAN_AND_MEAN
++#	include <windows.h>
++#endif
++
+ #ifndef STDIN_FILENO
+ #	define STDIN_FILENO (fileno(stdin))
+ #endif
+diff --git a/src/xz/signals.c b/src/xz/signals.c
+index 807b0225..66d65373 100644
+--- a/src/xz/signals.c
++++ b/src/xz/signals.c
+@@ -156,11 +156,14 @@ signals_exit(void)
+ #else
+ 
+ // While Windows has some very basic signal handling functions as required
+-// by C89, they are not really used, or so I understood. Instead, we use
+-// SetConsoleCtrlHandler() to catch user pressing C-c.
+-
+-#include <windows.h>
+-
++// by C89, they are not really used, and e.g. SIGINT doesn't work exactly
++// the way it does on POSIX (Windows creates a new thread for the signal
++// handler). Instead, we use SetConsoleCtrlHandler() to catch user
++// pressing C-c, because that seems to be the recommended way to do it.
++//
++// NOTE: This doesn't work under MSYS. Trying with SIGINT doesn't work
++// either even if it appeared to work at first. So test using Windows
++// console window.
+ 
+ static BOOL WINAPI
+ signal_handler(DWORD type lzma_attribute((unused)))
+@@ -168,9 +171,6 @@ signal_handler(DWORD type lzma_attribute((unused)))
+ 	// Since we don't get a signal number which we could raise() at
+ 	// signals_exit() like on POSIX, just set the exit status to
+ 	// indicate an error, so that we cannot return with zero exit status.
+-	//
+-	// FIXME: Since this function runs in its own thread,
+-	// set_exit_status() should have a mutex.
+ 	set_exit_status(E_ERROR);
+ 	user_abort = true;
+ 	return TRUE;

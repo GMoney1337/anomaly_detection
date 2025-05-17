@@ -1,0 +1,48 @@
+diff --git a/AUTHORS b/AUTHORS
+index e01171df..5012d0e0 100644
+--- a/AUTHORS
++++ b/AUTHORS
+@@ -45,7 +45,7 @@ Authors of XZ Utils
+ 
+     Third-party code whose authors aren't listed here:
+ 
+-      - GNU getopt_long() in the 'lib' direcotry is included for
++      - GNU getopt_long() in the 'lib' directory is included for
+         platforms that don't have a usable getopt_long().
+ 
+       - The build system files from GNU Autoconf, GNU Automake,
+diff --git a/NEWS b/NEWS
+index 95a9ad00..14785c43 100644
+--- a/NEWS
++++ b/NEWS
+@@ -29,7 +29,7 @@ XZ Utils Release Notes
+ 
+             * x86-64 inline assembly. This works with GCC and Clang.
+ 
+-          The default choice can currently be overriden by setting
++          The default choice can currently be overridden by setting
+           LZMA_RANGE_DECODER_CONFIG in CPPFLAGS: 0 means the basic
+           version and 3 means that branchless C version.
+ 
+diff --git a/src/liblzma/rangecoder/range_decoder.h b/src/liblzma/rangecoder/range_decoder.h
+index e70d73ef..eec721ac 100644
+--- a/src/liblzma/rangecoder/range_decoder.h
++++ b/src/liblzma/rangecoder/range_decoder.h
+@@ -34,7 +34,7 @@
+ //   0x080   matched literal
+ //   0x100   direct bits
+ //
+-// The default can be overriden at build time by defining
++// The default can be overridden at build time by defining
+ // LZMA_RANGE_DECODER_CONFIG to the desired mask.
+ #ifndef LZMA_RANGE_DECODER_CONFIG
+ #	if defined(__x86_64__) && (defined(__GNUC__) || defined(__clang__))
+@@ -184,7 +184,7 @@ do { \
+ /// Update the range decoder state and the used probability variable to
+ /// match a decoded bit of 0.
+ ///
+-/// The x86-64 assemly uses the commented method but it seems that,
++/// The x86-64 assembly uses the commented method but it seems that,
+ /// at least on x86-64, the first version is slightly faster as C code.
+ #define rc_update_0(prob) \
+ do { \

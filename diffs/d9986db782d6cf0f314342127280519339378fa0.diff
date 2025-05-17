@@ -1,0 +1,75 @@
+diff --git a/src/liblzma/api/lzma.h b/src/liblzma/api/lzma.h
+index 5be9b4e3..84279211 100644
+--- a/src/liblzma/api/lzma.h
++++ b/src/liblzma/api/lzma.h
+@@ -232,10 +232,6 @@
+ #if __GNUC__ >= 3
+ #	ifndef lzma_attribute
+ #		define lzma_attribute(attr) __attribute__(attr)
+-#	endif
+-
+-#	ifndef lzma_restrict
+-#		define lzma_restrict __restrict__
+ #	endif
+ 
+ 	/* warn_unused_result was added in GCC 3.4. */
+@@ -249,14 +245,6 @@
+ #	ifndef lzma_attribute
+ #		define lzma_attribute(attr)
+ #	endif
+-
+-#	ifndef lzma_restrict
+-#		if __STDC_VERSION__ >= 199901L
+-#			define lzma_restrict restrict
+-#		else
+-#			define lzma_restrict
+-#		endif
+-#	endif
+ #endif
+ 
+ 
+diff --git a/src/liblzma/api/lzma/index.h b/src/liblzma/api/lzma/index.h
+index 8d7a799f..a0469b23 100644
+--- a/src/liblzma/api/lzma/index.h
++++ b/src/liblzma/api/lzma/index.h
+@@ -562,9 +562,8 @@ extern LZMA_API(lzma_bool) lzma_index_iter_locate(
+  *              - LZMA_MEM_ERROR
+  *              - LZMA_PROG_ERROR
+  */
+-extern LZMA_API(lzma_ret) lzma_index_cat(lzma_index *lzma_restrict dest,
+-		lzma_index *lzma_restrict src,
+-		lzma_allocator *allocator)
++extern LZMA_API(lzma_ret) lzma_index_cat(
++		lzma_index *dest, lzma_index *src, lzma_allocator *allocator)
+ 		lzma_nothrow lzma_attr_warn_unused_result;
+ 
+ 
+diff --git a/src/liblzma/api/lzma/vli.h b/src/liblzma/api/lzma/vli.h
+index 8d4277f7..57e3d388 100644
+--- a/src/liblzma/api/lzma/vli.h
++++ b/src/liblzma/api/lzma/vli.h
+@@ -113,9 +113,8 @@ typedef uint64_t lzma_vli;
+  *              - LZMA_BUF_ERROR: No output space was provided.
+  *              - LZMA_PROG_ERROR: Arguments are not sane.
+  */
+-extern LZMA_API(lzma_ret) lzma_vli_encode(lzma_vli vli,
+-		size_t *vli_pos, uint8_t *lzma_restrict out,
+-		size_t *lzma_restrict out_pos, size_t out_size) lzma_nothrow;
++extern LZMA_API(lzma_ret) lzma_vli_encode(lzma_vli vli, size_t *vli_pos,
++		uint8_t *out, size_t *out_pos, size_t out_size) lzma_nothrow;
+ 
+ 
+ /**
+@@ -153,9 +152,9 @@ extern LZMA_API(lzma_ret) lzma_vli_encode(lzma_vli vli,
+  *              - LZMA_BUF_ERROR: No input was provided.
+  *              - LZMA_PROG_ERROR: Arguments are not sane.
+  */
+-extern LZMA_API(lzma_ret) lzma_vli_decode(lzma_vli *lzma_restrict vli,
+-		size_t *vli_pos, const uint8_t *lzma_restrict in,
+-		size_t *lzma_restrict in_pos, size_t in_size) lzma_nothrow;
++extern LZMA_API(lzma_ret) lzma_vli_decode(lzma_vli *vli, size_t *vli_pos,
++		const uint8_t *in, size_t *in_pos, size_t in_size)
++		lzma_nothrow;
+ 
+ 
+ /**

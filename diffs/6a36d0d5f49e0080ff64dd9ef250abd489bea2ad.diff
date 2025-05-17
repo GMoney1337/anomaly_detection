@@ -1,0 +1,26 @@
+diff --git a/src/xz/signals.c b/src/xz/signals.c
+index 5387c424..56c1eb47 100644
+--- a/src/xz/signals.c
++++ b/src/xz/signals.c
+@@ -23,7 +23,7 @@ volatile sig_atomic_t user_abort = false;
+ /// been done.
+ static volatile sig_atomic_t exit_signal = 0;
+ 
+-/// Mask of signals for which have have established a signal handler to set
++/// Mask of signals for which we have established a signal handler to set
+ /// user_abort to true.
+ static sigset_t hooked_signals;
+ 
+diff --git a/src/xz/xz.1 b/src/xz/xz.1
+index 9dffdc6f..47e6dd46 100644
+--- a/src/xz/xz.1
++++ b/src/xz/xz.1
+@@ -1551,7 +1551,7 @@ The old BCJ filters will still be useful in embedded systems,
+ because the decoder of the new filter will be bigger
+ and use more memory.
+ .IP ""
+-Different instruction sets have have different alignment:
++Different instruction sets have different alignment:
+ .RS
+ .RS
+ .PP

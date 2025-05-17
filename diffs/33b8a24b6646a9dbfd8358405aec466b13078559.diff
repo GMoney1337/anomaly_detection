@@ -1,0 +1,379 @@
+diff --git a/src/liblzma/api/lzma/lzma12.h b/src/liblzma/api/lzma/lzma12.h
+index df5f23b6..d34e7839 100644
+--- a/src/liblzma/api/lzma/lzma12.h
++++ b/src/liblzma/api/lzma/lzma12.h
+@@ -18,17 +18,40 @@
+ 
+ 
+ /**
+- * \brief       LZMA1 Filter ID
++ * \brief       LZMA1 Filter ID (for raw encoder/decoder only, not in .xz)
+  *
+  * LZMA1 is the very same thing as what was called just LZMA in LZMA Utils,
+  * 7-Zip, and LZMA SDK. It's called LZMA1 here to prevent developers from
+  * accidentally using LZMA when they actually want LZMA2.
+- *
+- * LZMA1 shouldn't be used for new applications unless you _really_ know
+- * what you are doing. LZMA2 is almost always a better choice.
+  */
+ #define LZMA_FILTER_LZMA1       LZMA_VLI_C(0x4000000000000001)
+ 
++/**
++ * \brief       LZMA1 Filter ID with extended options (for raw encoder/decoder)
++ *
++ * This is like LZMA_FILTER_LZMA1 but with this ID a few extra options
++ * are supported in the lzma_options_lzma structure:
++ *
++ *   - A flag to tell the encoder if the end of payload marker (EOPM) alias
++ *     end of stream (EOS) marker must be written at the end of the stream.
++ *     In contrast, LZMA_FILTER_LZMA1 always writes the end marker.
++ *
++ *   - Decoder needs to be told the uncompressed size of the stream
++ *     or that it is unknown (using the special value UINT64_MAX).
++ *     If the size is known, a flag can be set to allow the presence of
++ *     the end marker anyway. In contrast, LZMA_FILTER_LZMA1 always
++ *     behaves as if the uncompressed size was unknown.
++ *
++ * This allows handling file formats where LZMA1 streams are used but where
++ * the end marker isn't allowed or where it might not (always) be present.
++ * This extended LZMA1 functionality is provided as a Filter ID for raw
++ * encoder and decoder instead of adding new encoder and decoder initialization
++ * functions because this way it is possible to also use extra filters,
++ * for example, LZMA_FILTER_X86 in a filter chain with LZMA_FILTER_LZMA1EXT,
++ * which might be needed to handle some file formats.
++ */
++#define LZMA_FILTER_LZMA1EXT    LZMA_VLI_C(0x4000000000000002)
++
+ /**
+  * \brief       LZMA2 Filter ID
+  *
+@@ -374,6 +397,82 @@ typedef struct {
+ 	 */
+ 	uint32_t depth;
+ 
++	/**
++	 * \brief       For LZMA_FILTER_LZMA1EXT: Extended flags
++	 *
++	 * This is used only with LZMA_FILTER_LZMA1EXT.
++	 *
++	 * Currently only one flag is supported, LZMA_LZMA1EXT_ALLOW_EOPM:
++	 *
++	 *   - Encoder: If the flag is set, then end marker is written just
++	 *     like it is with LZMA_FILTER_LZMA1. Without this flag the
++	 *     end marker isn't written and the application has to store
++	 *     the uncompressed size somewhere outside the compressed stream.
++	 *     To decompress streams without the end marker, the appliation
++	 *     has to set the correct uncompressed size in ext_size_low and
++	 *     ext_size_high.
++	 *
++	 *   - Decoder: If the uncompressed size in ext_size_low and
++	 *     ext_size_high is set to the special value UINT64_MAX
++	 *     (indicating unknown uncompressed size) then this flag is
++	 *     ignored and the end marker must always be present, that is,
++	 *     the behavior is identical to LZMA_FILTER_LZMA1.
++	 *
++	 *     Otherwise, if this flag isn't set, then the input stream
++	 *     must not have the end marker; if the end marker is detected
++	 *     then it will result in LZMA_DATA_ERROR. This is useful when
++	 *     it is known that the stream must not have the end marker and
++	 *     strict validation is wanted.
++	 *
++	 *     If this flag is set, then it is autodetected if the end marker
++	 *     is present after the specified number of uncompressed bytes
++	 *     has been decompressed (ext_size_low and ext_size_high). The
++	 *     end marker isn't allowed in any other position. This behavior
++	 *     is useful when uncompressed size is known but the end marker
++	 *     may or may not be present. This is the case, for example,
++	 *     in .7z files (valid .7z files that have the end marker in
++	 *     LZMA1 streams are rare but they do exist).
++	 */
++	uint32_t ext_flags;
++#	define LZMA_LZMA1EXT_ALLOW_EOPM   UINT32_C(0x01)
++
++	/**
++	 * \brief       For LZMA_FILTER_LZMA1EXT: Uncompressed size (low bits)
++	 *
++	 * The 64-bit uncompressed size is needed for decompression with
++	 * LZMA_FILTER_LZMA1EXT. The size is ignored by the encoder.
++	 *
++	 * The special value UINT64_MAX indicates that the uncompressed size
++	 * is unknown and that the end of payload marker (also known as
++	 * end of stream marker) must be present to indicate the end of
++	 * the LZMA1 stream. Any other value indicates the expected
++	 * uncompressed size of the LZMA1 stream. (If LZMA1 was used together
++	 * with filters that change the size of the data then the uncompressed
++	 * size of the LZMA1 stream could be different than the final
++	 * uncompressed size of the filtered stream.)
++	 *
++	 * ext_size_low holds the least significant 32 bits of the
++	 * uncompressed size. The most significant 32 bits must be set
++	 * in ext_size_high. The macro lzma_ext_size_set(opt_lzma, u64size)
++	 * can be used to set these members.
++	 *
++	 * The 64-bit uncompressed size is split into two uint32_t variables
++	 * because there were no reserved uint64_t members and using the
++	 * same options structure for LZMA_FILTER_LZMA1, LZMA_FILTER_LZMA1EXT,
++	 * and LZMA_FILTER_LZMA2 was otherwise more convenient than having
++	 * a new options structure for LZMA_FILTER_LZMA1EXT. (Replacing two
++	 * uint32_t members with one uint64_t changes the ABI on some systems
++	 * as the alignment of this struct can increase from 4 bytes to 8.)
++	 */
++	uint32_t ext_size_low;
++
++	/**
++	 * \brief       For LZMA_FILTER_LZMA1EXT: Uncompressed size (high bits)
++	 *
++	 * This holds the most significant 32 bits of the uncompressed size.
++	 */
++	uint32_t ext_size_high;
++
+ 	/*
+ 	 * Reserved space to allow possible future extensions without
+ 	 * breaking the ABI. You should not touch these, because the names
+@@ -381,9 +480,6 @@ typedef struct {
+ 	 * with the currently supported options, so it is safe to leave these
+ 	 * uninitialized.
+ 	 */
+-	uint32_t reserved_int1;
+-	uint32_t reserved_int2;
+-	uint32_t reserved_int3;
+ 	uint32_t reserved_int4;
+ 	uint32_t reserved_int5;
+ 	uint32_t reserved_int6;
+@@ -399,6 +495,19 @@ typedef struct {
+ } lzma_options_lzma;
+ 
+ 
++/**
++ * \brief       Macro to set the 64-bit uncompressed size in ext_size_*
++ *
++ * This might be convenient when decoding using LZMA_FILTER_LZMA1EXT.
++ * This isn't used with LZMA_FILTER_LZMA1 or LZMA_FILTER_LZMA2.
++ */
++#define lzma_set_ext_size(opt_lzma2, u64size) \
++do { \
++	(opt_lzma2).ext_size_low = (uint32_t)(u64size); \
++	(opt_lzma2).ext_size_high = (uint32_t)((uint64_t)(u64size) >> 32); \
++} while (0)
++
++
+ /**
+  * \brief       Set a compression preset to lzma_options_lzma structure
+  *
+diff --git a/src/liblzma/common/filter_common.c b/src/liblzma/common/filter_common.c
+index a803b4c2..c8694e2c 100644
+--- a/src/liblzma/common/filter_common.c
++++ b/src/liblzma/common/filter_common.c
+@@ -42,6 +42,13 @@ static const struct {
+ 		.last_ok = true,
+ 		.changes_size = true,
+ 	},
++	{
++		.id = LZMA_FILTER_LZMA1EXT,
++		.options_size = sizeof(lzma_options_lzma),
++		.non_last_ok = false,
++		.last_ok = true,
++		.changes_size = true,
++	},
+ #endif
+ #if defined(HAVE_ENCODER_LZMA2) || defined(HAVE_DECODER_LZMA2)
+ 	{
+diff --git a/src/liblzma/common/filter_decoder.c b/src/liblzma/common/filter_decoder.c
+index b031ac62..fa53f5bd 100644
+--- a/src/liblzma/common/filter_decoder.c
++++ b/src/liblzma/common/filter_decoder.c
+@@ -50,6 +50,12 @@ static const lzma_filter_decoder decoders[] = {
+ 		.memusage = &lzma_lzma_decoder_memusage,
+ 		.props_decode = &lzma_lzma_props_decode,
+ 	},
++	{
++		.id = LZMA_FILTER_LZMA1EXT,
++		.init = &lzma_lzma_decoder_init,
++		.memusage = &lzma_lzma_decoder_memusage,
++		.props_decode = &lzma_lzma_props_decode,
++	},
+ #endif
+ #ifdef HAVE_DECODER_LZMA2
+ 	{
+diff --git a/src/liblzma/common/filter_encoder.c b/src/liblzma/common/filter_encoder.c
+index 5d6c1a7e..978b7a6b 100644
+--- a/src/liblzma/common/filter_encoder.c
++++ b/src/liblzma/common/filter_encoder.c
+@@ -64,6 +64,15 @@ static const lzma_filter_encoder encoders[] = {
+ 		.props_size_fixed = 5,
+ 		.props_encode = &lzma_lzma_props_encode,
+ 	},
++	{
++		.id = LZMA_FILTER_LZMA1EXT,
++		.init = &lzma_lzma_encoder_init,
++		.memusage = &lzma_lzma_encoder_memusage,
++		.block_size = NULL, // Not needed for LZMA1
++		.props_size_get = NULL,
++		.props_size_fixed = 5,
++		.props_encode = &lzma_lzma_props_encode,
++	},
+ #endif
+ #ifdef HAVE_ENCODER_LZMA2
+ 	{
+diff --git a/src/liblzma/lzma/lzma2_encoder.c b/src/liblzma/lzma/lzma2_encoder.c
+index f1252c57..4b6b2311 100644
+--- a/src/liblzma/lzma/lzma2_encoder.c
++++ b/src/liblzma/lzma/lzma2_encoder.c
+@@ -341,7 +341,7 @@ lzma2_encoder_init(lzma_lz_encoder *lz, const lzma_allocator *allocator,
+ 
+ 	// Initialize LZMA encoder
+ 	return_if_error(lzma_lzma_encoder_create(&coder->lzma, allocator,
+-			&coder->opt_cur, lz_options));
++			LZMA_FILTER_LZMA2, &coder->opt_cur, lz_options));
+ 
+ 	// Make sure that we will always have enough history available in
+ 	// case we need to use uncompressed chunks. They are used when the
+diff --git a/src/liblzma/lzma/lzma_decoder.c b/src/liblzma/lzma/lzma_decoder.c
+index 550963d1..26c148a9 100644
+--- a/src/liblzma/lzma/lzma_decoder.c
++++ b/src/liblzma/lzma/lzma_decoder.c
+@@ -1018,11 +1018,35 @@ lzma_decoder_init(lzma_lz_decoder *lz, const lzma_allocator *allocator,
+ 	if (!is_lclppb_valid(options))
+ 		return LZMA_PROG_ERROR;
+ 
++	lzma_vli uncomp_size = LZMA_VLI_UNKNOWN;
++	bool allow_eopm = true;
++
++	if (id == LZMA_FILTER_LZMA1EXT) {
++		const lzma_options_lzma *opt = options;
++
++		// Only one flag is supported.
++		if (opt->ext_flags & ~LZMA_LZMA1EXT_ALLOW_EOPM)
++			return LZMA_OPTIONS_ERROR;
++
++		// FIXME? Using lzma_vli instead of uint64_t is weird because
++		// this has nothing to do with .xz headers and variable-length
++		// integer encoding. On the other hand, using LZMA_VLI_UNKNOWN
++		// instead of UINT64_MAX is clearer when unknown size is
++		// meant. A problem with using lzma_vli is that now we
++		// allow > LZMA_VLI_MAX which is fine in this file but
++		// it's still confusing. Note that alone_decoder.c also
++		// allows > LZMA_VLI_MAX when setting uncompressed size.
++		uncomp_size = opt->ext_size_low
++				+ ((uint64_t)(opt->ext_size_high) << 32);
++		allow_eopm = (opt->ext_flags & LZMA_LZMA1EXT_ALLOW_EOPM) != 0
++				|| uncomp_size == LZMA_VLI_UNKNOWN;
++	}
++
+ 	return_if_error(lzma_lzma_decoder_create(
+ 			lz, allocator, options, lz_options));
+ 
+ 	lzma_decoder_reset(lz->coder, options);
+-	lzma_decoder_uncompressed(lz->coder, LZMA_VLI_UNKNOWN, true);
++	lzma_decoder_uncompressed(lz->coder, uncomp_size, allow_eopm);
+ 
+ 	return LZMA_OK;
+ }
+diff --git a/src/liblzma/lzma/lzma_encoder.c b/src/liblzma/lzma/lzma_encoder.c
+index e2dbbc03..dc62f44f 100644
+--- a/src/liblzma/lzma/lzma_encoder.c
++++ b/src/liblzma/lzma/lzma_encoder.c
+@@ -416,7 +416,7 @@ lzma_lzma_encode(lzma_lzma1_encoder *restrict coder, lzma_mf *restrict mf,
+ 	//
+ 	// Plain LZMA streams without EOPM aren't supported except when
+ 	// output size limiting is enabled.
+-	if (limit == UINT32_MAX && coder->out_limit == 0)
++	if (coder->use_eopm)
+ 		encode_eopm(coder, (uint32_t)(coder->uncomp_size));
+ 
+ 	// Flush the remaining bytes from the range encoder.
+@@ -462,6 +462,7 @@ lzma_lzma_set_out_limit(
+ 	lzma_lzma1_encoder *coder = coder_ptr;
+ 	coder->out_limit = out_limit;
+ 	coder->uncomp_size_ptr = uncomp_size;
++	coder->use_eopm = false;
+ 	return LZMA_OK;
+ }
+ 
+@@ -599,10 +600,13 @@ lzma_lzma_encoder_reset(lzma_lzma1_encoder *coder,
+ 
+ 
+ extern lzma_ret
+-lzma_lzma_encoder_create(void **coder_ptr,
+-		const lzma_allocator *allocator,
+-		const lzma_options_lzma *options, lzma_lz_options *lz_options)
++lzma_lzma_encoder_create(void **coder_ptr, const lzma_allocator *allocator,
++		lzma_vli id, const lzma_options_lzma *options,
++		lzma_lz_options *lz_options)
+ {
++	assert(id == LZMA_FILTER_LZMA1 || id == LZMA_FILTER_LZMA1EXT
++			|| id == LZMA_FILTER_LZMA2);
++
+ 	// Allocate lzma_lzma1_encoder if it wasn't already allocated.
+ 	if (*coder_ptr == NULL) {
+ 		*coder_ptr = lzma_alloc(sizeof(lzma_lzma1_encoder), allocator);
+@@ -672,6 +676,32 @@ lzma_lzma_encoder_create(void **coder_ptr,
+ 	// Output size limitting is disabled by default.
+ 	coder->out_limit = 0;
+ 
++	// Determine if end marker is wanted:
++	//   - It is never used with LZMA2.
++	//   - It is always used with LZMA_FILTER_LZMA1 (unless
++	//     lzma_lzma_set_out_limit() is called later).
++	//   - LZMA_FILTER_LZMA1EXT has a flag for it in the options.
++	coder->use_eopm = (id == LZMA_FILTER_LZMA1);
++	if (id == LZMA_FILTER_LZMA1EXT) {
++		// Check if unsupported flags are present.
++		if (options->ext_flags & ~LZMA_LZMA1EXT_ALLOW_EOPM)
++			return LZMA_OPTIONS_ERROR;
++
++		coder->use_eopm = (options->ext_flags
++				& LZMA_LZMA1EXT_ALLOW_EOPM) != 0;
++
++		// TODO? As long as there are no filters that change the size
++		// of the data, it is enough to look at lzma_stream.total_in
++		// after encoding has been finished to know the uncompressed
++		// size of the LZMA1 stream. But in the future there could be
++		// filters that change the size of the data and then total_in
++		// doesn't work as the LZMA1 stream size might be different
++		// due to another filter in the chain. The problem is simple
++		// to solve: Add another flag to ext_flags and then set
++		// coder->uncomp_size_ptr to the address stored in
++		// lzma_options_lzma.reserved_ptr2 (or _ptr1).
++	}
++
+ 	set_lz_options(lz_options, options);
+ 
+ 	return lzma_lzma_encoder_reset(coder, options);
+@@ -685,7 +715,7 @@ lzma_encoder_init(lzma_lz_encoder *lz, const lzma_allocator *allocator,
+ 	lz->code = &lzma_encode;
+ 	lz->set_out_limit = &lzma_lzma_set_out_limit;
+ 	return lzma_lzma_encoder_create(
+-			&lz->coder, allocator, options, lz_options);
++			&lz->coder, allocator, id, options, lz_options);
+ }
+ 
+ 
+diff --git a/src/liblzma/lzma/lzma_encoder.h b/src/liblzma/lzma/lzma_encoder.h
+index 6cfdf228..84d8c916 100644
+--- a/src/liblzma/lzma/lzma_encoder.h
++++ b/src/liblzma/lzma/lzma_encoder.h
+@@ -40,7 +40,8 @@ extern bool lzma_lzma_lclppb_encode(
+ /// Initializes raw LZMA encoder; this is used by LZMA2.
+ extern lzma_ret lzma_lzma_encoder_create(
+ 		void **coder_ptr, const lzma_allocator *allocator,
+-		const lzma_options_lzma *options, lzma_lz_options *lz_options);
++		lzma_vli id, const lzma_options_lzma *options,
++		lzma_lz_options *lz_options);
+ 
+ 
+ /// Resets an already initialized LZMA encoder; this is used by LZMA2.
+diff --git a/src/liblzma/lzma/lzma_encoder_private.h b/src/liblzma/lzma/lzma_encoder_private.h
+index 8960c52c..b228c577 100644
+--- a/src/liblzma/lzma/lzma_encoder_private.h
++++ b/src/liblzma/lzma/lzma_encoder_private.h
+@@ -111,6 +111,9 @@ struct lzma_lzma1_encoder_s {
+ 	/// have been written to the output buffer yet.
+ 	bool is_flushed;
+ 
++	/// True if end of payload marker will be written.
++	bool use_eopm;
++
+ 	uint32_t pos_mask;         ///< (1 << pos_bits) - 1
+ 	uint32_t literal_context_bits;
+ 	uint32_t literal_pos_mask;

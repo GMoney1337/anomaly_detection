@@ -1,0 +1,12 @@
+diff --git a/THANKS b/THANKS
+index 3c4c60cf..0d8f7bd9 100644
+--- a/THANKS
++++ b/THANKS
+@@ -40,6 +40,7 @@ has been important. :-) In alphabetical order:
+   - Alexandre Sauvé
+   - Andreas Schwab
+   - Dan Shechter
++  - Stuart Shelton
+   - Jonathan Stott
+   - Paul Townsend
+   - Mohammed Adnène Trojette

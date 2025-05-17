@@ -1,0 +1,16 @@
+diff --git a/src/xz/hardware.c b/src/xz/hardware.c
+index 3d10edc9..986d0c1b 100644
+--- a/src/xz/hardware.c
++++ b/src/xz/hardware.c
+@@ -91,7 +91,11 @@ hardware_threads_get(void)
+ extern bool
+ hardware_threads_is_mt(void)
+ {
++#ifdef MYTHREAD_ENABLED
+ 	return threads_max > 1 || threads_are_automatic;
++#else
++	return false;
++#endif
+ }
+ 
+ 

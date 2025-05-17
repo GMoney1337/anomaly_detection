@@ -1,0 +1,10 @@
+diff --git a/m4/.gitignore b/m4/.gitignore
+index 20f26034..18d4a4f2 100644
+--- a/m4/.gitignore
++++ b/m4/.gitignore
+@@ -1,4 +1,5 @@
+ codeset.m4
++extern-inline.m4
+ fcntl-o.m4
+ gettext.m4
+ glibc2.m4

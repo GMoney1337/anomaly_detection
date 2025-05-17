@@ -1,0 +1,263 @@
+diff --git a/debug/Makefile.am b/debug/Makefile.am
+index 7d45671f..a5b7e310 100644
+--- a/debug/Makefile.am
++++ b/debug/Makefile.am
+@@ -15,15 +15,15 @@ noinst_PROGRAMS = \
+ 	hex2bin
+ 
+ AM_CPPFLAGS = \
+-	-I@top_srcdir@/src/common \
+-	-I@top_srcdir@/src/liblzma/api
++	-I$(top_srcdir)/src/common \
++	-I$(top_srcdir)/src/liblzma/api
+ 
+ AM_LDFLAGS = -static
+ 
+-LDADD = \
+-	@top_builddir@/src/liblzma/liblzma.la \
+-	@LTLIBINTL@
++LDADD = $(top_builddir)/src/liblzma/liblzma.la
+ 
+ if COND_GNULIB
+-LDADD += @top_builddir@/lib/libgnu.a
++LDADD += $(top_builddir)/lib/libgnu.a
+ endif
++
++LDADD += $(LTLIBINTL)
+diff --git a/src/liblzma/check/Makefile.am b/src/liblzma/check/Makefile.am
+index 6c43a701..abd598aa 100644
+--- a/src/liblzma/check/Makefile.am
++++ b/src/liblzma/check/Makefile.am
+@@ -13,8 +13,8 @@ libcheck_la_SOURCES = \
+ 	check.h \
+ 	crc_macros.h
+ libcheck_la_CPPFLAGS = \
+-	-I@top_srcdir@/src/liblzma/api \
+-	-I@top_srcdir@/src/liblzma/common
++	-I$(top_srcdir)/src/liblzma/api \
++	-I$(top_srcdir)/src/liblzma/common
+ 
+ if COND_CHECK_CRC32
+ if COND_SMALL
+diff --git a/src/liblzma/common/Makefile.am b/src/liblzma/common/Makefile.am
+index c1a2c589..0509f1e6 100644
+--- a/src/liblzma/common/Makefile.am
++++ b/src/liblzma/common/Makefile.am
+@@ -7,14 +7,14 @@
+ 
+ noinst_LTLIBRARIES = libcommon.la
+ libcommon_la_CPPFLAGS = \
+-	-I@top_srcdir@/src/liblzma/api \
+-	-I@top_srcdir@/src/liblzma/check \
+-	-I@top_srcdir@/src/liblzma/rangecoder \
+-	-I@top_srcdir@/src/liblzma/lz \
+-	-I@top_srcdir@/src/liblzma/lzma \
+-	-I@top_srcdir@/src/liblzma/subblock \
+-	-I@top_srcdir@/src/liblzma/delta \
+-	-I@top_srcdir@/src/liblzma/simple
++	-I$(top_srcdir)/src/liblzma/api \
++	-I$(top_srcdir)/src/liblzma/check \
++	-I$(top_srcdir)/src/liblzma/rangecoder \
++	-I$(top_srcdir)/src/liblzma/lz \
++	-I$(top_srcdir)/src/liblzma/lzma \
++	-I$(top_srcdir)/src/liblzma/subblock \
++	-I$(top_srcdir)/src/liblzma/delta \
++	-I$(top_srcdir)/src/liblzma/simple
+ 
+ libcommon_la_SOURCES = \
+ 	common.c \
+diff --git a/src/liblzma/delta/Makefile.am b/src/liblzma/delta/Makefile.am
+index 6b3bfb5c..2b98ec4b 100644
+--- a/src/liblzma/delta/Makefile.am
++++ b/src/liblzma/delta/Makefile.am
+@@ -7,8 +7,8 @@
+ 
+ noinst_LTLIBRARIES = libdelta.la
+ libdelta_la_CPPFLAGS = \
+-	-I@top_srcdir@/src/liblzma/api \
+-	-I@top_srcdir@/src/liblzma/common
++	-I$(top_srcdir)/src/liblzma/api \
++	-I$(top_srcdir)/src/liblzma/common
+ 
+ libdelta_la_SOURCES = \
+ 	delta_common.c \
+diff --git a/src/liblzma/lz/Makefile.am b/src/liblzma/lz/Makefile.am
+index 558bc943..c3312626 100644
+--- a/src/liblzma/lz/Makefile.am
++++ b/src/liblzma/lz/Makefile.am
+@@ -7,9 +7,9 @@
+ 
+ noinst_LTLIBRARIES = liblz.la
+ liblz_la_CPPFLAGS = \
+-	-I@top_srcdir@/src/liblzma/api \
+-	-I@top_srcdir@/src/liblzma/common \
+-	-I@top_srcdir@/src/liblzma/check
++	-I$(top_srcdir)/src/liblzma/api \
++	-I$(top_srcdir)/src/liblzma/common \
++	-I$(top_srcdir)/src/liblzma/check
+ liblz_la_SOURCES =
+ 
+ 
+diff --git a/src/liblzma/lzma/Makefile.am b/src/liblzma/lzma/Makefile.am
+index 0a3baa76..1afe0677 100644
+--- a/src/liblzma/lzma/Makefile.am
++++ b/src/liblzma/lzma/Makefile.am
+@@ -10,10 +10,10 @@ EXTRA_DIST = fastpos_tablegen.c
+ ## Using liblzma2 since liblzma is already used for the final library.
+ noinst_LTLIBRARIES = liblzma2.la
+ liblzma2_la_CPPFLAGS = \
+-	-I@top_srcdir@/src/liblzma/api \
+-	-I@top_srcdir@/src/liblzma/common \
+-	-I@top_srcdir@/src/liblzma/lz \
+-	-I@top_srcdir@/src/liblzma/rangecoder
++	-I$(top_srcdir)/src/liblzma/api \
++	-I$(top_srcdir)/src/liblzma/common \
++	-I$(top_srcdir)/src/liblzma/lz \
++	-I$(top_srcdir)/src/liblzma/rangecoder
+ 
+ liblzma2_la_SOURCES = lzma_common.h
+ 
+diff --git a/src/liblzma/rangecoder/Makefile.am b/src/liblzma/rangecoder/Makefile.am
+index f4390a06..d4897773 100644
+--- a/src/liblzma/rangecoder/Makefile.am
++++ b/src/liblzma/rangecoder/Makefile.am
+@@ -11,8 +11,8 @@ noinst_LTLIBRARIES = librangecoder.la
+ 
+ librangecoder_la_SOURCES = range_common.h
+ librangecoder_la_CPPFLAGS = \
+-	-I@top_srcdir@/src/liblzma/api \
+-	-I@top_srcdir@/src/liblzma/common
++	-I$(top_srcdir)/src/liblzma/api \
++	-I$(top_srcdir)/src/liblzma/common
+ 
+ if COND_ENCODER_LZMA1
+ librangecoder_la_SOURCES += \
+diff --git a/src/liblzma/simple/Makefile.am b/src/liblzma/simple/Makefile.am
+index bd5d5d9c..9b1a719e 100644
+--- a/src/liblzma/simple/Makefile.am
++++ b/src/liblzma/simple/Makefile.am
+@@ -7,8 +7,8 @@
+ 
+ noinst_LTLIBRARIES = libsimple.la
+ libsimple_la_CPPFLAGS = \
+-	-I@top_srcdir@/src/liblzma/api \
+-	-I@top_srcdir@/src/liblzma/common
++	-I$(top_srcdir)/src/liblzma/api \
++	-I$(top_srcdir)/src/liblzma/common
+ libsimple_la_SOURCES = \
+ 	simple_coder.c \
+ 	simple_coder.h \
+diff --git a/src/liblzma/subblock/Makefile.am b/src/liblzma/subblock/Makefile.am
+index 020551c2..4375a9ee 100644
+--- a/src/liblzma/subblock/Makefile.am
++++ b/src/liblzma/subblock/Makefile.am
+@@ -8,8 +8,8 @@
+ noinst_LTLIBRARIES = libsubblock.la
+ libsubblock_la_SOURCES =
+ libsubblock_la_CPPFLAGS = \
+-	-I@top_srcdir@/src/liblzma/api \
+-	-I@top_srcdir@/src/liblzma/common
++	-I$(top_srcdir)/src/liblzma/api \
++	-I$(top_srcdir)/src/liblzma/common
+ 
+ if COND_ENCODER_SUBBLOCK
+ libsubblock_la_SOURCES += \
+diff --git a/src/xz/Makefile.am b/src/xz/Makefile.am
+index 63d58728..ff88a839 100644
+--- a/src/xz/Makefile.am
++++ b/src/xz/Makefile.am
+@@ -32,21 +32,22 @@ xz_SOURCES = \
+ 
+ xz_CPPFLAGS = \
+ 	-DLOCALEDIR=\"$(localedir)\" \
+-	-I@top_srcdir@/src/common \
+-	-I@top_srcdir@/src/liblzma/api \
+-	-I@top_builddir@/lib \
+-	-I@top_srcdir@/lib \
+-	@STATIC_CPPFLAGS@
++	-I$(top_srcdir)/src/common \
++	-I$(top_srcdir)/src/liblzma/api \
++	-I$(top_builddir)/lib \
++	-I$(top_srcdir)/lib \
++	$(STATIC_CPPFLAGS)
+ 
+-xz_LDFLAGS = @STATIC_LDFLAGS@
+-xz_LDADD = \
+-	@top_builddir@/src/liblzma/liblzma.la \
+-	@LTLIBINTL@
++xz_LDFLAGS = $(STATIC_LDFLAGS)
++xz_LDADD = $(top_builddir)/src/liblzma/liblzma.la
+ 
+ if COND_GNULIB
+-xz_LDADD += @top_builddir@/lib/libgnu.a
++xz_LDADD += $(top_builddir)/lib/libgnu.a
+ endif
+ 
++# libgnu.a may need these libs, so this must be after libgnu.a.
++xz_LDADD += $(LTLIBINTL)
++
+ 
+ ## Create symlinks for unxz and xzcat for convenicen. Create symlinks also
+ ## for lzma, unlzma, and lzcat for compatibility with LZMA Utils 4.32.x.
+diff --git a/src/xzdec/Makefile.am b/src/xzdec/Makefile.am
+index dfc6f7ce..1f13cd67 100644
+--- a/src/xzdec/Makefile.am
++++ b/src/xzdec/Makefile.am
+@@ -9,19 +9,20 @@ bin_PROGRAMS = xzdec lzmadec
+ 
+ xzdec_SOURCES = xzdec.c
+ xzdec_CPPFLAGS = \
+-	-I@top_srcdir@/src/common \
+-	-I@top_srcdir@/src/liblzma/api \
+-	-I@top_builddir@/lib \
+-	@STATIC_CPPFLAGS@
+-xzdec_LDFLAGS = @STATIC_LDFLAGS@
+-xzdec_LDADD = \
+-	@top_builddir@/src/liblzma/liblzma.la \
+-	@LTLIBINTL@
++	-I$(top_srcdir)/src/common \
++	-I$(top_srcdir)/src/liblzma/api \
++	-I$(top_builddir)/lib \
++	$(STATIC_CPPFLAGS)
++xzdec_LDFLAGS = $(STATIC_LDFLAGS)
++xzdec_LDADD = $(top_builddir)/src/liblzma/liblzma.la
+ 
+ if COND_GNULIB
+-xzdec_LDADD += @top_builddir@/lib/libgnu.a
++xzdec_LDADD += $(top_builddir)/lib/libgnu.a
+ endif
+ 
++xzdec_LDADD += $(LTLIBINTL)
++
++
+ lzmadec_SOURCES = $(xzdec_SOURCES)
+ lzmadec_CPPFLAGS = $(xzdec_CPPFLAGS) -DLZMADEC
+ lzmadec_LDFLAGS = $(xzdec_LDFLAGS)
+diff --git a/tests/Makefile.am b/tests/Makefile.am
+index dc084e45..d0807ae4 100644
+--- a/tests/Makefile.am
++++ b/tests/Makefile.am
+@@ -15,16 +15,18 @@ EXTRA_DIST = \
+ 	compress_prepared_bcj_x86
+ 
+ AM_CPPFLAGS = \
+-	-I@top_srcdir@/src/common \
+-	-I@top_srcdir@/src/liblzma/api \
+-	-I@top_builddir@/lib
++	-I$(top_srcdir)/src/common \
++	-I$(top_srcdir)/src/liblzma/api \
++	-I$(top_builddir)/lib
+ 
+-LDADD = @top_builddir@/src/liblzma/liblzma.la
++LDADD = $(top_builddir)/src/liblzma/liblzma.la
+ 
+ if COND_GNULIB
+-LDADD += @top_builddir@/lib/libgnu.a
++LDADD += $(top_builddir)/lib/libgnu.a
+ endif
+ 
++LDADD += $(LTLIBINTL)
++
+ check_PROGRAMS = \
+ 	create_compress_files \
+ 	test_check \

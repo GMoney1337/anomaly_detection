@@ -1,0 +1,12 @@
+diff --git a/THANKS b/THANKS
+index e45a4e86..919d61f0 100644
+--- a/THANKS
++++ b/THANKS
+@@ -19,6 +19,7 @@ In alphabetical order:
+   - Alexandre Sauvé
+   - Julian Seward
+   - Mohammed Adnène Trojette
++  - Andreas Zieringer
+ 
+ Also thanks to all the people who have participated the Tukaani project
+ and others who I have forgot.

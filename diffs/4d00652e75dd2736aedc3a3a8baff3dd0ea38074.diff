@@ -1,0 +1,12 @@
+diff --git a/src/liblzma/common/Makefile.am b/src/liblzma/common/Makefile.am
+index e8794b5b..20f3f93b 100644
+--- a/src/liblzma/common/Makefile.am
++++ b/src/liblzma/common/Makefile.am
+@@ -39,7 +39,6 @@ libcommon_la_SOURCES = \
+ 
+ if COND_MAIN_ENCODER
+ libcommon_la_SOURCES += \
+-	alignment.c \
+ 	alone_encoder.c \
+ 	block_encoder.c \
+ 	block_encoder.h \

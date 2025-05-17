@@ -1,0 +1,12 @@
+diff --git a/THANKS b/THANKS
+index a9c089a6..72ca1d0a 100644
+--- a/THANKS
++++ b/THANKS
+@@ -50,6 +50,7 @@ has been important. :-) In alphabetical order:
+   - Christian Hesse
+   - Vincenzo Innocente
+   - Peter Ivanov
++  - Nicholas Jackson
+   - Jouk Jansen
+   - Jun I Jin
+   - Kiyoshi Kanazawa

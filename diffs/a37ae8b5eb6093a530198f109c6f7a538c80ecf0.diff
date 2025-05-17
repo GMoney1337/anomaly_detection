@@ -1,0 +1,71 @@
+diff --git a/src/lzmainfo/lzmainfo.1 b/src/lzmainfo/lzmainfo.1
+index f2b93b4c..ce38eee5 100644
+--- a/src/lzmainfo/lzmainfo.1
++++ b/src/lzmainfo/lzmainfo.1
+@@ -4,14 +4,14 @@
+ .\" This file has been put into the public domain.
+ .\" You can do whatever you want with this file.
+ .\"
+-.TH LZMAINFO 1 "2010-09-27" "Tukaani" "XZ Utils"
++.TH LZMAINFO 1 "2013-06-30" "Tukaani" "XZ Utils"
+ .SH NAME
+ lzmainfo \- show information stored in the .lzma file header
+ .SH SYNOPSIS
+ .B lzmainfo
+ .RB [ \-\-help ]
+ .RB [ \-\-version ]
+-.RI [ file ]...
++.RI [ file... ]
+ .SH DESCRIPTION
+ .B lzmainfo
+ shows information stored in the
+diff --git a/src/scripts/xzmore.1 b/src/scripts/xzmore.1
+index 30dad687..9613974e 100644
+--- a/src/scripts/xzmore.1
++++ b/src/scripts/xzmore.1
+@@ -4,15 +4,15 @@
+ .\"
+ .\" License: GNU GPLv2+
+ .\"
+-.TH XZMORE 1 "2010-09-27" "Tukaani" "XZ Utils"
++.TH XZMORE 1 "2013-06-30" "Tukaani" "XZ Utils"
+ .SH NAME
+ xzmore, lzmore \- view xz or lzma compressed (text) files
+ .SH SYNOPSIS
+ .B xzmore
+-.RI [ "filename ..." ]
++.RI [ file... ]
+ .br
+ .B lzmore
+-.RI [ "filename ..." ]
++.RI [ file... ]
+ .SH DESCRIPTION
+ .B  xzmore
+ is a filter which allows examination of
+diff --git a/src/xzdec/xzdec.1 b/src/xzdec/xzdec.1
+index 7cc9be5d..1e5ced94 100644
+--- a/src/xzdec/xzdec.1
++++ b/src/xzdec/xzdec.1
+@@ -4,17 +4,17 @@
+ .\" This file has been put into the public domain.
+ .\" You can do whatever you want with this file.
+ .\"
+-.TH XZDEC 1 "2010-09-27" "Tukaani" "XZ Utils"
++.TH XZDEC 1 "2013-06-30" "Tukaani" "XZ Utils"
+ .SH NAME
+ xzdec, lzmadec \- Small .xz and .lzma decompressors
+ .SH SYNOPSIS
+ .B xzdec
+-.RI [ option ]...
+-.RI [ file ]...
++.RI [ option... ]
++.RI [ file... ]
+ .br
+ .B lzmadec
+-.RI [ option ]...
+-.RI [ file ]...
++.RI [ option... ]
++.RI [ file... ]
+ .SH DESCRIPTION
+ .B xzdec
+ is a liblzma-based decompression-only tool for

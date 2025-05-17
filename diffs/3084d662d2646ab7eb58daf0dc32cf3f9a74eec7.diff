@@ -1,0 +1,515 @@
+diff --git a/configure.ac b/configure.ac
+index b08db799..91e9b493 100644
+--- a/configure.ac
++++ b/configure.ac
+@@ -564,93 +564,8 @@ gl_GETOPT
+ # Find the best function to set timestamps.
+ AC_CHECK_FUNCS([futimens futimes futimesat utimes utime], [break])
+ 
+-# Check how to find out the amount of physical memory in the system. The
+-# xz command line tool uses this to automatically limit its memory usage.
+-# - sysconf() gives all the needed info on GNU+Linux and Solaris.
+-# - BSDs use sysctl().
+-AC_MSG_CHECKING([how to detect the amount of physical memory])
+-AC_COMPILE_IFELSE([AC_LANG_SOURCE([[
+-#include <unistd.h>
+-int
+-main()
+-{
+-	long i;
+-	i = sysconf(_SC_PAGESIZE);
+-	i = sysconf(_SC_PHYS_PAGES);
+-	return 0;
+-}
+-]])], [
+-	AC_DEFINE([HAVE_PHYSMEM_SYSCONF], [1],
+-		[Define to 1 if the amount of physical memory can be detected
+-		with sysconf(_SC_PAGESIZE) and sysconf(_SC_PHYS_PAGES).])
+-	AC_MSG_RESULT([sysconf])
+-], [
+-AC_COMPILE_IFELSE([AC_LANG_SOURCE([[
+-#include <sys/types.h>
+-#ifdef HAVE_SYS_PARAM_H
+-#	include <sys/param.h>
+-#endif
+-#include <sys/sysctl.h>
+-int
+-main()
+-{
+-	int name[2] = { CTL_HW, HW_PHYSMEM };
+-	unsigned long mem;
+-	size_t mem_ptr_size = sizeof(mem);
+-	sysctl(name, 2, &mem, &mem_ptr_size, NULL, NULL);
+-	return 0;
+-}
+-]])], [
+-	AC_DEFINE([HAVE_PHYSMEM_SYSCTL], [1],
+-		[Define to 1 if the amount of physical memory can be detected
+-		with sysctl().])
+-	AC_MSG_RESULT([sysctl])
+-], [
+-	AC_MSG_RESULT([unknown])
+-])])
+-
+-# Check how to find out the number of available CPU cores in the system.
+-# sysconf(_SC_NPROCESSORS_ONLN) works on most systems, except that BSDs
+-# use sysctl().
+-AC_MSG_CHECKING([how to detect the number of available CPU cores])
+-AC_COMPILE_IFELSE([AC_LANG_SOURCE([[
+-#include <unistd.h>
+-int
+-main()
+-{
+-	long i;
+-	i = sysconf(_SC_NPROCESSORS_ONLN);
+-	return 0;
+-}
+-]])], [
+-	AC_DEFINE([HAVE_NCPU_SYSCONF], [1],
+-		[Define to 1 if the number of available CPU cores can be
+-		detected with sysconf(_SC_NPROCESSORS_ONLN).])
+-	AC_MSG_RESULT([sysconf])
+-], [
+-AC_COMPILE_IFELSE([AC_LANG_SOURCE([[
+-#include <sys/types.h>
+-#ifdef HAVE_SYS_PARAM_H
+-#	include <sys/param.h>
+-#endif
+-#include <sys/sysctl.h>
+-int
+-main()
+-{
+-	int name[2] = { CTL_HW, HW_NCPU };
+-	int cpus;
+-	size_t cpus_size = sizeof(cpus);
+-	sysctl(name, 2, &cpus, &cpus_size, NULL, NULL);
+-	return 0;
+-}
+-]])], [
+-	AC_DEFINE([HAVE_NCPU_SYSCTL], [1],
+-		[Define to 1 if the number of available CPU cores can be
+-		detected with sysctl().])
+-	AC_MSG_RESULT([sysctl])
+-], [
+-	AC_MSG_RESULT([unknown])
+-])])
++lc_PHYSMEM
++lc_CPUCORES
+ 
+ 
+ ###############################################################################
+diff --git a/m4/lc_cpucores.m4 b/m4/lc_cpucores.m4
+new file mode 100644
+index 00000000..5e4e02d7
+--- /dev/null
++++ b/m4/lc_cpucores.m4
+@@ -0,0 +1,57 @@
++dnl ###########################################################################
++dnl
++dnl lc_CPUCORES - Check how to find out the number of online CPU cores
++dnl
++dnl Check how to find out the number of available CPU cores in the system.
++dnl sysconf(_SC_NPROCESSORS_ONLN) works on most systems, except that BSDs
++dnl use sysctl().
++dnl
++dnl ###########################################################################
++dnl
++dnl Author: Lasse Collin
++dnl
++dnl This file has been put into the public domain.
++dnl You can do whatever you want with this file.
++dnl
++dnl ###########################################################################
++AC_DEFUN([lc_CPUCORES], [
++AC_MSG_CHECKING([how to detect the number of available CPU cores])
++AC_COMPILE_IFELSE([AC_LANG_SOURCE([[
++#include <unistd.h>
++int
++main(void)
++{
++	long i;
++	i = sysconf(_SC_NPROCESSORS_ONLN);
++	return 0;
++}
++]])], [
++	AC_DEFINE([HAVE_NCPU_SYSCONF], [1],
++		[Define to 1 if the number of available CPU cores can be
++		detected with sysconf(_SC_NPROCESSORS_ONLN).])
++	AC_MSG_RESULT([sysconf])
++], [
++AC_COMPILE_IFELSE([AC_LANG_SOURCE([[
++#include <sys/types.h>
++#ifdef HAVE_SYS_PARAM_H
++#	include <sys/param.h>
++#endif
++#include <sys/sysctl.h>
++int
++main(void)
++{
++	int name[2] = { CTL_HW, HW_NCPU };
++	int cpus;
++	size_t cpus_size = sizeof(cpus);
++	sysctl(name, 2, &cpus, &cpus_size, NULL, NULL);
++	return 0;
++}
++]])], [
++	AC_DEFINE([HAVE_NCPU_SYSCTL], [1],
++		[Define to 1 if the number of available CPU cores can be
++		detected with sysctl().])
++	AC_MSG_RESULT([sysctl])
++], [
++	AC_MSG_RESULT([unknown])
++])])
++])dnl lc_CPUCORES
+diff --git a/m4/lc_physmem.m4 b/m4/lc_physmem.m4
+new file mode 100644
+index 00000000..8633f4a1
+--- /dev/null
++++ b/m4/lc_physmem.m4
+@@ -0,0 +1,74 @@
++dnl ###########################################################################
++dnl
++dnl lc_PHYSMEM - Check how to find out the amount of physical memory
++dnl
++dnl - sysconf() gives all the needed info on GNU+Linux and Solaris.
++dnl - BSDs use sysctl().
++dnl - sysinfo() works on Linux/dietlibc and probably on other Linux systems
++dnl   whose libc may lack sysconf().
++dnl
++dnl ###########################################################################
++dnl
++dnl Author: Lasse Collin
++dnl
++dnl This file has been put into the public domain.
++dnl You can do whatever you want with this file.
++dnl
++dnl ###########################################################################
++AC_DEFUN([lc_PHYSMEM], [
++AC_MSG_CHECKING([how to detect the amount of physical memory])
++AC_COMPILE_IFELSE([AC_LANG_SOURCE([[
++#include <unistd.h>
++int
++main(void)
++{
++	long i;
++	i = sysconf(_SC_PAGESIZE);
++	i = sysconf(_SC_PHYS_PAGES);
++	return 0;
++}
++]])], [
++	AC_DEFINE([HAVE_PHYSMEM_SYSCONF], [1],
++		[Define to 1 if the amount of physical memory can be detected
++		with sysconf(_SC_PAGESIZE) and sysconf(_SC_PHYS_PAGES).])
++	AC_MSG_RESULT([sysconf])
++], [
++AC_COMPILE_IFELSE([AC_LANG_SOURCE([[
++#include <sys/types.h>
++#ifdef HAVE_SYS_PARAM_H
++#	include <sys/param.h>
++#endif
++#include <sys/sysctl.h>
++int
++main(void)
++{
++	int name[2] = { CTL_HW, HW_PHYSMEM };
++	unsigned long mem;
++	size_t mem_ptr_size = sizeof(mem);
++	sysctl(name, 2, &mem, &mem_ptr_size, NULL, NULL);
++	return 0;
++}
++]])], [
++	AC_DEFINE([HAVE_PHYSMEM_SYSCTL], [1],
++		[Define to 1 if the amount of physical memory can be detected
++		with sysctl().])
++	AC_MSG_RESULT([sysctl])
++], [
++AC_COMPILE_IFELSE([AC_LANG_SOURCE([[
++#include <sys/sysinfo.h>
++int
++main(void)
++{
++	struct sysinfo si;
++	sysinfo(&si);
++	return 0;
++}
++]])], [
++	AC_DEFINE([HAVE_PHYSMEM_SYSINFO], [1],
++		[Define to 1 if the amount of physical memory can be detected
++		with sysinfo().])
++	AC_MSG_RESULT([sysinfo])
++], [
++	AC_MSG_RESULT([unknown])
++])])])
++])dnl lc_PHYSMEM
+diff --git a/src/common/cpucores.h b/src/common/cpucores.h
+new file mode 100644
+index 00000000..7e1a1438
+--- /dev/null
++++ b/src/common/cpucores.h
+@@ -0,0 +1,52 @@
++///////////////////////////////////////////////////////////////////////////////
++//
++/// \file       cpucores.h
++/// \brief      Get the number of online CPU cores
++//
++//  This code has been put into the public domain.
++//
++//  This library is distributed in the hope that it will be useful,
++//  but WITHOUT ANY WARRANTY; without even the implied warranty of
++//  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
++//
++///////////////////////////////////////////////////////////////////////////////
++
++#ifndef CPUCORES_H
++#define CPUCORES_H
++
++#if defined(HAVE_NCPU_SYSCONF)
++#	include <unistd.h>
++
++#elif defined(HAVE_NCPU_SYSCTL)
++#	ifdef HAVE_SYS_PARAM_H
++#		include <sys/param.h>
++#	endif
++#	ifdef HAVE_SYS_SYSCTL_H
++#		include <sys/sysctl.h>
++#	endif
++#endif
++
++
++static inline uint32_t
++cpucores(void)
++{
++	uint32_t ret = 0;
++
++#if defined(HAVE_CPUCORES_SYSCONF)
++	const long cpus = sysconf(_SC_NPROCESSORS_ONLN);
++	if (cpus > 0)
++		ret = (uint32_t)(cpus);
++
++#elif defined(HAVE_CPUCORES_SYSCTL)
++	int name[2] = { CTL_HW, HW_NCPU };
++	int cpus;
++	size_t cpus_size = sizeof(cpus);
++	if (!sysctl(name, &cpus, &cpus_size, NULL, NULL)
++			&& cpus_size == sizeof(cpus) && cpus > 0)
++		ret = (uint32_t)(cpus);
++#endif
++
++	return ret;
++}
++
++#endif
+diff --git a/src/common/physmem.h b/src/common/physmem.h
+index fb17eac5..7075bc56 100644
+--- a/src/common/physmem.h
++++ b/src/common/physmem.h
+@@ -14,27 +14,27 @@
+ #ifndef PHYSMEM_H
+ #define PHYSMEM_H
+ 
+-#if defined(HAVE_PHYSMEM_SYSCTL) || defined(HAVE_NCPU_SYSCTL)
++#if defined(HAVE_PHYSMEM_SYSCONF)
++#	include <unistd.h>
++
++#elif defined(HAVE_PHYSMEM_SYSCTL)
+ #	ifdef HAVE_SYS_PARAM_H
+ #		include <sys/param.h>
+ #	endif
+ #	ifdef HAVE_SYS_SYSCTL_H
+ #		include <sys/sysctl.h>
+ #	endif
+-#endif
+ 
+-#if defined(HAVE_PHYSMEM_SYSCONF) || defined(HAVE_NCPU_SYSCONF)
+-#	include <unistd.h>
+-#endif
++#elif defined(HAVE_PHYSMEM_SYSINFO)
++#	include <sys/sysinfo.h>
+ 
+-#ifdef _WIN32
++#elif defined(_WIN32)
+ #	ifndef _WIN32_WINNT
+ #		define _WIN32_WINNT 0x0500
+ #	endif
+ #	include <windows.h>
+-#endif
+ 
+-#ifdef __DJGPP__
++#elif defined(__DJGPP__)
+ #	include <dpmi.h>
+ #endif
+ 
+@@ -75,6 +75,11 @@ physmem(void)
+ 			ret = mem.ui;
+ 	}
+ 
++#elif defined(HAVE_PHYSMEM_SYSINFO)
++	struct sysinfo si;
++	if (sysinfo(&si) == 0)
++		ret = (uint64_t)(si.totalram) * si.mem_unit;
++
+ #elif defined(_WIN32)
+ 	MEMORYSTATUSEX meminfo;
+ 	meminfo.dwLength = sizeof(meminfo);
+diff --git a/src/xz/args.c b/src/xz/args.c
+index 29abf971..f8732000 100644
+--- a/src/xz/args.c
++++ b/src/xz/args.c
+@@ -135,8 +135,8 @@ parse_real(args_info *args, int argc, char **argv)
+ 			break;
+ 
+ 		case 'T':
+-			opt_threads = str_to_uint64("threads", optarg,
+-					1, SIZE_MAX);
++			hardware_threadlimit_set(str_to_uint64(
++					"threads", optarg, 1, SIZE_MAX));
+ 			break;
+ 
+ 		// --version
+diff --git a/src/xz/hardware.c b/src/xz/hardware.c
+index 0c372726..0695ccb1 100644
+--- a/src/xz/hardware.c
++++ b/src/xz/hardware.c
+@@ -19,11 +19,12 @@
+ 
+ #include "private.h"
+ #include "physmem.h"
++#include "cpucores.h"
+ 
+ 
+ /// Maximum number of free *coder* threads. This can be set with
+ /// the --threads=NUM command line option.
+-size_t opt_threads = 1;
++static uint32_t threads_max;
+ 
+ 
+ /// Memory usage limit for encoding
+@@ -40,38 +41,31 @@ static uint64_t memlimit_custom = 0;
+ /// Get the number of CPU cores, and set opt_threads to default to that value.
+ /// User can then override this with --threads command line option.
+ static void
+-hardware_cores(void)
++hardware_threadlimit_init(void)
+ {
+-#if defined(HAVE_NUM_PROCESSORS_SYSCONF)
+-	const long cpus = sysconf(_SC_NPROCESSORS_ONLN);
+-	if (cpus > 0)
+-		opt_threads = (size_t)(cpus);
+-
+-#elif defined(HAVE_NUM_PROCESSORS_SYSCTL)
+-	int name[2] = { CTL_HW, HW_NCPU };
+-	int cpus;
+-	size_t cpus_size = sizeof(cpus);
+-	if (!sysctl(name, &cpus, &cpus_size, NULL, NULL)
+-			&& cpus_size == sizeof(cpus) && cpus > 0)
+-		opt_threads = (size_t)(cpus);
+-#endif
+-
+-	// Limit opt_threads so that maximum number of threads doesn't exceed.
+-
+-#if defined(_SC_THREAD_THREADS_MAX)
+-	const long threads_max = sysconf(_SC_THREAD_THREADS_MAX);
+-	if (threads_max > 0 && (size_t)(threads_max) < opt_threads)
+-		opt_threads = (size_t)(threads_max);
+-
+-#elif defined(PTHREAD_THREADS_MAX)
+-	if (opt_threads > PTHREAD_THREADS_MAX)
+-		opt_threads = PTHREAD_THREADS_MAX;
+-#endif
++	threads_max = cpucores();
++	if (threads_max == 0)
++		threads_max = 1;
+ 
+ 	return;
+ }
+ 
+ 
++extern void
++hardware_threadlimit_set(uint32_t threadlimit)
++{
++	threads_max = threadlimit;
++	return;
++}
++
++
++extern uint32_t
++hardware_threadlimit_get(void)
++{
++	return threads_max;
++}
++
++
+ static void
+ hardware_memlimit_init(void)
+ {
+@@ -117,6 +111,6 @@ extern void
+ hardware_init(void)
+ {
+ 	hardware_memlimit_init();
+-	hardware_cores();
++	hardware_threadlimit_init();
+ 	return;
+ }
+diff --git a/src/xz/hardware.h b/src/xz/hardware.h
+index a6d91d78..36761fd1 100644
+--- a/src/xz/hardware.h
++++ b/src/xz/hardware.h
+@@ -17,14 +17,19 @@
+ //
+ ///////////////////////////////////////////////////////////////////////////////
+ 
+-extern size_t opt_threads;
+-
+-
+ /// Initialize some hardware-specific variables, which are needed by other
+ /// hardware_* functions.
+ extern void hardware_init(void);
+ 
+ 
++/// Set custom value for maximum number of coder threads.
++extern void hardware_threadlimit_set(uint32_t threadlimit);
++
++/// Get the maximum number of coder threads. Some additional helper threads
++/// are allowed on top of this).
++extern uint32_t hardware_threadlimit_get(void);
++
++
+ /// Set custom memory usage limit. This is used for both encoding and
+ /// decoding. Zero indicates resetting the limit back to defaults.
+ extern void hardware_memlimit_set(uint64_t memlimit);
+diff --git a/src/xz/message.c b/src/xz/message.c
+index fd519c8f..544572b8 100644
+--- a/src/xz/message.c
++++ b/src/xz/message.c
+@@ -1029,8 +1029,9 @@ message_help(bool long_help)
+ 				hardware_memlimit_encoder() / (1024 * 1024),
+ 				hardware_memlimit_decoder() / (1024 * 1024));
+ 		printf(N_("  * one thread for (de)compression.\n\n",
+-			"  * %'" PRIu64 " threads for (de)compression.\n\n",
+-			(uint64_t)(opt_threads)), (uint64_t)(opt_threads));
++			"  * %'" PRIu32 " threads for (de)compression.\n\n",
++			hardware_threadlimit_get()),
++			hardware_threadlimit_get());
+ 	}
+ 
+ 	printf(_("Report bugs to <%s> (in English or Finnish).\n"),
+diff --git a/src/xz/process.c b/src/xz/process.c
+index 9b966546..efe363ce 100644
+--- a/src/xz/process.c
++++ b/src/xz/process.c
+@@ -246,6 +246,7 @@ coder_set_compression_settings(void)
+ 					memory_limit >> 20);
+ 	}
+ 
++/*
+ 	// Limit the number of worker threads so that memory usage
+ 	// limit isn't exceeded.
+ 	assert(memory_usage > 0);
+@@ -255,6 +256,7 @@ coder_set_compression_settings(void)
+ 
+ 	if (opt_threads > thread_limit)
+ 		opt_threads = thread_limit;
++*/
+ 
+ 	return;
+ }

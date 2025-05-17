@@ -1,0 +1,91 @@
+diff --git a/windows/Makefile b/windows/Makefile
+index d164a8ab..5fb5d57d 100644
+--- a/windows/Makefile
++++ b/windows/Makefile
+@@ -107,7 +107,7 @@ pkg: all
+ 	$(CP) ../src/liblzma/api/lzma/*.h pkg/include/lzma
+ 
+ %_rc.o: %.rc
+-	$(WINDRES) $< $@
++	$(WINDRES) $(ALL_CPPFLAGS) $< $@
+ 
+ 
+ ###############
+diff --git a/windows/common.rc b/windows/common.rc
+index 18bc6c13..0142d15a 100644
+--- a/windows/common.rc
++++ b/windows/common.rc
+@@ -1,13 +1,13 @@
+ #include <winresrc.h>
+ #include "config.h"
++#define LZMA_H_INTERNAL
++#define LZMA_H_INTERNAL_RC
++#include "lzma/version.h"
+ 
+-#define MY_VER_MAJOR 4
+-#define MY_VER_MINOR 999
+-#define MY_VER_PATCH 8
+-#ifndef MY_VER_BUILD
+-# define MY_VER_BUILD 0
++#ifndef MY_BUILD
++# define MY_BUILD 0
+ #endif
+-#define MY_VERSION MY_VER_MAJOR,MY_VER_MINOR,MY_VER_PATCH,MY_VER_BUILD
++#define MY_VERSION LZMA_VERSION_MAJOR,LZMA_VERSION_MINOR,LZMA_VERSION_PATCH,MY_BUILD
+ 
+ #define MY_FILENAME    MY_NAME MY_SUFFIX
+ #define MY_COMPANY     "Lasse Collin and Igor Pavlov"
+@@ -31,12 +31,12 @@ BEGIN
+             VALUE "Comments", MY_COMMENTS
+             VALUE "CompanyName", MY_COMPANY
+             VALUE "FileDescription", MY_DESC
+-            VALUE "FileVersion", PACKAGE_VERSION
++            VALUE "FileVersion", LZMA_VERSION_STRING
+             VALUE "InternalName", MY_NAME
+             VALUE "LegalCopyright", MY_COPYRIGHT
+             VALUE "OriginalFilename", MY_FILENAME
+             VALUE "ProductName", PACKAGE_NAME
+-            VALUE "ProductVersion", PACKAGE_VERSION
++            VALUE "ProductVersion", LZMA_VERSION_STRING
+         END
+     END
+     BLOCK "VarFileInfo"
+diff --git a/windows/config.h b/windows/config.h
+index 4a055e8c..4d337134 100644
+--- a/windows/config.h
++++ b/windows/config.h
+@@ -140,24 +140,12 @@
+ /* Define to 1 if the system has the type `_Bool'. */
+ #define HAVE__BOOL 1
+ 
+-/* Name of package */
+-#define PACKAGE "xz"
+-
+ /* Define to the address where bug reports for this package should be sent. */
+ #define PACKAGE_BUGREPORT "lasse.collin@tukaani.org"
+ 
+ /* Define to the full name of this package. */
+ #define PACKAGE_NAME "XZ Utils"
+ 
+-/* Define to the full name and version of this package. */
+-#define PACKAGE_STRING "XZ Utils 4.999.8beta"
+-
+-/* Define to the one symbol short name of this package. */
+-#define PACKAGE_TARNAME "xz"
+-
+-/* Define to the version of this package. */
+-#define PACKAGE_VERSION "4.999.8beta"
+-
+ /* The size of `size_t', as computed by sizeof. */
+ #ifdef _WIN64
+ # define SIZEOF_SIZE_T 8
+@@ -168,9 +156,6 @@
+ /* Define to 1 if you have the ANSI C header files. */
+ #define STDC_HEADERS 1
+ 
+-/* Version number of package */
+-#define VERSION "4.999.8beta"
+-
+ /* Define WORDS_BIGENDIAN to 1 if your processor stores words with the most
+    significant byte first (like Motorola and SPARC, unlike Intel and VAX). */
+ #if defined __BIG_ENDIAN__

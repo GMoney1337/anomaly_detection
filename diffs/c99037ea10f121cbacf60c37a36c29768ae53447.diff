@@ -1,0 +1,12 @@
+diff --git a/src/liblzma/common/extra.c b/src/liblzma/common/extra.c
+index b743a439..c532abb0 100644
+--- a/src/liblzma/common/extra.c
++++ b/src/liblzma/common/extra.c
+@@ -25,6 +25,7 @@ lzma_extra_free(lzma_extra *extra, lzma_allocator *allocator)
+ {
+ 	while (extra != NULL) {
+ 		lzma_extra *tmp = extra->next;
++		lzma_free(extra->data, allocator);
+ 		lzma_free(extra, allocator);
+ 		extra = tmp;
+ 	}

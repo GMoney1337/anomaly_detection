@@ -1,0 +1,45 @@
+diff --git a/src/xz/message.c b/src/xz/message.c
+index 0e1f2bc4..39f751e8 100644
+--- a/src/xz/message.c
++++ b/src/xz/message.c
+@@ -806,6 +806,7 @@ message_help(bool long_help)
+ "\n"
+ "  --lzma1=[OPTS]      LZMA1 or LZMA2; OPTS is a comma-separated list of zero or\n"
+ "  --lzma2=[OPTS]      more of the following options (valid values; default):\n"
++"                        preset=NUM reset options to preset number NUM (1-9)\n"
+ "                        dict=NUM   dictionary size (4KiB - 1536MiB; 8MiB)\n"
+ "                        lc=NUM     number of literal context bits (0-4; 3)\n"
+ "                        lp=NUM     number of literal position bits (0-4; 0)\n"
+diff --git a/src/xz/options.c b/src/xz/options.c
+index 77ebddd6..e754c266 100644
+--- a/src/xz/options.c
++++ b/src/xz/options.c
+@@ -237,6 +237,7 @@ options_delta(const char *str)
+ //////////
+ 
+ enum {
++	OPT_PRESET,
+ 	OPT_DICT,
+ 	OPT_LC,
+ 	OPT_LP,
+@@ -254,6 +255,12 @@ set_lzma(void *options, uint32_t key, uint64_t value)
+ 	lzma_options_lzma *opt = options;
+ 
+ 	switch (key) {
++	case OPT_PRESET:
++		if (lzma_lzma_preset(options, (uint32_t)(value)))
++			message_fatal("LZMA1/LZMA2 preset %u is not supported",
++					(unsigned int)(value));
++		break;
++
+ 	case OPT_DICT:
+ 		opt->dict_size = value;
+ 		break;
+@@ -308,6 +315,7 @@ options_lzma(const char *str)
+ 	};
+ 
+ 	static const option_map opts[] = {
++		{ "preset", NULL,   1, 9 },
+ 		{ "dict",   NULL,   LZMA_DICT_SIZE_MIN,
+ 				(UINT32_C(1) << 30) + (UINT32_C(1) << 29) },
+ 		{ "lc",     NULL,   LZMA_LCLP_MIN, LZMA_LCLP_MAX },

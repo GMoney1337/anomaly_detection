@@ -1,0 +1,26 @@
+diff --git a/src/xz/sandbox.c b/src/xz/sandbox.c
+index f5576960..1f040e4a 100644
+--- a/src/xz/sandbox.c
++++ b/src/xz/sandbox.c
+@@ -274,7 +274,7 @@ sandbox_enable_strict_if_allowed(
+ 
+ 	// If not reading from stdin, remove all capabilities from it.
+ 	if (src_fd != STDIN_FILENO && cap_rights_limit(
+-			STDIN_FILENO, cap_rights_clear(&rights)))
++			STDIN_FILENO, cap_rights_init(&rights)))
+ 		goto error;
+ 
+ 	if (cap_rights_limit(STDOUT_FILENO, cap_rights_init(&rights,
+diff --git a/src/xzdec/xzdec.c b/src/xzdec/xzdec.c
+index 96e24444..e1e27449 100644
+--- a/src/xzdec/xzdec.c
++++ b/src/xzdec/xzdec.c
+@@ -321,7 +321,7 @@ sandbox_enter(int src_fd)
+ 
+ 	// If not reading from stdin, remove all capabilities from it.
+ 	if (src_fd != STDIN_FILENO && cap_rights_limit(
+-			STDIN_FILENO, cap_rights_clear(&rights)))
++			STDIN_FILENO, cap_rights_init(&rights)))
+ 		goto error;
+ 
+ 	if (cap_rights_limit(STDOUT_FILENO, cap_rights_init(&rights,

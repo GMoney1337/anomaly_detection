@@ -1,0 +1,137 @@
+diff --git a/.gitignore b/.gitignore
+index c5883bba..efb7b009 100644
+--- a/.gitignore
++++ b/.gitignore
+@@ -39,7 +39,7 @@ build-aux/test-driver
+ coverage
+ 
+ /doc/internal
+-/doc/liblzma
++/doc/api
+ 
+ /src/liblzma/liblzma.pc
+ /src/lzmainfo/lzmainfo
+diff --git a/Makefile.am b/Makefile.am
+index 6d52e0f0..f562f902 100644
+--- a/Makefile.am
++++ b/Makefile.am
+@@ -47,15 +47,15 @@ dist_examplesold_DATA = \
+ 
+ # Install the Doxygen generated documentation if they were built.
+ install-data-local:
+-	if test -d "$(srcdir)/doc/liblzma" ; then \
+-		$(MKDIR_P) "$(DESTDIR)$(docdir)/liblzma" && \
+-		$(INSTALL_DATA) "$(srcdir)"/doc/liblzma/* \
+-			"$(DESTDIR)$(docdir)/liblzma"; \
++	if test -d "$(srcdir)/doc/api" ; then \
++		$(MKDIR_P) "$(DESTDIR)$(docdir)/api" && \
++		$(INSTALL_DATA) "$(srcdir)"/doc/api/* \
++			"$(DESTDIR)$(docdir)/api"; \
+ 	fi
+ 
+ # Remove the Doxygen generated documentation when uninstalling.
+ uninstall-local:
+-	rm -rf "$(DESTDIR)$(docdir)/liblzma"
++	rm -rf "$(DESTDIR)$(docdir)/api"
+ endif
+ 
+ EXTRA_DIST = \
+@@ -112,10 +112,10 @@ dist-hook:
+ 				> "$$dest/txt/$$BASE.txt"; \
+ 		done; \
+ 	fi
+-	if test -d "$(srcdir)/doc/liblzma" ; then \
+-		$(MKDIR_P) "$(distdir)/doc/liblzma" && \
+-		$(INSTALL_DATA) "$(srcdir)"/doc/liblzma/* \
+-			"$(distdir)/doc/liblzma"; \
++	if test -d "$(srcdir)/doc/api" ; then \
++		$(MKDIR_P) "$(distdir)/doc/api" && \
++		$(INSTALL_DATA) "$(srcdir)"/doc/api/* \
++			"$(distdir)/doc/api"; \
+ 	fi
+ 
+ # This works with GNU tar and gives cleaner package than normal 'make dist'.
+diff --git a/PACKAGERS b/PACKAGERS
+index 521dd4e4..3042c669 100644
+--- a/PACKAGERS
++++ b/PACKAGERS
+@@ -171,10 +171,10 @@ Information to packagers of XZ Utils
+ 
+     The Doxygen-generated documentation (HTML) for the liblzma API
+     headers is included in the source release and will be installed by
+-    "make install" to $docdir/liblzma. All JavaScript is removed to
++    "make install" to $docdir/api. All JavaScript is removed to
+     simplify license compliance and to reduce the install size. If the
+     liblzma API documentation is not desired, either run configure with
+-    --disable-doc or remove the doc/liblzma directory before running
++    --disable-doc or remove the doc/api directory before running
+     "make install".
+ 
+ 
+diff --git a/doxygen/Doxyfile b/doxygen/Doxyfile
+index f18d18cd..20afb528 100644
+--- a/doxygen/Doxyfile
++++ b/doxygen/Doxyfile
+@@ -1209,7 +1209,7 @@ GENERATE_HTML          = YES
+ # The default directory is: html.
+ # This tag requires that the tag GENERATE_HTML is set to YES.
+ 
+-HTML_OUTPUT            = liblzma
++HTML_OUTPUT            = api
+ 
+ # The HTML_FILE_EXTENSION tag can be used to specify the file extension for each
+ # generated HTML page (for example: .htm, .php, .asp).
+diff --git a/doxygen/update-doxygen b/doxygen/update-doxygen
+index e5f3ab43..a5103199 100755
+--- a/doxygen/update-doxygen
++++ b/doxygen/update-doxygen
+@@ -45,16 +45,16 @@ PACKAGE_VERSION=`cd .. && sh build-aux/version.sh` || exit 1
+ # If no arguments are specified, default to generating liblzma API header
+ # documentation only.
+ case $1 in
+-	'' | liblzma)
++	'' | api)
+ 		# Remove old documentation before re-generating the new.
+-		rm -rf ../doc/liblzma
++		rm -rf ../doc/api
+ 
+ 		# Generate the HTML documentation by preparing the Doxyfile
+ 		# in stdin and piping the result to the doxygen command.
+ 		# With Doxygen, the last assignment of a value to a tag will
+ 		# override any earlier assignment. So, we can use this
+ 		# feature to override the tags that need to change between
+-		# "liblzma" and "internal" modes.
++		# "api" and "internal" modes.
+ 		(
+ 			cat Doxyfile
+ 			echo "PROJECT_NUMBER         = $PACKAGE_VERSION"
+@@ -70,14 +70,14 @@ case $1 in
+ 		# itself, and doesn't include the actual license text (it
+ 		# only refers to the MIT license by name).
+ 		echo "Stripping JavaScript from Doxygen output..."
+-		for F in ../doc/liblzma/*.html
++		for F in ../doc/api/*.html
+ 		do
+ 			sed 's/<script [^>]*><\/script>//g
+ 				s/onclick="[^"]*"//g' \
+-				"$F" > ../doc/liblzma/tmp
+-			mv -f ../doc/liblzma/tmp "$F"
++				"$F" > ../doc/api/tmp
++			mv -f ../doc/api/tmp "$F"
+ 		done
+-		rm -f ../doc/liblzma/*.js
++		rm -f ../doc/api/*.js
+ 		;;
+ 
+ 	internal)
+@@ -102,8 +102,8 @@ case $1 in
+ 		echo "doxygen/update-doxygen: Error: mode argument '$1'" \
+ 			"is not supported." >&2
+ 		echo "doxygen/update-doxygen: Supported modes:" >&2
+-		echo "doxygen/update-doxygen: - 'liblzma' (default):" \
+-			"API docs into doc/liblzma" >&2
++		echo "doxygen/update-doxygen: - 'api' (default):" \
++			"liblzma API docs into doc/api" >&2
+ 		echo "doxygen/update-doxygen: - 'internal':"\
+ 			"internal docs into doc/internal" >&2
+ 		exit 1

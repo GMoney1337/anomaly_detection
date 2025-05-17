@@ -1,0 +1,14 @@
+diff --git a/tests/test_filter_flags.c b/tests/test_filter_flags.c
+index 8df6da6c..dde01381 100644
+--- a/tests/test_filter_flags.c
++++ b/tests/test_filter_flags.c
+@@ -258,6 +258,9 @@ test_lzma(void)
+ 				lp <= LZMA_LITERAL_POS_BITS_MAX; ++lp) {
+ 			for (uint32_t pb = LZMA_POS_BITS_MIN;
+ 					pb <= LZMA_POS_BITS_MAX; ++pb) {
++				if (lc + lp > LZMA_LITERAL_BITS_MAX)
++					continue;
++
+ 				options.literal_context_bits = lc;
+ 				options.literal_pos_bits = lp;
+ 				options.pos_bits = pb;

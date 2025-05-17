@@ -1,0 +1,48 @@
+diff --git a/tests/test_filter_flags.c b/tests/test_filter_flags.c
+index 6d9f0b93..a8893239 100644
+--- a/tests/test_filter_flags.c
++++ b/tests/test_filter_flags.c
+@@ -48,6 +48,9 @@ static lzma_filter bcj_filters_encoders[] = {
+ #ifdef HAVE_ENCODER_SPARC
+ 	{ LZMA_FILTER_SPARC, NULL },
+ #endif
++#ifdef HAVE_ENCODER_RISCV
++	{ LZMA_FILTER_RISCV, NULL },
++#endif
+ };
+ 
+ // HAVE_ENCODERS ifdef not terminated here because decoders are
+@@ -77,6 +80,9 @@ static lzma_filter bcj_filters_decoders[] = {
+ #ifdef HAVE_DECODER_SPARC
+ 	{ LZMA_FILTER_SPARC, NULL },
+ #endif
++#ifdef HAVE_DECODER_RISCV
++	{ LZMA_FILTER_RISCV, NULL },
++#endif
+ };
+ #endif
+ #endif
+diff --git a/tests/test_filter_str.c b/tests/test_filter_str.c
+index 15aee55a..c57473ae 100644
+--- a/tests/test_filter_str.c
++++ b/tests/test_filter_str.c
+@@ -466,6 +466,9 @@ static const char supported_decoders[][9] = {
+ #ifdef HAVE_DECODER_ARM64
+ 	"arm64",
+ #endif
++#ifdef HAVE_DECODER_RISCV
++	"riscv",
++#endif
+ #ifdef HAVE_DECODER_DELTA
+ 	"delta",
+ #endif
+@@ -494,6 +497,9 @@ static const char supported_filters[][9] = {
+ #if defined(HAVE_ENCODER_ARM64) || defined(HAVE_DECODER_ARM64)
+ 	"arm64",
+ #endif
++#if defined(HAVE_ENCODER_RISCV) || defined(HAVE_DECODER_RISCV)
++	"riscv",
++#endif
+ #if defined(HAVE_ENCODER_DELTA) || defined(HAVE_DECODER_DELTA)
+ 	"delta",
+ #endif

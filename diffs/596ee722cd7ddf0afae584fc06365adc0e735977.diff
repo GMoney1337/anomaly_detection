@@ -1,0 +1,13 @@
+diff --git a/.github/workflows/ci.yml b/.github/workflows/ci.yml
+index f08becb9..d00dd0d2 100644
+--- a/.github/workflows/ci.yml
++++ b/.github/workflows/ci.yml
+@@ -27,7 +27,7 @@ jobs:
+         build_system: [autotools, cmake]
+     runs-on: ${{ matrix.os }}
+     steps:
+-      - uses: actions/checkout@v2
++      - uses: actions/checkout@v3
+ 
+       ########################
+       # Install Dependencies #

@@ -1,0 +1,26 @@
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+index 478b879c..d2d29db6 100644
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -59,7 +59,7 @@ include(cmake/tuklib_mbstr.cmake)
+ 
+ set(PACKAGE_NAME "XZ Utils")
+ set(PACKAGE_BUGREPORT "xz@tukaani.org")
+-set(PACKAGE_URL "https://tukaani.org/xz/")
++set(PACKAGE_URL "https://xz.tukaani.org/xz-utils/")
+ 
+ # Get the package version from version.h into PACKAGE_VERSION variable.
+ file(READ src/liblzma/api/lzma/version.h PACKAGE_VERSION)
+diff --git a/configure.ac b/configure.ac
+index 9584c4ac..b40118bc 100644
+--- a/configure.ac
++++ b/configure.ac
+@@ -18,7 +18,7 @@
+ AC_PREREQ([2.69])
+ 
+ AC_INIT([XZ Utils], m4_esyscmd([/bin/sh build-aux/version.sh]),
+-	[xz@tukaani.org], [xz], [https://tukaani.org/xz/])
++	[xz@tukaani.org], [xz], [https://xz.tukaani.org/xz-utils/])
+ AC_CONFIG_SRCDIR([src/liblzma/common/common.h])
+ AC_CONFIG_AUX_DIR([build-aux])
+ AC_CONFIG_MACRO_DIR([m4])

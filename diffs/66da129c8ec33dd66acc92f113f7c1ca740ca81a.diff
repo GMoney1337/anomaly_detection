@@ -1,0 +1,54 @@
+diff --git a/INSTALL b/INSTALL
+index b0970d17..ec757202 100644
+--- a/INSTALL
++++ b/INSTALL
+@@ -228,10 +228,22 @@ XZ Utils Installation
+                 single-threaded applications and want to avoid dependency
+                 on libpthread.
+ 
+-    --enable-dynamic
+-                Link the command line tools against shared liblzma. The
+-                default (and recommended way) is to link the command line
+-                tools against static liblzma.
++    --enable-dynamic=TYPE
++                Specify how command line tools should be linked against
++                liblzma. Possible TYPES:
++
++                    yes     All command line tools are linked against
++                            shared liblzma (if shared liblzma was built).
++                            This is equivalent to --enable-dynamic (i.e.
++                            no =TYPE).
++
++                    mixed   Some tools are linked against static liblzma
++                            and some against shared liblzma. This is the
++                            default and recommended way.
++
++                    no      All command line tools are linked against
++                            static liblzma (if static liblzma was built).
++                            This is equivalent to --disable-dynamic.
+ 
+                 This option is mostly useful for packagers, if distro
+                 policy requires linking against shared libaries. See the
+diff --git a/PACKAGERS b/PACKAGERS
+index da5158ce..c5d375ab 100644
+--- a/PACKAGERS
++++ b/PACKAGERS
+@@ -150,12 +150,13 @@ Information to packagers of XZ Utils
+ 
+ 4.1. Static vs. dynamic linking of liblzma
+ 
+-    The default is to link the command line tools against static liblzma.
++    The default is to link the most important command line tools against
++    static liblzma, and the less important tools against shared liblzma.
+     This can be changed by passing --enable-dynamic to configure, or by
+-    not building static libraries at all by passing --disable-static to
+-    configure. It is mildly recommended that you use the default and link
+-    the command line tools against static liblzma, but the configure
+-    options make it easy to do otherwise if the distro policy so requires.
++    not building static libraries at all by passing --disable-static
++    to configure. It is mildly recommended that you use the default, but
++    the configure options make it easy to do otherwise if the distro policy
++    so requires.
+ 
+     On 32-bit x86, linking against static liblzma can give a minor
+     speed improvement. Static libraries on x86 are usually compiled as

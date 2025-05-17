@@ -1,0 +1,239 @@
+diff --git a/extra/scanlzma/scanlzma.c b/extra/scanlzma/scanlzma.c
+index 110f822b..1c8fcd8f 100644
+--- a/extra/scanlzma/scanlzma.c
++++ b/extra/scanlzma/scanlzma.c
+@@ -1,3 +1,5 @@
++/* SPDX-License-Identifier: GPL-2.0-or-later */
++
+ /*
+     scanlzma, scan for lzma compressed data in stdin and echo it to stdout.
+     Copyright (C) 2006 Timo Lindfors
+diff --git a/lib/Makefile.am b/lib/Makefile.am
+index b6a3b161..3309e228 100644
+--- a/lib/Makefile.am
++++ b/lib/Makefile.am
+@@ -1,3 +1,5 @@
++## SPDX-License-Identifier: GPL-2.0-or-later
++
+ ##
+ ## Copyright (C) 2004-2007 Free Software Foundation, Inc.
+ ##
+diff --git a/lib/getopt-cdefs.h b/lib/getopt-cdefs.h
+index 021bdd36..576428c1 100644
+--- a/lib/getopt-cdefs.h
++++ b/lib/getopt-cdefs.h
+@@ -1,3 +1,5 @@
++/* SPDX-License-Identifier: LGPL-2.1-or-later */
++
+ /* getopt-on-non-glibc compatibility macros.
+    Copyright (C) 1989-2023 Free Software Foundation, Inc.
+    This file is part of gnulib.
+diff --git a/lib/getopt-core.h b/lib/getopt-core.h
+index c5dd4936..126ce808 100644
+--- a/lib/getopt-core.h
++++ b/lib/getopt-core.h
+@@ -1,3 +1,5 @@
++/* SPDX-License-Identifier: LGPL-2.1-or-later */
++
+ /* Declarations for getopt (basic, portable features only).
+    Copyright (C) 1989-2023 Free Software Foundation, Inc.
+    This file is part of the GNU C Library and is also part of gnulib.
+diff --git a/lib/getopt-ext.h b/lib/getopt-ext.h
+index d37c2932..006037ba 100644
+--- a/lib/getopt-ext.h
++++ b/lib/getopt-ext.h
+@@ -1,3 +1,5 @@
++/* SPDX-License-Identifier: LGPL-2.1-or-later */
++
+ /* Declarations for getopt (GNU extensions).
+    Copyright (C) 1989-2023 Free Software Foundation, Inc.
+    This file is part of the GNU C Library and is also part of gnulib.
+diff --git a/lib/getopt-pfx-core.h b/lib/getopt-pfx-core.h
+index 095e3930..ee22d3f7 100644
+--- a/lib/getopt-pfx-core.h
++++ b/lib/getopt-pfx-core.h
+@@ -1,3 +1,5 @@
++/* SPDX-License-Identifier: LGPL-2.1-or-later */
++
+ /* getopt (basic, portable features) gnulib wrapper header.
+    Copyright (C) 1989-2023 Free Software Foundation, Inc.
+    This file is part of gnulib.
+diff --git a/lib/getopt-pfx-ext.h b/lib/getopt-pfx-ext.h
+index 8578d725..00d2a095 100644
+--- a/lib/getopt-pfx-ext.h
++++ b/lib/getopt-pfx-ext.h
+@@ -1,3 +1,5 @@
++/* SPDX-License-Identifier: LGPL-2.1-or-later */
++
+ /* getopt (GNU extensions) gnulib wrapper header.
+    Copyright (C) 1989-2023 Free Software Foundation, Inc.
+    This file is part of gnulib.
+diff --git a/lib/getopt.c b/lib/getopt.c
+index 5941f6fd..ab3ff879 100644
+--- a/lib/getopt.c
++++ b/lib/getopt.c
+@@ -1,3 +1,5 @@
++/* SPDX-License-Identifier: LGPL-2.1-or-later */
++
+ /* Getopt for GNU.
+    Copyright (C) 1987-2023 Free Software Foundation, Inc.
+    This file is part of the GNU C Library and is also part of gnulib.
+diff --git a/lib/getopt.in.h b/lib/getopt.in.h
+index 79941d44..6d602c5d 100644
+--- a/lib/getopt.in.h
++++ b/lib/getopt.in.h
+@@ -1,3 +1,5 @@
++/* SPDX-License-Identifier: LGPL-2.1-or-later */
++
+ /* Declarations for getopt.
+    Copyright (C) 1989-2023 Free Software Foundation, Inc.
+    This file is part of gnulib.
+diff --git a/lib/getopt1.c b/lib/getopt1.c
+index fb99b4a0..5cb3b913 100644
+--- a/lib/getopt1.c
++++ b/lib/getopt1.c
+@@ -1,3 +1,5 @@
++/* SPDX-License-Identifier: LGPL-2.1-or-later */
++
+ /* getopt_long and getopt_long_only entry points for GNU getopt.
+    Copyright (C) 1987-2023 Free Software Foundation, Inc.
+    This file is part of the GNU C Library and is also part of gnulib.
+diff --git a/lib/getopt_int.h b/lib/getopt_int.h
+index 4d9e24be..2dcb5538 100644
+--- a/lib/getopt_int.h
++++ b/lib/getopt_int.h
+@@ -1,3 +1,5 @@
++/* SPDX-License-Identifier: LGPL-2.1-or-later */
++
+ /* Internal declarations for getopt.
+    Copyright (C) 1989-2023 Free Software Foundation, Inc.
+    This file is part of the GNU C Library and is also part of gnulib.
+diff --git a/m4/ax_pthread.m4 b/m4/ax_pthread.m4
+index 9f35d139..3f26da62 100644
+--- a/m4/ax_pthread.m4
++++ b/m4/ax_pthread.m4
+@@ -1,3 +1,5 @@
++dnl SPDX-License-Identifier: GPL-3.0-or-later WITH Autoconf-exception-macro
++
+ # ===========================================================================
+ #        https://www.gnu.org/software/autoconf-archive/ax_pthread.html
+ # ===========================================================================
+diff --git a/m4/getopt.m4 b/m4/getopt.m4
+index 5271f557..af8bfd4c 100644
+--- a/m4/getopt.m4
++++ b/m4/getopt.m4
+@@ -1,3 +1,5 @@
++dnl SPDX-License-Identifier: FSFULLR
++
+ # getopt.m4 serial 49 (modified version)
+ dnl Copyright (C) 2002-2006, 2008-2023 Free Software Foundation, Inc.
+ dnl This file is free software; the Free Software Foundation
+diff --git a/m4/posix-shell.m4 b/m4/posix-shell.m4
+index 4c56193c..95a19a96 100644
+--- a/m4/posix-shell.m4
++++ b/m4/posix-shell.m4
+@@ -1,3 +1,5 @@
++dnl SPDX-License-Identifier: FSFULLR
++
+ # Find a POSIX-conforming shell.
+ 
+ # Copyright (C) 2007-2008 Free Software Foundation, Inc.
+diff --git a/m4/visibility.m4 b/m4/visibility.m4
+index f0468e89..52c7ef10 100644
+--- a/m4/visibility.m4
++++ b/m4/visibility.m4
+@@ -1,3 +1,5 @@
++dnl SPDX-License-Identifier: FSFULLR
++
+ # visibility.m4 serial 8
+ dnl Copyright (C) 2005, 2008, 2010-2023 Free Software Foundation, Inc.
+ dnl This file is free software; the Free Software Foundation
+diff --git a/src/scripts/xzdiff.1 b/src/scripts/xzdiff.1
+index 24fed680..21824118 100644
+--- a/src/scripts/xzdiff.1
++++ b/src/scripts/xzdiff.1
+@@ -1,11 +1,10 @@
++.\" SPDX-License-Identifier: GPL-2.0-or-later
+ .\"
+ .\" Original zdiff.1 for gzip: Jean-loup Gailly
+ .\"
+ .\" Modifications for XZ Utils: Lasse Collin
+ .\"                             Andrew Dudman
+ .\"
+-.\" License: GNU GPLv2+
+-.\"
+ .TH XZDIFF 1 "2021-06-04" "Tukaani" "XZ Utils"
+ .SH NAME
+ xzcmp, xzdiff, lzcmp, lzdiff \- compare compressed files
+diff --git a/src/scripts/xzdiff.in b/src/scripts/xzdiff.in
+index 72249d3a..40a1fd33 100644
+--- a/src/scripts/xzdiff.in
++++ b/src/scripts/xzdiff.in
+@@ -1,4 +1,5 @@
+ #!@POSIX_SHELL@
++# SPDX-License-Identifier: GPL-2.0-or-later
+ 
+ # Copyright (C) 1998, 2002, 2006, 2007 Free Software Foundation
+ # Copyright (C) 1993 Jean-loup Gailly
+diff --git a/src/scripts/xzgrep.1 b/src/scripts/xzgrep.1
+index e0514b8b..0ace8502 100644
+--- a/src/scripts/xzgrep.1
++++ b/src/scripts/xzgrep.1
+@@ -1,11 +1,10 @@
++.\" SPDX-License-Identifier: GPL-2.0-or-later
+ .\"
+ .\" Original zgrep.1 for gzip: Jean-loup Gailly
+ .\"                            Charles Levert <charles@comm.polymtl.ca>
+ .\"
+ .\" Modifications for XZ Utils: Lasse Collin
+ .\"
+-.\" License: GNU GPLv2+
+-.\"
+ .TH XZGREP 1 "2022-07-19" "Tukaani" "XZ Utils"
+ .SH NAME
+ xzgrep \- search compressed files for a regular expression
+diff --git a/src/scripts/xzgrep.in b/src/scripts/xzgrep.in
+index c98fb30d..6e3d8d7e 100644
+--- a/src/scripts/xzgrep.in
++++ b/src/scripts/xzgrep.in
+@@ -1,4 +1,5 @@
+ #!@POSIX_SHELL@
++# SPDX-License-Identifier: GPL-2.0-or-later
+ 
+ # xzgrep -- a wrapper around a grep program that decompresses files as needed
+ # Adapted from a version sent by Charles Levert <charles@comm.polymtl.ca>
+diff --git a/src/scripts/xzless.in b/src/scripts/xzless.in
+index 53650ef1..08a64dc7 100644
+--- a/src/scripts/xzless.in
++++ b/src/scripts/xzless.in
+@@ -1,4 +1,5 @@
+ #!@POSIX_SHELL@
++# SPDX-License-Identifier: GPL-2.0-or-later
+ 
+ # Copyright (C) 1998, 2002, 2006, 2007 Free Software Foundation
+ 
+diff --git a/src/scripts/xzmore.1 b/src/scripts/xzmore.1
+index 9613974e..8a402808 100644
+--- a/src/scripts/xzmore.1
++++ b/src/scripts/xzmore.1
+@@ -1,9 +1,8 @@
++.\" SPDX-License-Identifier: GPL-2.0-or-later
+ .\"
+ .\" Original zdiff.1 for gzip: Jean-loup Gailly
+ .\" Modifications for XZ Utils: Lasse Collin
+ .\"
+-.\" License: GNU GPLv2+
+-.\"
+ .TH XZMORE 1 "2013-06-30" "Tukaani" "XZ Utils"
+ .SH NAME
+ xzmore, lzmore \- view xz or lzma compressed (text) files
+diff --git a/src/scripts/xzmore.in b/src/scripts/xzmore.in
+index 5188fdab..7cb31cbe 100644
+--- a/src/scripts/xzmore.in
++++ b/src/scripts/xzmore.in
+@@ -1,4 +1,5 @@
+ #!@POSIX_SHELL@
++# SPDX-License-Identifier: GPL-2.0-or-later
+ 
+ # Copyright (C) 2001, 2002, 2007 Free Software Foundation
+ # Copyright (C) 1992, 1993 Jean-loup Gailly

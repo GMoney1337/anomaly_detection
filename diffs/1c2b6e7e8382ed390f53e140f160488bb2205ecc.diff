@@ -1,0 +1,13 @@
+diff --git a/src/common/tuklib_cpucores.c b/src/common/tuklib_cpucores.c
+index 93413a3c..7574bc9c 100644
+--- a/src/common/tuklib_cpucores.c
++++ b/src/common/tuklib_cpucores.c
+@@ -18,7 +18,7 @@
+ #	endif
+ #	include <windows.h>
+ 
+-#if defined(TUKLIB_CPUCORES_SYSCTL)
++#elif defined(TUKLIB_CPUCORES_SYSCTL)
+ #	ifdef HAVE_SYS_PARAM_H
+ #		include <sys/param.h>
+ #	endif

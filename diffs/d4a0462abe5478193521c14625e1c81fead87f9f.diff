@@ -1,0 +1,2721 @@
+diff --git a/src/liblzma/common/alone_decoder.c b/src/liblzma/common/alone_decoder.c
+index c1360ca1..dd681765 100644
+--- a/src/liblzma/common/alone_decoder.c
++++ b/src/liblzma/common/alone_decoder.c
+@@ -15,7 +15,7 @@
+ #include "lz_decoder.h"
+ 
+ 
+-struct lzma_coder_s {
++typedef struct {
+ 	lzma_next_coder next;
+ 
+ 	enum {
+@@ -46,17 +46,19 @@ struct lzma_coder_s {
+ 	/// Options decoded from the header needed to initialize
+ 	/// the LZMA decoder
+ 	lzma_options_lzma options;
+-};
++} lzma_alone_coder;
+ 
+ 
+ static lzma_ret
+-alone_decode(lzma_coder *coder,
++alone_decode(void *coder_ptr,
+ 		const lzma_allocator *allocator lzma_attribute((__unused__)),
+ 		const uint8_t *restrict in, size_t *restrict in_pos,
+ 		size_t in_size, uint8_t *restrict out,
+ 		size_t *restrict out_pos, size_t out_size,
+ 		lzma_action action)
+ {
++	lzma_alone_coder *coder = coder_ptr;
++
+ 	while (*out_pos < out_size
+ 			&& (coder->sequence == SEQ_CODE || *in_pos < in_size))
+ 	switch (coder->sequence) {
+@@ -166,8 +168,9 @@ alone_decode(lzma_coder *coder,
+ 
+ 
+ static void
+-alone_decoder_end(lzma_coder *coder, const lzma_allocator *allocator)
++alone_decoder_end(void *coder_ptr, const lzma_allocator *allocator)
+ {
++	lzma_alone_coder *coder = coder_ptr;
+ 	lzma_next_end(&coder->next, allocator);
+ 	lzma_free(coder, allocator);
+ 	return;
+@@ -175,9 +178,11 @@ alone_decoder_end(lzma_coder *coder, const lzma_allocator *allocator)
+ 
+ 
+ static lzma_ret
+-alone_decoder_memconfig(lzma_coder *coder, uint64_t *memusage,
++alone_decoder_memconfig(void *coder_ptr, uint64_t *memusage,
+ 		uint64_t *old_memlimit, uint64_t new_memlimit)
+ {
++	lzma_alone_coder *coder = coder_ptr;
++
+ 	*memusage = coder->memusage;
+ 	*old_memlimit = coder->memlimit;
+ 
+@@ -201,26 +206,29 @@ lzma_alone_decoder_init(lzma_next_coder *next, const lzma_allocator *allocator,
+ 	if (memlimit == 0)
+ 		return LZMA_PROG_ERROR;
+ 
+-	if (next->coder == NULL) {
+-		next->coder = lzma_alloc(sizeof(lzma_coder), allocator);
+-		if (next->coder == NULL)
++	lzma_alone_coder *coder = next->coder;
++
++	if (coder == NULL) {
++		coder = lzma_alloc(sizeof(lzma_alone_coder), allocator);
++		if (coder == NULL)
+ 			return LZMA_MEM_ERROR;
+ 
++		next->coder = coder;
+ 		next->code = &alone_decode;
+ 		next->end = &alone_decoder_end;
+ 		next->memconfig = &alone_decoder_memconfig;
+-		next->coder->next = LZMA_NEXT_CODER_INIT;
++		coder->next = LZMA_NEXT_CODER_INIT;
+ 	}
+ 
+-	next->coder->sequence = SEQ_PROPERTIES;
+-	next->coder->picky = picky;
+-	next->coder->pos = 0;
+-	next->coder->options.dict_size = 0;
+-	next->coder->options.preset_dict = NULL;
+-	next->coder->options.preset_dict_size = 0;
+-	next->coder->uncompressed_size = 0;
+-	next->coder->memlimit = memlimit;
+-	next->coder->memusage = LZMA_MEMUSAGE_BASE;
++	coder->sequence = SEQ_PROPERTIES;
++	coder->picky = picky;
++	coder->pos = 0;
++	coder->options.dict_size = 0;
++	coder->options.preset_dict = NULL;
++	coder->options.preset_dict_size = 0;
++	coder->uncompressed_size = 0;
++	coder->memlimit = memlimit;
++	coder->memusage = LZMA_MEMUSAGE_BASE;
+ 
+ 	return LZMA_OK;
+ }
+diff --git a/src/liblzma/common/alone_encoder.c b/src/liblzma/common/alone_encoder.c
+index a2bc9eee..4853cfd1 100644
+--- a/src/liblzma/common/alone_encoder.c
++++ b/src/liblzma/common/alone_encoder.c
+@@ -17,7 +17,7 @@
+ #define ALONE_HEADER_SIZE (1 + 4 + 8)
+ 
+ 
+-struct lzma_coder_s {
++typedef struct {
+ 	lzma_next_coder next;
+ 
+ 	enum {
+@@ -27,17 +27,19 @@ struct lzma_coder_s {
+ 
+ 	size_t header_pos;
+ 	uint8_t header[ALONE_HEADER_SIZE];
+-};
++} lzma_alone_coder;
+ 
+ 
+ static lzma_ret
+-alone_encode(lzma_coder *coder,
++alone_encode(void *coder_ptr,
+ 		const lzma_allocator *allocator lzma_attribute((__unused__)),
+ 		const uint8_t *restrict in, size_t *restrict in_pos,
+ 		size_t in_size, uint8_t *restrict out,
+ 		size_t *restrict out_pos, size_t out_size,
+ 		lzma_action action)
+ {
++	lzma_alone_coder *coder = coder_ptr;
++
+ 	while (*out_pos < out_size)
+ 	switch (coder->sequence) {
+ 	case SEQ_HEADER:
+@@ -65,8 +67,9 @@ alone_encode(lzma_coder *coder,
+ 
+ 
+ static void
+-alone_encoder_end(lzma_coder *coder, const lzma_allocator *allocator)
++alone_encoder_end(void *coder_ptr, const lzma_allocator *allocator)
+ {
++	lzma_alone_coder *coder = coder_ptr;
+ 	lzma_next_end(&coder->next, allocator);
+ 	lzma_free(coder, allocator);
+ 	return;
+@@ -80,23 +83,26 @@ alone_encoder_init(lzma_next_coder *next, const lzma_allocator *allocator,
+ {
+ 	lzma_next_coder_init(&alone_encoder_init, next, allocator);
+ 
+-	if (next->coder == NULL) {
+-		next->coder = lzma_alloc(sizeof(lzma_coder), allocator);
+-		if (next->coder == NULL)
++	lzma_alone_coder *coder = next->coder;
++
++	if (coder == NULL) {
++		coder = lzma_alloc(sizeof(lzma_alone_coder), allocator);
++		if (coder == NULL)
+ 			return LZMA_MEM_ERROR;
+ 
++		next->coder = coder;
+ 		next->code = &alone_encode;
+ 		next->end = &alone_encoder_end;
+-		next->coder->next = LZMA_NEXT_CODER_INIT;
++		coder->next = LZMA_NEXT_CODER_INIT;
+ 	}
+ 
+ 	// Basic initializations
+-	next->coder->sequence = SEQ_HEADER;
+-	next->coder->header_pos = 0;
++	coder->sequence = SEQ_HEADER;
++	coder->header_pos = 0;
+ 
+ 	// Encode the header:
+ 	// - Properties (1 byte)
+-	if (lzma_lzma_lclppb_encode(options, next->coder->header))
++	if (lzma_lzma_lclppb_encode(options, coder->header))
+ 		return LZMA_OPTIONS_ERROR;
+ 
+ 	// - Dictionary size (4 bytes)
+@@ -116,10 +122,10 @@ alone_encoder_init(lzma_next_coder *next, const lzma_allocator *allocator,
+ 	if (d != UINT32_MAX)
+ 		++d;
+ 
+-	unaligned_write32le(next->coder->header + 1, d);
++	unaligned_write32le(coder->header + 1, d);
+ 
+ 	// - Uncompressed size (always unknown and using EOPM)
+-	memset(next->coder->header + 1 + 4, 0xFF, 8);
++	memset(coder->header + 1 + 4, 0xFF, 8);
+ 
+ 	// Initialize the LZMA encoder.
+ 	const lzma_filter_info filters[2] = {
+@@ -131,7 +137,7 @@ alone_encoder_init(lzma_next_coder *next, const lzma_allocator *allocator,
+ 		}
+ 	};
+ 
+-	return lzma_next_filter_init(&next->coder->next, allocator, filters);
++	return lzma_next_filter_init(&coder->next, allocator, filters);
+ }
+ 
+ 
+diff --git a/src/liblzma/common/auto_decoder.c b/src/liblzma/common/auto_decoder.c
+index bf355070..09acd6dc 100644
+--- a/src/liblzma/common/auto_decoder.c
++++ b/src/liblzma/common/auto_decoder.c
+@@ -14,7 +14,7 @@
+ #include "alone_decoder.h"
+ 
+ 
+-struct lzma_coder_s {
++typedef struct {
+ 	/// Stream decoder or LZMA_Alone decoder
+ 	lzma_next_coder next;
+ 
+@@ -26,15 +26,17 @@ struct lzma_coder_s {
+ 		SEQ_CODE,
+ 		SEQ_FINISH,
+ 	} sequence;
+-};
++} lzma_auto_coder;
+ 
+ 
+ static lzma_ret
+-auto_decode(lzma_coder *coder, const lzma_allocator *allocator,
++auto_decode(void *coder_ptr, const lzma_allocator *allocator,
+ 		const uint8_t *restrict in, size_t *restrict in_pos,
+ 		size_t in_size, uint8_t *restrict out,
+ 		size_t *restrict out_pos, size_t out_size, lzma_action action)
+ {
++	lzma_auto_coder *coder = coder_ptr;
++
+ 	switch (coder->sequence) {
+ 	case SEQ_INIT:
+ 		if (*in_pos >= in_size)
+@@ -100,8 +102,9 @@ auto_decode(lzma_coder *coder, const lzma_allocator *allocator,
+ 
+ 
+ static void
+-auto_decoder_end(lzma_coder *coder, const lzma_allocator *allocator)
++auto_decoder_end(void *coder_ptr, const lzma_allocator *allocator)
+ {
++	lzma_auto_coder *coder = coder_ptr;
+ 	lzma_next_end(&coder->next, allocator);
+ 	lzma_free(coder, allocator);
+ 	return;
+@@ -109,8 +112,10 @@ auto_decoder_end(lzma_coder *coder, const lzma_allocator *allocator)
+ 
+ 
+ static lzma_check
+-auto_decoder_get_check(const lzma_coder *coder)
++auto_decoder_get_check(const void *coder_ptr)
+ {
++	const lzma_auto_coder *coder = coder_ptr;
++
+ 	// It is LZMA_Alone if get_check is NULL.
+ 	return coder->next.get_check == NULL ? LZMA_CHECK_NONE
+ 			: coder->next.get_check(coder->next.coder);
+@@ -118,9 +123,11 @@ auto_decoder_get_check(const lzma_coder *coder)
+ 
+ 
+ static lzma_ret
+-auto_decoder_memconfig(lzma_coder *coder, uint64_t *memusage,
++auto_decoder_memconfig(void *coder_ptr, uint64_t *memusage,
+ 		uint64_t *old_memlimit, uint64_t new_memlimit)
+ {
++	lzma_auto_coder *coder = coder_ptr;
++
+ 	lzma_ret ret;
+ 
+ 	if (coder->next.memconfig != NULL) {
+@@ -154,21 +161,23 @@ auto_decoder_init(lzma_next_coder *next, const lzma_allocator *allocator,
+ 	if (flags & ~LZMA_SUPPORTED_FLAGS)
+ 		return LZMA_OPTIONS_ERROR;
+ 
+-	if (next->coder == NULL) {
+-		next->coder = lzma_alloc(sizeof(lzma_coder), allocator);
+-		if (next->coder == NULL)
++	lzma_auto_coder *coder = next->coder;
++	if (coder == NULL) {
++		coder = lzma_alloc(sizeof(lzma_auto_coder), allocator);
++		if (coder == NULL)
+ 			return LZMA_MEM_ERROR;
+ 
++		next->coder = coder;
+ 		next->code = &auto_decode;
+ 		next->end = &auto_decoder_end;
+ 		next->get_check = &auto_decoder_get_check;
+ 		next->memconfig = &auto_decoder_memconfig;
+-		next->coder->next = LZMA_NEXT_CODER_INIT;
++		coder->next = LZMA_NEXT_CODER_INIT;
+ 	}
+ 
+-	next->coder->memlimit = memlimit;
+-	next->coder->flags = flags;
+-	next->coder->sequence = SEQ_INIT;
++	coder->memlimit = memlimit;
++	coder->flags = flags;
++	coder->sequence = SEQ_INIT;
+ 
+ 	return LZMA_OK;
+ }
+diff --git a/src/liblzma/common/block_decoder.c b/src/liblzma/common/block_decoder.c
+index 685c3b03..075bd279 100644
+--- a/src/liblzma/common/block_decoder.c
++++ b/src/liblzma/common/block_decoder.c
+@@ -15,7 +15,7 @@
+ #include "check.h"
+ 
+ 
+-struct lzma_coder_s {
++typedef struct {
+ 	enum {
+ 		SEQ_CODE,
+ 		SEQ_PADDING,
+@@ -48,7 +48,7 @@ struct lzma_coder_s {
+ 
+ 	/// True if the integrity check won't be calculated and verified.
+ 	bool ignore_check;
+-};
++} lzma_block_coder;
+ 
+ 
+ static inline bool
+@@ -74,11 +74,13 @@ is_size_valid(lzma_vli size, lzma_vli reference)
+ 
+ 
+ static lzma_ret
+-block_decode(lzma_coder *coder, const lzma_allocator *allocator,
++block_decode(void *coder_ptr, const lzma_allocator *allocator,
+ 		const uint8_t *restrict in, size_t *restrict in_pos,
+ 		size_t in_size, uint8_t *restrict out,
+ 		size_t *restrict out_pos, size_t out_size, lzma_action action)
+ {
++	lzma_block_coder *coder = coder_ptr;
++
+ 	switch (coder->sequence) {
+ 	case SEQ_CODE: {
+ 		const size_t in_start = *in_pos;
+@@ -177,8 +179,9 @@ block_decode(lzma_coder *coder, const lzma_allocator *allocator,
+ 
+ 
+ static void
+-block_decoder_end(lzma_coder *coder, const lzma_allocator *allocator)
++block_decoder_end(void *coder_ptr, const lzma_allocator *allocator)
+ {
++	lzma_block_coder *coder = coder_ptr;
+ 	lzma_next_end(&coder->next, allocator);
+ 	lzma_free(coder, allocator);
+ 	return;
+@@ -198,27 +201,29 @@ lzma_block_decoder_init(lzma_next_coder *next, const lzma_allocator *allocator,
+ 			|| !lzma_vli_is_valid(block->uncompressed_size))
+ 		return LZMA_PROG_ERROR;
+ 
+-	// Allocate and initialize *next->coder if needed.
+-	if (next->coder == NULL) {
+-		next->coder = lzma_alloc(sizeof(lzma_coder), allocator);
+-		if (next->coder == NULL)
++	// Allocate *next->coder if needed.
++	lzma_block_coder *coder = next->coder;
++	if (coder == NULL) {
++		coder = lzma_alloc(sizeof(lzma_block_coder), allocator);
++		if (coder == NULL)
+ 			return LZMA_MEM_ERROR;
+ 
++		next->coder = coder;
+ 		next->code = &block_decode;
+ 		next->end = &block_decoder_end;
+-		next->coder->next = LZMA_NEXT_CODER_INIT;
++		coder->next = LZMA_NEXT_CODER_INIT;
+ 	}
+ 
+ 	// Basic initializations
+-	next->coder->sequence = SEQ_CODE;
+-	next->coder->block = block;
+-	next->coder->compressed_size = 0;
+-	next->coder->uncompressed_size = 0;
++	coder->sequence = SEQ_CODE;
++	coder->block = block;
++	coder->compressed_size = 0;
++	coder->uncompressed_size = 0;
+ 
+ 	// If Compressed Size is not known, we calculate the maximum allowed
+ 	// value so that encoded size of the Block (including Block Padding)
+ 	// is still a valid VLI and a multiple of four.
+-	next->coder->compressed_limit
++	coder->compressed_limit
+ 			= block->compressed_size == LZMA_VLI_UNKNOWN
+ 				? (LZMA_VLI_MAX & ~LZMA_VLI_C(3))
+ 					- block->header_size
+@@ -228,14 +233,14 @@ lzma_block_decoder_init(lzma_next_coder *next, const lzma_allocator *allocator,
+ 	// Initialize the check. It's caller's problem if the Check ID is not
+ 	// supported, and the Block decoder cannot verify the Check field.
+ 	// Caller can test lzma_check_is_supported(block->check).
+-	next->coder->check_pos = 0;
+-	lzma_check_init(&next->coder->check, block->check);
++	coder->check_pos = 0;
++	lzma_check_init(&coder->check, block->check);
+ 
+-	next->coder->ignore_check = block->version >= 1
++	coder->ignore_check = block->version >= 1
+ 			? block->ignore_check : false;
+ 
+ 	// Initialize the filter chain.
+-	return lzma_raw_decoder_init(&next->coder->next, allocator,
++	return lzma_raw_decoder_init(&coder->next, allocator,
+ 			block->filters);
+ }
+ 
+diff --git a/src/liblzma/common/block_encoder.c b/src/liblzma/common/block_encoder.c
+index def58641..168846ad 100644
+--- a/src/liblzma/common/block_encoder.c
++++ b/src/liblzma/common/block_encoder.c
+@@ -15,7 +15,7 @@
+ #include "check.h"
+ 
+ 
+-struct lzma_coder_s {
++typedef struct {
+ 	/// The filters in the chain; initialized with lzma_raw_decoder_init().
+ 	lzma_next_coder next;
+ 
+@@ -41,15 +41,17 @@ struct lzma_coder_s {
+ 
+ 	/// Check of the uncompressed data
+ 	lzma_check_state check;
+-};
++} lzma_block_coder;
+ 
+ 
+ static lzma_ret
+-block_encode(lzma_coder *coder, const lzma_allocator *allocator,
++block_encode(void *coder_ptr, const lzma_allocator *allocator,
+ 		const uint8_t *restrict in, size_t *restrict in_pos,
+ 		size_t in_size, uint8_t *restrict out,
+ 		size_t *restrict out_pos, size_t out_size, lzma_action action)
+ {
++	lzma_block_coder *coder = coder_ptr;
++
+ 	// Check that our amount of input stays in proper limits.
+ 	if (LZMA_VLI_MAX - coder->uncompressed_size < in_size - *in_pos)
+ 		return LZMA_DATA_ERROR;
+@@ -134,8 +136,9 @@ block_encode(lzma_coder *coder, const lzma_allocator *allocator,
+ 
+ 
+ static void
+-block_encoder_end(lzma_coder *coder, const lzma_allocator *allocator)
++block_encoder_end(void *coder_ptr, const lzma_allocator *allocator)
+ {
++	lzma_block_coder *coder = coder_ptr;
+ 	lzma_next_end(&coder->next, allocator);
+ 	lzma_free(coder, allocator);
+ 	return;
+@@ -143,10 +146,12 @@ block_encoder_end(lzma_coder *coder, const lzma_allocator *allocator)
+ 
+ 
+ static lzma_ret
+-block_encoder_update(lzma_coder *coder, const lzma_allocator *allocator,
++block_encoder_update(void *coder_ptr, const lzma_allocator *allocator,
+ 		const lzma_filter *filters lzma_attribute((__unused__)),
+ 		const lzma_filter *reversed_filters)
+ {
++	lzma_block_coder *coder = coder_ptr;
++
+ 	if (coder->sequence != SEQ_CODE)
+ 		return LZMA_PROG_ERROR;
+ 
+@@ -178,30 +183,31 @@ lzma_block_encoder_init(lzma_next_coder *next, const lzma_allocator *allocator,
+ 		return LZMA_UNSUPPORTED_CHECK;
+ 
+ 	// Allocate and initialize *next->coder if needed.
+-	if (next->coder == NULL) {
+-		next->coder = lzma_alloc(sizeof(lzma_coder), allocator);
+-		if (next->coder == NULL)
++	lzma_block_coder *coder = next->coder;
++	if (coder == NULL) {
++		coder = lzma_alloc(sizeof(lzma_block_coder), allocator);
++		if (coder == NULL)
+ 			return LZMA_MEM_ERROR;
+ 
++		next->coder = coder;
+ 		next->code = &block_encode;
+ 		next->end = &block_encoder_end;
+ 		next->update = &block_encoder_update;
+-		next->coder->next = LZMA_NEXT_CODER_INIT;
++		coder->next = LZMA_NEXT_CODER_INIT;
+ 	}
+ 
+ 	// Basic initializations
+-	next->coder->sequence = SEQ_CODE;
+-	next->coder->block = block;
+-	next->coder->compressed_size = 0;
+-	next->coder->uncompressed_size = 0;
+-	next->coder->pos = 0;
++	coder->sequence = SEQ_CODE;
++	coder->block = block;
++	coder->compressed_size = 0;
++	coder->uncompressed_size = 0;
++	coder->pos = 0;
+ 
+ 	// Initialize the check
+-	lzma_check_init(&next->coder->check, block->check);
++	lzma_check_init(&coder->check, block->check);
+ 
+ 	// Initialize the requested filters.
+-	return lzma_raw_encoder_init(&next->coder->next, allocator,
+-			block->filters);
++	return lzma_raw_encoder_init(&coder->next, allocator, block->filters);
+ }
+ 
+ 
+diff --git a/src/liblzma/common/common.h b/src/liblzma/common/common.h
+index 955d784a..b3d3b7a0 100644
+--- a/src/liblzma/common/common.h
++++ b/src/liblzma/common/common.h
+@@ -88,10 +88,6 @@
+ #define LZMA_TIMED_OUT 32
+ 
+ 
+-/// Type of encoder/decoder specific data; the actual structure is defined
+-/// differently in different coders.
+-typedef struct lzma_coder_s lzma_coder;
+-
+ typedef struct lzma_next_coder_s lzma_next_coder;
+ 
+ typedef struct lzma_filter_info_s lzma_filter_info;
+@@ -107,7 +103,7 @@ typedef lzma_ret (*lzma_init_function)(
+ /// input and output buffers, but for simplicity they still use this same
+ /// function prototype.
+ typedef lzma_ret (*lzma_code_function)(
+-		lzma_coder *coder, const lzma_allocator *allocator,
++		void *coder, const lzma_allocator *allocator,
+ 		const uint8_t *restrict in, size_t *restrict in_pos,
+ 		size_t in_size, uint8_t *restrict out,
+ 		size_t *restrict out_pos, size_t out_size,
+@@ -115,7 +111,7 @@ typedef lzma_ret (*lzma_code_function)(
+ 
+ /// Type of a function to free the memory allocated for the coder
+ typedef void (*lzma_end_function)(
+-		lzma_coder *coder, const lzma_allocator *allocator);
++		void *coder, const lzma_allocator *allocator);
+ 
+ 
+ /// Raw coder validates and converts an array of lzma_filter structures to
+@@ -138,7 +134,7 @@ struct lzma_filter_info_s {
+ /// Hold data and function pointers of the next filter in the chain.
+ struct lzma_next_coder_s {
+ 	/// Pointer to coder-specific data
+-	lzma_coder *coder;
++	void *coder;
+ 
+ 	/// Filter ID. This is LZMA_VLI_UNKNOWN when this structure doesn't
+ 	/// point to a filter coder.
+@@ -160,21 +156,21 @@ struct lzma_next_coder_s {
+ 
+ 	/// Pointer to a function to get progress information. If this is NULL,
+ 	/// lzma_stream.total_in and .total_out are used instead.
+-	void (*get_progress)(lzma_coder *coder,
++	void (*get_progress)(void *coder,
+ 			uint64_t *progress_in, uint64_t *progress_out);
+ 
+ 	/// Pointer to function to return the type of the integrity check.
+ 	/// Most coders won't support this.
+-	lzma_check (*get_check)(const lzma_coder *coder);
++	lzma_check (*get_check)(const void *coder);
+ 
+ 	/// Pointer to function to get and/or change the memory usage limit.
+ 	/// If new_memlimit == 0, the limit is not changed.
+-	lzma_ret (*memconfig)(lzma_coder *coder, uint64_t *memusage,
++	lzma_ret (*memconfig)(void *coder, uint64_t *memusage,
+ 			uint64_t *old_memlimit, uint64_t new_memlimit);
+ 
+ 	/// Update the filter-specific options or the whole filter chain
+ 	/// in the encoder.
+-	lzma_ret (*update)(lzma_coder *coder, const lzma_allocator *allocator,
++	lzma_ret (*update)(void *coder, const lzma_allocator *allocator,
+ 			const lzma_filter *filters,
+ 			const lzma_filter *reversed_filters);
+ };
+diff --git a/src/liblzma/common/index_decoder.c b/src/liblzma/common/index_decoder.c
+index 795d1834..1e33f0b0 100644
+--- a/src/liblzma/common/index_decoder.c
++++ b/src/liblzma/common/index_decoder.c
+@@ -14,7 +14,7 @@
+ #include "check.h"
+ 
+ 
+-struct lzma_coder_s {
++typedef struct {
+ 	enum {
+ 		SEQ_INDICATOR,
+ 		SEQ_COUNT,
+@@ -50,11 +50,11 @@ struct lzma_coder_s {
+ 
+ 	/// CRC32 of the List of Records field
+ 	uint32_t crc32;
+-};
++} lzma_index_coder;
+ 
+ 
+ static lzma_ret
+-index_decode(lzma_coder *coder, const lzma_allocator *allocator,
++index_decode(void *coder_ptr, const lzma_allocator *allocator,
+ 		const uint8_t *restrict in, size_t *restrict in_pos,
+ 		size_t in_size,
+ 		uint8_t *restrict out lzma_attribute((__unused__)),
+@@ -62,6 +62,8 @@ index_decode(lzma_coder *coder, const lzma_allocator *allocator,
+ 		size_t out_size lzma_attribute((__unused__)),
+ 		lzma_action action lzma_attribute((__unused__)))
+ {
++	lzma_index_coder *coder = coder_ptr;
++
+ 	// Similar optimization as in index_encoder.c
+ 	const size_t in_start = *in_pos;
+ 	lzma_ret ret = LZMA_OK;
+@@ -207,8 +209,9 @@ out:
+ 
+ 
+ static void
+-index_decoder_end(lzma_coder *coder, const lzma_allocator *allocator)
++index_decoder_end(void *coder_ptr, const lzma_allocator *allocator)
+ {
++	lzma_index_coder *coder = coder_ptr;
+ 	lzma_index_end(coder->index, allocator);
+ 	lzma_free(coder, allocator);
+ 	return;
+@@ -216,9 +219,11 @@ index_decoder_end(lzma_coder *coder, const lzma_allocator *allocator)
+ 
+ 
+ static lzma_ret
+-index_decoder_memconfig(lzma_coder *coder, uint64_t *memusage,
++index_decoder_memconfig(void *coder_ptr, uint64_t *memusage,
+ 		uint64_t *old_memlimit, uint64_t new_memlimit)
+ {
++	lzma_index_coder *coder = coder_ptr;
++
+ 	*memusage = lzma_index_memusage(1, coder->count);
+ 	*old_memlimit = coder->memlimit;
+ 
+@@ -234,7 +239,7 @@ index_decoder_memconfig(lzma_coder *coder, uint64_t *memusage,
+ 
+ 
+ static lzma_ret
+-index_decoder_reset(lzma_coder *coder, const lzma_allocator *allocator,
++index_decoder_reset(lzma_index_coder *coder, const lzma_allocator *allocator,
+ 		lzma_index **i, uint64_t memlimit)
+ {
+ 	// Remember the pointer given by the application. We will set it
+@@ -269,20 +274,22 @@ index_decoder_init(lzma_next_coder *next, const lzma_allocator *allocator,
+ 	if (i == NULL || memlimit == 0)
+ 		return LZMA_PROG_ERROR;
+ 
+-	if (next->coder == NULL) {
+-		next->coder = lzma_alloc(sizeof(lzma_coder), allocator);
+-		if (next->coder == NULL)
++	lzma_index_coder *coder = next->coder;
++	if (coder == NULL) {
++		coder = lzma_alloc(sizeof(lzma_index_coder), allocator);
++		if (coder == NULL)
+ 			return LZMA_MEM_ERROR;
+ 
++		next->coder = coder;
+ 		next->code = &index_decode;
+ 		next->end = &index_decoder_end;
+ 		next->memconfig = &index_decoder_memconfig;
+-		next->coder->index = NULL;
++		coder->index = NULL;
+ 	} else {
+-		lzma_index_end(next->coder->index, allocator);
++		lzma_index_end(coder->index, allocator);
+ 	}
+ 
+-	return index_decoder_reset(next->coder, allocator, i, memlimit);
++	return index_decoder_reset(coder, allocator, i, memlimit);
+ }
+ 
+ 
+@@ -309,7 +316,7 @@ lzma_index_buffer_decode(lzma_index **i, uint64_t *memlimit,
+ 		return LZMA_PROG_ERROR;
+ 
+ 	// Initialize the decoder.
+-	lzma_coder coder;
++	lzma_index_coder coder;
+ 	return_if_error(index_decoder_reset(&coder, allocator, i, *memlimit));
+ 
+ 	// Store the input start position so that we can restore it in case
+diff --git a/src/liblzma/common/index_encoder.c b/src/liblzma/common/index_encoder.c
+index d25ac7d3..ac97d0ce 100644
+--- a/src/liblzma/common/index_encoder.c
++++ b/src/liblzma/common/index_encoder.c
+@@ -15,7 +15,7 @@
+ #include "check.h"
+ 
+ 
+-struct lzma_coder_s {
++typedef struct {
+ 	enum {
+ 		SEQ_INDICATOR,
+ 		SEQ_COUNT,
+@@ -37,11 +37,11 @@ struct lzma_coder_s {
+ 
+ 	/// CRC32 of the List of Records field
+ 	uint32_t crc32;
+-};
++} lzma_index_coder;
+ 
+ 
+ static lzma_ret
+-index_encode(lzma_coder *coder,
++index_encode(void *coder_ptr,
+ 		const lzma_allocator *allocator lzma_attribute((__unused__)),
+ 		const uint8_t *restrict in lzma_attribute((__unused__)),
+ 		size_t *restrict in_pos lzma_attribute((__unused__)),
+@@ -50,6 +50,8 @@ index_encode(lzma_coder *coder,
+ 		size_t out_size,
+ 		lzma_action action lzma_attribute((__unused__)))
+ {
++	lzma_index_coder *coder = coder_ptr;
++
+ 	// Position where to start calculating CRC32. The idea is that we
+ 	// need to call lzma_crc32() only once per call to index_encode().
+ 	const size_t out_start = *out_pos;
+@@ -159,7 +161,7 @@ out:
+ 
+ 
+ static void
+-index_encoder_end(lzma_coder *coder, const lzma_allocator *allocator)
++index_encoder_end(void *coder, const lzma_allocator *allocator)
+ {
+ 	lzma_free(coder, allocator);
+ 	return;
+@@ -167,7 +169,7 @@ index_encoder_end(lzma_coder *coder, const lzma_allocator *allocator)
+ 
+ 
+ static void
+-index_encoder_reset(lzma_coder *coder, const lzma_index *i)
++index_encoder_reset(lzma_index_coder *coder, const lzma_index *i)
+ {
+ 	lzma_index_iter_init(&coder->iter, i);
+ 
+@@ -190,7 +192,7 @@ lzma_index_encoder_init(lzma_next_coder *next, const lzma_allocator *allocator,
+ 		return LZMA_PROG_ERROR;
+ 
+ 	if (next->coder == NULL) {
+-		next->coder = lzma_alloc(sizeof(lzma_coder), allocator);
++		next->coder = lzma_alloc(sizeof(lzma_index_coder), allocator);
+ 		if (next->coder == NULL)
+ 			return LZMA_MEM_ERROR;
+ 
+@@ -230,7 +232,7 @@ lzma_index_buffer_encode(const lzma_index *i,
+ 
+ 	// The Index encoder needs just one small data structure so we can
+ 	// allocate it on stack.
+-	lzma_coder coder;
++	lzma_index_coder coder;
+ 	index_encoder_reset(&coder, i);
+ 
+ 	// Do the actual encoding. This should never fail, but store
+diff --git a/src/liblzma/common/stream_decoder.c b/src/liblzma/common/stream_decoder.c
+index 3ab938c9..7ae7a670 100644
+--- a/src/liblzma/common/stream_decoder.c
++++ b/src/liblzma/common/stream_decoder.c
+@@ -14,7 +14,7 @@
+ #include "block_decoder.h"
+ 
+ 
+-struct lzma_coder_s {
++typedef struct {
+ 	enum {
+ 		SEQ_STREAM_HEADER,
+ 		SEQ_BLOCK_HEADER,
+@@ -80,11 +80,11 @@ struct lzma_coder_s {
+ 	/// Buffer to hold Stream Header, Block Header, and Stream Footer.
+ 	/// Block Header has biggest maximum size.
+ 	uint8_t buffer[LZMA_BLOCK_HEADER_SIZE_MAX];
+-};
++} lzma_stream_coder;
+ 
+ 
+ static lzma_ret
+-stream_decoder_reset(lzma_coder *coder, const lzma_allocator *allocator)
++stream_decoder_reset(lzma_stream_coder *coder, const lzma_allocator *allocator)
+ {
+ 	// Initialize the Index hash used to verify the Index.
+ 	coder->index_hash = lzma_index_hash_init(coder->index_hash, allocator);
+@@ -100,11 +100,13 @@ stream_decoder_reset(lzma_coder *coder, const lzma_allocator *allocator)
+ 
+ 
+ static lzma_ret
+-stream_decode(lzma_coder *coder, const lzma_allocator *allocator,
++stream_decode(void *coder_ptr, const lzma_allocator *allocator,
+ 		const uint8_t *restrict in, size_t *restrict in_pos,
+ 		size_t in_size, uint8_t *restrict out,
+ 		size_t *restrict out_pos, size_t out_size, lzma_action action)
+ {
++	lzma_stream_coder *coder = coder_ptr;
++
+ 	// When decoding the actual Block, it may be able to produce more
+ 	// output even if we don't give it any new input.
+ 	while (true)
+@@ -375,8 +377,9 @@ stream_decode(lzma_coder *coder, const lzma_allocator *allocator,
+ 
+ 
+ static void
+-stream_decoder_end(lzma_coder *coder, const lzma_allocator *allocator)
++stream_decoder_end(void *coder_ptr, const lzma_allocator *allocator)
+ {
++	lzma_stream_coder *coder = coder_ptr;
+ 	lzma_next_end(&coder->block_decoder, allocator);
+ 	lzma_index_hash_end(coder->index_hash, allocator);
+ 	lzma_free(coder, allocator);
+@@ -385,16 +388,19 @@ stream_decoder_end(lzma_coder *coder, const lzma_allocator *allocator)
+ 
+ 
+ static lzma_check
+-stream_decoder_get_check(const lzma_coder *coder)
++stream_decoder_get_check(const void *coder_ptr)
+ {
++	const lzma_stream_coder *coder = coder_ptr;
+ 	return coder->stream_flags.check;
+ }
+ 
+ 
+ static lzma_ret
+-stream_decoder_memconfig(lzma_coder *coder, uint64_t *memusage,
++stream_decoder_memconfig(void *coder_ptr, uint64_t *memusage,
+ 		uint64_t *old_memlimit, uint64_t new_memlimit)
+ {
++	lzma_stream_coder *coder = coder_ptr;
++
+ 	*memusage = coder->memusage;
+ 	*old_memlimit = coder->memlimit;
+ 
+@@ -422,31 +428,33 @@ lzma_stream_decoder_init(
+ 	if (flags & ~LZMA_SUPPORTED_FLAGS)
+ 		return LZMA_OPTIONS_ERROR;
+ 
+-	if (next->coder == NULL) {
+-		next->coder = lzma_alloc(sizeof(lzma_coder), allocator);
+-		if (next->coder == NULL)
++	lzma_stream_coder *coder = next->coder;
++	if (coder == NULL) {
++		coder = lzma_alloc(sizeof(lzma_stream_coder), allocator);
++		if (coder == NULL)
+ 			return LZMA_MEM_ERROR;
+ 
++		next->coder = coder;
+ 		next->code = &stream_decode;
+ 		next->end = &stream_decoder_end;
+ 		next->get_check = &stream_decoder_get_check;
+ 		next->memconfig = &stream_decoder_memconfig;
+ 
+-		next->coder->block_decoder = LZMA_NEXT_CODER_INIT;
+-		next->coder->index_hash = NULL;
++		coder->block_decoder = LZMA_NEXT_CODER_INIT;
++		coder->index_hash = NULL;
+ 	}
+ 
+-	next->coder->memlimit = memlimit;
+-	next->coder->memusage = LZMA_MEMUSAGE_BASE;
+-	next->coder->tell_no_check = (flags & LZMA_TELL_NO_CHECK) != 0;
+-	next->coder->tell_unsupported_check
++	coder->memlimit = memlimit;
++	coder->memusage = LZMA_MEMUSAGE_BASE;
++	coder->tell_no_check = (flags & LZMA_TELL_NO_CHECK) != 0;
++	coder->tell_unsupported_check
+ 			= (flags & LZMA_TELL_UNSUPPORTED_CHECK) != 0;
+-	next->coder->tell_any_check = (flags & LZMA_TELL_ANY_CHECK) != 0;
+-	next->coder->ignore_check = (flags & LZMA_IGNORE_CHECK) != 0;
+-	next->coder->concatenated = (flags & LZMA_CONCATENATED) != 0;
+-	next->coder->first_stream = true;
++	coder->tell_any_check = (flags & LZMA_TELL_ANY_CHECK) != 0;
++	coder->ignore_check = (flags & LZMA_IGNORE_CHECK) != 0;
++	coder->concatenated = (flags & LZMA_CONCATENATED) != 0;
++	coder->first_stream = true;
+ 
+-	return stream_decoder_reset(next->coder, allocator);
++	return stream_decoder_reset(coder, allocator);
+ }
+ 
+ 
+diff --git a/src/liblzma/common/stream_encoder.c b/src/liblzma/common/stream_encoder.c
+index a7663bc4..858cba47 100644
+--- a/src/liblzma/common/stream_encoder.c
++++ b/src/liblzma/common/stream_encoder.c
+@@ -14,7 +14,7 @@
+ #include "index_encoder.h"
+ 
+ 
+-struct lzma_coder_s {
++typedef struct {
+ 	enum {
+ 		SEQ_STREAM_HEADER,
+ 		SEQ_BLOCK_INIT,
+@@ -55,11 +55,11 @@ struct lzma_coder_s {
+ 	/// Buffer to hold Stream Header, Block Header, and Stream Footer.
+ 	/// Block Header has biggest maximum size.
+ 	uint8_t buffer[LZMA_BLOCK_HEADER_SIZE_MAX];
+-};
++} lzma_stream_coder;
+ 
+ 
+ static lzma_ret
+-block_encoder_init(lzma_coder *coder, const lzma_allocator *allocator)
++block_encoder_init(lzma_stream_coder *coder, const lzma_allocator *allocator)
+ {
+ 	// Prepare the Block options. Even though Block encoder doesn't need
+ 	// compressed_size, uncompressed_size, and header_size to be
+@@ -78,11 +78,13 @@ block_encoder_init(lzma_coder *coder, const lzma_allocator *allocator)
+ 
+ 
+ static lzma_ret
+-stream_encode(lzma_coder *coder, const lzma_allocator *allocator,
++stream_encode(void *coder_ptr, const lzma_allocator *allocator,
+ 		const uint8_t *restrict in, size_t *restrict in_pos,
+ 		size_t in_size, uint8_t *restrict out,
+ 		size_t *restrict out_pos, size_t out_size, lzma_action action)
+ {
++	lzma_stream_coder *coder = coder_ptr;
++
+ 	// Main loop
+ 	while (*out_pos < out_size)
+ 	switch (coder->sequence) {
+@@ -209,8 +211,10 @@ stream_encode(lzma_coder *coder, const lzma_allocator *allocator,
+ 
+ 
+ static void
+-stream_encoder_end(lzma_coder *coder, const lzma_allocator *allocator)
++stream_encoder_end(void *coder_ptr, const lzma_allocator *allocator)
+ {
++	lzma_stream_coder *coder = coder_ptr;
++
+ 	lzma_next_end(&coder->block_encoder, allocator);
+ 	lzma_next_end(&coder->index_encoder, allocator);
+ 	lzma_index_end(coder->index, allocator);
+@@ -224,10 +228,12 @@ stream_encoder_end(lzma_coder *coder, const lzma_allocator *allocator)
+ 
+ 
+ static lzma_ret
+-stream_encoder_update(lzma_coder *coder, const lzma_allocator *allocator,
++stream_encoder_update(void *coder_ptr, const lzma_allocator *allocator,
+ 		const lzma_filter *filters,
+ 		const lzma_filter *reversed_filters)
+ {
++	lzma_stream_coder *coder = coder_ptr;
++
+ 	if (coder->sequence <= SEQ_BLOCK_INIT) {
+ 		// There is no incomplete Block waiting to be finished,
+ 		// thus we can change the whole filter chain. Start by
+@@ -271,30 +277,33 @@ stream_encoder_init(lzma_next_coder *next, const lzma_allocator *allocator,
+ 	if (filters == NULL)
+ 		return LZMA_PROG_ERROR;
+ 
+-	if (next->coder == NULL) {
+-		next->coder = lzma_alloc(sizeof(lzma_coder), allocator);
+-		if (next->coder == NULL)
++	lzma_stream_coder *coder = next->coder;
++
++	if (coder == NULL) {
++		coder = lzma_alloc(sizeof(lzma_stream_coder), allocator);
++		if (coder == NULL)
+ 			return LZMA_MEM_ERROR;
+ 
++		next->coder = coder;
+ 		next->code = &stream_encode;
+ 		next->end = &stream_encoder_end;
+ 		next->update = &stream_encoder_update;
+ 
+-		next->coder->filters[0].id = LZMA_VLI_UNKNOWN;
+-		next->coder->block_encoder = LZMA_NEXT_CODER_INIT;
+-		next->coder->index_encoder = LZMA_NEXT_CODER_INIT;
+-		next->coder->index = NULL;
++		coder->filters[0].id = LZMA_VLI_UNKNOWN;
++		coder->block_encoder = LZMA_NEXT_CODER_INIT;
++		coder->index_encoder = LZMA_NEXT_CODER_INIT;
++		coder->index = NULL;
+ 	}
+ 
+ 	// Basic initializations
+-	next->coder->sequence = SEQ_STREAM_HEADER;
+-	next->coder->block_options.version = 0;
+-	next->coder->block_options.check = check;
++	coder->sequence = SEQ_STREAM_HEADER;
++	coder->block_options.version = 0;
++	coder->block_options.check = check;
+ 
+ 	// Initialize the Index
+-	lzma_index_end(next->coder->index, allocator);
+-	next->coder->index = lzma_index_init(allocator);
+-	if (next->coder->index == NULL)
++	lzma_index_end(coder->index, allocator);
++	coder->index = lzma_index_init(allocator);
++	if (coder->index == NULL)
+ 		return LZMA_MEM_ERROR;
+ 
+ 	// Encode the Stream Header
+@@ -303,16 +312,15 @@ stream_encoder_init(lzma_next_coder *next, const lzma_allocator *allocator,
+ 		.check = check,
+ 	};
+ 	return_if_error(lzma_stream_header_encode(
+-			&stream_flags, next->coder->buffer));
++			&stream_flags, coder->buffer));
+ 
+-	next->coder->buffer_pos = 0;
+-	next->coder->buffer_size = LZMA_STREAM_HEADER_SIZE;
++	coder->buffer_pos = 0;
++	coder->buffer_size = LZMA_STREAM_HEADER_SIZE;
+ 
+ 	// Initialize the Block encoder. This way we detect unsupported
+ 	// filter chains when initializing the Stream encoder instead of
+ 	// giving an error after Stream Header has already written out.
+-	return stream_encoder_update(
+-			next->coder, allocator, filters, NULL);
++	return stream_encoder_update(coder, allocator, filters, NULL);
+ }
+ 
+ 
+diff --git a/src/liblzma/common/stream_encoder_mt.c b/src/liblzma/common/stream_encoder_mt.c
+index 9780ed04..2efe44c2 100644
+--- a/src/liblzma/common/stream_encoder_mt.c
++++ b/src/liblzma/common/stream_encoder_mt.c
+@@ -44,6 +44,7 @@ typedef enum {
+ 
+ } worker_state;
+ 
++typedef struct lzma_stream_coder_s lzma_stream_coder;
+ 
+ typedef struct worker_thread_s worker_thread;
+ struct worker_thread_s {
+@@ -65,7 +66,7 @@ struct worker_thread_s {
+ 
+ 	/// Pointer to the main structure is needed when putting this
+ 	/// thread back to the stack of free threads.
+-	lzma_coder *coder;
++	lzma_stream_coder *coder;
+ 
+ 	/// The allocator is set by the main thread. Since a copy of the
+ 	/// pointer is kept here, the application must not change the
+@@ -96,7 +97,7 @@ struct worker_thread_s {
+ };
+ 
+ 
+-struct lzma_coder_s {
++struct lzma_stream_coder_s {
+ 	enum {
+ 		SEQ_STREAM_HEADER,
+ 		SEQ_BLOCK,
+@@ -417,7 +418,7 @@ worker_start(void *thr_ptr)
+ 
+ /// Make the threads stop but not exit. Optionally wait for them to stop.
+ static void
+-threads_stop(lzma_coder *coder, bool wait_for_threads)
++threads_stop(lzma_stream_coder *coder, bool wait_for_threads)
+ {
+ 	// Tell the threads to stop.
+ 	for (uint32_t i = 0; i < coder->threads_initialized; ++i) {
+@@ -446,7 +447,7 @@ threads_stop(lzma_coder *coder, bool wait_for_threads)
+ /// Stop the threads and free the resources associated with them.
+ /// Wait until the threads have exited.
+ static void
+-threads_end(lzma_coder *coder, const lzma_allocator *allocator)
++threads_end(lzma_stream_coder *coder, const lzma_allocator *allocator)
+ {
+ 	for (uint32_t i = 0; i < coder->threads_initialized; ++i) {
+ 		mythread_sync(coder->threads[i].mutex) {
+@@ -468,7 +469,8 @@ threads_end(lzma_coder *coder, const lzma_allocator *allocator)
+ 
+ /// Initialize a new worker_thread structure and create a new thread.
+ static lzma_ret
+-initialize_new_thread(lzma_coder *coder, const lzma_allocator *allocator)
++initialize_new_thread(lzma_stream_coder *coder,
++		const lzma_allocator *allocator)
+ {
+ 	worker_thread *thr = &coder->threads[coder->threads_initialized];
+ 
+@@ -510,7 +512,7 @@ error_mutex:
+ 
+ 
+ static lzma_ret
+-get_thread(lzma_coder *coder, const lzma_allocator *allocator)
++get_thread(lzma_stream_coder *coder, const lzma_allocator *allocator)
+ {
+ 	// If there are no free output subqueues, there is no
+ 	// point to try getting a thread.
+@@ -548,7 +550,7 @@ get_thread(lzma_coder *coder, const lzma_allocator *allocator)
+ 
+ 
+ static lzma_ret
+-stream_encode_in(lzma_coder *coder, const lzma_allocator *allocator,
++stream_encode_in(lzma_stream_coder *coder, const lzma_allocator *allocator,
+ 		const uint8_t *restrict in, size_t *restrict in_pos,
+ 		size_t in_size, lzma_action action)
+ {
+@@ -616,7 +618,7 @@ stream_encode_in(lzma_coder *coder, const lzma_allocator *allocator,
+ /// Wait until more input can be consumed, more output can be read, or
+ /// an optional timeout is reached.
+ static bool
+-wait_for_work(lzma_coder *coder, mythread_condtime *wait_abs,
++wait_for_work(lzma_stream_coder *coder, mythread_condtime *wait_abs,
+ 		bool *has_blocked, bool has_input)
+ {
+ 	if (coder->timeout != 0 && !*has_blocked) {
+@@ -662,11 +664,13 @@ wait_for_work(lzma_coder *coder, mythread_condtime *wait_abs,
+ 
+ 
+ static lzma_ret
+-stream_encode_mt(lzma_coder *coder, const lzma_allocator *allocator,
++stream_encode_mt(void *coder_ptr, const lzma_allocator *allocator,
+ 		const uint8_t *restrict in, size_t *restrict in_pos,
+ 		size_t in_size, uint8_t *restrict out,
+ 		size_t *restrict out_pos, size_t out_size, lzma_action action)
+ {
++	lzma_stream_coder *coder = coder_ptr;
++
+ 	switch (coder->sequence) {
+ 	case SEQ_STREAM_HEADER:
+ 		lzma_bufcpy(coder->header, &coder->header_pos,
+@@ -834,8 +838,10 @@ stream_encode_mt(lzma_coder *coder, const lzma_allocator *allocator,
+ 
+ 
+ static void
+-stream_encoder_mt_end(lzma_coder *coder, const lzma_allocator *allocator)
++stream_encoder_mt_end(void *coder_ptr, const lzma_allocator *allocator)
+ {
++	lzma_stream_coder *coder = coder_ptr;
++
+ 	// Threads must be killed before the output queue can be freed.
+ 	threads_end(coder, allocator);
+ 	lzma_outq_end(&coder->outq, allocator);
+@@ -907,10 +913,12 @@ get_options(const lzma_mt *options, lzma_options_easy *opt_easy,
+ 
+ 
+ static void
+-get_progress(lzma_coder *coder, uint64_t *progress_in, uint64_t *progress_out)
++get_progress(void *coder_ptr, uint64_t *progress_in, uint64_t *progress_out)
+ {
++	lzma_stream_coder *coder = coder_ptr;
++
+ 	// Lock coder->mutex to prevent finishing threads from moving their
+-	// progress info from the worker_thread structure to lzma_coder.
++	// progress info from the worker_thread structure to lzma_stream_coder.
+ 	mythread_sync(coder->mutex) {
+ 		*progress_in = coder->progress_in;
+ 		*progress_out = coder->progress_out;
+@@ -962,24 +970,27 @@ stream_encoder_mt_init(lzma_next_coder *next, const lzma_allocator *allocator,
+ 		return LZMA_UNSUPPORTED_CHECK;
+ 
+ 	// Allocate and initialize the base structure if needed.
+-	if (next->coder == NULL) {
+-		next->coder = lzma_alloc(sizeof(lzma_coder), allocator);
+-		if (next->coder == NULL)
++	lzma_stream_coder *coder = next->coder;
++	if (coder == NULL) {
++		coder = lzma_alloc(sizeof(lzma_stream_coder), allocator);
++		if (coder == NULL)
+ 			return LZMA_MEM_ERROR;
+ 
++		next->coder = coder;
++
+ 		// For the mutex and condition variable initializations
+ 		// the error handling has to be done here because
+ 		// stream_encoder_mt_end() doesn't know if they have
+ 		// already been initialized or not.
+-		if (mythread_mutex_init(&next->coder->mutex)) {
+-			lzma_free(next->coder, allocator);
++		if (mythread_mutex_init(&coder->mutex)) {
++			lzma_free(coder, allocator);
+ 			next->coder = NULL;
+ 			return LZMA_MEM_ERROR;
+ 		}
+ 
+-		if (mythread_cond_init(&next->coder->cond)) {
+-			mythread_mutex_destroy(&next->coder->mutex);
+-			lzma_free(next->coder, allocator);
++		if (mythread_cond_init(&coder->cond)) {
++			mythread_mutex_destroy(&coder->mutex);
++			lzma_free(coder, allocator);
+ 			next->coder = NULL;
+ 			return LZMA_MEM_ERROR;
+ 		}
+@@ -989,76 +1000,76 @@ stream_encoder_mt_init(lzma_next_coder *next, const lzma_allocator *allocator,
+ 		next->get_progress = &get_progress;
+ // 		next->update = &stream_encoder_mt_update;
+ 
+-		next->coder->filters[0].id = LZMA_VLI_UNKNOWN;
+-		next->coder->index_encoder = LZMA_NEXT_CODER_INIT;
+-		next->coder->index = NULL;
+-		memzero(&next->coder->outq, sizeof(next->coder->outq));
+-		next->coder->threads = NULL;
+-		next->coder->threads_max = 0;
+-		next->coder->threads_initialized = 0;
++		coder->filters[0].id = LZMA_VLI_UNKNOWN;
++		coder->index_encoder = LZMA_NEXT_CODER_INIT;
++		coder->index = NULL;
++		memzero(&coder->outq, sizeof(coder->outq));
++		coder->threads = NULL;
++		coder->threads_max = 0;
++		coder->threads_initialized = 0;
+ 	}
+ 
+ 	// Basic initializations
+-	next->coder->sequence = SEQ_STREAM_HEADER;
+-	next->coder->block_size = (size_t)(block_size);
+-	next->coder->thread_error = LZMA_OK;
+-	next->coder->thr = NULL;
++	coder->sequence = SEQ_STREAM_HEADER;
++	coder->block_size = (size_t)(block_size);
++	coder->thread_error = LZMA_OK;
++	coder->thr = NULL;
+ 
+ 	// Allocate the thread-specific base structures.
+ 	assert(options->threads > 0);
+-	if (next->coder->threads_max != options->threads) {
+-		threads_end(next->coder, allocator);
++	if (coder->threads_max != options->threads) {
++		threads_end(coder, allocator);
+ 
+-		next->coder->threads = NULL;
+-		next->coder->threads_max = 0;
++		coder->threads = NULL;
++		coder->threads_max = 0;
+ 
+-		next->coder->threads_initialized = 0;
+-		next->coder->threads_free = NULL;
++		coder->threads_initialized = 0;
++		coder->threads_free = NULL;
+ 
+-		next->coder->threads = lzma_alloc(
++		coder->threads = lzma_alloc(
+ 				options->threads * sizeof(worker_thread),
+ 				allocator);
+-		if (next->coder->threads == NULL)
++		if (coder->threads == NULL)
+ 			return LZMA_MEM_ERROR;
+ 
+-		next->coder->threads_max = options->threads;
++		coder->threads_max = options->threads;
+ 	} else {
+ 		// Reuse the old structures and threads. Tell the running
+ 		// threads to stop and wait until they have stopped.
+-		threads_stop(next->coder, true);
++		threads_stop(coder, true);
+ 	}
+ 
+ 	// Output queue
+-	return_if_error(lzma_outq_init(&next->coder->outq, allocator,
++	return_if_error(lzma_outq_init(&coder->outq, allocator,
+ 			outbuf_size_max, options->threads));
+ 
+ 	// Timeout
+-	next->coder->timeout = options->timeout;
++	coder->timeout = options->timeout;
+ 
+ 	// Free the old filter chain and copy the new one.
+-	for (size_t i = 0; next->coder->filters[i].id != LZMA_VLI_UNKNOWN; ++i)
+-		lzma_free(next->coder->filters[i].options, allocator);
++	for (size_t i = 0; coder->filters[i].id != LZMA_VLI_UNKNOWN; ++i)
++		lzma_free(coder->filters[i].options, allocator);
+ 
+ 	return_if_error(lzma_filters_copy(
+-			filters, next->coder->filters, allocator));
++			filters, coder->filters, allocator));
+ 
+ 	// Index
+-	lzma_index_end(next->coder->index, allocator);
+-	next->coder->index = lzma_index_init(allocator);
+-	if (next->coder->index == NULL)
++	lzma_index_end(coder->index, allocator);
++	coder->index = lzma_index_init(allocator);
++	if (coder->index == NULL)
+ 		return LZMA_MEM_ERROR;
+ 
+ 	// Stream Header
+-	next->coder->stream_flags.version = 0;
+-	next->coder->stream_flags.check = options->check;
++	coder->stream_flags.version = 0;
++	coder->stream_flags.check = options->check;
+ 	return_if_error(lzma_stream_header_encode(
+-			&next->coder->stream_flags, next->coder->header));
++			&coder->stream_flags, coder->header));
+ 
+-	next->coder->header_pos = 0;
++	coder->header_pos = 0;
+ 
+ 	// Progress info
+-	next->coder->progress_in = 0;
+-	next->coder->progress_out = LZMA_STREAM_HEADER_SIZE;
++	coder->progress_in = 0;
++	coder->progress_out = LZMA_STREAM_HEADER_SIZE;
+ 
+ 	return LZMA_OK;
+ }
+@@ -1111,7 +1122,8 @@ lzma_stream_encoder_mt_memusage(const lzma_mt *options)
+ 		return UINT64_MAX;
+ 
+ 	// Sum them with overflow checking.
+-	uint64_t total_memusage = LZMA_MEMUSAGE_BASE + sizeof(lzma_coder)
++	uint64_t total_memusage = LZMA_MEMUSAGE_BASE
++			+ sizeof(lzma_stream_coder)
+ 			+ options->threads * sizeof(worker_thread);
+ 
+ 	if (UINT64_MAX - total_memusage < inbuf_memusage)
+diff --git a/src/liblzma/delta/delta_common.c b/src/liblzma/delta/delta_common.c
+index 13dd4682..4768201d 100644
+--- a/src/liblzma/delta/delta_common.c
++++ b/src/liblzma/delta/delta_common.c
+@@ -15,8 +15,9 @@
+ 
+ 
+ static void
+-delta_coder_end(lzma_coder *coder, const lzma_allocator *allocator)
++delta_coder_end(void *coder_ptr, const lzma_allocator *allocator)
+ {
++	lzma_delta_coder *coder = coder_ptr;
+ 	lzma_next_end(&coder->next, allocator);
+ 	lzma_free(coder, allocator);
+ 	return;
+@@ -28,14 +29,17 @@ lzma_delta_coder_init(lzma_next_coder *next, const lzma_allocator *allocator,
+ 		const lzma_filter_info *filters)
+ {
+ 	// Allocate memory for the decoder if needed.
+-	if (next->coder == NULL) {
+-		next->coder = lzma_alloc(sizeof(lzma_coder), allocator);
+-		if (next->coder == NULL)
++	lzma_delta_coder *coder = next->coder;
++	if (coder == NULL) {
++		coder = lzma_alloc(sizeof(lzma_delta_coder), allocator);
++		if (coder == NULL)
+ 			return LZMA_MEM_ERROR;
+ 
++		next->coder = coder;
++
+ 		// End function is the same for encoder and decoder.
+ 		next->end = &delta_coder_end;
+-		next->coder->next = LZMA_NEXT_CODER_INIT;
++		coder->next = LZMA_NEXT_CODER_INIT;
+ 	}
+ 
+ 	// Validate the options.
+@@ -44,15 +48,14 @@ lzma_delta_coder_init(lzma_next_coder *next, const lzma_allocator *allocator,
+ 
+ 	// Set the delta distance.
+ 	const lzma_options_delta *opt = filters[0].options;
+-	next->coder->distance = opt->dist;
++	coder->distance = opt->dist;
+ 
+ 	// Initialize the rest of the variables.
+-	next->coder->pos = 0;
+-	memzero(next->coder->history, LZMA_DELTA_DIST_MAX);
++	coder->pos = 0;
++	memzero(coder->history, LZMA_DELTA_DIST_MAX);
+ 
+ 	// Initialize the next decoder in the chain, if any.
+-	return lzma_next_filter_init(&next->coder->next,
+-			allocator, filters + 1);
++	return lzma_next_filter_init(&coder->next, allocator, filters + 1);
+ }
+ 
+ 
+@@ -66,5 +69,5 @@ lzma_delta_coder_memusage(const void *options)
+ 			|| opt->dist > LZMA_DELTA_DIST_MAX)
+ 		return UINT64_MAX;
+ 
+-	return sizeof(lzma_coder);
++	return sizeof(lzma_delta_coder);
+ }
+diff --git a/src/liblzma/delta/delta_decoder.c b/src/liblzma/delta/delta_decoder.c
+index 726d0239..6859afa5 100644
+--- a/src/liblzma/delta/delta_decoder.c
++++ b/src/liblzma/delta/delta_decoder.c
+@@ -15,7 +15,7 @@
+ 
+ 
+ static void
+-decode_buffer(lzma_coder *coder, uint8_t *buffer, size_t size)
++decode_buffer(lzma_delta_coder *coder, uint8_t *buffer, size_t size)
+ {
+ 	const size_t distance = coder->distance;
+ 
+@@ -27,11 +27,13 @@ decode_buffer(lzma_coder *coder, uint8_t *buffer, size_t size)
+ 
+ 
+ static lzma_ret
+-delta_decode(lzma_coder *coder, const lzma_allocator *allocator,
++delta_decode(void *coder_ptr, const lzma_allocator *allocator,
+ 		const uint8_t *restrict in, size_t *restrict in_pos,
+ 		size_t in_size, uint8_t *restrict out,
+ 		size_t *restrict out_pos, size_t out_size, lzma_action action)
+ {
++	lzma_delta_coder *coder = coder_ptr;
++
+ 	assert(coder->next.code != NULL);
+ 
+ 	const size_t out_start = *out_pos;
+diff --git a/src/liblzma/delta/delta_encoder.c b/src/liblzma/delta/delta_encoder.c
+index 5a842636..38416515 100644
+--- a/src/liblzma/delta/delta_encoder.c
++++ b/src/liblzma/delta/delta_encoder.c
+@@ -18,7 +18,7 @@
+ /// is the first filter in the chain (and thus the last filter in the
+ /// encoder's filter stack).
+ static void
+-copy_and_encode(lzma_coder *coder,
++copy_and_encode(lzma_delta_coder *coder,
+ 		const uint8_t *restrict in, uint8_t *restrict out, size_t size)
+ {
+ 	const size_t distance = coder->distance;
+@@ -35,7 +35,7 @@ copy_and_encode(lzma_coder *coder,
+ /// Encodes the data in place. This is used when we are the last filter
+ /// in the chain (and thus non-last filter in the encoder's filter stack).
+ static void
+-encode_in_place(lzma_coder *coder, uint8_t *buffer, size_t size)
++encode_in_place(lzma_delta_coder *coder, uint8_t *buffer, size_t size)
+ {
+ 	const size_t distance = coder->distance;
+ 
+@@ -49,11 +49,13 @@ encode_in_place(lzma_coder *coder, uint8_t *buffer, size_t size)
+ 
+ 
+ static lzma_ret
+-delta_encode(lzma_coder *coder, const lzma_allocator *allocator,
++delta_encode(void *coder_ptr, const lzma_allocator *allocator,
+ 		const uint8_t *restrict in, size_t *restrict in_pos,
+ 		size_t in_size, uint8_t *restrict out,
+ 		size_t *restrict out_pos, size_t out_size, lzma_action action)
+ {
++	lzma_delta_coder *coder = coder_ptr;
++
+ 	lzma_ret ret;
+ 
+ 	if (coder->next.code == NULL) {
+@@ -84,10 +86,12 @@ delta_encode(lzma_coder *coder, const lzma_allocator *allocator,
+ 
+ 
+ static lzma_ret
+-delta_encoder_update(lzma_coder *coder, const lzma_allocator *allocator,
++delta_encoder_update(void *coder_ptr, const lzma_allocator *allocator,
+ 		const lzma_filter *filters_null lzma_attribute((__unused__)),
+ 		const lzma_filter *reversed_filters)
+ {
++	lzma_delta_coder *coder = coder_ptr;
++
+ 	// Delta doesn't and will never support changing the options in
+ 	// the middle of encoding. If the app tries to change them, we
+ 	// simply ignore them.
+diff --git a/src/liblzma/delta/delta_private.h b/src/liblzma/delta/delta_private.h
+index 46ce0c64..0d6cb386 100644
+--- a/src/liblzma/delta/delta_private.h
++++ b/src/liblzma/delta/delta_private.h
+@@ -15,7 +15,7 @@
+ 
+ #include "delta_common.h"
+ 
+-struct lzma_coder_s {
++typedef struct {
+ 	/// Next coder in the chain
+ 	lzma_next_coder next;
+ 
+@@ -27,7 +27,7 @@ struct lzma_coder_s {
+ 
+ 	/// Buffer to hold history of the original data
+ 	uint8_t history[LZMA_DELTA_DIST_MAX];
+-};
++} lzma_delta_coder;
+ 
+ 
+ extern lzma_ret lzma_delta_coder_init(
+diff --git a/src/liblzma/lz/lz_decoder.c b/src/liblzma/lz/lz_decoder.c
+index 2328a8e7..c7086440 100644
+--- a/src/liblzma/lz/lz_decoder.c
++++ b/src/liblzma/lz/lz_decoder.c
+@@ -20,7 +20,7 @@
+ #include "lz_decoder.h"
+ 
+ 
+-struct lzma_coder_s {
++typedef struct {
+ 	/// Dictionary (history buffer)
+ 	lzma_dict dict;
+ 
+@@ -48,7 +48,7 @@ struct lzma_coder_s {
+ 		size_t size;
+ 		uint8_t buffer[LZMA_BUFFER_SIZE];
+ 	} temp;
+-};
++} lzma_coder;
+ 
+ 
+ static void
+@@ -125,13 +125,15 @@ decode_buffer(lzma_coder *coder,
+ 
+ 
+ static lzma_ret
+-lz_decode(lzma_coder *coder,
++lz_decode(void *coder_ptr,
+ 		const lzma_allocator *allocator lzma_attribute((__unused__)),
+ 		const uint8_t *restrict in, size_t *restrict in_pos,
+ 		size_t in_size, uint8_t *restrict out,
+ 		size_t *restrict out_pos, size_t out_size,
+ 		lzma_action action)
+ {
++	lzma_coder *coder = coder_ptr;
++
+ 	if (coder->next.code == NULL)
+ 		return decode_buffer(coder, in, in_pos, in_size,
+ 				out, out_pos, out_size);
+@@ -184,8 +186,10 @@ lz_decode(lzma_coder *coder,
+ 
+ 
+ static void
+-lz_decoder_end(lzma_coder *coder, const lzma_allocator *allocator)
++lz_decoder_end(void *coder_ptr, const lzma_allocator *allocator)
+ {
++	lzma_coder *coder = coder_ptr;
++
+ 	lzma_next_end(&coder->next, allocator);
+ 	lzma_free(coder->dict.buf, allocator);
+ 
+@@ -207,24 +211,26 @@ lzma_lz_decoder_init(lzma_next_coder *next, const lzma_allocator *allocator,
+ 			lzma_lz_options *lz_options))
+ {
+ 	// Allocate the base structure if it isn't already allocated.
+-	if (next->coder == NULL) {
+-		next->coder = lzma_alloc(sizeof(lzma_coder), allocator);
+-		if (next->coder == NULL)
++	lzma_coder *coder = next->coder;
++	if (coder == NULL) {
++		coder = lzma_alloc(sizeof(lzma_coder), allocator);
++		if (coder == NULL)
+ 			return LZMA_MEM_ERROR;
+ 
++		next->coder = coder;
+ 		next->code = &lz_decode;
+ 		next->end = &lz_decoder_end;
+ 
+-		next->coder->dict.buf = NULL;
+-		next->coder->dict.size = 0;
+-		next->coder->lz = LZMA_LZ_DECODER_INIT;
+-		next->coder->next = LZMA_NEXT_CODER_INIT;
++		coder->dict.buf = NULL;
++		coder->dict.size = 0;
++		coder->lz = LZMA_LZ_DECODER_INIT;
++		coder->next = LZMA_NEXT_CODER_INIT;
+ 	}
+ 
+ 	// Allocate and initialize the LZ-based decoder. It will also give
+ 	// us the dictionary size.
+ 	lzma_lz_options lz_options;
+-	return_if_error(lz_init(&next->coder->lz, allocator,
++	return_if_error(lz_init(&coder->lz, allocator,
+ 			filters[0].options, &lz_options));
+ 
+ 	// If the dictionary size is very small, increase it to 4096 bytes.
+@@ -248,14 +254,14 @@ lzma_lz_decoder_init(lzma_next_coder *next, const lzma_allocator *allocator,
+ 	lz_options.dict_size = (lz_options.dict_size + 15) & ~((size_t)(15));
+ 
+ 	// Allocate and initialize the dictionary.
+-	if (next->coder->dict.size != lz_options.dict_size) {
+-		lzma_free(next->coder->dict.buf, allocator);
+-		next->coder->dict.buf
++	if (coder->dict.size != lz_options.dict_size) {
++		lzma_free(coder->dict.buf, allocator);
++		coder->dict.buf
+ 				= lzma_alloc(lz_options.dict_size, allocator);
+-		if (next->coder->dict.buf == NULL)
++		if (coder->dict.buf == NULL)
+ 			return LZMA_MEM_ERROR;
+ 
+-		next->coder->dict.size = lz_options.dict_size;
++		coder->dict.size = lz_options.dict_size;
+ 	}
+ 
+ 	lz_decoder_reset(next->coder);
+@@ -268,21 +274,20 @@ lzma_lz_decoder_init(lzma_next_coder *next, const lzma_allocator *allocator,
+ 		const size_t copy_size = my_min(lz_options.preset_dict_size,
+ 				lz_options.dict_size);
+ 		const size_t offset = lz_options.preset_dict_size - copy_size;
+-		memcpy(next->coder->dict.buf, lz_options.preset_dict + offset,
++		memcpy(coder->dict.buf, lz_options.preset_dict + offset,
+ 				copy_size);
+-		next->coder->dict.pos = copy_size;
+-		next->coder->dict.full = copy_size;
++		coder->dict.pos = copy_size;
++		coder->dict.full = copy_size;
+ 	}
+ 
+ 	// Miscellaneous initializations
+-	next->coder->next_finished = false;
+-	next->coder->this_finished = false;
+-	next->coder->temp.pos = 0;
+-	next->coder->temp.size = 0;
++	coder->next_finished = false;
++	coder->this_finished = false;
++	coder->temp.pos = 0;
++	coder->temp.size = 0;
+ 
+ 	// Initialize the next filter in the chain, if any.
+-	return lzma_next_filter_init(&next->coder->next, allocator,
+-			filters + 1);
++	return lzma_next_filter_init(&coder->next, allocator, filters + 1);
+ }
+ 
+ 
+@@ -294,7 +299,8 @@ lzma_lz_decoder_memusage(size_t dictionary_size)
+ 
+ 
+ extern void
+-lzma_lz_decoder_uncompressed(lzma_coder *coder, lzma_vli uncompressed_size)
++lzma_lz_decoder_uncompressed(void *coder_ptr, lzma_vli uncompressed_size)
+ {
++	lzma_coder *coder = coder_ptr;
+ 	coder->lz.set_uncompressed(coder->lz.coder, uncompressed_size);
+ }
+diff --git a/src/liblzma/lz/lz_decoder.h b/src/liblzma/lz/lz_decoder.h
+index 277900af..754ccf37 100644
+--- a/src/liblzma/lz/lz_decoder.h
++++ b/src/liblzma/lz/lz_decoder.h
+@@ -53,21 +53,20 @@ typedef struct {
+ 
+ typedef struct {
+ 	/// Data specific to the LZ-based decoder
+-	lzma_coder *coder;
++	void *coder;
+ 
+ 	/// Function to decode from in[] to *dict
+-	lzma_ret (*code)(lzma_coder *restrict coder,
++	lzma_ret (*code)(void *coder,
+ 			lzma_dict *restrict dict, const uint8_t *restrict in,
+ 			size_t *restrict in_pos, size_t in_size);
+ 
+-	void (*reset)(lzma_coder *coder, const void *options);
++	void (*reset)(void *coder, const void *options);
+ 
+ 	/// Set the uncompressed size
+-	void (*set_uncompressed)(lzma_coder *coder,
+-			lzma_vli uncompressed_size);
++	void (*set_uncompressed)(void *coder, lzma_vli uncompressed_size);
+ 
+ 	/// Free allocated resources
+-	void (*end)(lzma_coder *coder, const lzma_allocator *allocator);
++	void (*end)(void *coder, const lzma_allocator *allocator);
+ 
+ } lzma_lz_decoder;
+ 
+@@ -92,7 +91,7 @@ extern lzma_ret lzma_lz_decoder_init(lzma_next_coder *next,
+ extern uint64_t lzma_lz_decoder_memusage(size_t dictionary_size);
+ 
+ extern void lzma_lz_decoder_uncompressed(
+-		lzma_coder *coder, lzma_vli uncompressed_size);
++		void *coder, lzma_vli uncompressed_size);
+ 
+ 
+ //////////////////////
+diff --git a/src/liblzma/lz/lz_encoder.c b/src/liblzma/lz/lz_encoder.c
+index 5a2be798..9a74b7c4 100644
+--- a/src/liblzma/lz/lz_encoder.c
++++ b/src/liblzma/lz/lz_encoder.c
+@@ -23,7 +23,7 @@
+ #include "memcmplen.h"
+ 
+ 
+-struct lzma_coder_s {
++typedef struct {
+ 	/// LZ-based encoder e.g. LZMA
+ 	lzma_lz_encoder lz;
+ 
+@@ -32,7 +32,7 @@ struct lzma_coder_s {
+ 
+ 	/// Next coder in the chain
+ 	lzma_next_coder next;
+-};
++} lzma_coder;
+ 
+ 
+ /// \brief      Moves the data in the input window to free space for new data
+@@ -157,12 +157,14 @@ fill_window(lzma_coder *coder, const lzma_allocator *allocator,
+ 
+ 
+ static lzma_ret
+-lz_encode(lzma_coder *coder, const lzma_allocator *allocator,
++lz_encode(void *coder_ptr, const lzma_allocator *allocator,
+ 		const uint8_t *restrict in, size_t *restrict in_pos,
+ 		size_t in_size,
+ 		uint8_t *restrict out, size_t *restrict out_pos,
+ 		size_t out_size, lzma_action action)
+ {
++	lzma_coder *coder = coder_ptr;
++
+ 	while (*out_pos < out_size
+ 			&& (*in_pos < in_size || action != LZMA_RUN)) {
+ 		// Read more data to coder->mf.buffer if needed.
+@@ -481,8 +483,10 @@ lzma_lz_encoder_memusage(const lzma_lz_options *lz_options)
+ 
+ 
+ static void
+-lz_encoder_end(lzma_coder *coder, const lzma_allocator *allocator)
++lz_encoder_end(void *coder_ptr, const lzma_allocator *allocator)
+ {
++	lzma_coder *coder = coder_ptr;
++
+ 	lzma_next_end(&coder->next, allocator);
+ 
+ 	lzma_free(coder->mf.son, allocator);
+@@ -500,10 +504,12 @@ lz_encoder_end(lzma_coder *coder, const lzma_allocator *allocator)
+ 
+ 
+ static lzma_ret
+-lz_encoder_update(lzma_coder *coder, const lzma_allocator *allocator,
++lz_encoder_update(void *coder_ptr, const lzma_allocator *allocator,
+ 		const lzma_filter *filters_null lzma_attribute((__unused__)),
+ 		const lzma_filter *reversed_filters)
+ {
++	lzma_coder *coder = coder_ptr;
++
+ 	if (coder->lz.options_update == NULL)
+ 		return LZMA_PROG_ERROR;
+ 
+@@ -528,50 +534,51 @@ lzma_lz_encoder_init(lzma_next_coder *next, const lzma_allocator *allocator,
+ #endif
+ 
+ 	// Allocate and initialize the base data structure.
+-	if (next->coder == NULL) {
+-		next->coder = lzma_alloc(sizeof(lzma_coder), allocator);
+-		if (next->coder == NULL)
++	lzma_coder *coder = next->coder;
++	if (coder == NULL) {
++		coder = lzma_alloc(sizeof(lzma_coder), allocator);
++		if (coder == NULL)
+ 			return LZMA_MEM_ERROR;
+ 
++		next->coder = coder;
+ 		next->code = &lz_encode;
+ 		next->end = &lz_encoder_end;
+ 		next->update = &lz_encoder_update;
+ 
+-		next->coder->lz.coder = NULL;
+-		next->coder->lz.code = NULL;
+-		next->coder->lz.end = NULL;
++		coder->lz.coder = NULL;
++		coder->lz.code = NULL;
++		coder->lz.end = NULL;
+ 
+ 		// mf.size is initialized to silence Valgrind
+ 		// when used on optimized binaries (GCC may reorder
+ 		// code in a way that Valgrind gets unhappy).
+-		next->coder->mf.buffer = NULL;
+-		next->coder->mf.size = 0;
+-		next->coder->mf.hash = NULL;
+-		next->coder->mf.son = NULL;
+-		next->coder->mf.hash_count = 0;
+-		next->coder->mf.sons_count = 0;
+-
+-		next->coder->next = LZMA_NEXT_CODER_INIT;
++		coder->mf.buffer = NULL;
++		coder->mf.size = 0;
++		coder->mf.hash = NULL;
++		coder->mf.son = NULL;
++		coder->mf.hash_count = 0;
++		coder->mf.sons_count = 0;
++
++		coder->next = LZMA_NEXT_CODER_INIT;
+ 	}
+ 
+ 	// Initialize the LZ-based encoder.
+ 	lzma_lz_options lz_options;
+-	return_if_error(lz_init(&next->coder->lz, allocator,
++	return_if_error(lz_init(&coder->lz, allocator,
+ 			filters[0].options, &lz_options));
+ 
+-	// Setup the size information into next->coder->mf and deallocate
++	// Setup the size information into coder->mf and deallocate
+ 	// old buffers if they have wrong size.
+-	if (lz_encoder_prepare(&next->coder->mf, allocator, &lz_options))
++	if (lz_encoder_prepare(&coder->mf, allocator, &lz_options))
+ 		return LZMA_OPTIONS_ERROR;
+ 
+ 	// Allocate new buffers if needed, and do the rest of
+ 	// the initialization.
+-	if (lz_encoder_init(&next->coder->mf, allocator, &lz_options))
++	if (lz_encoder_init(&coder->mf, allocator, &lz_options))
+ 		return LZMA_MEM_ERROR;
+ 
+ 	// Initialize the next filter in the chain, if any.
+-	return lzma_next_filter_init(&next->coder->next, allocator,
+-			filters + 1);
++	return lzma_next_filter_init(&coder->next, allocator, filters + 1);
+ }
+ 
+ 
+diff --git a/src/liblzma/lz/lz_encoder.h b/src/liblzma/lz/lz_encoder.h
+index dad9c6b2..426dcd8a 100644
+--- a/src/liblzma/lz/lz_encoder.h
++++ b/src/liblzma/lz/lz_encoder.h
+@@ -191,19 +191,18 @@ typedef struct {
+ 
+ typedef struct {
+ 	/// Data specific to the LZ-based encoder
+-	lzma_coder *coder;
++	void *coder;
+ 
+ 	/// Function to encode from *dict to out[]
+-	lzma_ret (*code)(lzma_coder *restrict coder,
++	lzma_ret (*code)(void *coder,
+ 			lzma_mf *restrict mf, uint8_t *restrict out,
+ 			size_t *restrict out_pos, size_t out_size);
+ 
+ 	/// Free allocated resources
+-	void (*end)(lzma_coder *coder, const lzma_allocator *allocator);
++	void (*end)(void *coder, const lzma_allocator *allocator);
+ 
+ 	/// Update the options in the middle of the encoding.
+-	lzma_ret (*options_update)(lzma_coder *coder,
+-			const lzma_filter *filter);
++	lzma_ret (*options_update)(void *coder, const lzma_filter *filter);
+ 
+ } lzma_lz_encoder;
+ 
+diff --git a/src/liblzma/lzma/lzma2_decoder.c b/src/liblzma/lzma/lzma2_decoder.c
+index 84982d2c..878c870a 100644
+--- a/src/liblzma/lzma/lzma2_decoder.c
++++ b/src/liblzma/lzma/lzma2_decoder.c
+@@ -16,7 +16,7 @@
+ #include "lzma_decoder.h"
+ 
+ 
+-struct lzma_coder_s {
++typedef struct {
+ 	enum sequence {
+ 		SEQ_CONTROL,
+ 		SEQ_UNCOMPRESSED_1,
+@@ -50,14 +50,16 @@ struct lzma_coder_s {
+ 	bool need_dictionary_reset;
+ 
+ 	lzma_options_lzma options;
+-};
++} lzma_lzma2_coder;
+ 
+ 
+ static lzma_ret
+-lzma2_decode(lzma_coder *restrict coder, lzma_dict *restrict dict,
++lzma2_decode(void *coder_ptr, lzma_dict *restrict dict,
+ 		const uint8_t *restrict in, size_t *restrict in_pos,
+ 		size_t in_size)
+ {
++	lzma_lzma2_coder *restrict coder = coder_ptr;
++
+ 	// With SEQ_LZMA it is possible that no new input is needed to do
+ 	// some progress. The rest of the sequences assume that there is
+ 	// at least one byte of input.
+@@ -209,8 +211,10 @@ lzma2_decode(lzma_coder *restrict coder, lzma_dict *restrict dict,
+ 
+ 
+ static void
+-lzma2_decoder_end(lzma_coder *coder, const lzma_allocator *allocator)
++lzma2_decoder_end(void *coder_ptr, const lzma_allocator *allocator)
+ {
++	lzma_lzma2_coder *coder = coder_ptr;
++
+ 	assert(coder->lzma.end == NULL);
+ 	lzma_free(coder->lzma.coder, allocator);
+ 
+@@ -224,25 +228,27 @@ static lzma_ret
+ lzma2_decoder_init(lzma_lz_decoder *lz, const lzma_allocator *allocator,
+ 		const void *opt, lzma_lz_options *lz_options)
+ {
+-	if (lz->coder == NULL) {
+-		lz->coder = lzma_alloc(sizeof(lzma_coder), allocator);
+-		if (lz->coder == NULL)
++	lzma_lzma2_coder *coder = lz->coder;
++	if (coder == NULL) {
++		coder = lzma_alloc(sizeof(lzma_lzma2_coder), allocator);
++		if (coder == NULL)
+ 			return LZMA_MEM_ERROR;
+ 
++		lz->coder = coder;
+ 		lz->code = &lzma2_decode;
+ 		lz->end = &lzma2_decoder_end;
+ 
+-		lz->coder->lzma = LZMA_LZ_DECODER_INIT;
++		coder->lzma = LZMA_LZ_DECODER_INIT;
+ 	}
+ 
+ 	const lzma_options_lzma *options = opt;
+ 
+-	lz->coder->sequence = SEQ_CONTROL;
+-	lz->coder->need_properties = true;
+-	lz->coder->need_dictionary_reset = options->preset_dict == NULL
++	coder->sequence = SEQ_CONTROL;
++	coder->need_properties = true;
++	coder->need_dictionary_reset = options->preset_dict == NULL
+ 			|| options->preset_dict_size == 0;
+ 
+-	return lzma_lzma_decoder_create(&lz->coder->lzma,
++	return lzma_lzma_decoder_create(&coder->lzma,
+ 			allocator, options, lz_options);
+ }
+ 
+@@ -263,7 +269,7 @@ lzma_lzma2_decoder_init(lzma_next_coder *next, const lzma_allocator *allocator,
+ extern uint64_t
+ lzma_lzma2_decoder_memusage(const void *options)
+ {
+-	return sizeof(lzma_coder)
++	return sizeof(lzma_lzma2_coder)
+ 			+ lzma_lzma_decoder_memusage_nocheck(options);
+ }
+ 
+diff --git a/src/liblzma/lzma/lzma2_encoder.c b/src/liblzma/lzma/lzma2_encoder.c
+index b6756bfc..63588ee3 100644
+--- a/src/liblzma/lzma/lzma2_encoder.c
++++ b/src/liblzma/lzma/lzma2_encoder.c
+@@ -17,7 +17,7 @@
+ #include "lzma2_encoder.h"
+ 
+ 
+-struct lzma_coder_s {
++typedef struct {
+ 	enum {
+ 		SEQ_INIT,
+ 		SEQ_LZMA_ENCODE,
+@@ -27,7 +27,7 @@ struct lzma_coder_s {
+ 	} sequence;
+ 
+ 	/// LZMA encoder
+-	lzma_coder *lzma;
++	void *lzma;
+ 
+ 	/// LZMA options currently in use.
+ 	lzma_options_lzma opt_cur;
+@@ -48,11 +48,11 @@ struct lzma_coder_s {
+ 
+ 	/// Buffer to hold the chunk header and LZMA compressed data
+ 	uint8_t buf[LZMA2_HEADER_MAX + LZMA2_CHUNK_MAX];
+-};
++} lzma_lzma2_coder;
+ 
+ 
+ static void
+-lzma2_header_lzma(lzma_coder *coder)
++lzma2_header_lzma(lzma_lzma2_coder *coder)
+ {
+ 	assert(coder->uncompressed_size > 0);
+ 	assert(coder->uncompressed_size <= LZMA2_UNCOMPRESSED_MAX);
+@@ -108,7 +108,7 @@ lzma2_header_lzma(lzma_coder *coder)
+ 
+ 
+ static void
+-lzma2_header_uncompressed(lzma_coder *coder)
++lzma2_header_uncompressed(lzma_lzma2_coder *coder)
+ {
+ 	assert(coder->uncompressed_size > 0);
+ 	assert(coder->uncompressed_size <= LZMA2_CHUNK_MAX);
+@@ -133,10 +133,12 @@ lzma2_header_uncompressed(lzma_coder *coder)
+ 
+ 
+ static lzma_ret
+-lzma2_encode(lzma_coder *restrict coder, lzma_mf *restrict mf,
++lzma2_encode(void *coder_ptr, lzma_mf *restrict mf,
+ 		uint8_t *restrict out, size_t *restrict out_pos,
+ 		size_t out_size)
+ {
++	lzma_lzma2_coder *restrict coder = coder_ptr;
++
+ 	while (*out_pos < out_size)
+ 	switch (coder->sequence) {
+ 	case SEQ_INIT:
+@@ -262,8 +264,9 @@ lzma2_encode(lzma_coder *restrict coder, lzma_mf *restrict mf,
+ 
+ 
+ static void
+-lzma2_encoder_end(lzma_coder *coder, const lzma_allocator *allocator)
++lzma2_encoder_end(void *coder_ptr, const lzma_allocator *allocator)
+ {
++	lzma_lzma2_coder *coder = coder_ptr;
+ 	lzma_free(coder->lzma, allocator);
+ 	lzma_free(coder, allocator);
+ 	return;
+@@ -271,8 +274,10 @@ lzma2_encoder_end(lzma_coder *coder, const lzma_allocator *allocator)
+ 
+ 
+ static lzma_ret
+-lzma2_encoder_options_update(lzma_coder *coder, const lzma_filter *filter)
++lzma2_encoder_options_update(void *coder_ptr, const lzma_filter *filter)
+ {
++	lzma_lzma2_coder *coder = coder_ptr;
++
+ 	// New options can be set only when there is no incomplete chunk.
+ 	// This is the case at the beginning of the raw stream and right
+ 	// after LZMA_SYNC_FLUSH.
+@@ -310,30 +315,32 @@ lzma2_encoder_init(lzma_lz_encoder *lz, const lzma_allocator *allocator,
+ 	if (options == NULL)
+ 		return LZMA_PROG_ERROR;
+ 
+-	if (lz->coder == NULL) {
+-		lz->coder = lzma_alloc(sizeof(lzma_coder), allocator);
+-		if (lz->coder == NULL)
++	lzma_lzma2_coder *coder = lz->coder;
++	if (coder == NULL) {
++		coder = lzma_alloc(sizeof(lzma_lzma2_coder), allocator);
++		if (coder == NULL)
+ 			return LZMA_MEM_ERROR;
+ 
++		lz->coder = coder;
+ 		lz->code = &lzma2_encode;
+ 		lz->end = &lzma2_encoder_end;
+ 		lz->options_update = &lzma2_encoder_options_update;
+ 
+-		lz->coder->lzma = NULL;
++		coder->lzma = NULL;
+ 	}
+ 
+-	lz->coder->opt_cur = *(const lzma_options_lzma *)(options);
++	coder->opt_cur = *(const lzma_options_lzma *)(options);
+ 
+-	lz->coder->sequence = SEQ_INIT;
+-	lz->coder->need_properties = true;
+-	lz->coder->need_state_reset = false;
+-	lz->coder->need_dictionary_reset
+-			= lz->coder->opt_cur.preset_dict == NULL
+-			|| lz->coder->opt_cur.preset_dict_size == 0;
++	coder->sequence = SEQ_INIT;
++	coder->need_properties = true;
++	coder->need_state_reset = false;
++	coder->need_dictionary_reset
++			= coder->opt_cur.preset_dict == NULL
++			|| coder->opt_cur.preset_dict_size == 0;
+ 
+ 	// Initialize LZMA encoder
+-	return_if_error(lzma_lzma_encoder_create(&lz->coder->lzma, allocator,
+-			&lz->coder->opt_cur, lz_options));
++	return_if_error(lzma_lzma_encoder_create(&coder->lzma, allocator,
++			&coder->opt_cur, lz_options));
+ 
+ 	// Make sure that we will always have enough history available in
+ 	// case we need to use uncompressed chunks. They are used when the
+@@ -364,7 +371,7 @@ lzma_lzma2_encoder_memusage(const void *options)
+ 	if (lzma_mem == UINT64_MAX)
+ 		return UINT64_MAX;
+ 
+-	return sizeof(lzma_coder) + lzma_mem;
++	return sizeof(lzma_lzma2_coder) + lzma_mem;
+ }
+ 
+ 
+diff --git a/src/liblzma/lzma/lzma_decoder.c b/src/liblzma/lzma/lzma_decoder.c
+index b8f93170..eedc0733 100644
+--- a/src/liblzma/lzma/lzma_decoder.c
++++ b/src/liblzma/lzma/lzma_decoder.c
+@@ -161,7 +161,7 @@ typedef struct {
+ } lzma_length_decoder;
+ 
+ 
+-struct lzma_coder_s {
++typedef struct {
+ 	///////////////////
+ 	// Probabilities //
+ 	///////////////////
+@@ -277,14 +277,16 @@ struct lzma_coder_s {
+ 	/// If decoding a literal: match byte.
+ 	/// If decoding a match: length of the match.
+ 	uint32_t len;
+-};
++} lzma_lzma1_decoder;
+ 
+ 
+ static lzma_ret
+-lzma_decode(lzma_coder *restrict coder, lzma_dict *restrict dictptr,
++lzma_decode(void *coder_ptr, lzma_dict *restrict dictptr,
+ 		const uint8_t *restrict in,
+ 		size_t *restrict in_pos, size_t in_size)
+ {
++	lzma_lzma1_decoder *restrict coder = coder_ptr;
++
+ 	////////////////////
+ 	// Initialization //
+ 	////////////////////
+@@ -840,23 +842,17 @@ out:
+ 
+ 
+ static void
+-lzma_decoder_uncompressed(lzma_coder *coder, lzma_vli uncompressed_size)
++lzma_decoder_uncompressed(void *coder_ptr, lzma_vli uncompressed_size)
+ {
++	lzma_lzma1_decoder *coder = coder_ptr;
+ 	coder->uncompressed_size = uncompressed_size;
+ }
+ 
+-/*
+-extern void
+-lzma_lzma_decoder_uncompressed(void *coder_ptr, lzma_vli uncompressed_size)
+-{
+-	// This is hack.
+-	(*(lzma_coder **)(coder))->uncompressed_size = uncompressed_size;
+-}
+-*/
+ 
+ static void
+-lzma_decoder_reset(lzma_coder *coder, const void *opt)
++lzma_decoder_reset(void *coder_ptr, const void *opt)
+ {
++	lzma_lzma1_decoder *coder = coder_ptr;
+ 	const lzma_options_lzma *options = opt;
+ 
+ 	// NOTE: We assume that lc/lp/pb are valid since they were
+@@ -941,7 +937,7 @@ lzma_lzma_decoder_create(lzma_lz_decoder *lz, const lzma_allocator *allocator,
+ 		const void *opt, lzma_lz_options *lz_options)
+ {
+ 	if (lz->coder == NULL) {
+-		lz->coder = lzma_alloc(sizeof(lzma_coder), allocator);
++		lz->coder = lzma_alloc(sizeof(lzma_lzma1_decoder), allocator);
+ 		if (lz->coder == NULL)
+ 			return LZMA_MEM_ERROR;
+ 
+@@ -1014,7 +1010,8 @@ extern uint64_t
+ lzma_lzma_decoder_memusage_nocheck(const void *options)
+ {
+ 	const lzma_options_lzma *const opt = options;
+-	return sizeof(lzma_coder) + lzma_lz_decoder_memusage(opt->dict_size);
++	return sizeof(lzma_lzma1_decoder)
++			+ lzma_lz_decoder_memusage(opt->dict_size);
+ }
+ 
+ 
+diff --git a/src/liblzma/lzma/lzma_encoder.c b/src/liblzma/lzma/lzma_encoder.c
+index 4c5f99c3..ba9ce698 100644
+--- a/src/liblzma/lzma/lzma_encoder.c
++++ b/src/liblzma/lzma/lzma_encoder.c
+@@ -43,7 +43,7 @@ literal_matched(lzma_range_encoder *rc, probability *subcoder,
+ 
+ 
+ static inline void
+-literal(lzma_coder *coder, lzma_mf *mf, uint32_t position)
++literal(lzma_lzma1_encoder *coder, lzma_mf *mf, uint32_t position)
+ {
+ 	// Locate the literal byte to be encoded and the subcoder.
+ 	const uint8_t cur_byte = mf->buffer[
+@@ -140,7 +140,7 @@ length(lzma_range_encoder *rc, lzma_length_encoder *lc,
+ ///////////
+ 
+ static inline void
+-match(lzma_coder *coder, const uint32_t pos_state,
++match(lzma_lzma1_encoder *coder, const uint32_t pos_state,
+ 		const uint32_t distance, const uint32_t len)
+ {
+ 	update_match(coder->state);
+@@ -187,7 +187,7 @@ match(lzma_coder *coder, const uint32_t pos_state,
+ ////////////////////
+ 
+ static inline void
+-rep_match(lzma_coder *coder, const uint32_t pos_state,
++rep_match(lzma_lzma1_encoder *coder, const uint32_t pos_state,
+ 		const uint32_t rep, const uint32_t len)
+ {
+ 	if (rep == 0) {
+@@ -231,7 +231,7 @@ rep_match(lzma_coder *coder, const uint32_t pos_state,
+ //////////
+ 
+ static void
+-encode_symbol(lzma_coder *coder, lzma_mf *mf,
++encode_symbol(lzma_lzma1_encoder *coder, lzma_mf *mf,
+ 		uint32_t back, uint32_t len, uint32_t position)
+ {
+ 	const uint32_t pos_state = position & coder->pos_mask;
+@@ -265,7 +265,7 @@ encode_symbol(lzma_coder *coder, lzma_mf *mf,
+ 
+ 
+ static bool
+-encode_init(lzma_coder *coder, lzma_mf *mf)
++encode_init(lzma_lzma1_encoder *coder, lzma_mf *mf)
+ {
+ 	assert(mf_position(mf) == 0);
+ 
+@@ -293,7 +293,7 @@ encode_init(lzma_coder *coder, lzma_mf *mf)
+ 
+ 
+ static void
+-encode_eopm(lzma_coder *coder, uint32_t position)
++encode_eopm(lzma_lzma1_encoder *coder, uint32_t position)
+ {
+ 	const uint32_t pos_state = position & coder->pos_mask;
+ 	rc_bit(&coder->rc, &coder->is_match[coder->state][pos_state], 1);
+@@ -309,7 +309,7 @@ encode_eopm(lzma_coder *coder, uint32_t position)
+ 
+ 
+ extern lzma_ret
+-lzma_lzma_encode(lzma_coder *restrict coder, lzma_mf *restrict mf,
++lzma_lzma_encode(lzma_lzma1_encoder *restrict coder, lzma_mf *restrict mf,
+ 		uint8_t *restrict out, size_t *restrict out_pos,
+ 		size_t out_size, uint32_t limit)
+ {
+@@ -402,7 +402,7 @@ lzma_lzma_encode(lzma_coder *restrict coder, lzma_mf *restrict mf,
+ 
+ 
+ static lzma_ret
+-lzma_encode(lzma_coder *restrict coder, lzma_mf *restrict mf,
++lzma_encode(void *coder, lzma_mf *restrict mf,
+ 		uint8_t *restrict out, size_t *restrict out_pos,
+ 		size_t out_size)
+ {
+@@ -473,7 +473,8 @@ length_encoder_reset(lzma_length_encoder *lencoder,
+ 
+ 
+ extern lzma_ret
+-lzma_lzma_encoder_reset(lzma_coder *coder, const lzma_options_lzma *options)
++lzma_lzma_encoder_reset(lzma_lzma1_encoder *coder,
++		const lzma_options_lzma *options)
+ {
+ 	if (!is_options_valid(options))
+ 		return LZMA_OPTIONS_ERROR;
+@@ -545,18 +546,18 @@ lzma_lzma_encoder_reset(lzma_coder *coder, const lzma_options_lzma *options)
+ 
+ 
+ extern lzma_ret
+-lzma_lzma_encoder_create(lzma_coder **coder_ptr,
++lzma_lzma_encoder_create(void **coder_ptr,
+ 		const lzma_allocator *allocator,
+ 		const lzma_options_lzma *options, lzma_lz_options *lz_options)
+ {
+-	// Allocate lzma_coder if it wasn't already allocated.
++	// Allocate lzma_lzma1_encoder if it wasn't already allocated.
+ 	if (*coder_ptr == NULL) {
+-		*coder_ptr = lzma_alloc(sizeof(lzma_coder), allocator);
++		*coder_ptr = lzma_alloc(sizeof(lzma_lzma1_encoder), allocator);
+ 		if (*coder_ptr == NULL)
+ 			return LZMA_MEM_ERROR;
+ 	}
+ 
+-	lzma_coder *coder = *coder_ptr;
++	lzma_lzma1_encoder *coder = *coder_ptr;
+ 
+ 	// Set compression mode. We haven't validates the options yet,
+ 	// but it's OK here, since nothing bad happens with invalid
+@@ -636,7 +637,7 @@ lzma_lzma_encoder_memusage(const void *options)
+ 	if (lz_memusage == UINT64_MAX)
+ 		return UINT64_MAX;
+ 
+-	return (uint64_t)(sizeof(lzma_coder)) + lz_memusage;
++	return (uint64_t)(sizeof(lzma_lzma1_encoder)) + lz_memusage;
+ }
+ 
+ 
+diff --git a/src/liblzma/lzma/lzma_encoder.h b/src/liblzma/lzma/lzma_encoder.h
+index cc9cc2f2..6cfdf228 100644
+--- a/src/liblzma/lzma/lzma_encoder.h
++++ b/src/liblzma/lzma/lzma_encoder.h
+@@ -17,6 +17,9 @@
+ #include "common.h"
+ 
+ 
++typedef struct lzma_lzma1_encoder_s lzma_lzma1_encoder;
++
++
+ extern lzma_ret lzma_lzma_encoder_init(lzma_next_coder *next,
+ 		const lzma_allocator *allocator,
+ 		const lzma_filter_info *filters);
+@@ -36,16 +39,16 @@ extern bool lzma_lzma_lclppb_encode(
+ 
+ /// Initializes raw LZMA encoder; this is used by LZMA2.
+ extern lzma_ret lzma_lzma_encoder_create(
+-		lzma_coder **coder_ptr, const lzma_allocator *allocator,
++		void **coder_ptr, const lzma_allocator *allocator,
+ 		const lzma_options_lzma *options, lzma_lz_options *lz_options);
+ 
+ 
+ /// Resets an already initialized LZMA encoder; this is used by LZMA2.
+ extern lzma_ret lzma_lzma_encoder_reset(
+-		lzma_coder *coder, const lzma_options_lzma *options);
++		lzma_lzma1_encoder *coder, const lzma_options_lzma *options);
+ 
+ 
+-extern lzma_ret lzma_lzma_encode(lzma_coder *restrict coder,
++extern lzma_ret lzma_lzma_encode(lzma_lzma1_encoder *restrict coder,
+ 		lzma_mf *restrict mf, uint8_t *restrict out,
+ 		size_t *restrict out_pos, size_t out_size,
+ 		uint32_t read_limit);
+diff --git a/src/liblzma/lzma/lzma_encoder_optimum_fast.c b/src/liblzma/lzma/lzma_encoder_optimum_fast.c
+index 9b30347c..6c53d2bd 100644
+--- a/src/liblzma/lzma/lzma_encoder_optimum_fast.c
++++ b/src/liblzma/lzma/lzma_encoder_optimum_fast.c
+@@ -18,7 +18,8 @@
+ 
+ 
+ extern void
+-lzma_lzma_optimum_fast(lzma_coder *restrict coder, lzma_mf *restrict mf,
++lzma_lzma_optimum_fast(lzma_lzma1_encoder *restrict coder,
++		lzma_mf *restrict mf,
+ 		uint32_t *restrict back_res, uint32_t *restrict len_res)
+ {
+ 	const uint32_t nice_len = mf->nice_len;
+diff --git a/src/liblzma/lzma/lzma_encoder_optimum_normal.c b/src/liblzma/lzma/lzma_encoder_optimum_normal.c
+index a3605798..59f77343 100644
+--- a/src/liblzma/lzma/lzma_encoder_optimum_normal.c
++++ b/src/liblzma/lzma/lzma_encoder_optimum_normal.c
+@@ -19,7 +19,7 @@
+ ////////////
+ 
+ static uint32_t
+-get_literal_price(const lzma_coder *const coder, const uint32_t pos,
++get_literal_price(const lzma_lzma1_encoder *const coder, const uint32_t pos,
+ 		const uint32_t prev_byte, const bool match_mode,
+ 		uint32_t match_byte, uint32_t symbol)
+ {
+@@ -65,7 +65,7 @@ get_len_price(const lzma_length_encoder *const lencoder,
+ 
+ 
+ static inline uint32_t
+-get_short_rep_price(const lzma_coder *const coder,
++get_short_rep_price(const lzma_lzma1_encoder *const coder,
+ 		const lzma_lzma_state state, const uint32_t pos_state)
+ {
+ 	return rc_bit_0_price(coder->is_rep0[state])
+@@ -74,7 +74,7 @@ get_short_rep_price(const lzma_coder *const coder,
+ 
+ 
+ static inline uint32_t
+-get_pure_rep_price(const lzma_coder *const coder, const uint32_t rep_index,
++get_pure_rep_price(const lzma_lzma1_encoder *const coder, const uint32_t rep_index,
+ 		const lzma_lzma_state state, uint32_t pos_state)
+ {
+ 	uint32_t price;
+@@ -99,7 +99,7 @@ get_pure_rep_price(const lzma_coder *const coder, const uint32_t rep_index,
+ 
+ 
+ static inline uint32_t
+-get_rep_price(const lzma_coder *const coder, const uint32_t rep_index,
++get_rep_price(const lzma_lzma1_encoder *const coder, const uint32_t rep_index,
+ 		const uint32_t len, const lzma_lzma_state state,
+ 		const uint32_t pos_state)
+ {
+@@ -109,7 +109,7 @@ get_rep_price(const lzma_coder *const coder, const uint32_t rep_index,
+ 
+ 
+ static inline uint32_t
+-get_dist_len_price(const lzma_coder *const coder, const uint32_t dist,
++get_dist_len_price(const lzma_lzma1_encoder *const coder, const uint32_t dist,
+ 		const uint32_t len, const uint32_t pos_state)
+ {
+ 	const uint32_t dist_state = get_dist_state(len);
+@@ -130,7 +130,7 @@ get_dist_len_price(const lzma_coder *const coder, const uint32_t dist,
+ 
+ 
+ static void
+-fill_dist_prices(lzma_coder *coder)
++fill_dist_prices(lzma_lzma1_encoder *coder)
+ {
+ 	for (uint32_t dist_state = 0; dist_state < DIST_STATES; ++dist_state) {
+ 
+@@ -185,7 +185,7 @@ fill_dist_prices(lzma_coder *coder)
+ 
+ 
+ static void
+-fill_align_prices(lzma_coder *coder)
++fill_align_prices(lzma_lzma1_encoder *coder)
+ {
+ 	for (uint32_t i = 0; i < ALIGN_SIZE; ++i)
+ 		coder->align_prices[i] = rc_bittree_reverse_price(
+@@ -221,7 +221,7 @@ make_short_rep(lzma_optimal *optimal)
+ 
+ 
+ static void
+-backward(lzma_coder *restrict coder, uint32_t *restrict len_res,
++backward(lzma_lzma1_encoder *restrict coder, uint32_t *restrict len_res,
+ 		uint32_t *restrict back_res, uint32_t cur)
+ {
+ 	coder->opts_end_index = cur;
+@@ -269,7 +269,7 @@ backward(lzma_coder *restrict coder, uint32_t *restrict len_res,
+ //////////
+ 
+ static inline uint32_t
+-helper1(lzma_coder *restrict coder, lzma_mf *restrict mf,
++helper1(lzma_lzma1_encoder *restrict coder, lzma_mf *restrict mf,
+ 		uint32_t *restrict back_res, uint32_t *restrict len_res,
+ 		uint32_t position)
+ {
+@@ -441,7 +441,7 @@ helper1(lzma_coder *restrict coder, lzma_mf *restrict mf,
+ 
+ 
+ static inline uint32_t
+-helper2(lzma_coder *coder, uint32_t *reps, const uint8_t *buf,
++helper2(lzma_lzma1_encoder *coder, uint32_t *reps, const uint8_t *buf,
+ 		uint32_t len_end, uint32_t position, const uint32_t cur,
+ 		const uint32_t nice_len, const uint32_t buf_avail_full)
+ {
+@@ -797,7 +797,8 @@ helper2(lzma_coder *coder, uint32_t *reps, const uint8_t *buf,
+ 
+ 
+ extern void
+-lzma_lzma_optimum_normal(lzma_coder *restrict coder, lzma_mf *restrict mf,
++lzma_lzma_optimum_normal(lzma_lzma1_encoder *restrict coder,
++		lzma_mf *restrict mf,
+ 		uint32_t *restrict back_res, uint32_t *restrict len_res,
+ 		uint32_t position)
+ {
+diff --git a/src/liblzma/lzma/lzma_encoder_private.h b/src/liblzma/lzma/lzma_encoder_private.h
+index 2f62d6cb..a2da969f 100644
+--- a/src/liblzma/lzma/lzma_encoder_private.h
++++ b/src/liblzma/lzma/lzma_encoder_private.h
+@@ -69,7 +69,7 @@ typedef struct {
+ } lzma_optimal;
+ 
+ 
+-struct lzma_coder_s {
++struct lzma_lzma1_encoder_s {
+ 	/// Range encoder
+ 	lzma_range_encoder rc;
+ 
+@@ -138,10 +138,10 @@ struct lzma_coder_s {
+ 
+ 
+ extern void lzma_lzma_optimum_fast(
+-		lzma_coder *restrict coder, lzma_mf *restrict mf,
++		lzma_lzma1_encoder *restrict coder, lzma_mf *restrict mf,
+ 		uint32_t *restrict back_res, uint32_t *restrict len_res);
+ 
+-extern void lzma_lzma_optimum_normal(lzma_coder *restrict coder,
++extern void lzma_lzma_optimum_normal(lzma_lzma1_encoder *restrict coder,
+ 		lzma_mf *restrict mf, uint32_t *restrict back_res,
+ 		uint32_t *restrict len_res, uint32_t position);
+ 
+diff --git a/src/liblzma/simple/arm.c b/src/liblzma/simple/arm.c
+index 258d870f..181d0e3b 100644
+--- a/src/liblzma/simple/arm.c
++++ b/src/liblzma/simple/arm.c
+@@ -15,7 +15,7 @@
+ 
+ 
+ static size_t
+-arm_code(lzma_simple *simple lzma_attribute((__unused__)),
++arm_code(void *simple lzma_attribute((__unused__)),
+ 		uint32_t now_pos, bool is_encoder,
+ 		uint8_t *buffer, size_t size)
+ {
+diff --git a/src/liblzma/simple/armthumb.c b/src/liblzma/simple/armthumb.c
+index 06c21e40..eab4862d 100644
+--- a/src/liblzma/simple/armthumb.c
++++ b/src/liblzma/simple/armthumb.c
+@@ -15,7 +15,7 @@
+ 
+ 
+ static size_t
+-armthumb_code(lzma_simple *simple lzma_attribute((__unused__)),
++armthumb_code(void *simple lzma_attribute((__unused__)),
+ 		uint32_t now_pos, bool is_encoder,
+ 		uint8_t *buffer, size_t size)
+ {
+diff --git a/src/liblzma/simple/ia64.c b/src/liblzma/simple/ia64.c
+index ba7249c0..580529e8 100644
+--- a/src/liblzma/simple/ia64.c
++++ b/src/liblzma/simple/ia64.c
+@@ -15,7 +15,7 @@
+ 
+ 
+ static size_t
+-ia64_code(lzma_simple *simple lzma_attribute((__unused__)),
++ia64_code(void *simple lzma_attribute((__unused__)),
+ 		uint32_t now_pos, bool is_encoder,
+ 		uint8_t *buffer, size_t size)
+ {
+diff --git a/src/liblzma/simple/powerpc.c b/src/liblzma/simple/powerpc.c
+index 46899196..54dfbf10 100644
+--- a/src/liblzma/simple/powerpc.c
++++ b/src/liblzma/simple/powerpc.c
+@@ -15,7 +15,7 @@
+ 
+ 
+ static size_t
+-powerpc_code(lzma_simple *simple lzma_attribute((__unused__)),
++powerpc_code(void *simple lzma_attribute((__unused__)),
+ 		uint32_t now_pos, bool is_encoder,
+ 		uint8_t *buffer, size_t size)
+ {
+diff --git a/src/liblzma/simple/simple_coder.c b/src/liblzma/simple/simple_coder.c
+index dba5417b..13ebabc7 100644
+--- a/src/liblzma/simple/simple_coder.c
++++ b/src/liblzma/simple/simple_coder.c
+@@ -18,7 +18,7 @@
+ 
+ /// Copied or encodes/decodes more data to out[].
+ static lzma_ret
+-copy_or_code(lzma_coder *coder, const lzma_allocator *allocator,
++copy_or_code(lzma_simple_coder *coder, const lzma_allocator *allocator,
+ 		const uint8_t *restrict in, size_t *restrict in_pos,
+ 		size_t in_size, uint8_t *restrict out,
+ 		size_t *restrict out_pos, size_t out_size, lzma_action action)
+@@ -55,7 +55,7 @@ copy_or_code(lzma_coder *coder, const lzma_allocator *allocator,
+ 
+ 
+ static size_t
+-call_filter(lzma_coder *coder, uint8_t *buffer, size_t size)
++call_filter(lzma_simple_coder *coder, uint8_t *buffer, size_t size)
+ {
+ 	const size_t filtered = coder->filter(coder->simple,
+ 			coder->now_pos, coder->is_encoder,
+@@ -66,11 +66,13 @@ call_filter(lzma_coder *coder, uint8_t *buffer, size_t size)
+ 
+ 
+ static lzma_ret
+-simple_code(lzma_coder *coder, const lzma_allocator *allocator,
++simple_code(void *coder_ptr, const lzma_allocator *allocator,
+ 		const uint8_t *restrict in, size_t *restrict in_pos,
+ 		size_t in_size, uint8_t *restrict out,
+ 		size_t *restrict out_pos, size_t out_size, lzma_action action)
+ {
++	lzma_simple_coder *coder = coder_ptr;
++
+ 	// TODO: Add partial support for LZMA_SYNC_FLUSH. We can support it
+ 	// in cases when the filter is able to filter everything. With most
+ 	// simple filters it can be done at offset that is a multiple of 2,
+@@ -198,8 +200,9 @@ simple_code(lzma_coder *coder, const lzma_allocator *allocator,
+ 
+ 
+ static void
+-simple_coder_end(lzma_coder *coder, const lzma_allocator *allocator)
++simple_coder_end(void *coder_ptr, const lzma_allocator *allocator)
+ {
++	lzma_simple_coder *coder = coder_ptr;
+ 	lzma_next_end(&coder->next, allocator);
+ 	lzma_free(coder->simple, allocator);
+ 	lzma_free(coder, allocator);
+@@ -208,10 +211,12 @@ simple_coder_end(lzma_coder *coder, const lzma_allocator *allocator)
+ 
+ 
+ static lzma_ret
+-simple_coder_update(lzma_coder *coder, const lzma_allocator *allocator,
++simple_coder_update(void *coder_ptr, const lzma_allocator *allocator,
+ 		const lzma_filter *filters_null lzma_attribute((__unused__)),
+ 		const lzma_filter *reversed_filters)
+ {
++	lzma_simple_coder *coder = coder_ptr;
++
+ 	// No update support, just call the next filter in the chain.
+ 	return lzma_next_filter_update(
+ 			&coder->next, allocator, reversed_filters + 1);
+@@ -221,57 +226,57 @@ simple_coder_update(lzma_coder *coder, const lzma_allocator *allocator,
+ extern lzma_ret
+ lzma_simple_coder_init(lzma_next_coder *next, const lzma_allocator *allocator,
+ 		const lzma_filter_info *filters,
+-		size_t (*filter)(lzma_simple *simple, uint32_t now_pos,
++		size_t (*filter)(void *simple, uint32_t now_pos,
+ 			bool is_encoder, uint8_t *buffer, size_t size),
+ 		size_t simple_size, size_t unfiltered_max,
+ 		uint32_t alignment, bool is_encoder)
+ {
+-	// Allocate memory for the lzma_coder structure if needed.
+-	if (next->coder == NULL) {
++	// Allocate memory for the lzma_simple_coder structure if needed.
++	lzma_simple_coder *coder = next->coder;
++	if (coder == NULL) {
+ 		// Here we allocate space also for the temporary buffer. We
+ 		// need twice the size of unfiltered_max, because then it
+ 		// is always possible to filter at least unfiltered_max bytes
+ 		// more data in coder->buffer[] if it can be filled completely.
+-		next->coder = lzma_alloc(sizeof(lzma_coder)
++		coder = lzma_alloc(sizeof(lzma_simple_coder)
+ 				+ 2 * unfiltered_max, allocator);
+-		if (next->coder == NULL)
++		if (coder == NULL)
+ 			return LZMA_MEM_ERROR;
+ 
++		next->coder = coder;
+ 		next->code = &simple_code;
+ 		next->end = &simple_coder_end;
+ 		next->update = &simple_coder_update;
+ 
+-		next->coder->next = LZMA_NEXT_CODER_INIT;
+-		next->coder->filter = filter;
+-		next->coder->allocated = 2 * unfiltered_max;
++		coder->next = LZMA_NEXT_CODER_INIT;
++		coder->filter = filter;
++		coder->allocated = 2 * unfiltered_max;
+ 
+ 		// Allocate memory for filter-specific data structure.
+ 		if (simple_size > 0) {
+-			next->coder->simple = lzma_alloc(
+-					simple_size, allocator);
+-			if (next->coder->simple == NULL)
++			coder->simple = lzma_alloc(simple_size, allocator);
++			if (coder->simple == NULL)
+ 				return LZMA_MEM_ERROR;
+ 		} else {
+-			next->coder->simple = NULL;
++			coder->simple = NULL;
+ 		}
+ 	}
+ 
+ 	if (filters[0].options != NULL) {
+ 		const lzma_options_bcj *simple = filters[0].options;
+-		next->coder->now_pos = simple->start_offset;
+-		if (next->coder->now_pos & (alignment - 1))
++		coder->now_pos = simple->start_offset;
++		if (coder->now_pos & (alignment - 1))
+ 			return LZMA_OPTIONS_ERROR;
+ 	} else {
+-		next->coder->now_pos = 0;
++		coder->now_pos = 0;
+ 	}
+ 
+ 	// Reset variables.
+-	next->coder->is_encoder = is_encoder;
+-	next->coder->end_was_reached = false;
+-	next->coder->pos = 0;
+-	next->coder->filtered = 0;
+-	next->coder->size = 0;
+-
+-	return lzma_next_filter_init(
+-			&next->coder->next, allocator, filters + 1);
++	coder->is_encoder = is_encoder;
++	coder->end_was_reached = false;
++	coder->pos = 0;
++	coder->filtered = 0;
++	coder->size = 0;
++
++	return lzma_next_filter_init(&coder->next, allocator, filters + 1);
+ }
+diff --git a/src/liblzma/simple/simple_private.h b/src/liblzma/simple/simple_private.h
+index bb20cb41..9d2c0fdd 100644
+--- a/src/liblzma/simple/simple_private.h
++++ b/src/liblzma/simple/simple_private.h
+@@ -16,9 +16,7 @@
+ #include "simple_coder.h"
+ 
+ 
+-typedef struct lzma_simple_s lzma_simple;
+-
+-struct lzma_coder_s {
++typedef struct {
+ 	/// Next filter in the chain
+ 	lzma_next_coder next;
+ 
+@@ -33,12 +31,12 @@ struct lzma_coder_s {
+ 
+ 	/// Pointer to filter-specific function, which does
+ 	/// the actual filtering.
+-	size_t (*filter)(lzma_simple *simple, uint32_t now_pos,
++	size_t (*filter)(void *simple, uint32_t now_pos,
+ 			bool is_encoder, uint8_t *buffer, size_t size);
+ 
+ 	/// Pointer to filter-specific data, or NULL if filter doesn't need
+ 	/// any extra data.
+-	lzma_simple *simple;
++	void *simple;
+ 
+ 	/// The lowest 32 bits of the current position in the data. Most
+ 	/// filters need this to do conversions between absolute and relative
+@@ -62,13 +60,13 @@ struct lzma_coder_s {
+ 
+ 	/// Temporary buffer
+ 	uint8_t buffer[];
+-};
++} lzma_simple_coder;
+ 
+ 
+ extern lzma_ret lzma_simple_coder_init(lzma_next_coder *next,
+ 		const lzma_allocator *allocator,
+ 		const lzma_filter_info *filters,
+-		size_t (*filter)(lzma_simple *simple, uint32_t now_pos,
++		size_t (*filter)(void *simple, uint32_t now_pos,
+ 			bool is_encoder, uint8_t *buffer, size_t size),
+ 		size_t simple_size, size_t unfiltered_max,
+ 		uint32_t alignment, bool is_encoder);
+diff --git a/src/liblzma/simple/sparc.c b/src/liblzma/simple/sparc.c
+index 53ee49d1..74b2655f 100644
+--- a/src/liblzma/simple/sparc.c
++++ b/src/liblzma/simple/sparc.c
+@@ -15,7 +15,7 @@
+ 
+ 
+ static size_t
+-sparc_code(lzma_simple *simple lzma_attribute((__unused__)),
++sparc_code(void *simple lzma_attribute((__unused__)),
+ 		uint32_t now_pos, bool is_encoder,
+ 		uint8_t *buffer, size_t size)
+ {
+diff --git a/src/liblzma/simple/x86.c b/src/liblzma/simple/x86.c
+index 3b2b4f85..0b14807e 100644
+--- a/src/liblzma/simple/x86.c
++++ b/src/liblzma/simple/x86.c
+@@ -17,14 +17,14 @@
+ #define Test86MSByte(b) ((b) == 0 || (b) == 0xFF)
+ 
+ 
+-struct lzma_simple_s {
++typedef struct {
+ 	uint32_t prev_mask;
+ 	uint32_t prev_pos;
+-};
++} lzma_simple_x86;
+ 
+ 
+ static size_t
+-x86_code(lzma_simple *simple, uint32_t now_pos, bool is_encoder,
++x86_code(void *simple_ptr, uint32_t now_pos, bool is_encoder,
+ 		uint8_t *buffer, size_t size)
+ {
+ 	static const bool MASK_TO_ALLOWED_STATUS[8]
+@@ -33,6 +33,7 @@ x86_code(lzma_simple *simple, uint32_t now_pos, bool is_encoder,
+ 	static const uint32_t MASK_TO_BIT_NUMBER[8]
+ 			= { 0, 1, 2, 2, 3, 3, 3, 3 };
+ 
++	lzma_simple_x86 *simple = simple_ptr;
+ 	uint32_t prev_mask = simple->prev_mask;
+ 	uint32_t prev_pos = simple->prev_pos;
+ 
+@@ -127,11 +128,13 @@ x86_coder_init(lzma_next_coder *next, const lzma_allocator *allocator,
+ 		const lzma_filter_info *filters, bool is_encoder)
+ {
+ 	const lzma_ret ret = lzma_simple_coder_init(next, allocator, filters,
+-			&x86_code, sizeof(lzma_simple), 5, 1, is_encoder);
++			&x86_code, sizeof(lzma_simple_x86), 5, 1, is_encoder);
+ 
+ 	if (ret == LZMA_OK) {
+-		next->coder->simple->prev_mask = 0;
+-		next->coder->simple->prev_pos = (uint32_t)(-5);
++		lzma_simple_coder *coder = next->coder;
++		lzma_simple_x86 *simple = coder->simple;
++		simple->prev_mask = 0;
++		simple->prev_pos = (uint32_t)(-5);
+ 	}
+ 
+ 	return ret;

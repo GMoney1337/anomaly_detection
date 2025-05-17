@@ -1,0 +1,67 @@
+diff --git a/src/liblzma/check/crc32_init.c b/src/liblzma/check/crc32_init.c
+index 996ad266..0dd402a4 100644
+--- a/src/liblzma/check/crc32_init.c
++++ b/src/liblzma/check/crc32_init.c
+@@ -13,7 +13,7 @@
+ ///////////////////////////////////////////////////////////////////////////////
+ 
+ #ifdef HAVE_CONFIG_H
+-#	include "sysdefs.h"
++#	include "check.h"
+ #endif
+ 
+ #ifdef WORDS_BIGENDIAN
+diff --git a/src/liblzma/check/crc64_init.c b/src/liblzma/check/crc64_init.c
+index b0963f65..4c91a771 100644
+--- a/src/liblzma/check/crc64_init.c
++++ b/src/liblzma/check/crc64_init.c
+@@ -13,7 +13,7 @@
+ ///////////////////////////////////////////////////////////////////////////////
+ 
+ #ifdef HAVE_CONFIG_H
+-#	include "sysdefs.h"
++#	include "check.h"
+ #endif
+ 
+ #ifdef WORDS_BIGENDIAN
+diff --git a/src/liblzma/common/init_decoder.c b/src/liblzma/common/init_decoder.c
+index 2d61b451..e319b2f8 100644
+--- a/src/liblzma/common/init_decoder.c
++++ b/src/liblzma/common/init_decoder.c
+@@ -25,9 +25,7 @@ lzma_init_decoder(void)
+ {
+ 	// So far there's no decoder-specific stuff to initialize.
+ 
+-#ifdef HAVE_CHECK
+ 	lzma_init_check();
+-#endif
+ 
+ 	return;
+ }
+diff --git a/src/liblzma/common/init_encoder.c b/src/liblzma/common/init_encoder.c
+index 13873aad..ec9fee6e 100644
+--- a/src/liblzma/common/init_encoder.c
++++ b/src/liblzma/common/init_encoder.c
+@@ -29,9 +29,7 @@ lzma_init_encoder(void)
+ 	if (already_initialized)
+ 		return;
+ 
+-#ifdef HAVE_CHECK
+ 	lzma_init_check();
+-#endif
+ 
+ #if defined(HAVE_SMALL) && defined(HAVE_ENCODER) && defined(HAVE_FILTER_LZMA)
+ 	lzma_rc_init();
+diff --git a/tests/test_check.c b/tests/test_check.c
+index cb6b8ec1..40715c6a 100644
+--- a/tests/test_check.c
++++ b/tests/test_check.c
+@@ -81,6 +81,8 @@ test_crc64(void)
+ int
+ main(void)
+ {
++	lzma_init_check();
++
+ 	bool error = false;
+ 
+ 	error |= test_crc32();

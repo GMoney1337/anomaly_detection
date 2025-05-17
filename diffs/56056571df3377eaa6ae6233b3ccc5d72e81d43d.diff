@@ -1,0 +1,54 @@
+diff --git a/INSTALL b/INSTALL
+index 6cb4b39d..d84ef78a 100644
+--- a/INSTALL
++++ b/INSTALL
+@@ -253,6 +253,12 @@ XZ Utils Installation
+                 Don't install the scripts xzdiff, xzgrep, xzmore, xzless,
+                 and their symlinks.
+ 
++    --disable-doc
++                Don't install the documentation files to $docdir
++                (often /usr/doc/xz or /usr/local/doc/xz). Man pages
++                will still be installed. The $docdir can be changed
++                with --docdir=DIR.
++
+     --disable-assembler
+                 liblzma includes some assembler optimizations. Currently
+                 there is only assembler code for CRC32 and CRC64 for
+diff --git a/Makefile.am b/Makefile.am
+index 42b73fd4..dcfcc89f 100644
+--- a/Makefile.am
++++ b/Makefile.am
+@@ -17,6 +17,7 @@ endif
+ 
+ SUBDIRS += src po tests
+ 
++if COND_DOC
+ dist_doc_DATA = \
+ 	AUTHORS \
+ 	COPYING \
+@@ -42,6 +43,7 @@ examplesolddir = $(docdir)/examples_old
+ dist_examplesold_DATA = \
+ 	doc/examples_old/xz_pipe_comp.c \
+ 	doc/examples_old/xz_pipe_decomp.c
++endif
+ 
+ EXTRA_DIST = \
+ 	extra \
+diff --git a/configure.ac b/configure.ac
+index fa00fa09..6787f827 100644
+--- a/configure.ac
++++ b/configure.ac
+@@ -435,6 +435,12 @@ AC_ARG_ENABLE([scripts], [AC_HELP_STRING([--disable-scripts],
+ 	[], [enable_scripts=yes])
+ AM_CONDITIONAL([COND_SCRIPTS], [test x$enable_scripts != xno])
+ 
++AC_ARG_ENABLE([doc], [AC_HELP_STRING([--disable-doc],
++		[do not install documentation files to docdir
++		(man pages will still be installed)])],
++	[], [enable_doc=yes])
++AM_CONDITIONAL([COND_DOC], [test x$enable_doc != xno])
++
+ 
+ #####################
+ # Symbol versioning #

@@ -1,0 +1,78 @@
+diff --git a/src/common/mythread.h b/src/common/mythread.h
+index 589901c7..10ea2d42 100644
+--- a/src/common/mythread.h
++++ b/src/common/mythread.h
+@@ -200,7 +200,7 @@ mythread_join(mythread thread)
+ }
+ 
+ 
+-// Initiatlizes a mutex. Returns zero on success and non-zero on error.
++// Initializes a mutex. Returns zero on success and non-zero on error.
+ static inline int
+ mythread_mutex_init(mythread_mutex *mutex)
+ {
+diff --git a/src/common/tuklib_integer.h b/src/common/tuklib_integer.h
+index 93483b5c..fbd5fb23 100644
+--- a/src/common/tuklib_integer.h
++++ b/src/common/tuklib_integer.h
+@@ -627,7 +627,7 @@ write64le(uint8_t *buf, uint64_t num)
+ // aligned but some compilers have language extensions to do that. With
+ // such language extensions the memcpy() method gives excellent results.
+ //
+-// What to do on a strict-align system when no known language extentensions
++// What to do on a strict-align system when no known language extensions
+ // are available? Falling back to byte-by-byte access would be safe but ruin
+ // optimizations that have been made specifically with aligned access in mind.
+ // As a compromise, aligned reads will fall back to non-compliant type punning
+diff --git a/src/liblzma/api/lzma/base.h b/src/liblzma/api/lzma/base.h
+index 20d485b9..590e1d22 100644
+--- a/src/liblzma/api/lzma/base.h
++++ b/src/liblzma/api/lzma/base.h
+@@ -257,7 +257,7 @@ typedef enum {
+ 		 */
+ 
+ 	/*
+-	 * These eumerations may be used internally by liblzma
++	 * These enumerations may be used internally by liblzma
+ 	 * but they will never be returned to applications.
+ 	 */
+ 	LZMA_RET_INTERNAL1      = 101,
+diff --git a/src/liblzma/common/filter_buffer_decoder.c b/src/liblzma/common/filter_buffer_decoder.c
+index e80c582c..cc0d88cc 100644
+--- a/src/liblzma/common/filter_buffer_decoder.c
++++ b/src/liblzma/common/filter_buffer_decoder.c
+@@ -23,7 +23,7 @@ lzma_raw_buffer_decode(
+ 			|| out_pos == NULL || *out_pos > out_size)
+ 		return LZMA_PROG_ERROR;
+ 
+-	// Initialize the decoer.
++	// Initialize the decoder.
+ 	lzma_next_coder next = LZMA_NEXT_CODER_INIT;
+ 	return_if_error(lzma_raw_decoder_init(&next, allocator, filters));
+ 
+diff --git a/src/liblzma/common/filter_common.c b/src/liblzma/common/filter_common.c
+index 2da6bd9c..d15d9cc9 100644
+--- a/src/liblzma/common/filter_common.c
++++ b/src/liblzma/common/filter_common.c
+@@ -153,7 +153,7 @@ lzma_filters_copy(const lzma_filter *src, lzma_filter *real_dest,
+ 		return LZMA_PROG_ERROR;
+ 
+ 	// Use a temporary destination so that the real destination
+-	// will never be modied if an error occurs.
++	// will never be modified if an error occurs.
+ 	lzma_filter dest[LZMA_FILTERS_MAX + 1];
+ 
+ 	lzma_ret ret;
+diff --git a/src/scripts/xzgrep.in b/src/scripts/xzgrep.in
+index dad51ca4..c9cd02d0 100644
+--- a/src/scripts/xzgrep.in
++++ b/src/scripts/xzgrep.in
+@@ -277,7 +277,7 @@ for i; do
+     test "$(kill -l "$xz_status" 2> /dev/null)" != "PIPE" && exit "$xz_status"
+   elif test "$xz_status" -gt 0; then
+     # Decompression failed but we will continue with the remaining
+-    # files anwyway. Set exit status to at least 2 to indicate an error.
++    # files anyway. Set exit status to at least 2 to indicate an error.
+     test "$r" -lt 2 && r=2
+   fi
+ 

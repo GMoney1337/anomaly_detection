@@ -1,0 +1,39 @@
+diff --git a/src/xz/args.c b/src/xz/args.c
+index 31ff0e58..29abf971 100644
+--- a/src/xz/args.c
++++ b/src/xz/args.c
+@@ -294,10 +294,17 @@ parse_real(args_info *args, int argc, char **argv)
+ 			size_t i = 0;
+ 			while (strcmp(types[i].str, optarg) != 0) {
+ 				if (++i == ARRAY_SIZE(types))
+-					message_fatal(_("%s: Unknown integrity"
++					message_fatal(_("%s: Unsupported "
++							"integrity "
+ 							"check type"), optarg);
+ 			}
+ 
++			// Use a separate check in case we are using different
++			// liblzma than what was used to compile us.
++			if (!lzma_check_is_supported(types[i].check))
++				message_fatal(_("%s: Unsupported integrity "
++						"check type"), optarg);
++
+ 			coder_set_check(types[i].check);
+ 			break;
+ 		}
+diff --git a/src/xz/process.c b/src/xz/process.c
+index 59c19cd2..9b966546 100644
+--- a/src/xz/process.c
++++ b/src/xz/process.c
+@@ -51,7 +51,11 @@ static bool preset_default = true;
+ static bool preset_extreme = false;
+ 
+ /// Integrity check type
++#ifdef HAVE_CHECK_CRC64
+ static lzma_check check = LZMA_CHECK_CRC64;
++#else
++static lzma_check check = LZMA_CHECK_CRC32;
++#endif
+ 
+ 
+ extern void

@@ -1,0 +1,26 @@
+diff --git a/src/common/cpucores.h b/src/common/cpucores.h
+index 330cd9c9..370c3cec 100644
+--- a/src/common/cpucores.h
++++ b/src/common/cpucores.h
+@@ -40,7 +40,7 @@ cpucores(void)
+ 	int name[2] = { CTL_HW, HW_NCPU };
+ 	int cpus;
+ 	size_t cpus_size = sizeof(cpus);
+-	if (!sysctl(name, 2, &cpus, &cpus_size, NULL, 0)
++	if (sysctl(name, 2, &cpus, &cpus_size, NULL, 0) != -1
+ 			&& cpus_size == sizeof(cpus) && cpus > 0)
+ 		ret = (uint32_t)(cpus);
+ #endif
+diff --git a/src/common/physmem.h b/src/common/physmem.h
+index 0dc77e97..74ea39e3 100644
+--- a/src/common/physmem.h
++++ b/src/common/physmem.h
+@@ -104,7 +104,7 @@ physmem(void)
+ 		uint64_t u64;
+ 	} mem;
+ 	size_t mem_ptr_size = sizeof(mem.u64);
+-	if (!sysctl(name, 2, &mem.u64, &mem_ptr_size, NULL, 0)) {
++	if (sysctl(name, 2, &mem.u64, &mem_ptr_size, NULL, 0) != -1) {
+ 		// IIRC, 64-bit "return value" is possible on some 64-bit
+ 		// BSD systems even with HW_PHYSMEM (instead of HW_PHYSMEM64),
+ 		// so support both.

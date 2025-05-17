@@ -1,0 +1,298 @@
+diff --git a/windows/vs2013/config.h b/windows/vs2013/config.h
+index 5bd82b07..1a78b9b5 100644
+--- a/windows/vs2013/config.h
++++ b/windows/vs2013/config.h
+@@ -21,6 +21,9 @@
+ /* Define to 1 if arm decoder is enabled. */
+ #define HAVE_DECODER_ARM 1
+ 
++/* Define to 1 if arm64 decoder is enabled. */
++#define HAVE_DECODER_ARM64 1
++
+ /* Define to 1 if armthumb decoder is enabled. */
+ #define HAVE_DECODER_ARMTHUMB 1
+ 
+@@ -51,6 +54,9 @@
+ /* Define to 1 if arm encoder is enabled. */
+ #define HAVE_ENCODER_ARM 1
+ 
++/* Define to 1 if arm64 encoder is enabled. */
++#define HAVE_ENCODER_ARM64 1
++
+ /* Define to 1 if armthumb encoder is enabled. */
+ #define HAVE_ENCODER_ARMTHUMB 1
+ 
+@@ -81,6 +87,9 @@
+ /* Define to 1 if you have the <limits.h> header file. */
+ #define HAVE_LIMITS_H 1
+ 
++/* Define to 1 if .lz (lzip) decompression support is enabled. */
++#define HAVE_LZIP_DECODER 1
++
+ /* Define to 1 to enable bt2 match finder. */
+ #define HAVE_MF_BT2 1
+ 
+diff --git a/windows/vs2013/liblzma.vcxproj b/windows/vs2013/liblzma.vcxproj
+index d94bc90d..224cccb8 100644
+--- a/windows/vs2013/liblzma.vcxproj
++++ b/windows/vs2013/liblzma.vcxproj
+@@ -243,6 +243,7 @@
+     <ClCompile Include="..\..\src\liblzma\common\index_decoder.c" />
+     <ClCompile Include="..\..\src\liblzma\common\index_encoder.c" />
+     <ClCompile Include="..\..\src\liblzma\common\index_hash.c" />
++    <ClCompile Include="..\..\src\liblzma\common\lzip_decoder.c" />
+     <ClCompile Include="..\..\src\liblzma\common\outqueue.c" />
+     <ClCompile Include="..\..\src\liblzma\common\stream_buffer_decoder.c" />
+     <ClCompile Include="..\..\src\liblzma\common\stream_buffer_encoder.c" />
+@@ -271,6 +272,7 @@
+     <ClCompile Include="..\..\src\liblzma\lz\lz_encoder_mf.c" />
+     <ClCompile Include="..\..\src\liblzma\rangecoder\price_table.c" />
+     <ClCompile Include="..\..\src\liblzma\simple\arm.c" />
++    <ClCompile Include="..\..\src\liblzma\simple\arm64.c" />
+     <ClCompile Include="..\..\src\liblzma\simple\armthumb.c" />
+     <ClCompile Include="..\..\src\liblzma\simple\ia64.c" />
+     <ClCompile Include="..\..\src\liblzma\simple\powerpc.c" />
+@@ -322,6 +324,7 @@
+     <ClInclude Include="..\..\src\liblzma\common\index_decoder.h" />
+     <ClInclude Include="..\..\src\liblzma\common\index_encoder.h" />
+     <ClInclude Include="..\..\src\liblzma\common\memcmplen.h" />
++    <ClInclude Include="..\..\src\liblzma\common\lzip_decoder.h" />
+     <ClInclude Include="..\..\src\liblzma\common\outqueue.h" />
+     <ClInclude Include="..\..\src\liblzma\common\stream_decoder.h" />
+     <ClInclude Include="..\..\src\liblzma\common\stream_flags_common.h" />
+@@ -353,4 +356,4 @@
+   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
+   <ImportGroup Label="ExtensionTargets">
+   </ImportGroup>
+-</Project>
+\ No newline at end of file
++</Project>
+diff --git a/windows/vs2013/liblzma_dll.vcxproj b/windows/vs2013/liblzma_dll.vcxproj
+index 1651a93b..5e0e63a5 100644
+--- a/windows/vs2013/liblzma_dll.vcxproj
++++ b/windows/vs2013/liblzma_dll.vcxproj
+@@ -275,6 +275,7 @@
+     <ClCompile Include="..\..\src\liblzma\common\index_decoder.c" />
+     <ClCompile Include="..\..\src\liblzma\common\index_encoder.c" />
+     <ClCompile Include="..\..\src\liblzma\common\index_hash.c" />
++    <ClCompile Include="..\..\src\liblzma\common\lzip_decoder.c" />
+     <ClCompile Include="..\..\src\liblzma\common\outqueue.c" />
+     <ClCompile Include="..\..\src\liblzma\common\stream_buffer_decoder.c" />
+     <ClCompile Include="..\..\src\liblzma\common\stream_buffer_encoder.c" />
+@@ -303,6 +304,7 @@
+     <ClCompile Include="..\..\src\liblzma\lz\lz_encoder_mf.c" />
+     <ClCompile Include="..\..\src\liblzma\rangecoder\price_table.c" />
+     <ClCompile Include="..\..\src\liblzma\simple\arm.c" />
++    <ClCompile Include="..\..\src\liblzma\simple\arm64.c" />
+     <ClCompile Include="..\..\src\liblzma\simple\armthumb.c" />
+     <ClCompile Include="..\..\src\liblzma\simple\ia64.c" />
+     <ClCompile Include="..\..\src\liblzma\simple\powerpc.c" />
+@@ -354,6 +356,7 @@
+     <ClInclude Include="..\..\src\liblzma\common\index_decoder.h" />
+     <ClInclude Include="..\..\src\liblzma\common\index_encoder.h" />
+     <ClInclude Include="..\..\src\liblzma\common\memcmplen.h" />
++    <ClInclude Include="..\..\src\liblzma\common\lzip_decoder.h" />
+     <ClInclude Include="..\..\src\liblzma\common\outqueue.h" />
+     <ClInclude Include="..\..\src\liblzma\common\stream_decoder.h" />
+     <ClInclude Include="..\..\src\liblzma\common\stream_flags_common.h" />
+@@ -388,4 +391,4 @@
+   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
+   <ImportGroup Label="ExtensionTargets">
+   </ImportGroup>
+-</Project>
+\ No newline at end of file
++</Project>
+diff --git a/windows/vs2017/config.h b/windows/vs2017/config.h
+index 25ac18e7..06da83c9 100644
+--- a/windows/vs2017/config.h
++++ b/windows/vs2017/config.h
+@@ -21,6 +21,9 @@
+ /* Define to 1 if arm decoder is enabled. */
+ #define HAVE_DECODER_ARM 1
+ 
++/* Define to 1 if arm64 decoder is enabled. */
++#define HAVE_DECODER_ARM64 1
++
+ /* Define to 1 if armthumb decoder is enabled. */
+ #define HAVE_DECODER_ARMTHUMB 1
+ 
+@@ -51,6 +54,9 @@
+ /* Define to 1 if arm encoder is enabled. */
+ #define HAVE_ENCODER_ARM 1
+ 
++/* Define to 1 if arm64 encoder is enabled. */
++#define HAVE_ENCODER_ARM64 1
++
+ /* Define to 1 if armthumb encoder is enabled. */
+ #define HAVE_ENCODER_ARMTHUMB 1
+ 
+@@ -81,6 +87,9 @@
+ /* Define to 1 if you have the <limits.h> header file. */
+ #define HAVE_LIMITS_H 1
+ 
++/* Define to 1 if .lz (lzip) decompression support is enabled. */
++#define HAVE_LZIP_DECODER 1
++
+ /* Define to 1 to enable bt2 match finder. */
+ #define HAVE_MF_BT2 1
+ 
+diff --git a/windows/vs2017/liblzma.vcxproj b/windows/vs2017/liblzma.vcxproj
+index 3fc81937..51db558f 100644
+--- a/windows/vs2017/liblzma.vcxproj
++++ b/windows/vs2017/liblzma.vcxproj
+@@ -243,6 +243,7 @@
+     <ClCompile Include="..\..\src\liblzma\common\index_decoder.c" />
+     <ClCompile Include="..\..\src\liblzma\common\index_encoder.c" />
+     <ClCompile Include="..\..\src\liblzma\common\index_hash.c" />
++    <ClCompile Include="..\..\src\liblzma\common\lzip_decoder.c" />
+     <ClCompile Include="..\..\src\liblzma\common\outqueue.c" />
+     <ClCompile Include="..\..\src\liblzma\common\stream_buffer_decoder.c" />
+     <ClCompile Include="..\..\src\liblzma\common\stream_buffer_encoder.c" />
+@@ -271,6 +272,7 @@
+     <ClCompile Include="..\..\src\liblzma\lz\lz_encoder_mf.c" />
+     <ClCompile Include="..\..\src\liblzma\rangecoder\price_table.c" />
+     <ClCompile Include="..\..\src\liblzma\simple\arm.c" />
++    <ClCompile Include="..\..\src\liblzma\simple\arm64.c" />
+     <ClCompile Include="..\..\src\liblzma\simple\armthumb.c" />
+     <ClCompile Include="..\..\src\liblzma\simple\ia64.c" />
+     <ClCompile Include="..\..\src\liblzma\simple\powerpc.c" />
+@@ -322,6 +324,7 @@
+     <ClInclude Include="..\..\src\liblzma\common\index_decoder.h" />
+     <ClInclude Include="..\..\src\liblzma\common\index_encoder.h" />
+     <ClInclude Include="..\..\src\liblzma\common\memcmplen.h" />
++    <ClInclude Include="..\..\src\liblzma\common\lzip_decoder.h" />
+     <ClInclude Include="..\..\src\liblzma\common\outqueue.h" />
+     <ClInclude Include="..\..\src\liblzma\common\stream_decoder.h" />
+     <ClInclude Include="..\..\src\liblzma\common\stream_flags_common.h" />
+diff --git a/windows/vs2017/liblzma_dll.vcxproj b/windows/vs2017/liblzma_dll.vcxproj
+index 4f182d74..f38f667b 100644
+--- a/windows/vs2017/liblzma_dll.vcxproj
++++ b/windows/vs2017/liblzma_dll.vcxproj
+@@ -275,6 +275,7 @@
+     <ClCompile Include="..\..\src\liblzma\common\index_decoder.c" />
+     <ClCompile Include="..\..\src\liblzma\common\index_encoder.c" />
+     <ClCompile Include="..\..\src\liblzma\common\index_hash.c" />
++    <ClCompile Include="..\..\src\liblzma\common\lzip_decoder.c" />
+     <ClCompile Include="..\..\src\liblzma\common\outqueue.c" />
+     <ClCompile Include="..\..\src\liblzma\common\stream_buffer_decoder.c" />
+     <ClCompile Include="..\..\src\liblzma\common\stream_buffer_encoder.c" />
+@@ -303,6 +304,7 @@
+     <ClCompile Include="..\..\src\liblzma\lz\lz_encoder_mf.c" />
+     <ClCompile Include="..\..\src\liblzma\rangecoder\price_table.c" />
+     <ClCompile Include="..\..\src\liblzma\simple\arm.c" />
++    <ClCompile Include="..\..\src\liblzma\simple\arm64.c" />
+     <ClCompile Include="..\..\src\liblzma\simple\armthumb.c" />
+     <ClCompile Include="..\..\src\liblzma\simple\ia64.c" />
+     <ClCompile Include="..\..\src\liblzma\simple\powerpc.c" />
+@@ -354,6 +356,7 @@
+     <ClInclude Include="..\..\src\liblzma\common\index_decoder.h" />
+     <ClInclude Include="..\..\src\liblzma\common\index_encoder.h" />
+     <ClInclude Include="..\..\src\liblzma\common\memcmplen.h" />
++    <ClInclude Include="..\..\src\liblzma\common\lzip_decoder.h" />
+     <ClInclude Include="..\..\src\liblzma\common\outqueue.h" />
+     <ClInclude Include="..\..\src\liblzma\common\stream_decoder.h" />
+     <ClInclude Include="..\..\src\liblzma\common\stream_flags_common.h" />
+diff --git a/windows/vs2019/config.h b/windows/vs2019/config.h
+index ef921e80..6679da9a 100644
+--- a/windows/vs2019/config.h
++++ b/windows/vs2019/config.h
+@@ -21,6 +21,9 @@
+ /* Define to 1 if arm decoder is enabled. */
+ #define HAVE_DECODER_ARM 1
+ 
++/* Define to 1 if arm64 decoder is enabled. */
++#define HAVE_DECODER_ARM64 1
++
+ /* Define to 1 if armthumb decoder is enabled. */
+ #define HAVE_DECODER_ARMTHUMB 1
+ 
+@@ -51,6 +54,9 @@
+ /* Define to 1 if arm encoder is enabled. */
+ #define HAVE_ENCODER_ARM 1
+ 
++/* Define to 1 if arm64 encoder is enabled. */
++#define HAVE_ENCODER_ARM64 1
++
+ /* Define to 1 if armthumb encoder is enabled. */
+ #define HAVE_ENCODER_ARMTHUMB 1
+ 
+@@ -81,6 +87,9 @@
+ /* Define to 1 if you have the <limits.h> header file. */
+ #define HAVE_LIMITS_H 1
+ 
++/* Define to 1 if .lz (lzip) decompression support is enabled. */
++#define HAVE_LZIP_DECODER 1
++
+ /* Define to 1 to enable bt2 match finder. */
+ #define HAVE_MF_BT2 1
+ 
+diff --git a/windows/vs2019/liblzma.vcxproj b/windows/vs2019/liblzma.vcxproj
+index e0f8c18a..63bff984 100644
+--- a/windows/vs2019/liblzma.vcxproj
++++ b/windows/vs2019/liblzma.vcxproj
+@@ -244,6 +244,7 @@
+     <ClCompile Include="..\..\src\liblzma\common\index_decoder.c" />
+     <ClCompile Include="..\..\src\liblzma\common\index_encoder.c" />
+     <ClCompile Include="..\..\src\liblzma\common\index_hash.c" />
++    <ClCompile Include="..\..\src\liblzma\common\lzip_decoder.c" />
+     <ClCompile Include="..\..\src\liblzma\common\outqueue.c" />
+     <ClCompile Include="..\..\src\liblzma\common\stream_buffer_decoder.c" />
+     <ClCompile Include="..\..\src\liblzma\common\stream_buffer_encoder.c" />
+@@ -272,6 +273,7 @@
+     <ClCompile Include="..\..\src\liblzma\lz\lz_encoder_mf.c" />
+     <ClCompile Include="..\..\src\liblzma\rangecoder\price_table.c" />
+     <ClCompile Include="..\..\src\liblzma\simple\arm.c" />
++    <ClCompile Include="..\..\src\liblzma\simple\arm64.c" />
+     <ClCompile Include="..\..\src\liblzma\simple\armthumb.c" />
+     <ClCompile Include="..\..\src\liblzma\simple\ia64.c" />
+     <ClCompile Include="..\..\src\liblzma\simple\powerpc.c" />
+@@ -323,6 +325,7 @@
+     <ClInclude Include="..\..\src\liblzma\common\index_decoder.h" />
+     <ClInclude Include="..\..\src\liblzma\common\index_encoder.h" />
+     <ClInclude Include="..\..\src\liblzma\common\memcmplen.h" />
++    <ClInclude Include="..\..\src\liblzma\common\lzip_decoder.h" />
+     <ClInclude Include="..\..\src\liblzma\common\outqueue.h" />
+     <ClInclude Include="..\..\src\liblzma\common\stream_decoder.h" />
+     <ClInclude Include="..\..\src\liblzma\common\stream_flags_common.h" />
+@@ -354,4 +357,4 @@
+   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
+   <ImportGroup Label="ExtensionTargets">
+   </ImportGroup>
+-</Project>
+\ No newline at end of file
++</Project>
+diff --git a/windows/vs2019/liblzma_dll.vcxproj b/windows/vs2019/liblzma_dll.vcxproj
+index dad2725d..6c4de5e9 100644
+--- a/windows/vs2019/liblzma_dll.vcxproj
++++ b/windows/vs2019/liblzma_dll.vcxproj
+@@ -276,6 +276,7 @@
+     <ClCompile Include="..\..\src\liblzma\common\index_decoder.c" />
+     <ClCompile Include="..\..\src\liblzma\common\index_encoder.c" />
+     <ClCompile Include="..\..\src\liblzma\common\index_hash.c" />
++    <ClCompile Include="..\..\src\liblzma\common\lzip_decoder.c" />
+     <ClCompile Include="..\..\src\liblzma\common\outqueue.c" />
+     <ClCompile Include="..\..\src\liblzma\common\stream_buffer_decoder.c" />
+     <ClCompile Include="..\..\src\liblzma\common\stream_buffer_encoder.c" />
+@@ -304,6 +305,7 @@
+     <ClCompile Include="..\..\src\liblzma\lz\lz_encoder_mf.c" />
+     <ClCompile Include="..\..\src\liblzma\rangecoder\price_table.c" />
+     <ClCompile Include="..\..\src\liblzma\simple\arm.c" />
++    <ClCompile Include="..\..\src\liblzma\simple\arm64.c" />
+     <ClCompile Include="..\..\src\liblzma\simple\armthumb.c" />
+     <ClCompile Include="..\..\src\liblzma\simple\ia64.c" />
+     <ClCompile Include="..\..\src\liblzma\simple\powerpc.c" />
+@@ -355,6 +357,7 @@
+     <ClInclude Include="..\..\src\liblzma\common\index_decoder.h" />
+     <ClInclude Include="..\..\src\liblzma\common\index_encoder.h" />
+     <ClInclude Include="..\..\src\liblzma\common\memcmplen.h" />
++    <ClInclude Include="..\..\src\liblzma\common\lzip_decoder.h" />
+     <ClInclude Include="..\..\src\liblzma\common\outqueue.h" />
+     <ClInclude Include="..\..\src\liblzma\common\stream_decoder.h" />
+     <ClInclude Include="..\..\src\liblzma\common\stream_flags_common.h" />
+@@ -389,4 +392,4 @@
+   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
+   <ImportGroup Label="ExtensionTargets">
+   </ImportGroup>
+-</Project>
+\ No newline at end of file
++</Project>

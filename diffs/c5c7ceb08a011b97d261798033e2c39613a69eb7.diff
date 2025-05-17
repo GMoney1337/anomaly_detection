@@ -1,0 +1,12 @@
+diff --git a/dos/Makefile b/dos/Makefile
+index 0ddb43c5..75cb92f9 100644
+--- a/dos/Makefile
++++ b/dos/Makefile
+@@ -64,6 +64,7 @@ SRCS_C = \
+ 	../src/liblzma/common/block_header_encoder.c \
+ 	../src/liblzma/common/block_util.c \
+ 	../src/liblzma/common/common.c \
++	../src/liblzma/common/file_info.c \
+ 	../src/liblzma/common/filter_common.c \
+ 	../src/liblzma/common/filter_decoder.c \
+ 	../src/liblzma/common/filter_encoder.c \

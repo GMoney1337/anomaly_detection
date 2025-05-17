@@ -1,0 +1,20 @@
+diff --git a/src/common/tuklib_config.h b/src/common/tuklib_config.h
+index 242092af..8f2e9618 100644
+--- a/src/common/tuklib_config.h
++++ b/src/common/tuklib_config.h
+@@ -1,8 +1,7 @@
+-#ifdef HAVE_CONFIG_H
+-#	include "sysdefs.h"
+-#else
+-#	include <stddef.h>
+-#	include <stdbool.h>
+-#	include <inttypes.h>
+-#	include <limits.h>
+-#endif
++#include "sysdefs.h"
++
++// sysdefs.h takes care of these.
++// #include <stddef.h>
++// #include <stdbool.h>
++// #include <inttypes.h>
++// #include <limits.h>

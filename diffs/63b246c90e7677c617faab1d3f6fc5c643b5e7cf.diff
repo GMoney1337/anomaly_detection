@@ -1,0 +1,30 @@
+diff --git a/src/common/tuklib_common.h b/src/common/tuklib_common.h
+index 9fd5da90..d73f0725 100644
+--- a/src/common/tuklib_common.h
++++ b/src/common/tuklib_common.h
+@@ -56,6 +56,13 @@
+ #	define TUKLIB_GNUC_REQ(major, minor) 0
+ #endif
+ 
++#if defined(__GNUC__) || defined(__clang__)
++#	define tuklib_attr_format_printf(fmt_index, args_index) \
++		__attribute__((__format__(__printf__, fmt_index, args_index)))
++#else
++#	define tuklib_attr_format_printf(fmt_index, args_index)
++#endif
++
+ // tuklib_attr_noreturn attribute is used to mark functions as non-returning.
+ // We cannot use "noreturn" as the macro name because then C23 code that
+ // uses [[noreturn]] would break as it would expand to [[ [[noreturn]] ]].
+diff --git a/src/common/tuklib_mbstr_wrap.h b/src/common/tuklib_mbstr_wrap.h
+index e20ffdaf..4e2f297d 100644
+--- a/src/common/tuklib_mbstr_wrap.h
++++ b/src/common/tuklib_mbstr_wrap.h
+@@ -186,6 +186,7 @@ extern int tuklib_wraps(FILE *stream, const struct tuklib_wrap_opt *opt,
+ ///             all strings have (hopefully) been printed.
+ 
+ #define tuklib_wrapf TUKLIB_SYMBOL(tuklib_wrapf)
++tuklib_attr_format_printf(3, 4)
+ extern int tuklib_wrapf(FILE *stream, const struct tuklib_wrap_opt *opt,
+ 		const char *fmt, ...);
+ ///<

@@ -1,0 +1,20 @@
+diff --git a/THANKS b/THANKS
+index 4a0594f3..c2e799dc 100644
+--- a/THANKS
++++ b/THANKS
+@@ -58,6 +58,7 @@ has been important. :-) In alphabetical order:
+   - Stephan Kulow
+   - Peter Lawler
+   - James M Leddy
++  - Vincent Lefevre
+   - Hin-Tak Leung
+   - Andraž 'ruskie' Levstik
+   - Cary Lewis
+@@ -72,6 +73,7 @@ has been important. :-) In alphabetical order:
+   - Martin Matuška
+   - Jim Meyering
+   - Arkadiusz Miskiewicz
++  - Étienne Mollier
+   - Conley Moorhous
+   - Rafał Mużyło
+   - Adrien Nader

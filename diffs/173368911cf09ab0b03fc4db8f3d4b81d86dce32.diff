@@ -1,0 +1,15 @@
+diff --git a/INSTALL b/INSTALL
+index 579bace1..b9aff79c 100644
+--- a/INSTALL
++++ b/INSTALL
+@@ -222,6 +222,10 @@ XZ Utils Installation
+                 means that the RAM holding the tables won't be shared
+                 between applications linked against shared liblzma.
+ 
++                This option doesn't modify CFLAGS to tell the compiler
++                to optimize for size. You need to add -Os or equivalent
++                flag(s) to CFLAGS manually.
++
+     --disable-threads
+                 Disable threading support. This makes some things
+                 thread-unsafe, meaning that if multithreaded application

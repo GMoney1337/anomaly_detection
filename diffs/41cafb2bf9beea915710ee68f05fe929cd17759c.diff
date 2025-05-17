@@ -1,0 +1,12 @@
+diff --git a/THANKS b/THANKS
+index eadc9787..e1770c45 100644
+--- a/THANKS
++++ b/THANKS
+@@ -25,6 +25,7 @@ has been important. :-) In alphabetical order:
+   - Robert Elz
+   - Gilles Espinasse
+   - Denis Excoffier
++  - Michael Felt
+   - Mike Frysinger
+   - Bill Glessner
+   - Jason Gorski

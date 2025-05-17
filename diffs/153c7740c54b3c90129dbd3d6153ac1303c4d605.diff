@@ -1,0 +1,146 @@
+diff --git a/m4/tuklib_cpucores.m4 b/m4/tuklib_cpucores.m4
+index bb33c6f4..d48f2e5e 100644
+--- a/m4/tuklib_cpucores.m4
++++ b/m4/tuklib_cpucores.m4
+@@ -9,7 +9,7 @@
+ #   This information is used by tuklib_cpucores.c.
+ #
+ #   Currently this supports sysctl() (BSDs, OS/2) and sysconf() (GNU/Linux,
+-#   Solaris, Cygwin).
++#   Solaris, IRIX, Cygwin).
+ #
+ # COPYING
+ #
+@@ -54,7 +54,13 @@ int
+ main(void)
+ {
+ 	long i;
++#ifdef _SC_NPROCESSORS_ONLN
++	/* Many systems using sysconf() */
+ 	i = sysconf(_SC_NPROCESSORS_ONLN);
++#else
++	/* IRIX */
++	i = sysconf(_SC_NPROC_ONLN);
++#endif
+ 	return 0;
+ }
+ ]])], [
+@@ -71,7 +77,8 @@ case $tuklib_cv_cpucores_method in
+ 	sysconf)
+ 		AC_DEFINE([TUKLIB_CPUCORES_SYSCONF], [1],
+ 			[Define to 1 if the number of available CPU cores
+-			can be detected with sysconf(_SC_NPROCESSORS_ONLN).])
++			can be detected with sysconf(_SC_NPROCESSORS_ONLN)
++			or sysconf(_SC_NPROC_ONLN).])
+ 		;;
+ esac
+ ])dnl
+diff --git a/m4/tuklib_physmem.m4 b/m4/tuklib_physmem.m4
+index 59a645a4..a8c869f3 100644
+--- a/m4/tuklib_physmem.m4
++++ b/m4/tuklib_physmem.m4
+@@ -18,6 +18,8 @@
+ #
+ #     - BSDs use sysctl().
+ #
++#     - IRIX has setinvent_r(), getinvent_r(), and endinvent_r().
++#
+ #     - sysinfo() works on Linux/dietlibc and probably on other Linux
+ #       systems whose libc may lack sysconf().
+ #
+@@ -78,6 +80,19 @@ main(void)
+ }
+ ]])], [tuklib_cv_physmem_method=sysctl], [
+ 
++AC_COMPILE_IFELSE([AC_LANG_SOURCE([[
++#include <invent.h>
++int
++main(void)
++{
++	inv_state_t *st = NULL;
++	setinvent_r(&st);
++	getinvent_r(st);
++	endinvent_r(st);
++	return 0;
++}
++]])], [tuklib_cv_physmem_method=getinvent_r], [
++
+ # This version of sysinfo() is Linux-specific. Some non-Linux systems have
+ # different sysinfo() so we must check $host_os.
+ case $host_os in
+@@ -101,7 +116,7 @@ main(void)
+ 		tuklib_cv_physmem_method=unknown
+ 		;;
+ esac
+-])])])])
++])])])])])
+ case $tuklib_cv_physmem_method in
+ 	sysconf)
+ 		AC_DEFINE([TUKLIB_PHYSMEM_SYSCONF], [1],
+@@ -114,6 +129,11 @@ case $tuklib_cv_physmem_method in
+ 			[Define to 1 if the amount of physical memory can
+ 			be detected with sysctl().])
+ 		;;
++	getinvent_r)
++		AC_DEFINE([TUKLIB_PHYSMEM_GETINVENT_R], [1],
++			[Define to 1 if the amount of physical memory
++			can be detected with getinvent_r().])
++		;;
+ 	sysinfo)
+ 		AC_DEFINE([TUKLIB_PHYSMEM_SYSINFO], [1],
+ 			[Define to 1 if the amount of physical memory
+diff --git a/src/common/tuklib_cpucores.c b/src/common/tuklib_cpucores.c
+index 0a8081ff..e35d9bc7 100644
+--- a/src/common/tuklib_cpucores.c
++++ b/src/common/tuklib_cpucores.c
+@@ -37,7 +37,13 @@ tuklib_cpucores(void)
+ 		ret = (uint32_t)cpus;
+ 
+ #elif defined(TUKLIB_CPUCORES_SYSCONF)
++#	ifdef _SC_NPROCESSORS_ONLN
++	// Most systems
+ 	const long cpus = sysconf(_SC_NPROCESSORS_ONLN);
++#	else
++	// IRIX
++	const long cpus = sysconf(_SC_NPROC_ONLN);
++#	endif
+ 	if (cpus > 0)
+ 		ret = (uint32_t)cpus;
+ #endif
+diff --git a/src/common/tuklib_physmem.c b/src/common/tuklib_physmem.c
+index b2d21283..1536e6e5 100644
+--- a/src/common/tuklib_physmem.c
++++ b/src/common/tuklib_physmem.c
+@@ -42,6 +42,10 @@
+ #	endif
+ #	include <sys/sysctl.h>
+ 
++// IRIX
++#elif defined(TUKLIB_PHYSMEM_GETINVENT_R)
++#	include <invent.h>
++
+ // This sysinfo() is Linux-specific.
+ #elif defined(TUKLIB_PHYSMEM_SYSINFO)
+ #	include <sys/sysinfo.h>
+@@ -136,6 +140,21 @@ tuklib_physmem(void)
+ 			ret = mem.u32;
+ 	}
+ 
++#elif defined(TUKLIB_PHYSMEM_GETINVENT_R)
++	inv_state_t *st = NULL;
++	if (setinvent_r(&st) != -1) {
++		inventory_t *i;
++		while ((i = getinvent_r(st)) != NULL) {
++			if (i->inv_class == INV_MEMORY
++					&& i->inv_type == INV_MAIN_MB) {
++				ret = (uint64_t)i->inv_state << 20;
++				break;
++			}
++		}
++
++		endinvent_r(st);
++	}
++
+ #elif defined(TUKLIB_PHYSMEM_SYSINFO)
+ 	struct sysinfo si;
+ 	if (sysinfo(&si) == 0)

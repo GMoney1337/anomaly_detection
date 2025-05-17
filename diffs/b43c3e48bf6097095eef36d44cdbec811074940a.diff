@@ -1,0 +1,39 @@
+diff --git a/src/liblzma/api/lzma/version.h b/src/liblzma/api/lzma/version.h
+index 9883242a..6503a0cb 100644
+--- a/src/liblzma/api/lzma/version.h
++++ b/src/liblzma/api/lzma/version.h
+@@ -23,7 +23,7 @@
+ #define LZMA_VERSION_MINOR 5
+ 
+ /** \brief Patch version number of the liblzma release. */
+-#define LZMA_VERSION_PATCH 0
++#define LZMA_VERSION_PATCH 1
+ 
+ /**
+  * \brief Version stability marker
+diff --git a/src/liblzma/liblzma_generic.map b/src/liblzma/liblzma_generic.map
+index b251d366..670e90c5 100644
+--- a/src/liblzma/liblzma_generic.map
++++ b/src/liblzma/liblzma_generic.map
+@@ -120,7 +120,7 @@ global:
+ 	lzma_str_to_filters;
+ } XZ_5.2;
+ 
+-XZ_5.5.0alpha {
++XZ_5.5.1alpha {
+ global:
+ 	lzma_mt_block_size;
+ } XZ_5.4;
+diff --git a/src/liblzma/liblzma_linux.map b/src/liblzma/liblzma_linux.map
+index 25b39388..37cb835d 100644
+--- a/src/liblzma/liblzma_linux.map
++++ b/src/liblzma/liblzma_linux.map
+@@ -135,7 +135,7 @@ global:
+ 	lzma_str_to_filters;
+ } XZ_5.2;
+ 
+-XZ_5.5.0alpha {
++XZ_5.5.1alpha {
+ global:
+ 	lzma_mt_block_size;
+ } XZ_5.4;

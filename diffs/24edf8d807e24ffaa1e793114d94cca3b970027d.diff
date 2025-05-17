@@ -1,0 +1,12 @@
+diff --git a/THANKS b/THANKS
+index 1c5bccd9..00a35dd2 100644
+--- a/THANKS
++++ b/THANKS
+@@ -33,6 +33,7 @@ has been important. :-) In alphabetical order:
+   - Jason Gorski
+   - Juan Manuel Guerrero
+   - Joachim Henke
++  - Christian Hesse
+   - Peter Ivanov
+   - Jouk Jansen
+   - Per Øyvind Karlsen

@@ -1,0 +1,17 @@
+diff --git a/po4a/fr_FR.po b/po4a/fr.po
+similarity index 100%
+rename from po4a/fr_FR.po
+rename to po4a/fr.po
+diff --git a/po4a/po4a.conf b/po4a/po4a.conf
+index 8d86a525..8a8292df 100644
+--- a/po4a/po4a.conf
++++ b/po4a/po4a.conf
+@@ -2,7 +2,7 @@
+ # to get a new .po file. After translating the .po file, run
+ # "update-po" again to generate the translated man pages.
+ 
+-[po4a_langs] de fr_FR
++[po4a_langs] de fr
+ [po4a_paths] xz-man.pot $lang:$lang.po
+ 
+ [type: man] ../src/xz/xz.1              $lang:man/$lang/xz.1

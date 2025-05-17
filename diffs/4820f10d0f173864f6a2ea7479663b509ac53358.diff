@@ -1,0 +1,296 @@
+diff --git a/src/xz/args.c b/src/xz/args.c
+index a2efb277..c9d1dc14 100644
+--- a/src/xz/args.c
++++ b/src/xz/args.c
+@@ -53,7 +53,7 @@ parse_real(args_info *args, int argc, char **argv)
+ 		OPT_FILES0,
+ 	};
+ 
+-	static const char short_opts[] = "cC:dfF:hHlLkM:p:qrS:tT:vVz123456789";
++	static const char short_opts[] = "cC:defF:hHlkM:qrS:tT:vVz0123456789";
+ 
+ 	static const struct option long_opts[] = {
+ 		// Operation mode
+@@ -77,11 +77,11 @@ parse_real(args_info *args, int argc, char **argv)
+ 		// Basic compression settings
+ 		{ "format",         required_argument, NULL,  'F' },
+ 		{ "check",          required_argument, NULL,  'C' },
+-		{ "preset",         required_argument, NULL,  'p' },
+ 		{ "memory",         required_argument, NULL,  'M' },
+ 		{ "threads",        required_argument, NULL,  'T' },
+ 
+-		{ "fast",           no_argument,       NULL,  '1' },
++		{ "extreme",        no_argument,       NULL,  'e' },
++		{ "fast",           no_argument,       NULL,  '0' },
+ 		{ "best",           no_argument,       NULL,  '9' },
+ 
+ 		// Filters
+@@ -114,20 +114,12 @@ parse_real(args_info *args, int argc, char **argv)
+ 	while ((c = getopt_long(argc, argv, short_opts, long_opts, NULL))
+ 			!= -1) {
+ 		switch (c) {
+-		// gzip-like options
+-
+-		case '1': case '2': case '3': case '4':
++		// Compression preset (also for decompression if --format=raw)
++		case '0': case '1': case '2': case '3': case '4':
+ 		case '5': case '6': case '7': case '8': case '9':
+ 			coder_set_preset(c - '0');
+ 			break;
+ 
+-		case 'p': {
+-			const uint64_t preset = str_to_uint64(
+-					"preset", optarg, 1, 9);
+-			coder_set_preset(preset);
+-			break;
+-		}
+-
+ 		// --memory
+ 		case 'M':
+ 			// On 32-bit systems, SIZE_MAX would make more sense
+@@ -162,6 +154,11 @@ parse_real(args_info *args, int argc, char **argv)
+ 			opt_mode = MODE_DECOMPRESS;
+ 			break;
+ 
++		// --extreme
++		case 'e':
++			coder_set_extreme();
++			break;
++
+ 		// --force
+ 		case 'f':
+ 			opt_force = true;
+diff --git a/src/xz/message.c b/src/xz/message.c
+index d9733742..c2e35e8e 100644
+--- a/src/xz/message.c
++++ b/src/xz/message.c
+@@ -891,8 +891,8 @@ message_help(bool long_help)
+ 	}
+ 
+ 	puts(_(
+-"  -p, --preset=NUM    compression preset: 1-2 fast compression, 3-6 good\n"
+-"                      compression, 7-9 excellent compression; default is 7"));
++"  -0 .. -9            compression preset; 0-2 fast compression, 3-5 good\n"
++"                      compression, 6-9 excellent compression; default is 6"));
+ 
+ 	puts(_(
+ "  -M, --memory=NUM    use roughly NUM bytes of memory at maximum; 0 indicates\n"
+diff --git a/src/xz/options.c b/src/xz/options.c
+index e754c266..efceba9e 100644
+--- a/src/xz/options.c
++++ b/src/xz/options.c
+@@ -315,7 +315,7 @@ options_lzma(const char *str)
+ 	};
+ 
+ 	static const option_map opts[] = {
+-		{ "preset", NULL,   1, 9 },
++		{ "preset", NULL,   0, 9 },
+ 		{ "dict",   NULL,   LZMA_DICT_SIZE_MIN,
+ 				(UINT32_C(1) << 30) + (UINT32_C(1) << 29) },
+ 		{ "lc",     NULL,   LZMA_LCLP_MIN, LZMA_LCLP_MAX },
+diff --git a/src/xz/process.c b/src/xz/process.c
+index 191dfc09..e6870f81 100644
+--- a/src/xz/process.c
++++ b/src/xz/process.c
+@@ -34,14 +34,22 @@ static lzma_filter filters[LZMA_FILTERS_MAX + 1];
+ /// Number of filters. Zero indicates that we are using a preset.
+ static size_t filters_count = 0;
+ 
+-/// Number of the preset (1-9)
+-static size_t preset_number = 7;
++/// Number of the preset (0-9)
++static size_t preset_number = 6;
+ 
+-/// Indicate if no preset has been given. In that case, we will auto-adjust
+-/// the compression preset so that it doesn't use too much RAM.
+-// FIXME
++/// True if we should auto-adjust the compression settings to use less memory
++/// if memory usage limit is too low for the original settings.
++static bool auto_adjust = true;
++
++/// Indicate if no preset has been explicitly given. In that case, if we need
++/// to auto-adjust for lower memory usage, we won't print a warning.
+ static bool preset_default = true;
+ 
++/// If a preset is used (no custom filter chain) and preset_extreme is true,
++/// a significantly slower compression is used to achieve slightly better
++/// compression ratio.
++static bool preset_extreme = false;
++
+ /// Integrity check type
+ static lzma_check check = LZMA_CHECK_CRC64;
+ 
+@@ -63,6 +71,14 @@ coder_set_preset(size_t new_preset)
+ }
+ 
+ 
++extern void
++coder_set_extreme(void)
++{
++	preset_extreme = true;
++	return;
++}
++
++
+ extern void
+ coder_add_filter(lzma_vli id, void *options)
+ {
+@@ -77,6 +93,15 @@ coder_add_filter(lzma_vli id, void *options)
+ }
+ 
+ 
++static void lzma_attribute((noreturn))
++memlimit_too_small(uint64_t memory_usage, uint64_t memory_limit)
++{
++	message_fatal(_("Memory usage limit (%" PRIu64 " MiB) is too small "
++			"for the given filter setup (%" PRIu64 " MiB)"),
++			memory_limit >> 20, memory_usage >> 20);
++}
++
++
+ extern void
+ coder_set_compression_settings(void)
+ {
+@@ -99,6 +124,9 @@ coder_set_compression_settings(void)
+ 		}
+ 
+ 		// Get the preset for LZMA1 or LZMA2.
++		if (preset_extreme)
++			preset_number |= LZMA_PRESET_EXTREME;
++
+ 		if (lzma_lzma_preset(&opt_lzma, preset_number))
+ 			message_bug();
+ 
+@@ -107,6 +135,8 @@ coder_set_compression_settings(void)
+ 				? LZMA_FILTER_LZMA1 : LZMA_FILTER_LZMA2;
+ 		filters[0].options = &opt_lzma;
+ 		filters_count = 1;
++	} else {
++		preset_default = false;
+ 	}
+ 
+ 	// Terminate the filter options array.
+@@ -139,30 +169,77 @@ coder_set_compression_settings(void)
+ 		message_fatal("Unsupported filter chain or filter options");
+ 
+ 	// Print memory usage info.
+-	message(V_DEBUG, _("%" PRIu64 " MiB of memory is required per thread, "
+-			"limit is %" PRIu64 " MiB"),
+-			memory_usage / (1024 * 1024),
+-			memory_limit / (1024 * 1024));
+-
+-	if (preset_default) {
+-		// When no preset was explicitly requested, we use the default
+-		// preset only if the memory usage limit allows. Otherwise we
+-		// select a lower preset automatically.
+-		while (memory_usage > memory_limit) {
+-			if (preset_number == 1)
+-				message_fatal(_("Memory usage limit is too "
+-						"small for any internal "
+-						"filter preset"));
+-
+-			if (lzma_lzma_preset(&opt_lzma, --preset_number))
+-				message_bug();
++	message(V_DEBUG, _("%'" PRIu64 " MiB (%'" PRIu64 " B) of memory is "
++			"required per thread, "
++			"limit is %'" PRIu64 " MiB (%'" PRIu64 " B)"),
++			memory_usage >> 20, memory_usage,
++			memory_limit >> 20, memory_limit);
++
++	if (memory_usage > memory_limit) {
++		// If --no-auto-adjust was used or we didn't find LZMA1 or
++		// LZMA2 as the last filter, give an error immediatelly.
++		// --format=raw implies --no-auto-adjust.
++		if (!auto_adjust || opt_format == FORMAT_RAW)
++			memlimit_too_small(memory_usage, memory_limit);
++
++		assert(opt_mode == MODE_COMPRESS);
++
++		// Look for the last filter if it is LZMA2 or LZMA1, so
++		// we can make it use less RAM. With other filters we don't
++		// know what to do.
++		size_t i = 0;
++		while (filters[i].id != LZMA_FILTER_LZMA2
++				&& filters[i].id != LZMA_FILTER_LZMA1) {
++			if (filters[i].id == LZMA_VLI_UNKNOWN)
++				memlimit_too_small(memory_usage, memory_limit);
++
++			++i;
++		}
++
++		// Decrease the dictionary size until we meet the memory
++		// usage limit. First round down to full mebibytes.
++		lzma_options_lzma *opt = filters[i].options;
++		const uint32_t orig_dict_size = opt->dict_size;
++		opt->dict_size &= ~((UINT32_C(1) << 20) - 1);
++		while (true) {
++			// If it is below 1 MiB, auto-adjusting failed. We
++			// could be more sophisticated and scale it down even
++			// more, but let's see if many complain about this
++			// version.
++			//
++			// FIXME: Displays the scaled memory usage instead
++			// of the original.
++			if (opt->dict_size < (UINT32_C(1) << 20))
++				memlimit_too_small(memory_usage, memory_limit);
+ 
+ 			memory_usage = lzma_memusage_encoder(filters);
++			if (memory_usage == UINT64_MAX)
++				message_bug();
++
++			// Accept it if it is low enough.
++			if (memory_usage <= memory_limit)
++				break;
++
++			// Otherwise 1 MiB down and try again. I hope this
++			// isn't too slow method for cases where the original
++			// dict_size is very big.
++			opt->dict_size -= UINT32_C(1) << 20;
+ 		}
+-	} else {
+-		if (memory_usage > memory_limit)
+-			message_fatal(_("Memory usage limit is too small "
+-					"for the given filter setup"));
++
++		// Tell the user that we decreased the dictionary size.
++		// However, omit the message if no preset or custom chain
++		// was given. FIXME: Always warn?
++		if (!preset_default)
++			message(V_WARNING, "Adjusted LZMA%c dictionary size "
++					"from %'" PRIu32 " MiB to "
++					"%'" PRIu32 " MiB to not exceed "
++					"the memory usage limit of "
++					"%'" PRIu64 " MiB",
++					filters[i].id == LZMA_FILTER_LZMA2
++						? '2' : '1',
++					orig_dict_size >> 20,
++					opt->dict_size >> 20,
++					memory_limit >> 20);
+ 	}
+ 
+ 	// Limit the number of worker threads so that memory usage
+@@ -224,8 +301,8 @@ coder_init(void)
+ 			break;
+ 
+ 		case FORMAT_RAW:
+-			// Memory usage has already been checked in args.c.
+-			// FIXME Comment
++			// Memory usage has already been checked in
++			// coder_set_compression_settings().
+ 			ret = lzma_raw_decoder(&strm, filters);
+ 			break;
+ 		}
+diff --git a/src/xz/process.h b/src/xz/process.h
+index de23eacb..38485285 100644
+--- a/src/xz/process.h
++++ b/src/xz/process.h
+@@ -57,6 +57,9 @@ extern void coder_set_check(lzma_check check);
+ /// Set preset number
+ extern void coder_set_preset(size_t new_preset);
+ 
++/// Enable extreme mode
++extern void coder_set_extreme(void);
++
+ /// Add a filter to the custom filter chain
+ extern void coder_add_filter(lzma_vli id, void *options);
+ 

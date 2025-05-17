@@ -1,0 +1,29 @@
+diff --git a/README b/README
+index 1b02f05e..ab8aadfb 100644
+--- a/README
++++ b/README
+@@ -210,8 +210,8 @@ XZ Utils
+         # <Edit the .po file in the po directory.>
+         make -C po update-po
+         make install
+-        bash debug/translations.bash | less
+-        bash debug/translations.bash | less -S  # For --list outputs
++        bash debug/translation.bash | less
++        bash debug/translation.bash | less -S  # For --list outputs
+ 
+     Repeat the above as needed (no need to re-run configure though).
+ 
+diff --git a/debug/Makefile.am b/debug/Makefile.am
+index 45b4b7fd..9026fd93 100644
+--- a/debug/Makefile.am
++++ b/debug/Makefile.am
+@@ -5,6 +5,9 @@
+ ## You can do whatever you want with this file.
+ ##
+ 
++EXTRA_DIST = \
++	translation.bash
++
+ noinst_PROGRAMS = \
+ 	repeat \
+ 	sync_flush \

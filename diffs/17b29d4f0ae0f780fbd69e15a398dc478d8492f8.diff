@@ -1,0 +1,15 @@
+diff --git a/NEWS b/NEWS
+index 376abea8..d15e69b6 100644
+--- a/NEWS
++++ b/NEWS
+@@ -66,8 +66,9 @@ XZ Utils Release Notes
+           is non-trivial, so as of writing it is unknown if it will be
+           backported to the v5.0 branch.
+ 
+-        - Multi-threaded decompression can be enabled with the
++        - Multi-threaded compression can be enabled with the
+           --threads (-T) option.
++          [Fixed: This originally said "decompression".]
+ 
+         - New command line options in xz: --single-stream,
+           --block-size=SIZE, --block-list=SIZES,

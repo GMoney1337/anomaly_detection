@@ -1,0 +1,53 @@
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+index 59bb6c3b..8eb6e60f 100644
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -2072,10 +2072,17 @@ endif()
+ # Scripts
+ #############################################################################
+ 
++set(ENABLE_SCRIPTS OFF)
++
+ if(UNIX)
++    # NOTE: These depend on the xz tool and decoder support.
+     option(XZ_TOOL_SCRIPTS "Install the scripts \
+ xzdiff, xzgrep, xzmore, xzless, and their symlinks" ON)
+ 
++    if(XZ_TOOL_SCRIPTS AND XZ_TOOL_XZ AND HAVE_DECODERS)
++        set(ENABLE_SCRIPTS ON)
++    endif()
++
+     # NOTE: This isn't as sophisticated as in the Autotools build which
+     # uses posix-shell.m4 but hopefully this doesn't need to be either.
+     # CMake likely won't be used on as many (old) obscure systems as the
+@@ -2120,7 +2127,7 @@ xzdiff, xzgrep, xzmore, xzless, and their symlinks" ON)
+                @ONLY
+                NEWLINE_STYLE LF)
+ 
+-        if(XZ_TOOL_SCRIPTS)
++        if(ENABLE_SCRIPTS)
+             install(PROGRAMS "${CMAKE_CURRENT_BINARY_DIR}/${S}"
+                     DESTINATION "${CMAKE_INSTALL_BINDIR}"
+                     COMPONENT scripts_Runtime)
+@@ -2137,7 +2144,7 @@ xzdiff, xzgrep, xzmore, xzless, and their symlinks" ON)
+     unset(POSIX_SHELL)
+     unset(enable_path_for_scripts)
+ 
+-    if(XZ_TOOL_SCRIPTS)
++    if(ENABLE_SCRIPTS)
+         my_install_symlinks(scripts_Runtime "${CMAKE_INSTALL_BINDIR}"
+                             xzdiff "" "${XZDIFF_LINKS}")
+ 
+diff --git a/tests/tests.cmake b/tests/tests.cmake
+index 1b30ddd4..297fcaf9 100644
+--- a/tests/tests.cmake
++++ b/tests/tests.cmake
+@@ -121,7 +121,7 @@ if(BUILD_TESTING)
+     endif()
+ 
+     # test_scripts.sh only needs LZMA2 decoder and CRC32.
+-    if(UNIX AND HAVE_DECODERS)
++    if(ENABLE_SCRIPTS)
+         file(MAKE_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/test_scripts")
+ 
+         add_test(NAME test_scripts.sh

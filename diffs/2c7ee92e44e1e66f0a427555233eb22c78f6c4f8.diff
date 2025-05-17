@@ -1,0 +1,31 @@
+diff --git a/src/liblzma/api/lzma.h b/src/liblzma/api/lzma.h
+index f38513d3..de12f225 100644
+--- a/src/liblzma/api/lzma.h
++++ b/src/liblzma/api/lzma.h
+@@ -182,11 +182,11 @@
+  * against static liblzma on them, don't worry about LZMA_API_STATIC. That
+  * is, most developers will never need to use LZMA_API_STATIC.
+  *
+- * The GCC variants are a special case on Windows (Cygwin and MinGW).
++ * The GCC variants are a special case on Windows (Cygwin and MinGW-w64).
+  * We rely on GCC doing the right thing with its auto-import feature,
+  * and thus don't use __declspec(dllimport). This way developers don't
+  * need to worry about LZMA_API_STATIC. Also the calling convention is
+- * omitted on Cygwin but not on MinGW.
++ * omitted on Cygwin but not on MinGW-w64.
+  */
+ #ifndef LZMA_API_IMPORT
+ #	if !defined(LZMA_API_STATIC) && defined(_WIN32) && !defined(__GNUC__)
+diff --git a/src/liblzma/api/lzma/version.h b/src/liblzma/api/lzma/version.h
+index 294ec80c..9883242a 100644
+--- a/src/liblzma/api/lzma/version.h
++++ b/src/liblzma/api/lzma/version.h
+@@ -106,7 +106,7 @@
+ 		LZMA_VERSION_COMMIT)
+ 
+ 
+-/* #ifndef is needed for use with windres (MinGW or Cygwin). */
++/* #ifndef is needed for use with windres (MinGW-w64 or Cygwin). */
+ #ifndef LZMA_H_INTERNAL_RC
+ 
+ /**

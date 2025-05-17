@@ -1,0 +1,78 @@
+diff --git a/THANKS b/THANKS
+index 52b4eba2..44b9f969 100644
+--- a/THANKS
++++ b/THANKS
+@@ -8,6 +8,7 @@ In alphabetical order:
+   - Mark Adler
+   - Nelson H. F. Beebe
+   - Anders F. Björklund
++  - Andrew Dudman
+   - İsmail Dönmez
+   - Mike Frysinger
+   - Jean-loup Gailly
+diff --git a/doc/xz-file-format.txt b/doc/xz-file-format.txt
+index 998f0f8b..af7ae998 100644
+--- a/doc/xz-file-format.txt
++++ b/doc/xz-file-format.txt
+@@ -2,7 +2,7 @@
+ The .xz File Format
+ ===================
+ 
+-Version 1.0.1 (2009-06-01)
++Version 1.0.2 (2009-06-04)
+ 
+ 
+         0. Preface
+@@ -93,6 +93,8 @@ Version 1.0.1 (2009-06-01)
+ 
+         Version   Date          Description
+ 
++        1.0.2     2009-06-04    Typo fixes in Sections 4 and 5.3.1
++
+         1.0.1     2009-06-01    Typo fix in Section 0.3 and minor
+                                 clarifications to Sections 2, 2.2,
+                                 3.3, 4.4, and 5.3.2
+@@ -634,7 +636,7 @@ Version 1.0.1 (2009-06-01)
+         ---> | List of Records | Index Padding | CRC32 |
+              +=================+===============+-+-+-+-+
+ 
+-        Index serves several purporses. Using it, one can
++        Index serves several purposes. Using it, one can
+           - verify that all Blocks in a Stream have been processed;
+           - find out the uncompressed size of a Stream; and
+           - quickly access the beginning of any Block (random access).
+@@ -824,7 +826,7 @@ Version 1.0.1 (2009-06-01)
+ 
+ 5.3.1. LZMA2
+ 
+-        LZMA (Lempel-Ziv-Markov chain-Algorithm) is a general-purporse
++        LZMA (Lempel-Ziv-Markov chain-Algorithm) is a general-purpose
+         compression algorithm with high compression ratio and fast
+         decompression. LZMA is based on LZ77 and range coding
+         algorithms.
+diff --git a/src/liblzma/liblzma.pc.in b/src/liblzma/liblzma.pc.in
+index e192352f..28026a4f 100644
+--- a/src/liblzma/liblzma.pc.in
++++ b/src/liblzma/liblzma.pc.in
+@@ -4,7 +4,7 @@ libdir=@libdir@
+ includedir=@includedir@
+ 
+ Name: liblzma
+-Description: General purporse data compression library
++Description: General purpose data compression library
+ URL: http://tukaani.org/xz/
+ Version: @PACKAGE_VERSION@
+ Cflags: -I${includedir}
+diff --git a/windows/Makefile b/windows/Makefile
+index 9a9957cd..d552b1c3 100644
+--- a/windows/Makefile
++++ b/windows/Makefile
+@@ -80,7 +80,7 @@ endif
+ endif
+ 
+ ifdef DEBUG
+-# Use echo since it works for this purporse on both Windows and POSIX.
++# Use echo since it works for this purpose on both Windows and POSIX.
+ STRIP := echo Skipping strip
+ else
+ ALL_CPPFLAGS += -DNDEBUG

@@ -1,0 +1,39 @@
+diff --git a/src/xz/util.c b/src/xz/util.c
+index 9843c044..d200bfca 100644
+--- a/src/xz/util.c
++++ b/src/xz/util.c
+@@ -45,6 +45,10 @@ str_to_uint64(const char *name, const char *value, uint64_t min, uint64_t max)
+ 	while (*value == ' ' || *value == '\t')
+ 		++value;
+ 
++	// Accept special value "max". Supporting "min" doesn't seem useful.
++	if (strcmp(value, "max") == 0)
++		return max;
++
+ 	if (*value < '0' || *value > '9')
+ 		message_fatal(_("%s: Value is not a non-negative "
+ 				"decimal integer"), value);
+diff --git a/src/xzdec/xzdec.c b/src/xzdec/xzdec.c
+index 6c1f8249..90bc6579 100644
+--- a/src/xzdec/xzdec.c
++++ b/src/xzdec/xzdec.c
+@@ -86,7 +86,7 @@ help(void)
+ 		" MiB of memory at maximum.\n"
+ "\n"
+ "Report bugs to <" PACKAGE_BUGREPORT "> (in English or Finnish).\n",
+-		argv0, (memlimit + 512 * 1024) / (1024 * 1024));
++		argv0, memlimit / (1024 * 1024));
+ 	my_exit();
+ }
+ 
+@@ -128,6 +128,10 @@ str_to_uint64(const char *value)
+ {
+ 	uint64_t result = 0;
+ 
++	// Accept special value "max".
++	if (strcmp(value, "max") == 0)
++		return UINT64_MAX;
++
+ 	if (*value < '0' || *value > '9') {
+ 		fprintf(stderr, "%s: %s: Not a number\n", argv0, value);
+ 		exit(EXIT_FAILURE);

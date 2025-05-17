@@ -1,0 +1,13 @@
+diff --git a/README b/README
+index ca2867db..c7d95013 100644
+--- a/README
++++ b/README
+@@ -7,7 +7,7 @@ Important
+     This is a beta version. The .xz file format is now stable though,
+     which means that files created with the beta version will be
+     uncompressible with all future XZ Utils versions too (assuming
+-    that there are no catastrophical bugs).
++    that there are no catastrophic bugs).
+ 
+     liblzma API is pretty stable now, although minor tweaks may still
+     be done if really needed. The ABI is not stable yet. The major

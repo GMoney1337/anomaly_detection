@@ -1,0 +1,288 @@
+diff --git a/src/liblzma/api/lzma/block.h b/src/liblzma/api/lzma/block.h
+index 45045815..60ea97f4 100644
+--- a/src/liblzma/api/lzma/block.h
++++ b/src/liblzma/api/lzma/block.h
+@@ -38,7 +38,6 @@ typedef struct {
+ 	 * Read by:
+ 	 *  - lzma_block_header_encode()
+ 	 *  - lzma_block_header_decode()
+-	 *  - lzma_block_encoder()
+ 	 *  - lzma_block_decoder()
+ 	 *
+ 	 * Written by:
+@@ -74,7 +73,6 @@ typedef struct {
+ 	 * Read by:
+ 	 *  - lzma_block_header_size()
+ 	 *  - lzma_block_header_encode()
+-	 *  - lzma_block_encoder()
+ 	 *  - lzma_block_decoder()
+ 	 *
+ 	 * Written by:
+@@ -103,7 +101,6 @@ typedef struct {
+ 	 * Read by:
+ 	 *  - lzma_block_header_size()
+ 	 *  - lzma_block_header_encode()
+-	 *  - lzma_block_encoder()
+ 	 *  - lzma_block_decoder()
+ 	 *
+ 	 * Written by:
+diff --git a/src/liblzma/common/Makefile.am b/src/liblzma/common/Makefile.am
+index 3ec2e270..ca38afc2 100644
+--- a/src/liblzma/common/Makefile.am
++++ b/src/liblzma/common/Makefile.am
+@@ -28,7 +28,6 @@ libcommon_la_SOURCES = \
+ 	common.h \
+ 	bsr.h \
+ 	block_util.c \
+-	block_private.h \
+ 	filter_common.c \
+ 	filter_common.h \
+ 	index.c \
+diff --git a/src/liblzma/common/block_decoder.c b/src/liblzma/common/block_decoder.c
+index eab25a88..9eb33651 100644
+--- a/src/liblzma/common/block_decoder.c
++++ b/src/liblzma/common/block_decoder.c
+@@ -18,7 +18,6 @@
+ ///////////////////////////////////////////////////////////////////////////////
+ 
+ #include "block_decoder.h"
+-#include "block_private.h"
+ #include "filter_decoder.h"
+ #include "check.h"
+ 
+@@ -56,6 +55,28 @@ struct lzma_coder_s {
+ };
+ 
+ 
++static inline bool
++update_size(lzma_vli *size, lzma_vli add, lzma_vli limit)
++{
++	if (limit > LZMA_VLI_VALUE_MAX)
++		limit = LZMA_VLI_VALUE_MAX;
++
++	if (limit < *size || limit - *size < add)
++		return true;
++
++	*size += add;
++
++	return false;
++}
++
++
++static inline bool
++is_size_valid(lzma_vli size, lzma_vli reference)
++{
++	return reference == LZMA_VLI_VALUE_UNKNOWN || reference == size;
++}
++
++
+ static lzma_ret
+ block_decode(lzma_coder *coder, lzma_allocator *allocator,
+ 		const uint8_t *restrict in, size_t *restrict in_pos,
+diff --git a/src/liblzma/common/block_encoder.c b/src/liblzma/common/block_encoder.c
+index 5aa3626b..ee75033a 100644
+--- a/src/liblzma/common/block_encoder.c
++++ b/src/liblzma/common/block_encoder.c
+@@ -18,11 +18,25 @@
+ ///////////////////////////////////////////////////////////////////////////////
+ 
+ #include "block_encoder.h"
+-#include "block_private.h"
+ #include "filter_encoder.h"
+ #include "check.h"
+ 
+ 
++/// The maximum size of a single Block is limited by the maximum size of
++/// a Stream, which is 2^63 - 1 bytes (i.e. LZMA_VLI_VALUE_MAX). We could
++/// take into account the headers etc. to determine the exact maximum size
++/// of the Compressed Data field, but the complexity would give us nothing
++/// useful. Instead, limit the size of Compressed Data so that even with
++/// biggest possible Block Header and Check fields the total size of the
++/// Block stays as valid VLI. This way we don't produce incorrect output
++/// if someone will really try creating a Block of 8 EiB.
++///
++/// ~LZMA_VLI_C(3) is to guarantee that if we need padding at the end of
++/// the Compressed Data field, it will still stay in the proper limit.
++#define COMPRESSED_SIZE_MAX ((LZMA_VLI_VALUE_MAX - LZMA_BLOCK_HEADER_SIZE_MAX \
++		- LZMA_CHECK_SIZE_MAX) & ~LZMA_VLI_C(3))
++
++
+ struct lzma_coder_s {
+ 	/// The filters in the chain; initialized with lzma_raw_decoder_init().
+ 	lzma_next_coder next;
+@@ -59,26 +73,9 @@ block_encode(lzma_coder *coder, lzma_allocator *allocator,
+ 		size_t *restrict out_pos, size_t out_size, lzma_action action)
+ {
+ 	// Check that our amount of input stays in proper limits.
+-	if (coder->options->uncompressed_size != LZMA_VLI_VALUE_UNKNOWN) {
+-		if (action == LZMA_FINISH) {
+-			if (coder->options->uncompressed_size
+-					- coder->uncompressed_size
+-					!= (lzma_vli)(in_size - *in_pos))
+-				return LZMA_PROG_ERROR;
+-		} else {
+-			if (coder->options->uncompressed_size
+-					- coder->uncompressed_size
+-					<  (lzma_vli)(in_size - *in_pos))
+-				return LZMA_PROG_ERROR;
+-		}
+-	} else if (LZMA_VLI_VALUE_MAX - coder->uncompressed_size
+-			< (lzma_vli)(in_size - *in_pos)) {
++	if (LZMA_VLI_VALUE_MAX - coder->uncompressed_size < in_size - *in_pos)
+ 		return LZMA_PROG_ERROR;
+-	}
+ 
+-	// Main loop
+-	while (*out_pos < out_size
+-			&& (*in_pos < in_size || action != LZMA_RUN))
+ 	switch (coder->sequence) {
+ 	case SEQ_CODE: {
+ 		const size_t in_start = *in_pos;
+@@ -91,12 +88,11 @@ block_encode(lzma_coder *coder, lzma_allocator *allocator,
+ 		const size_t in_used = *in_pos - in_start;
+ 		const size_t out_used = *out_pos - out_start;
+ 
+-		// FIXME We must also check that Total Size doesn't get
+-		// too big.
+-		if (update_size(&coder->compressed_size, out_used,
+-				coder->options->compressed_size))
++		if (COMPRESSED_SIZE_MAX - coder->compressed_size < out_used)
+ 			return LZMA_DATA_ERROR;
+ 
++		coder->compressed_size += out_used;
++
+ 		// No need to check for overflow because we have already
+ 		// checked it at the beginning of this function.
+ 		coder->uncompressed_size += in_used;
+@@ -108,31 +104,28 @@ block_encode(lzma_coder *coder, lzma_allocator *allocator,
+ 			return ret;
+ 
+ 		assert(*in_pos == in_size);
++		assert(action == LZMA_FINISH);
++
+ 		coder->sequence = SEQ_PADDING;
+-		break;
+ 	}
+ 
++	// Fall through
++
+ 	case SEQ_PADDING:
+ 		// Pad Compressed Data to a multiple of four bytes.
+-		if (coder->compressed_size & 3) {
++		while (coder->compressed_size & 3) {
++			if (*out_pos >= out_size)
++				return LZMA_OK;
++
+ 			out[*out_pos] = 0x00;
+ 			++*out_pos;
+ 
+-			if (update_size(&coder->compressed_size, 1,
+-					coder->options->compressed_size))
+-				return LZMA_DATA_ERROR;
+-
+-			break;
++			// No need to use check for overflow here since we
++			// have already checked in SEQ_CODE that Compressed
++			// Size will stay in proper limits.
++			++coder->compressed_size;
+ 		}
+ 
+-		// Compressed and Uncompressed Sizes are now at their final
+-		// values. Verify that they match the values given to us.
+-		if (!is_size_valid(coder->compressed_size,
+-					coder->options->compressed_size)
+-				|| !is_size_valid(coder->uncompressed_size,
+-					coder->options->uncompressed_size))
+-			return LZMA_DATA_ERROR;
+-
+ 		// Copy the values into coder->options. The caller
+ 		// may use this information to construct Index.
+ 		coder->options->compressed_size = coder->compressed_size;
+@@ -146,21 +139,24 @@ block_encode(lzma_coder *coder, lzma_allocator *allocator,
+ 
+ 	// Fall through
+ 
+-	case SEQ_CHECK:
+-		out[*out_pos] = coder->check.buffer.u8[coder->check_pos];
+-		++*out_pos;
++	case SEQ_CHECK: {
++		const uint32_t check_size
++				= lzma_check_size(coder->options->check);
+ 
+-		if (++coder->check_pos
+-				== lzma_check_size(coder->options->check))
+-			return LZMA_STREAM_END;
++		while (*out_pos < out_size) {
++			out[*out_pos] = coder->check.buffer.u8[
++					coder->check_pos];
++			++*out_pos;
+ 
+-		break;
++			if (++coder->check_pos == check_size)
++				return LZMA_STREAM_END;
++		}
+ 
+-	default:
+-		return LZMA_PROG_ERROR;
++		return LZMA_OK;
++	}
+ 	}
+ 
+-	return LZMA_OK;
++	return LZMA_PROG_ERROR;
+ }
+ 
+ 
+diff --git a/src/liblzma/common/block_private.h b/src/liblzma/common/block_private.h
+deleted file mode 100644
+index 235e96b8..00000000
+--- a/src/liblzma/common/block_private.h
++++ /dev/null
+@@ -1,47 +0,0 @@
+-///////////////////////////////////////////////////////////////////////////////
+-//
+-/// \file       block_private.h
+-/// \brief      Common stuff for Block encoder and decoder
+-//
+-//  Copyright (C) 2007 Lasse Collin
+-//
+-//  This library is free software; you can redistribute it and/or
+-//  modify it under the terms of the GNU Lesser General Public
+-//  License as published by the Free Software Foundation; either
+-//  version 2.1 of the License, or (at your option) any later version.
+-//
+-//  This library is distributed in the hope that it will be useful,
+-//  but WITHOUT ANY WARRANTY; without even the implied warranty of
+-//  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+-//  Lesser General Public License for more details.
+-//
+-///////////////////////////////////////////////////////////////////////////////
+-
+-#ifndef LZMA_BLOCK_COMMON_H
+-#define LZMA_BLOCK_COMMON_H
+-
+-#include "common.h"
+-
+-
+-static inline bool
+-update_size(lzma_vli *size, lzma_vli add, lzma_vli limit)
+-{
+-	if (limit > LZMA_VLI_VALUE_MAX)
+-		limit = LZMA_VLI_VALUE_MAX;
+-
+-	if (limit < *size || limit - *size < add)
+-		return true;
+-
+-	*size += add;
+-
+-	return false;
+-}
+-
+-
+-static inline bool
+-is_size_valid(lzma_vli size, lzma_vli reference)
+-{
+-	return reference == LZMA_VLI_VALUE_UNKNOWN || reference == size;
+-}
+-
+-#endif

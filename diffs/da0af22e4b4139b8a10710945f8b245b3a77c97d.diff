@@ -1,0 +1,48 @@
+diff --git a/src/xz/coder.c b/src/xz/coder.c
+index 1c904343..5584cac4 100644
+--- a/src/xz/coder.c
++++ b/src/xz/coder.c
+@@ -1,6 +1,6 @@
+ ///////////////////////////////////////////////////////////////////////////////
+ //
+-/// \file       process.c
++/// \file       coder.c
+ /// \brief      Compresses or uncompresses a file
+ //
+ //  Author:     Lasse Collin
+diff --git a/src/xz/coder.h b/src/xz/coder.h
+index aa8a4d83..0d3af6ad 100644
+--- a/src/xz/coder.h
++++ b/src/xz/coder.h
+@@ -1,6 +1,6 @@
+ ///////////////////////////////////////////////////////////////////////////////
+ //
+-/// \file       process.h
++/// \file       coder.h
+ /// \brief      Compresses or uncompresses a file
+ //
+ //  Author:     Lasse Collin
+diff --git a/src/xz/file_io.c b/src/xz/file_io.c
+index d8eb5f06..3c3af0e1 100644
+--- a/src/xz/file_io.c
++++ b/src/xz/file_io.c
+@@ -1,6 +1,6 @@
+ ///////////////////////////////////////////////////////////////////////////////
+ //
+-/// \file       io.c
++/// \file       file_io.c
+ /// \brief      File opening, unlinking, and closing
+ //
+ //  Author:     Lasse Collin
+diff --git a/src/xz/file_io.h b/src/xz/file_io.h
+index c10554ad..b0bbe11a 100644
+--- a/src/xz/file_io.h
++++ b/src/xz/file_io.h
+@@ -1,6 +1,6 @@
+ ///////////////////////////////////////////////////////////////////////////////
+ //
+-/// \file       io.h
++/// \file       file_io.h
+ /// \brief      I/O types and functions
+ //
+ //  Author:     Lasse Collin

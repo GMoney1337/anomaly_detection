@@ -1,0 +1,68 @@
+diff --git a/src/xz/file_io.c b/src/xz/file_io.c
+index e1a37d5f..80b56d38 100644
+--- a/src/xz/file_io.c
++++ b/src/xz/file_io.c
+@@ -536,8 +536,9 @@ io_open_src_real(file_pair *pair)
+ 	}
+ 
+ 	// Symlinks are not followed unless writing to stdout or --force
+-	// was used.
+-	const bool follow_symlinks = opt_stdout || opt_force;
++	// or --keep was used.
++	const bool follow_symlinks
++			= opt_stdout || opt_force || opt_keep_original;
+ 
+ 	// We accept only regular files if we are writing the output
+ 	// to disk too. bzip2 allows overriding this with --force but
+@@ -674,7 +675,7 @@ io_open_src_real(file_pair *pair)
+ 	}
+ 
+ #ifndef TUKLIB_DOSLIKE
+-	if (reg_files_only && !opt_force) {
++	if (reg_files_only && !opt_force && !opt_keep_original) {
+ 		if (pair->src_st.st_mode & (S_ISUID | S_ISGID)) {
+ 			// gzip rejects setuid and setgid files even
+ 			// when --force was used. bzip2 doesn't check
+@@ -683,7 +684,7 @@ io_open_src_real(file_pair *pair)
+ 			// and setgid bits there.
+ 			//
+ 			// We accept setuid and setgid files if
+-			// --force was used. We drop these bits
++			// --force or --keep was used. We drop these bits
+ 			// explicitly in io_copy_attr().
+ 			message_warning(_("%s: File has setuid or "
+ 					"setgid bit set, skipping"),
+diff --git a/src/xz/xz.1 b/src/xz/xz.1
+index db9de4ff..9721ed39 100644
+--- a/src/xz/xz.1
++++ b/src/xz/xz.1
+@@ -5,7 +5,7 @@
+ .\" This file has been put into the public domain.
+ .\" You can do whatever you want with this file.
+ .\"
+-.TH XZ 1 "2020-11-01" "Tukaani" "XZ Utils"
++.TH XZ 1 "2021-01-11" "Tukaani" "XZ Utils"
+ .
+ .SH NAME
+ xz, unxz, xzcat, lzma, unlzma, lzcat \- Compress or decompress .xz and .lzma files
+@@ -392,6 +392,20 @@ should be used.
+ .TP
+ .BR \-k ", " \-\-keep
+ Don't delete the input files.
++.IP ""
++Since
++.B xz
++5.4.0,
++this option also makes
++.B xz
++compress or decompress even if the input is
++a symbolic link to a regular file,
++has more than one hard link,
++or has the setuid, setgid, or sticky bit set.
++The setuid, setgid, and sticky bits are not copied
++to the target file.
++In earlier versions this was only done with
++.BR \-\-force .
+ .TP
+ .BR \-f ", " \-\-force
+ This option has several effects:

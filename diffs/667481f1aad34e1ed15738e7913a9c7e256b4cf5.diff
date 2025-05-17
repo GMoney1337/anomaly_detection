@@ -1,0 +1,209 @@
+diff --git a/src/liblzma/api/lzma/block.h b/src/liblzma/api/lzma/block.h
+index 612cd87f..7ac0a02c 100644
+--- a/src/liblzma/api/lzma/block.h
++++ b/src/liblzma/api/lzma/block.h
+@@ -56,6 +56,7 @@ typedef struct {
+ 	 *  - lzma_block_encoder()
+ 	 *  - lzma_block_decoder()
+ 	 *  - lzma_block_buffer_encode()
++	 *  - lzma_block_buffer_decode()
+ 	 *
+ 	 * Written by:
+ 	 *  - lzma_block_header_decode()
+@@ -74,6 +75,7 @@ typedef struct {
+ 	 *  - lzma_block_unpadded_size()
+ 	 *  - lzma_block_total_size()
+ 	 *  - lzma_block_decoder()
++	 *  - lzma_block_buffer_decode()
+ 	 *
+ 	 * Written by:
+ 	 *  - lzma_block_header_size()
+@@ -98,6 +100,7 @@ typedef struct {
+ 	 *  - lzma_block_encoder()
+ 	 *  - lzma_block_decoder()
+ 	 *  - lzma_block_buffer_encode()
++	 *  - lzma_block_buffer_decode()
+ 	 */
+ 	lzma_check check;
+ 
+@@ -144,6 +147,7 @@ typedef struct {
+ 	 *  - lzma_block_unpadded_size()
+ 	 *  - lzma_block_total_size()
+ 	 *  - lzma_block_decoder()
++	 *  - lzma_block_buffer_decode()
+ 	 *
+ 	 * Written by:
+ 	 *  - lzma_block_header_decode()
+@@ -151,6 +155,7 @@ typedef struct {
+ 	 *  - lzma_block_encoder()
+ 	 *  - lzma_block_decoder()
+ 	 *  - lzma_block_buffer_encode()
++	 *  - lzma_block_buffer_decode()
+ 	 */
+ 	lzma_vli compressed_size;
+ 
+@@ -167,12 +172,14 @@ typedef struct {
+ 	 *  - lzma_block_header_size()
+ 	 *  - lzma_block_header_encode()
+ 	 *  - lzma_block_decoder()
++	 *  - lzma_block_buffer_decode()
+ 	 *
+ 	 * Written by:
+ 	 *  - lzma_block_header_decode()
+ 	 *  - lzma_block_encoder()
+ 	 *  - lzma_block_decoder()
+ 	 *  - lzma_block_buffer_encode()
++	 *  - lzma_block_buffer_decode()
+ 	 */
+ 	lzma_vli uncompressed_size;
+ 
+@@ -188,6 +195,7 @@ typedef struct {
+ 	 *  - lzma_block_encoder()
+ 	 *  - lzma_block_decoder()
+ 	 *  - lzma_block_buffer_encode()
++	 *  - lzma_block_buffer_decode()
+ 	 *
+ 	 * Written by:
+ 	 *  - lzma_block_header_decode(): Note that this does NOT free()
+@@ -473,3 +481,36 @@ extern lzma_ret lzma_block_buffer_encode(
+ 		const uint8_t *in, size_t in_size,
+ 		uint8_t *out, size_t *out_pos, size_t out_size)
+ 		lzma_attr_warn_unused_result;
++
++
++/**
++ * \brief       Single-call .xz Block decoder
++ *
++ * This is single-call equivalent of lzma_block_decoder(), and requires that
++ * the caller has already decoded Block Header and checked its memory usage.
++ *
++ * \param       block       Block options just like with lzma_block_decoder().
++ * \param       allocator   lzma_allocator for custom allocator functions.
++ *                          Set to NULL to use malloc() and free().
++ * \param       in          Beginning of the input buffer
++ * \param       in_pos      The next byte will be read from in[*in_pos].
++ *                          *in_pos is updated only if decoding succeeds.
++ * \param       in_size     Size of the input buffer; the first byte that
++ *                          won't be read is in[in_size].
++ * \param       out         Beginning of the output buffer
++ * \param       out_pos     The next byte will be written to out[*out_pos].
++ *                          *out_pos is updated only if encoding succeeds.
++ * \param       out_size    Size of the out buffer; the first byte into
++ *                          which no data is written to is out[out_size].
++ *
++ * \return      - LZMA_OK: Decoding was successful.
++ *              - LZMA_OPTIONS_ERROR
++ *              - LZMA_DATA_ERROR
++ *              - LZMA_MEM_ERROR
++ *              - LZMA_BUF_ERROR: Output buffer was too small.
++ *              - LZMA_PROG_ERROR
++ */
++extern lzma_ret lzma_block_buffer_decode(
++		lzma_block *block, lzma_allocator *allocator,
++		const uint8_t *in, size_t *in_pos, size_t in_size,
++		uint8_t *out, size_t *out_pos, size_t out_size);
+diff --git a/src/liblzma/common/Makefile.am b/src/liblzma/common/Makefile.am
+index e8ff480f..1496b2d0 100644
+--- a/src/liblzma/common/Makefile.am
++++ b/src/liblzma/common/Makefile.am
+@@ -61,6 +61,7 @@ libcommon_la_SOURCES += \
+ 	alone_decoder.c \
+ 	alone_decoder.h \
+ 	auto_decoder.c \
++	block_buffer_decoder.c \
+ 	block_decoder.c \
+ 	block_decoder.h \
+ 	block_header_decoder.c \
+diff --git a/src/liblzma/common/block_buffer_decoder.c b/src/liblzma/common/block_buffer_decoder.c
+new file mode 100644
+index 00000000..ec24e44b
+--- /dev/null
++++ b/src/liblzma/common/block_buffer_decoder.c
+@@ -0,0 +1,87 @@
++///////////////////////////////////////////////////////////////////////////////
++//
++/// \file       block_buffer_decoder.c
++/// \brief      Single-call .xz Block decoder
++//
++//  Copyright (C) 2009 Lasse Collin
++//
++//  This library is free software; you can redistribute it and/or
++//  modify it under the terms of the GNU Lesser General Public
++//  License as published by the Free Software Foundation; either
++//  version 2.1 of the License, or (at your option) any later version.
++//
++//  This library is distributed in the hope that it will be useful,
++//  but WITHOUT ANY WARRANTY; without even the implied warranty of
++//  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
++//  Lesser General Public License for more details.
++//
++///////////////////////////////////////////////////////////////////////////////
++
++#include "block_decoder.h"
++
++
++extern LZMA_API lzma_ret
++lzma_block_buffer_decode(lzma_block *block, lzma_allocator *allocator,
++		const uint8_t *in, size_t *in_pos, size_t in_size,
++		uint8_t *out, size_t *out_pos, size_t out_size)
++{
++	if (in_pos == NULL || (in == NULL && *in_pos != in_size)
++			|| *in_pos > in_size || out_pos == NULL
++			|| (out == NULL && *out_pos != out_size)
++			|| *out_pos > out_size)
++		return LZMA_PROG_ERROR;
++
++	// Initialize the Block decoder.
++	lzma_next_coder block_decoder = LZMA_NEXT_CODER_INIT;
++	lzma_ret ret = lzma_block_decoder_init(
++			&block_decoder, allocator, block);
++
++	if (ret == LZMA_OK) {
++		// Save the positions so that we can restore them in case
++		// an error occurs.
++		const size_t in_start = *in_pos;
++		const size_t out_start = *out_pos;
++
++		// Do the actual decoding.
++		ret = block_decoder.code(block_decoder.coder, allocator,
++				in, in_pos, in_size, out, out_pos, out_size,
++				LZMA_FINISH);
++
++		if (ret == LZMA_STREAM_END) {
++			ret = LZMA_OK;
++		} else {
++			// Something went wrong, restore the positions.
++			*in_pos = in_start;
++			*out_pos = out_start;
++
++			if (ret == LZMA_OK) {
++				// Either the input was truncated or the
++				// output buffer was too small.
++				assert(*in_pos == in_size
++						|| *out_pos == out_size);
++
++				// If all the input was consumed, then the
++				// input is truncated, even if the output
++				// buffer is also full. This is because
++				// processing the last byte of the Block
++				// never produces output.
++				//
++				// NOTE: This assumption may break when new
++				// filters are added, if the end marker of
++				// the filter doesn't consume at least one
++				// complete byte.
++				if (*in_pos == in_size)
++					ret = LZMA_DATA_ERROR;
++				else
++					ret = LZMA_BUF_ERROR;
++			}
++		}
++	}
++
++	// Free the decoder memory. This needs to be done even if
++	// initialization fails, because the internal API doesn't
++	// require the initialization function to free its memory on error.
++	lzma_next_end(&block_decoder, allocator);
++
++	return ret;
++}

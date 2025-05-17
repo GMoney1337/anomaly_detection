@@ -1,0 +1,96 @@
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+index 5adc3c0a..11871f0a 100644
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -300,6 +300,7 @@ add_library(liblzma
+     src/liblzma/common/stream_flags_common.h
+     src/liblzma/common/stream_flags_decoder.c
+     src/liblzma/common/stream_flags_encoder.c
++    src/liblzma/common/string_conversion.c
+     src/liblzma/common/vli_decoder.c
+     src/liblzma/common/vli_encoder.c
+     src/liblzma/common/vli_size.c
+diff --git a/dos/Makefile b/dos/Makefile
+index 7817660e..793adc1c 100644
+--- a/dos/Makefile
++++ b/dos/Makefile
+@@ -79,6 +79,7 @@ SRCS_C = \
+ 	../src/liblzma/common/stream_flags_common.c \
+ 	../src/liblzma/common/stream_flags_decoder.c \
+ 	../src/liblzma/common/stream_flags_encoder.c \
++	../src/liblzma/common/string_conversion.c \
+ 	../src/liblzma/common/vli_decoder.c \
+ 	../src/liblzma/common/vli_encoder.c \
+ 	../src/liblzma/common/vli_size.c \
+diff --git a/windows/vs2013/liblzma.vcxproj b/windows/vs2013/liblzma.vcxproj
+index 224cccb8..5ec6f627 100644
+--- a/windows/vs2013/liblzma.vcxproj
++++ b/windows/vs2013/liblzma.vcxproj
+@@ -253,6 +253,7 @@
+     <ClCompile Include="..\..\src\liblzma\common\stream_flags_common.c" />
+     <ClCompile Include="..\..\src\liblzma\common\stream_flags_decoder.c" />
+     <ClCompile Include="..\..\src\liblzma\common\stream_flags_encoder.c" />
++    <ClCompile Include="..\..\src\liblzma\common\string_conversion.c" />
+     <ClCompile Include="..\..\src\liblzma\common\vli_decoder.c" />
+     <ClCompile Include="..\..\src\liblzma\common\vli_encoder.c" />
+     <ClCompile Include="..\..\src\liblzma\common\vli_size.c" />
+diff --git a/windows/vs2013/liblzma_dll.vcxproj b/windows/vs2013/liblzma_dll.vcxproj
+index 5e0e63a5..c6554e2b 100644
+--- a/windows/vs2013/liblzma_dll.vcxproj
++++ b/windows/vs2013/liblzma_dll.vcxproj
+@@ -285,6 +285,7 @@
+     <ClCompile Include="..\..\src\liblzma\common\stream_flags_common.c" />
+     <ClCompile Include="..\..\src\liblzma\common\stream_flags_decoder.c" />
+     <ClCompile Include="..\..\src\liblzma\common\stream_flags_encoder.c" />
++    <ClCompile Include="..\..\src\liblzma\common\string_conversion.c" />
+     <ClCompile Include="..\..\src\liblzma\common\vli_decoder.c" />
+     <ClCompile Include="..\..\src\liblzma\common\vli_encoder.c" />
+     <ClCompile Include="..\..\src\liblzma\common\vli_size.c" />
+diff --git a/windows/vs2017/liblzma.vcxproj b/windows/vs2017/liblzma.vcxproj
+index 51db558f..9bf5cc38 100644
+--- a/windows/vs2017/liblzma.vcxproj
++++ b/windows/vs2017/liblzma.vcxproj
+@@ -253,6 +253,7 @@
+     <ClCompile Include="..\..\src\liblzma\common\stream_flags_common.c" />
+     <ClCompile Include="..\..\src\liblzma\common\stream_flags_decoder.c" />
+     <ClCompile Include="..\..\src\liblzma\common\stream_flags_encoder.c" />
++    <ClCompile Include="..\..\src\liblzma\common\string_conversion.c" />
+     <ClCompile Include="..\..\src\liblzma\common\vli_decoder.c" />
+     <ClCompile Include="..\..\src\liblzma\common\vli_encoder.c" />
+     <ClCompile Include="..\..\src\liblzma\common\vli_size.c" />
+diff --git a/windows/vs2017/liblzma_dll.vcxproj b/windows/vs2017/liblzma_dll.vcxproj
+index f38f667b..7f9a18fb 100644
+--- a/windows/vs2017/liblzma_dll.vcxproj
++++ b/windows/vs2017/liblzma_dll.vcxproj
+@@ -285,6 +285,7 @@
+     <ClCompile Include="..\..\src\liblzma\common\stream_flags_common.c" />
+     <ClCompile Include="..\..\src\liblzma\common\stream_flags_decoder.c" />
+     <ClCompile Include="..\..\src\liblzma\common\stream_flags_encoder.c" />
++    <ClCompile Include="..\..\src\liblzma\common\string_conversion.c" />
+     <ClCompile Include="..\..\src\liblzma\common\vli_decoder.c" />
+     <ClCompile Include="..\..\src\liblzma\common\vli_encoder.c" />
+     <ClCompile Include="..\..\src\liblzma\common\vli_size.c" />
+diff --git a/windows/vs2019/liblzma.vcxproj b/windows/vs2019/liblzma.vcxproj
+index 63bff984..c373cd3e 100644
+--- a/windows/vs2019/liblzma.vcxproj
++++ b/windows/vs2019/liblzma.vcxproj
+@@ -254,6 +254,7 @@
+     <ClCompile Include="..\..\src\liblzma\common\stream_flags_common.c" />
+     <ClCompile Include="..\..\src\liblzma\common\stream_flags_decoder.c" />
+     <ClCompile Include="..\..\src\liblzma\common\stream_flags_encoder.c" />
++    <ClCompile Include="..\..\src\liblzma\common\string_conversion.c" />
+     <ClCompile Include="..\..\src\liblzma\common\vli_decoder.c" />
+     <ClCompile Include="..\..\src\liblzma\common\vli_encoder.c" />
+     <ClCompile Include="..\..\src\liblzma\common\vli_size.c" />
+diff --git a/windows/vs2019/liblzma_dll.vcxproj b/windows/vs2019/liblzma_dll.vcxproj
+index 6c4de5e9..b30bf3ed 100644
+--- a/windows/vs2019/liblzma_dll.vcxproj
++++ b/windows/vs2019/liblzma_dll.vcxproj
+@@ -286,6 +286,7 @@
+     <ClCompile Include="..\..\src\liblzma\common\stream_flags_common.c" />
+     <ClCompile Include="..\..\src\liblzma\common\stream_flags_decoder.c" />
+     <ClCompile Include="..\..\src\liblzma\common\stream_flags_encoder.c" />
++    <ClCompile Include="..\..\src\liblzma\common\string_conversion.c" />
+     <ClCompile Include="..\..\src\liblzma\common\vli_decoder.c" />
+     <ClCompile Include="..\..\src\liblzma\common\vli_encoder.c" />
+     <ClCompile Include="..\..\src\liblzma\common\vli_size.c" />

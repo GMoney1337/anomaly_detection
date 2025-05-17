@@ -1,0 +1,15 @@
+diff --git a/src/common/sysdefs.h b/src/common/sysdefs.h
+index 8e01bd17..b10ffa7c 100644
+--- a/src/common/sysdefs.h
++++ b/src/common/sysdefs.h
+@@ -172,7 +172,9 @@ typedef unsigned char _Bool;
+ #if __STDC_VERSION__ >= 202311
+ 	// alignas is a keyword in C23. Do nothing.
+ #elif __STDC_VERSION__ >= 201112
+-#	include <stdalign.h>
++	// Oracle Developer Studio 12.6 lacks <stdalign.h>.
++	// For simplicity, avoid the header with all C11/C17 compilers.
++#	define alignas _Alignas
+ #elif defined(__GNUC__) || defined(__clang__)
+ #	define alignas(n) __attribute__((__aligned__(n)))
+ #else

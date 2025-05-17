@@ -1,0 +1,12 @@
+diff --git a/.gitignore b/.gitignore
+index 3aa4bb8e..ead246c7 100644
+--- a/.gitignore
++++ b/.gitignore
+@@ -59,6 +59,7 @@ coverage
+ /tests/test_filter_flags
+ /tests/test_hardware
+ /tests/test_index
++/tests/test_memlimit
+ /tests/test_stream_flags
+ /tests/test_vli
+ /tests/xzgrep_test_1.xz

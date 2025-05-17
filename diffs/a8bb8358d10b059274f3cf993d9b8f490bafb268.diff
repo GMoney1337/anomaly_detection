@@ -1,0 +1,12 @@
+diff --git a/configure.ac b/configure.ac
+index 670d3bf7..f005f19d 100644
+--- a/configure.ac
++++ b/configure.ac
+@@ -1064,7 +1064,6 @@ if test "$GCC" = yes ; then
+ 			-Wold-style-definition \
+ 			-Wmissing-prototypes \
+ 			-Wmissing-declarations \
+-			-Wmissing-noreturn \
+ 			-Wredundant-decls \
+ 			\
+ 			-Wc99-compat \

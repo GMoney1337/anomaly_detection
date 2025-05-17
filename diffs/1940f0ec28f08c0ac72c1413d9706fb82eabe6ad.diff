@@ -1,0 +1,76 @@
+diff --git a/src/liblzma/check/crc32_table.c b/src/liblzma/check/crc32_table.c
+index e53b63c9..41a80dcb 100644
+--- a/src/liblzma/check/crc32_table.c
++++ b/src/liblzma/check/crc32_table.c
+@@ -13,11 +13,23 @@
+ #include "common.h"
+ 
+ 
+-// FIXME: Compared to crc32_fast.c this has to check for __x86_64__ too
++// FIXME: Compared to crc_common.h this has to check for __x86_64__ too
+ // so that in 32-bit builds crc32_x86.S won't break due to a missing table.
+-#if !defined(HAVE_ENCODERS) && ((defined(__x86_64__) && defined(__SSSE3__) \
++#if (defined(__x86_64__) && defined(__SSSE3__) \
+ 			&& defined(__SSE4_1__) && defined(__PCLMUL__)) \
+-			|| (defined(__e2k__) && __iset__ >= 6))
++		|| (defined(__e2k__) && __iset__ >= 6)
++#	define X86_CLMUL_NO_TABLE 1
++#endif
++
++#if defined(HAVE_ARM64_CRC32) \
++		&& !defined(WORDS_BIGENDIAN) \
++		&& defined(__ARM_FEATURE_CRC32)
++#	define ARM64_CRC32_NO_TABLE 1
++#endif
++
++
++#if !defined(HAVE_ENCODERS) && (defined(X86_CLMUL_NO_TABLE) \
++		|| defined(ARM64_CRC32_NO_TABLE_))
+ // No table needed. Use a typedef to avoid an empty translation unit.
+ typedef void lzma_crc32_dummy;
+ 
+diff --git a/src/liblzma/check/crc64_table.c b/src/liblzma/check/crc64_table.c
+index 688e527b..0ae9dda8 100644
+--- a/src/liblzma/check/crc64_table.c
++++ b/src/liblzma/check/crc64_table.c
+@@ -13,11 +13,16 @@
+ #include "common.h"
+ 
+ 
+-// FIXME: Compared to crc64_fast.c this has to check for __x86_64__ too
++// FIXME: Compared to crc_common.h this has to check for __x86_64__ too
+ // so that in 32-bit builds crc64_x86.S won't break due to a missing table.
+ #if (defined(__x86_64__) && defined(__SSSE3__) \
+ 			&& defined(__SSE4_1__) && defined(__PCLMUL__)) \
+ 		|| (defined(__e2k__) && __iset__ >= 6)
++#	define X86_CLMUL_NO_TABLE 1
++#endif
++
++
++#ifdef X86_CLMUL_NO_TABLE
+ // No table needed. Use a typedef to avoid an empty translation unit.
+ typedef void lzma_crc64_dummy;
+ 
+diff --git a/src/liblzma/check/crc_common.h b/src/liblzma/check/crc_common.h
+index 35f60d95..123d7db0 100644
+--- a/src/liblzma/check/crc_common.h
++++ b/src/liblzma/check/crc_common.h
+@@ -75,6 +75,9 @@
+ // ARM64 CRC32 instruction is only useful for CRC32. Currently, only
+ // little endian is supported since we were unable to test on a big
+ // endian machine.
++//
++// NOTE: Keep this and the next check in sync with the macro
++//       ARM64_CRC32_NO_TABLE in crc32_table.c
+ #if defined(HAVE_ARM64_CRC32) && !defined(WORDS_BIGENDIAN)
+ // Allow ARM64 CRC32 instruction without a runtime check if
+ // __ARM_FEATURE_CRC32 is defined. GCC and Clang only define this if the
+@@ -94,7 +97,7 @@
+ // generic version can be omitted. Note that this doesn't work with MSVC
+ // as I don't know how to detect the features here.
+ //
+-// NOTE: Keep this this in sync with crc32_table.c.
++// NOTE: Keep this in sync with the CLMUL_NO_TABLE macro in crc32_table.c.
+ #	if (defined(__SSSE3__) && defined(__SSE4_1__) && defined(__PCLMUL__)) \
+ 		|| (defined(__e2k__) && __iset__ >= 6)
+ #		define CRC32_ARCH_OPTIMIZED 1

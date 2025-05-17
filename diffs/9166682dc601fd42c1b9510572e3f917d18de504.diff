@@ -1,0 +1,98 @@
+diff --git a/Makefile.am b/Makefile.am
+index 34b49fa7..809197e8 100644
+--- a/Makefile.am
++++ b/Makefile.am
+@@ -38,6 +38,7 @@ EXTRA_DIST = \
+ 	COPYING.LGPLv2.1 \
+ 	INSTALL.generic \
+ 	PACKAGERS \
++	build-aux/manconv.sh \
+ 	build-aux/version.sh
+ 
+ ACLOCAL_AMFLAGS = -I m4
+@@ -64,14 +65,15 @@ dist-hook:
+ 		$(MKDIR_P) "$$dest/pdf-a4" "$$dest/pdf-letter" "$$dest/txt" && \
+ 		for FILE in $(manfiles); do \
+ 			BASE=`basename $$FILE .1` && \
+-			groff -man -t -Tps -P-pa4 < "$(srcdir)/$$FILE" \
+-				| ps2pdf - - \
++			sh "$(srcdir)/build-aux/manconv.sh" pdf a4 \
++				< "$(srcdir)/$$FILE" \
+ 				> "$$dest/pdf-a4/$$BASE-a4.pdf" && \
+-			groff -man -t -Tps -P-pletter < "$(srcdir)/$$FILE" \
+-				| ps2pdf - - \
++			sh "$(srcdir)/build-aux/manconv.sh" pdf letter \
++				< "$(srcdir)/$$FILE" \
+ 				> "$$dest/pdf-letter/$$BASE-letter.pdf" && \
+-			groff -man -t -Tascii < "$(srcdir)/$$FILE" \
+-				| col -bx > "$$dest/txt/$$BASE.txt"; \
++			sh "$(srcdir)/build-aux/manconv.sh" ascii \
++				< "$(srcdir)/$$FILE" \
++				> "$$dest/txt/$$BASE.txt"; \
+ 		done; \
+ 	fi
+ 
+diff --git a/build-aux/manconv.sh b/build-aux/manconv.sh
+new file mode 100644
+index 00000000..e53b0269
+--- /dev/null
++++ b/build-aux/manconv.sh
+@@ -0,0 +1,58 @@
++#!/bin/sh
++#
++###############################################################################
++#
++# Wrapper for GNU groff to convert man pages to a few formats
++#
++# Usage: manconv.sh FORMAT [PAPER_SIZE] < in.1 > out.suffix
++#
++# FORMAT can be ascii, utf8, ps, or pdf. PAPER_SIZE can be anything that
++# groff accepts, e.g. a4 or letter. See groff_font(5). PAPER_SIZE defaults
++# to a4 and is used only when FORMAT is ps (PostScript) or pdf.
++#
++# Multiple man pages can be given at once e.g. to create a single PDF file
++# with continuous page numbering.
++#
++###############################################################################
++#
++# Author: Lasse Collin
++#
++# This file has been put into the public domain.
++# You can do whatever you want with this file.
++#
++###############################################################################
++
++FORMAT=$1
++PAPER=${2-a4}
++
++# Make PostScript and PDF output more readable:
++#   - Use 11 pt font instead of the default 10 pt.
++#   - Use larger paragraph spacing than the default 0.4v (man(7) only).
++FONT=11
++PD=0.8
++
++SED_PD="
++/^\\.TH /s/\$/\\
++.PD $PD/
++s/^\\.PD\$/.PD $PD/"
++
++case $FORMAT in
++	ascii)
++		groff -t -mandoc -Tascii | col -bx
++		;;
++	utf8)
++		groff -t -mandoc -Tutf8 | col -bx
++		;;
++	ps)
++		sed "$SED_PD" | groff -dpaper=$PAPER -t -mandoc \
++				-rC1 -rS$FONT -Tps -P-p$PAPER
++		;;
++	pdf)
++		sed "$SED_PD" | groff -dpaper=$PAPER -t -mandoc \
++				-rC1 -rS$FONT -Tps -P-p$PAPER | ps2pdf - -
++		;;
++	*)
++		echo 'Invalid arguments' >&2
++		exit 1
++		;;
++esac

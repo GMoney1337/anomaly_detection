@@ -1,0 +1,20 @@
+diff --git a/THANKS b/THANKS
+index 9d0bec5b..153a63f1 100644
+--- a/THANKS
++++ b/THANKS
+@@ -146,6 +146,7 @@ has been important. :-) In alphabetical order:
+   - Stephen Sachs
+   - Jukka Salmi
+   - Agostino Sarubbo
++  - Vijay Sarvepalli
+   - Alexandre Sauvé
+   - Benno Schulenberg
+   - Andreas Schwab
+@@ -168,6 +169,7 @@ has been important. :-) In alphabetical order:
+   - Alexey Tourbin
+   - Paul Townsend
+   - Mohammed Adnène Trojette
++  - Orange Tsai
+   - Taiki Tsunekawa
+   - Mathieu Vachon
+   - Maksym Vatsyk

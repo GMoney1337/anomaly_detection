@@ -1,0 +1,15 @@
+diff --git a/configure.ac b/configure.ac
+index fe4a2a82..11b25cd6 100644
+--- a/configure.ac
++++ b/configure.ac
+@@ -722,10 +722,6 @@ AC_CHECK_HEADERS([immintrin.h])
+ # Checks for typedefs, structures, and compiler characteristics.
+ ###############################################################################
+ 
+-dnl We don't need these as long as we need a C99 compiler anyway.
+-dnl AC_C_INLINE
+-dnl AC_C_RESTRICT
+-
+ AC_HEADER_STDBOOL
+ 
+ AC_TYPE_UINT8_T

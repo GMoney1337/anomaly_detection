@@ -1,0 +1,197 @@
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+index e62f762b..6de086be 100644
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -1246,7 +1246,8 @@ if(NOT MSVC OR MSVC_VERSION GREATER_EQUAL 1900)
+     # OFF       Disable sandboxing.
+     # capsicum  Require Capsicum (FreeBSD >= 10.2) and fail if not found.
+     # pledge    Require pledge(2) (OpenBSD >= 5.9) and fail if not found.
+-    set(SUPPORTED_SANDBOX_METHODS ON OFF capsicum pledge)
++    # landlock  Require Landlock (Linux >= 5.13) and fail if not found.
++    set(SUPPORTED_SANDBOX_METHODS ON OFF capsicum pledge landlock)
+ 
+     set(ENABLE_SANDBOX ON CACHE STRING "Sandboxing method to use in 'xz'")
+ 
+@@ -1285,6 +1286,15 @@ if(NOT MSVC OR MSVC_VERSION GREATER_EQUAL 1900)
+         endif()
+     endif()
+ 
++    # Sandboxing: Landlock
++    if(NOT SANDBOX_FOUND AND ENABLE_SANDBOX MATCHES "^ON$|^landlock$")
++        check_include_file(linux/landlock.h HAVE_LINUX_LANDLOCK_H)
++        if(HAVE_LINUX_LANDLOCK_H)
++            target_compile_definitions(xz PRIVATE HAVE_LINUX_LANDLOCK_H)
++            set(SANDBOX_FOUND ON)
++        endif()
++    endif()
++
+     if(NOT SANDBOX_FOUND AND NOT ENABLE_SANDBOX MATCHES "^ON$|^OFF$")
+         message(SEND_ERROR "ENABLE_SANDBOX=${ENABLE_SANDBOX} was used but "
+                            "support for the sandboxing method wasn't found.")
+diff --git a/configure.ac b/configure.ac
+index 9d35071a..00a9e3c0 100644
+--- a/configure.ac
++++ b/configure.ac
+@@ -519,7 +519,7 @@ AM_CONDITIONAL([COND_DOC], [test x$enable_doc != xno])
+ AC_MSG_CHECKING([if sandboxing should be used])
+ AC_ARG_ENABLE([sandbox], [AS_HELP_STRING([--enable-sandbox=METHOD],
+ 		[Sandboxing METHOD can be
+-		'auto', 'no', 'capsicum', or 'pledge'.
++		'auto', 'no', 'capsicum', 'pledge', or 'landlock'.
+ 		The default is 'auto' which enables sandboxing if
+ 		a supported sandboxing method is found.])],
+ 	[], [enable_sandbox=auto])
+@@ -527,12 +527,12 @@ case $enable_sandbox in
+ 	auto)
+ 		AC_MSG_RESULT([maybe (autodetect)])
+ 		;;
+-	no | capsicum | pledge)
++	no | capsicum | pledge | landlock)
+ 		AC_MSG_RESULT([$enable_sandbox])
+ 		;;
+ 	*)
+ 		AC_MSG_RESULT([])
+-		AC_MSG_ERROR([--enable-sandbox only accepts 'auto', 'no', 'capsicum', or 'pledge'.])
++		AC_MSG_ERROR([--enable-sandbox only accepts 'auto', 'no', 'capsicum', 'pledge', or 'landlock'.])
+ 		;;
+ esac
+ 
+@@ -1059,6 +1059,11 @@ AS_CASE([$enable_sandbox],
+ 		AC_CHECK_FUNCS([pledge], [enable_sandbox=found])
+ 	]
+ )
++AS_CASE([$enable_sandbox],
++	[auto | landlock], [
++		AC_CHECK_HEADERS([linux/landlock.h], [enable_sandbox=found])
++	]
++)
+ 
+ # If a specific sandboxing method was explicitly requested and it wasn't
+ # found, give an error.
+diff --git a/src/xz/file_io.c b/src/xz/file_io.c
+index 5a7d317f..70fb0772 100644
+--- a/src/xz/file_io.c
++++ b/src/xz/file_io.c
+@@ -33,6 +33,11 @@ static bool warn_fchown;
+ #	include <sys/capsicum.h>
+ #endif
+ 
++#ifdef HAVE_LINUX_LANDLOCK_H
++#	include <linux/landlock.h>
++#	include <sys/syscall.h>
++#endif
++
+ #include "tuklib_open_stdxxx.h"
+ 
+ #ifdef _MSC_VER
+@@ -253,6 +258,59 @@ io_sandbox_enter(int src_fd)
+ 
+ 	(void)src_fd;
+ 
++#elif defined(HAVE_LINUX_LANDLOCK_H)
++	int landlock_abi = syscall(SYS_landlock_create_ruleset,
++			(void *)NULL, 0, LANDLOCK_CREATE_RULESET_VERSION);
++
++	if (landlock_abi > 0) {
++		// We support ABI versions 1-3.
++		if (landlock_abi > 3)
++			landlock_abi = 3;
++
++		// We want to set all supported flags in handled_access_fs.
++		// This way the ruleset will initially forbid access to all
++		// actions that the available Landlock ABI version supports.
++		// Exceptions can be added using landlock_add_rule(2) to
++		// allow certain actions on certain files or directories.
++		//
++		// The same flag values are used on all archs. ABI v2 and v3
++		// both add one new flag.
++		//
++		// First in ABI v1: LANDLOCK_ACCESS_FS_EXECUTE = 1ULL << 0
++		// Last in ABI v1: LANDLOCK_ACCESS_FS_MAKE_SYM = 1ULL << 12
++		// Last in ABI v2: LANDLOCK_ACCESS_FS_REFER = 1ULL << 13
++		// Last in ABI v3: LANDLOCK_ACCESS_FS_TRUNCATE = 1ULL << 14
++		//
++		// This makes it simple to set the mask based on the ABI
++		// version and we don't need to care which flags are #defined
++		// in the installed <linux/landlock.h>.
++		const struct landlock_ruleset_attr attr = {
++			.handled_access_fs = (1ULL << (12 + landlock_abi)) - 1
++		};
++
++		const int ruleset_fd = syscall(SYS_landlock_create_ruleset,
++				&attr, sizeof(attr), 0U);
++		if (ruleset_fd < 0)
++			goto error;
++
++		// All files we need should have already been openend. Thus,
++		// we don't need to add any rules using landlock_add_rule(2)
++		// before activating the sandbox.
++		//
++		// NOTE: It's possible that the hack at the beginning of this
++		// function isn't be good enough. It tries to get translations
++		// and libc-specific files loaded but if it's not good enough
++		// then perhaps a Landlock rule to allow reading from /usr
++		// and/or the xz installation prefix would be needed.
++		//
++		// prctl(PR_SET_NO_NEW_PRIVS, ...) was already called in
++		// main() so we don't do it here again.
++		if (syscall(SYS_landlock_restrict_self, ruleset_fd, 0U) != 0)
++			goto error;
++	}
++
++	(void)src_fd;
++
+ #else
+ #	error ENABLE_SANDBOX is defined but no sandboxing method was found.
+ #endif
+diff --git a/src/xz/main.c b/src/xz/main.c
+index f0c2194c..9c902833 100644
+--- a/src/xz/main.c
++++ b/src/xz/main.c
+@@ -13,6 +13,13 @@
+ #include "private.h"
+ #include <ctype.h>
+ 
++// prctl(PR_SET_NO_NEW_PRIVS, ...) is required with Landlock but it can be
++// activated even when conditions for strict sandboxing aren't met.
++#ifdef HAVE_LINUX_LANDLOCK_H
++#	include <sys/prctl.h>
++#endif
++
++
+ /// Exit status to use. This can be changed with set_exit_status().
+ static enum exit_status_type exit_status = E_SUCCESS;
+ 
+@@ -156,6 +163,18 @@ main(int argc, char **argv)
+ 	}
+ #endif
+ 
++#ifdef HAVE_LINUX_LANDLOCK_H
++	// Prevent the process from gaining new privileges. This must be done
++	// before landlock_restrict_self(2) in file_io.c but since we will
++	// never need new privileges, this call can be done here already.
++	//
++	// This is supported since Linux 3.5. Ignore the return value to
++	// keep compatibility with old kernels. landlock_restrict_self(2)
++	// will fail if the no_new_privs attribute isn't set, thus if prctl()
++	// fails here the error will still be detected when it matters.
++	(void)prctl(PR_SET_NO_NEW_PRIVS, 1, 0, 0, 0);
++#endif
++
+ #if defined(_WIN32) && !defined(__CYGWIN__)
+ 	InitializeCriticalSection(&exit_status_cs);
+ #endif
+diff --git a/src/xz/private.h b/src/xz/private.h
+index ddcc103c..b822b944 100644
+--- a/src/xz/private.h
++++ b/src/xz/private.h
+@@ -52,7 +52,8 @@
+ #	define STDERR_FILENO (fileno(stderr))
+ #endif
+ 
+-#if defined(HAVE_CAP_RIGHTS_LIMIT) || defined(HAVE_PLEDGE)
++#if defined(HAVE_CAP_RIGHTS_LIMIT) || defined(HAVE_PLEDGE) \
++		|| defined(HAVE_LINUX_LANDLOCK_H)
+ #	define ENABLE_SANDBOX 1
+ #endif
+ 

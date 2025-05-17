@@ -1,0 +1,99 @@
+diff --git a/src/xz/coder.c b/src/xz/coder.c
+index 96f8e734..8bad038e 100644
+--- a/src/xz/coder.c
++++ b/src/xz/coder.c
+@@ -711,7 +711,7 @@ coder_normal(file_pair *pair)
+ 					action = LZMA_FULL_BARRIER;
+ 			}
+ 
+-			if (action == LZMA_RUN && flush_needed)
++			if (action == LZMA_RUN && pair->flush_needed)
+ 				action = LZMA_SYNC_FLUSH;
+ 		}
+ 
+@@ -739,6 +739,7 @@ coder_normal(file_pair *pair)
+ 				// Mark that we haven't seen any new input
+ 				// since the previous flush.
+ 				pair->src_has_seen_input = false;
++				pair->flush_needed = false;
+ 			} else {
+ 				// Start a new Block after LZMA_FULL_BARRIER.
+ 				if (opt_block_list == NULL) {
+diff --git a/src/xz/file_io.c b/src/xz/file_io.c
+index 7e9a4e67..98918034 100644
+--- a/src/xz/file_io.c
++++ b/src/xz/file_io.c
+@@ -750,6 +750,7 @@ io_open_src(const char *src_name)
+ 		.dest_fd = -1,
+ 		.src_eof = false,
+ 		.src_has_seen_input = false,
++		.flush_needed = false,
+ 		.dest_try_sparse = false,
+ 		.dest_pending_sparse = 0,
+ 	};
+@@ -1150,7 +1151,7 @@ io_read(file_pair *pair, io_buf *buf, size_t size)
+ 					return SIZE_MAX;
+ 
+ 				case IO_WAIT_TIMEOUT:
+-					flush_needed = true;
++					pair->flush_needed = true;
+ 					return pos;
+ 
+ 				default:
+diff --git a/src/xz/file_io.h b/src/xz/file_io.h
+index 5da2c90a..8a9e3363 100644
+--- a/src/xz/file_io.h
++++ b/src/xz/file_io.h
+@@ -53,6 +53,9 @@ typedef struct {
+ 	/// since the previous flush or the start of the file.
+ 	bool src_has_seen_input;
+ 
++	/// For --flush-timeout: True when flushing is needed.
++	bool flush_needed;
++
+ 	/// If true, we look for long chunks of zeros and try to create
+ 	/// a sparse file.
+ 	bool dest_try_sparse;
+diff --git a/src/xz/mytime.c b/src/xz/mytime.c
+index 95138840..573b97de 100644
+--- a/src/xz/mytime.c
++++ b/src/xz/mytime.c
+@@ -17,7 +17,6 @@
+ #endif
+ 
+ uint64_t opt_flush_timeout = 0;
+-bool flush_needed;
+ 
+ static uint64_t start_time;
+ static uint64_t next_flush;
+@@ -53,7 +52,6 @@ mytime_set_start_time(void)
+ {
+ 	start_time = mytime_now();
+ 	next_flush = start_time + opt_flush_timeout;
+-	flush_needed = false;
+ 	return;
+ }
+ 
+@@ -69,7 +67,6 @@ extern void
+ mytime_set_flush_time(void)
+ {
+ 	next_flush = mytime_now() + opt_flush_timeout;
+-	flush_needed = false;
+ 	return;
+ }
+ 
+diff --git a/src/xz/mytime.h b/src/xz/mytime.h
+index 4505724c..a7be2aa7 100644
+--- a/src/xz/mytime.h
++++ b/src/xz/mytime.h
+@@ -21,10 +21,6 @@
+ extern uint64_t opt_flush_timeout;
+ 
+ 
+-/// \brief      True when flushing is needed due to expired timeout
+-extern bool flush_needed;
+-
+-
+ /// \brief      Store the time when (de)compression was started
+ ///
+ /// The start time is also stored as the time of the first flush.

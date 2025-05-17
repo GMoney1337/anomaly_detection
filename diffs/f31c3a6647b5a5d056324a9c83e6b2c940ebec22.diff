@@ -1,0 +1,18 @@
+diff --git a/src/common/sysdefs.h b/src/common/sysdefs.h
+index 0d08fc9f..7676009e 100644
+--- a/src/common/sysdefs.h
++++ b/src/common/sysdefs.h
+@@ -203,4 +203,13 @@ typedef unsigned char _Bool;
+ #	define lzma_attr_alloc_size(x)
+ #endif
+ 
++#if __STDC_VERSION__ >= 202311
++#	define FALLTHROUGH [[__fallthrough__]]
++#elif (defined(__GNUC__) && __GNUC__ >= 7) \
++		|| (defined(__clang_major__) && __clang_major__ >= 10)
++#	define FALLTHROUGH __attribute__((__fallthrough__))
++#else
++#	define FALLTHROUGH ((void)0)
++#endif
++
+ #endif

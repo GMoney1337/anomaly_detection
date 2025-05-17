@@ -1,0 +1,32 @@
+diff --git a/src/liblzma/rangecoder/price_tablegen.c b/src/liblzma/rangecoder/price_tablegen.c
+index 94a3b1f1..3ab587eb 100644
+--- a/src/liblzma/rangecoder/price_tablegen.c
++++ b/src/liblzma/rangecoder/price_tablegen.c
+@@ -14,6 +14,11 @@
+ 
+ #include <inttypes.h>
+ #include <stdio.h>
++
++// Make it compile without common.h.
++#define BUILDING_PRICE_TABLEGEN
++#define lzma_attr_visibility_hidden
++
+ #include "range_common.h"
+ #include "price.h"
+ 
+diff --git a/src/liblzma/rangecoder/range_common.h b/src/liblzma/rangecoder/range_common.h
+index b72b7d46..bcfd966e 100644
+--- a/src/liblzma/rangecoder/range_common.h
++++ b/src/liblzma/rangecoder/range_common.h
+@@ -13,7 +13,10 @@
+ #ifndef LZMA_RANGE_COMMON_H
+ #define LZMA_RANGE_COMMON_H
+ 
+-#include "common.h"
++// Skip common.h if building price_tablegen.c.
++#ifndef BUILDING_PRICE_TABLEGEN
++#	include "common.h"
++#endif
+ 
+ 
+ ///////////////

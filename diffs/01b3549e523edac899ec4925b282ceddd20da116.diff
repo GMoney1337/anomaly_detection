@@ -1,0 +1,26 @@
+diff --git a/src/xz/args.c b/src/xz/args.c
+index 3d09bd64..dff35f93 100644
+--- a/src/xz/args.c
++++ b/src/xz/args.c
+@@ -520,7 +520,7 @@ parse_real(args_info *args, int argc, char **argv)
+ 						"or `--files0'."));
+ 
+ 			if (optarg == NULL) {
+-				args->files_name = (char *)stdin_filename;
++				args->files_name = stdin_filename;
+ 				args->files_file = stdin;
+ 			} else {
+ 				args->files_name = optarg;
+diff --git a/src/xz/args.h b/src/xz/args.h
+index 46a8e8ed..a1a5930a 100644
+--- a/src/xz/args.h
++++ b/src/xz/args.h
+@@ -19,7 +19,7 @@ typedef struct {
+ 
+ 	/// Name of the file from which to read filenames. This is NULL
+ 	/// if --files or --files0 was not used.
+-	char *files_name;
++	const char *files_name;
+ 
+ 	/// File opened for reading from which filenames are read. This is
+ 	/// non-NULL only if files_name is non-NULL.

@@ -1,0 +1,19 @@
+diff --git a/tests/files/README b/tests/files/README
+index 392ff768..2f74cef2 100644
+--- a/tests/files/README
++++ b/tests/files/README
+@@ -87,6 +87,10 @@
+     uncompressed with dictionary reset, and third is LZMA with new
+     properties but without dictionary reset.
+ 
++    good-1-lzma2-5.xz has an empty LZMA2 stream with only the end of
++    payload marker. XZ Utils 5.0.1 and older incorrectly see this file
++    as corrupt.
++
+     good-1-3delta-lzma2.xz has three Delta filters and LZMA2.
+ 
+ 
+diff --git a/tests/files/good-1-lzma2-5.xz b/tests/files/good-1-lzma2-5.xz
+new file mode 100644
+index 00000000..339d1c30
+Binary files /dev/null and b/tests/files/good-1-lzma2-5.xz differ

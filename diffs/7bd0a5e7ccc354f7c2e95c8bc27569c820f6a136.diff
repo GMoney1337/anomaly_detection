@@ -1,0 +1,12 @@
+diff --git a/THANKS b/THANKS
+index 65c267f8..a9a22083 100644
+--- a/THANKS
++++ b/THANKS
+@@ -47,6 +47,7 @@ has been important. :-) In alphabetical order:
+   - Mikko Pouru
+   - Robert Readman
+   - Bernhard Reutner-Fischer
++  - Cristian Rodríguez
+   - Christian von Roques
+   - Jukka Salmi
+   - Alexandre Sauvé

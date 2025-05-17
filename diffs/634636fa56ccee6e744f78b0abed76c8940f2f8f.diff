@@ -1,0 +1,210 @@
+diff --git a/src/liblzma/api/Makefile.am b/src/liblzma/api/Makefile.am
+index a36bf3ed..c69e7548 100644
+--- a/src/liblzma/api/Makefile.am
++++ b/src/liblzma/api/Makefile.am
+@@ -14,7 +14,6 @@
+ 
+ nobase_include_HEADERS = \
+ 	lzma.h \
+-	lzma/alignment.h \
+ 	lzma/base.h \
+ 	lzma/block.h \
+ 	lzma/check.h \
+diff --git a/src/liblzma/api/lzma.h b/src/liblzma/api/lzma.h
+index f852ef5d..7790a089 100644
+--- a/src/liblzma/api/lzma.h
++++ b/src/liblzma/api/lzma.h
+@@ -213,7 +213,6 @@ extern "C" {
+ #include "lzma/container.h"
+ 
+ /* Advanced features */
+-#include "lzma/alignment.h" /* FIXME */
+ #include "lzma/stream_flags.h"
+ #include "lzma/block.h"
+ #include "lzma/index.h"
+diff --git a/src/liblzma/api/lzma/alignment.h b/src/liblzma/api/lzma/alignment.h
+deleted file mode 100644
+index 84e59c8b..00000000
+--- a/src/liblzma/api/lzma/alignment.h
++++ /dev/null
+@@ -1,60 +0,0 @@
+-/**
+- * \file        lzma/alignment.h
+- * \brief       Calculating input and output alignment of filter chains
+- *
+- * \author      Copyright (C) 1999-2006 Igor Pavlov
+- * \author      Copyright (C) 2007 Lasse Collin
+- *
+- * This library is free software; you can redistribute it and/or
+- * modify it under the terms of the GNU Lesser General Public
+- * License as published by the Free Software Foundation; either
+- * version 2.1 of the License, or (at your option) any later version.
+- *
+- * This library is distributed in the hope that it will be useful,
+- * but WITHOUT ANY WARRANTY; without even the implied warranty of
+- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+- * Lesser General Public License for more details.
+- */
+-
+-#ifndef LZMA_H_INTERNAL
+-#	error Never include this file directly. Use <lzma.h> instead.
+-#endif
+-
+-
+-/**
+- * \brief       Calculates the preferred alignment of the input data
+- *
+- * FIXME desc
+- */
+-extern uint32_t lzma_alignment_input(
+-		const lzma_filter *filters, uint32_t guess);
+-
+-
+-/**
+- * \brief       Calculates the alignment of the encoded output
+- *
+- * Knowing the alignment of the output data is useful e.g. in the Block
+- * encoder which tries to align the Compressed Data field optimally.
+- *
+- * \param       filters   Pointer to lzma_filter array, whose last
+- *                        member must have .id = LZMA_VLI_UNKNOWN.
+- * \param       guess     The value to return if the alignment of the output
+- *                        is the same as the alignment of the input data.
+- *                        If you want to always detect this special case,
+- *                        this guess to zero; this function never returns
+- *                        zero unless guess is zero.
+- *
+- * \return      In most cases, a small positive integer is returned;
+- *              for optimal use, the encoded output of this filter
+- *              chain should start at on offset that is a multiple of
+- *              the returned integer value.
+- *
+- *              If the alignment of the output is the same as the input
+- *              data (which this function cannot know), \a guess is
+- *              returned.
+- *
+- *              If an error occurs (that is, unknown Filter IDs or filter
+- *              options), UINT32_MAX is returned.
+- */
+-extern uint32_t lzma_alignment_output(
+-		const lzma_filter *filters, uint32_t guess);
+diff --git a/src/liblzma/common/alignment.c b/src/liblzma/common/alignment.c
+deleted file mode 100644
+index ff38062e..00000000
+--- a/src/liblzma/common/alignment.c
++++ /dev/null
+@@ -1,114 +0,0 @@
+-///////////////////////////////////////////////////////////////////////////////
+-//
+-/// \file       alignment.c
+-/// \brief      Calculates preferred alignments of different filters
+-//
+-//  Copyright (C) 2007 Lasse Collin
+-//
+-//  This library is free software; you can redistribute it and/or
+-//  modify it under the terms of the GNU Lesser General Public
+-//  License as published by the Free Software Foundation; either
+-//  version 2.1 of the License, or (at your option) any later version.
+-//
+-//  This library is distributed in the hope that it will be useful,
+-//  but WITHOUT ANY WARRANTY; without even the implied warranty of
+-//  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+-//  Lesser General Public License for more details.
+-//
+-///////////////////////////////////////////////////////////////////////////////
+-
+-#include "common.h"
+-
+-
+-extern LZMA_API uint32_t
+-lzma_alignment_input(const lzma_filter *filters, uint32_t guess)
+-{
+-	for (size_t i = 0; filters[i].id != LZMA_VLI_UNKNOWN; ++i) {
+-		switch (filters[i].id) {
+-		case LZMA_FILTER_DELTA:
+-			// The same as the input, check the next filter.
+-			continue;
+-
+-		case LZMA_FILTER_SUBBLOCK:
+-			if (filters[i].options == NULL)
+-				return LZMA_SUBBLOCK_ALIGNMENT_DEFAULT;
+-			else
+-				return ((const lzma_options_subblock *)(
+-					filters[i].options))->alignment;
+-
+-		case LZMA_FILTER_X86:
+-			return 1;
+-
+-		case LZMA_FILTER_ARMTHUMB:
+-			return 2;
+-
+-		case LZMA_FILTER_POWERPC:
+-		case LZMA_FILTER_ARM:
+-		case LZMA_FILTER_SPARC:
+-			return 4;
+-
+-		case LZMA_FILTER_IA64:
+-			return 16;
+-
+-		case LZMA_FILTER_LZMA1: {
+-			const lzma_options_lzma *lzma = filters[i].options;
+-			return 1 << MAX(lzma->pb, lzma->lp);
+-		}
+-
+-		default:
+-			return UINT32_MAX;
+-		}
+-	}
+-
+-	return guess;
+-}
+-
+-
+-extern LZMA_API uint32_t
+-lzma_alignment_output(const lzma_filter *filters, uint32_t guess)
+-{
+-	if (filters[0].id == LZMA_VLI_UNKNOWN)
+-		return UINT32_MAX;
+-
+-	// Find the last filter in the chain.
+-	size_t i = 0;
+-	while (filters[i + 1].id != LZMA_VLI_UNKNOWN)
+-		++i;
+-
+-	do {
+-		switch (filters[i].id) {
+-		case LZMA_FILTER_DELTA:
+-			// It's the same as the input alignment, so
+-			// check the next filter.
+-			continue;
+-
+-		case LZMA_FILTER_SUBBLOCK:
+-			if (filters[i].options == NULL)
+-				return LZMA_SUBBLOCK_ALIGNMENT_DEFAULT;
+-			else
+-				return ((const lzma_options_subblock *)(
+-					filters[i].options))->alignment;
+-
+-		case LZMA_FILTER_X86:
+-		case LZMA_FILTER_LZMA1:
+-			return 1;
+-
+-		case LZMA_FILTER_ARMTHUMB:
+-			return 2;
+-
+-		case LZMA_FILTER_POWERPC:
+-		case LZMA_FILTER_ARM:
+-		case LZMA_FILTER_SPARC:
+-			return 4;
+-
+-		case LZMA_FILTER_IA64:
+-			return 16;
+-
+-		default:
+-			return UINT32_MAX;
+-		}
+-	} while (i-- != 0);
+-
+-	// If we get here, we have the same alignment as the input data.
+-	return guess;
+-}

@@ -1,0 +1,61 @@
+diff --git a/src/liblzma/Makefile.am b/src/liblzma/Makefile.am
+index 2b33fd56..056e51e6 100644
+--- a/src/liblzma/Makefile.am
++++ b/src/liblzma/Makefile.am
+@@ -20,7 +20,7 @@ liblzma_la_CPPFLAGS = \
+ 	-I$(top_srcdir)/src/liblzma/simple \
+ 	-I$(top_srcdir)/src/common \
+ 	-DTUKLIB_SYMBOL_PREFIX=lzma_
+-liblzma_la_LDFLAGS = -no-undefined -version-info 12:1:7
++liblzma_la_LDFLAGS = -no-undefined -version-info 12:2:7
+ 
+ EXTRA_DIST += liblzma_generic.map liblzma_linux.map validate_map.sh
+ if COND_SYMVERS_GENERIC
+diff --git a/src/liblzma/api/lzma/version.h b/src/liblzma/api/lzma/version.h
+index 5ec97b3c..210ac12c 100644
+--- a/src/liblzma/api/lzma/version.h
++++ b/src/liblzma/api/lzma/version.h
+@@ -22,7 +22,7 @@
+ #define LZMA_VERSION_MINOR 7
+ 
+ /** \brief Patch version number of the liblzma release. */
+-#define LZMA_VERSION_PATCH 1
++#define LZMA_VERSION_PATCH 2
+ 
+ /**
+  * \brief Version stability marker
+@@ -32,7 +32,7 @@
+  *   - LZMA_VERSION_STABILITY_BETA
+  *   - LZMA_VERSION_STABILITY_STABLE
+  */
+-#define LZMA_VERSION_STABILITY LZMA_VERSION_STABILITY_ALPHA
++#define LZMA_VERSION_STABILITY LZMA_VERSION_STABILITY_BETA
+ 
+ /** \brief Commit version number of the liblzma release */
+ #ifndef LZMA_VERSION_COMMIT
+diff --git a/src/liblzma/liblzma_generic.map b/src/liblzma/liblzma_generic.map
+index f113091f..9ee07b63 100644
+--- a/src/liblzma/liblzma_generic.map
++++ b/src/liblzma/liblzma_generic.map
+@@ -127,7 +127,7 @@ global:
+ 	lzma_mt_block_size;
+ } XZ_5.4;
+ 
+-XZ_5.7.1alpha {
++XZ_5.7.2beta {
+ global:
+ 	lzma_bcj_arm64_encode;
+ 	lzma_bcj_arm64_decode;
+diff --git a/src/liblzma/liblzma_linux.map b/src/liblzma/liblzma_linux.map
+index 16079c87..28a77a71 100644
+--- a/src/liblzma/liblzma_linux.map
++++ b/src/liblzma/liblzma_linux.map
+@@ -142,7 +142,7 @@ global:
+ 	lzma_mt_block_size;
+ } XZ_5.4;
+ 
+-XZ_5.7.1alpha {
++XZ_5.7.2beta {
+ global:
+ 	lzma_bcj_arm64_encode;
+ 	lzma_bcj_arm64_decode;

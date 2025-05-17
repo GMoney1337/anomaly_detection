@@ -1,0 +1,12 @@
+diff --git a/THANKS b/THANKS
+index a7772266..2c14b22d 100644
+--- a/THANKS
++++ b/THANKS
+@@ -79,6 +79,7 @@ has been important. :-) In alphabetical order:
+   - Jonathan Nieder
+   - Andre Noll
+   - Peter O'Gorman
++  - Daniel Packard
+   - Filip Palian
+   - Peter Pallinger
+   - Rui Paulo

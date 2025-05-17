@@ -1,0 +1,25 @@
+diff --git a/tests/files/README b/tests/files/README
+index 7c7f4e18..4f963627 100644
+--- a/tests/files/README
++++ b/tests/files/README
+@@ -126,6 +126,12 @@
+     bad-0-empty-truncated.lzma is good-0-empty.lzma without the last byte
+     of the file.
+ 
++    bad-0-header_magic.lzma is good-0-empty.lzma but with one byte wrong
++    in the Header Magic Bytes field.
++
++    bad-0-footer_magic.lzma is good-0-empty.lzma but with one byte wrong
++    in the Footer Magic Bytes field.
++
+     bad-0-nonempty_index.lzma has no Blocks but Index claims that there is
+     one Block.
+ 
+diff --git a/tests/files/bad-0-footer_magic.lzma b/tests/files/bad-0-footer_magic.lzma
+new file mode 100644
+index 00000000..5d9e3894
+Binary files /dev/null and b/tests/files/bad-0-footer_magic.lzma differ
+diff --git a/tests/files/bad-0-header_magic.lzma b/tests/files/bad-0-header_magic.lzma
+new file mode 100644
+index 00000000..5984a453
+Binary files /dev/null and b/tests/files/bad-0-header_magic.lzma differ

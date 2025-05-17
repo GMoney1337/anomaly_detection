@@ -1,0 +1,29 @@
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+index 0941a330..032f4b37 100644
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -963,9 +963,9 @@ endif()
+ # lzip (.lz) format support #
+ #############################
+ 
+-option(LZIP_DECODER "Support lzip decoder" ON)
++option(XZ_LZIP_DECODER "Support lzip decoder" ON)
+ 
+-if(LZIP_DECODER)
++if(XZ_LZIP_DECODER)
+     # If lzip decoder support is requested, make sure LZMA1 decoder is enabled.
+     if(NOT "lzma1" IN_LIST DECODERS)
+         message(FATAL_ERROR "The LZMA1 decoder is required to support the "
+diff --git a/tests/tests.cmake b/tests/tests.cmake
+index d8ba404f..88a736a8 100644
+--- a/tests/tests.cmake
++++ b/tests/tests.cmake
+@@ -178,7 +178,7 @@ if(BUILD_TESTING)
+ 
+     # test_files.sh decompresses files that use different filters and
+     # check types so run it only if support for all of them has been enabled.
+-    if(UNIX AND HAVE_ALL_DECODERS AND HAVE_ALL_CHECK_TYPES AND LZIP_DECODER)
++    if(UNIX AND HAVE_ALL_DECODERS AND HAVE_ALL_CHECK_TYPES AND XZ_LZIP_DECODER)
+         # test_files.sh doesn't make any temporary files but it
+         # must not be run at the top-level build directory because
+         # it checks if ../config.h exists. We don't want to read

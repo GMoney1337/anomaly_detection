@@ -1,0 +1,61 @@
+diff --git a/src/liblzma/api/lzma/container.h b/src/liblzma/api/lzma/container.h
+index 52667b65..34cf6f48 100644
+--- a/src/liblzma/api/lzma/container.h
++++ b/src/liblzma/api/lzma/container.h
+@@ -60,7 +60,6 @@
+ #define LZMA_PRESET_EXTREME       (UINT32_C(1) << 31)
+ 
+ 
+-#ifdef LZMA_UNSTABLE /* Unstable API that may change. Use only for testing. */
+ /**
+  * \brief       Multithreading options
+  */
+@@ -180,7 +179,6 @@ typedef struct {
+ 	void *reserved_ptr4;
+ 
+ } lzma_mt;
+-#endif
+ 
+ 
+ /**
+@@ -314,7 +312,6 @@ extern LZMA_API(lzma_ret) lzma_stream_encoder(lzma_stream *strm,
+ 		lzma_nothrow lzma_attr_warn_unused_result;
+ 
+ 
+-#ifdef LZMA_UNSTABLE /* Unstable API that may change. Use only for testing. */
+ /**
+  * \brief       Calculate approximate memory usage of multithreaded .xz encoder
+  *
+@@ -356,7 +353,6 @@ extern LZMA_API(uint64_t) lzma_stream_encoder_mt_memusage(
+ extern LZMA_API(lzma_ret) lzma_stream_encoder_mt(
+ 		lzma_stream *strm, const lzma_mt *options)
+ 		lzma_nothrow lzma_attr_warn_unused_result;
+-#endif
+ 
+ 
+ /**
+diff --git a/src/liblzma/common/common.h b/src/liblzma/common/common.h
+index af14e479..955d784a 100644
+--- a/src/liblzma/common/common.h
++++ b/src/liblzma/common/common.h
+@@ -32,8 +32,6 @@
+ 
+ #define LZMA_API(type) LZMA_API_EXPORT type LZMA_API_CALL
+ 
+-#define LZMA_UNSTABLE
+-
+ #include "lzma.h"
+ 
+ // These allow helping the compiler in some often-executed branches, whose
+diff --git a/src/xz/private.h b/src/xz/private.h
+index 9576da82..4acfa8dc 100644
+--- a/src/xz/private.h
++++ b/src/xz/private.h
+@@ -13,7 +13,6 @@
+ #include "sysdefs.h"
+ #include "mythread.h"
+ 
+-#define LZMA_UNSTABLE
+ #include "lzma.h"
+ 
+ #include <sys/types.h>

@@ -1,0 +1,13 @@
+diff --git a/src/xz/signals.c b/src/xz/signals.c
+index 56c1eb47..7daeddca 100644
+--- a/src/xz/signals.c
++++ b/src/xz/signals.c
+@@ -166,7 +166,7 @@ signals_exit(void)
+ 		sigfillset(&sa.sa_mask);
+ 		sa.sa_flags = 0;
+ 		sigaction(sig, &sa, NULL);
+-		raise(exit_signal);
++		raise(sig);
+ #endif
+ 	}
+ 

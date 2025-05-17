@@ -1,0 +1,291 @@
+diff --git a/debug/full_flush.c b/debug/full_flush.c
+index ce0d2e89..67442b15 100644
+--- a/debug/full_flush.c
++++ b/debug/full_flush.c
+@@ -29,7 +29,7 @@ encode(size_t size, lzma_action action)
+ 
+ 	do {
+ 		if (strm.avail_in == 0 && size > 0) {
+-			const size_t amount = MIN(size, CHUNK);
++			const size_t amount = my_min(size, CHUNK);
+ 			strm.avail_in = fread(in, 1, amount, file_in);
+ 			strm.next_in = in;
+ 			size -= amount; // Intentionally not using avail_in.
+diff --git a/debug/sync_flush.c b/debug/sync_flush.c
+index a094ef75..fc2ebcb2 100644
+--- a/debug/sync_flush.c
++++ b/debug/sync_flush.c
+@@ -29,7 +29,7 @@ encode(size_t size, lzma_action action)
+ 
+ 	do {
+ 		if (strm.avail_in == 0 && size > 0) {
+-			const size_t amount = MIN(size, CHUNK);
++			const size_t amount = my_min(size, CHUNK);
+ 			strm.avail_in = fread(in, 1, amount, file_in);
+ 			strm.next_in = in;
+ 			size -= amount; // Intentionally not using avail_in.
+diff --git a/src/common/sysdefs.h b/src/common/sysdefs.h
+index 61ac0b40..1e138b1c 100644
+--- a/src/common/sysdefs.h
++++ b/src/common/sysdefs.h
+@@ -156,13 +156,11 @@ typedef unsigned char _Bool;
+ #undef memzero
+ #define memzero(s, n) memset(s, 0, n)
+ 
+-#ifndef MIN
+-#	define MIN(x, y) ((x) < (y) ? (x) : (y))
+-#endif
+-
+-#ifndef MAX
+-#	define MAX(x, y) ((x) > (y) ? (x) : (y))
+-#endif
++// NOTE: Avoid using MIN() and MAX(), because even conditionally defining
++// those macros can cause some portability trouble, since on some systems
++// the system headers insist defining their own versions.
++#define my_min(x, y) ((x) < (y) ? (x) : (y))
++#define my_max(x, y) ((x) > (y) ? (x) : (y))
+ 
+ #ifndef ARRAY_SIZE
+ #	define ARRAY_SIZE(array) (sizeof(array) / sizeof((array)[0]))
+diff --git a/src/liblzma/common/block_buffer_encoder.c b/src/liblzma/common/block_buffer_encoder.c
+index 4d90feef..a8f71c21 100644
+--- a/src/liblzma/common/block_buffer_encoder.c
++++ b/src/liblzma/common/block_buffer_encoder.c
+@@ -139,7 +139,7 @@ block_encode_uncompressed(lzma_block *block, const uint8_t *in, size_t in_size,
+ 
+ 		// Size of the uncompressed chunk
+ 		const size_t copy_size
+-				= MIN(in_size - in_pos, LZMA2_CHUNK_MAX);
++				= my_min(in_size - in_pos, LZMA2_CHUNK_MAX);
+ 		out[(*out_pos)++] = (copy_size - 1) >> 8;
+ 		out[(*out_pos)++] = (copy_size - 1) & 0xFF;
+ 
+diff --git a/src/liblzma/common/common.c b/src/liblzma/common/common.c
+index 2f185e49..07b1d476 100644
+--- a/src/liblzma/common/common.c
++++ b/src/liblzma/common/common.c
+@@ -76,7 +76,7 @@ lzma_bufcpy(const uint8_t *restrict in, size_t *restrict in_pos,
+ {
+ 	const size_t in_avail = in_size - *in_pos;
+ 	const size_t out_avail = out_size - *out_pos;
+-	const size_t copy_size = MIN(in_avail, out_avail);
++	const size_t copy_size = my_min(in_avail, out_avail);
+ 
+ 	memcpy(out + *out_pos, in + *in_pos, copy_size);
+ 
+diff --git a/src/liblzma/common/stream_buffer_encoder.c b/src/liblzma/common/stream_buffer_encoder.c
+index bbafaa6d..f727d854 100644
+--- a/src/liblzma/common/stream_buffer_encoder.c
++++ b/src/liblzma/common/stream_buffer_encoder.c
+@@ -33,7 +33,7 @@ lzma_stream_buffer_bound(size_t uncompressed_size)
+ 	// Catch the possible integer overflow and also prevent the size of
+ 	// the Stream exceeding LZMA_VLI_MAX (theoretically possible on
+ 	// 64-bit systems).
+-	if (MIN(SIZE_MAX, LZMA_VLI_MAX) - block_bound < HEADERS_BOUND)
++	if (my_min(SIZE_MAX, LZMA_VLI_MAX) - block_bound < HEADERS_BOUND)
+ 		return 0;
+ 
+ 	return block_bound + HEADERS_BOUND;
+diff --git a/src/liblzma/delta/delta_encoder.c b/src/liblzma/delta/delta_encoder.c
+index 80d0d176..ea1cc2cb 100644
+--- a/src/liblzma/delta/delta_encoder.c
++++ b/src/liblzma/delta/delta_encoder.c
+@@ -59,7 +59,7 @@ delta_encode(lzma_coder *coder, lzma_allocator *allocator,
+ 	if (coder->next.code == NULL) {
+ 		const size_t in_avail = in_size - *in_pos;
+ 		const size_t out_avail = out_size - *out_pos;
+-		const size_t size = MIN(in_avail, out_avail);
++		const size_t size = my_min(in_avail, out_avail);
+ 
+ 		copy_and_encode(coder, in + *in_pos, out + *out_pos, size);
+ 
+diff --git a/src/liblzma/lz/lz_decoder.c b/src/liblzma/lz/lz_decoder.c
+index 350b1f89..2c573551 100644
+--- a/src/liblzma/lz/lz_decoder.c
++++ b/src/liblzma/lz/lz_decoder.c
+@@ -81,8 +81,9 @@ decode_buffer(lzma_coder *coder,
+ 		// It must not decode past the end of the dictionary
+ 		// buffer, and we don't want it to decode more than is
+ 		// actually needed to fill the out[] buffer.
+-		coder->dict.limit = coder->dict.pos + MIN(out_size - *out_pos,
+-				coder->dict.size - coder->dict.pos);
++		coder->dict.limit = coder->dict.pos
++				+ my_min(out_size - *out_pos,
++					coder->dict.size - coder->dict.pos);
+ 
+ 		// Call the coder->lz.code() to do the actual decoding.
+ 		const lzma_ret ret = coder->lz.code(
+@@ -264,7 +265,7 @@ lzma_lz_decoder_init(lzma_next_coder *next, lzma_allocator *allocator,
+ 			&& lz_options.preset_dict_size > 0) {
+ 		// If the preset dictionary is bigger than the actual
+ 		// dictionary, copy only the tail.
+-		const size_t copy_size = MIN(lz_options.preset_dict_size,
++		const size_t copy_size = my_min(lz_options.preset_dict_size,
+ 				lz_options.dict_size);
+ 		const size_t offset = lz_options.preset_dict_size - copy_size;
+ 		memcpy(next->coder->dict.buf, lz_options.preset_dict + offset,
+diff --git a/src/liblzma/lz/lz_decoder.h b/src/liblzma/lz/lz_decoder.h
+index bf1609db..7266e803 100644
+--- a/src/liblzma/lz/lz_decoder.h
++++ b/src/liblzma/lz/lz_decoder.h
+@@ -129,7 +129,7 @@ dict_repeat(lzma_dict *dict, uint32_t distance, uint32_t *len)
+ {
+ 	// Don't write past the end of the dictionary.
+ 	const size_t dict_avail = dict->limit - dict->pos;
+-	uint32_t left = MIN(dict_avail, *len);
++	uint32_t left = my_min(dict_avail, *len);
+ 	*len -= left;
+ 
+ 	// Repeat a block of data from the history. Because memcpy() is faster
+diff --git a/src/liblzma/lz/lz_encoder.c b/src/liblzma/lz/lz_encoder.c
+index 757e5374..691fe72d 100644
+--- a/src/liblzma/lz/lz_encoder.c
++++ b/src/liblzma/lz/lz_encoder.c
+@@ -423,7 +423,7 @@ lz_encoder_init(lzma_mf *mf, lzma_allocator *allocator,
+ 			&& lz_options->preset_dict_size > 0) {
+ 		// If the preset dictionary is bigger than the actual
+ 		// dictionary, use only the tail.
+-		mf->write_pos = MIN(lz_options->preset_dict_size, mf->size);
++		mf->write_pos = my_min(lz_options->preset_dict_size, mf->size);
+ 		memcpy(mf->buffer, lz_options->preset_dict
+ 				+ lz_options->preset_dict_size - mf->write_pos,
+ 				mf->write_pos);
+diff --git a/src/liblzma/lz/lz_encoder.h b/src/liblzma/lz/lz_encoder.h
+index f6352a47..741c4532 100644
+--- a/src/liblzma/lz/lz_encoder.h
++++ b/src/liblzma/lz/lz_encoder.h
+@@ -281,7 +281,7 @@ mf_read(lzma_mf *mf, uint8_t *out, size_t *out_pos, size_t out_size,
+ 		size_t *left)
+ {
+ 	const size_t out_avail = out_size - *out_pos;
+-	const size_t copy_size = MIN(out_avail, *left);
++	const size_t copy_size = my_min(out_avail, *left);
+ 
+ 	assert(mf->read_ahead == 0);
+ 	assert(mf->read_pos >= *left);
+diff --git a/src/liblzma/lz/lz_encoder_mf.c b/src/liblzma/lz/lz_encoder_mf.c
+index b31b0857..f82a1c1d 100644
+--- a/src/liblzma/lz/lz_encoder_mf.c
++++ b/src/liblzma/lz/lz_encoder_mf.c
+@@ -481,7 +481,7 @@ bt_find_func(
+ 				<< 1);
+ 
+ 		const uint8_t *const pb = cur - delta;
+-		uint32_t len = MIN(len0, len1);
++		uint32_t len = my_min(len0, len1);
+ 
+ 		if (pb[len] == cur[len]) {
+ 			while (++len != len_limit)
+@@ -546,7 +546,7 @@ bt_skip_func(
+ 				+ (delta > cyclic_pos ? cyclic_size : 0))
+ 				<< 1);
+ 		const uint8_t *pb = cur - delta;
+-		uint32_t len = MIN(len0, len1);
++		uint32_t len = my_min(len0, len1);
+ 
+ 		if (pb[len] == cur[len]) {
+ 			while (++len != len_limit)
+diff --git a/src/liblzma/lzma/lzma2_encoder.c b/src/liblzma/lzma/lzma2_encoder.c
+index 1e0569a4..b48e0d68 100644
+--- a/src/liblzma/lzma/lzma2_encoder.c
++++ b/src/liblzma/lzma/lzma2_encoder.c
+@@ -372,7 +372,7 @@ extern lzma_ret
+ lzma_lzma2_props_encode(const void *options, uint8_t *out)
+ {
+ 	const lzma_options_lzma *const opt = options;
+-	uint32_t d = MAX(opt->dict_size, LZMA_DICT_SIZE_MIN);
++	uint32_t d = my_max(opt->dict_size, LZMA_DICT_SIZE_MIN);
+ 
+ 	// Round up to to the next 2^n - 1 or 2^n + 2^(n - 1) - 1 depending
+ 	// on which one is the next:
+diff --git a/src/liblzma/lzma/lzma_encoder_optimum_fast.c b/src/liblzma/lzma/lzma_encoder_optimum_fast.c
+index 4ca55b60..f835f693 100644
+--- a/src/liblzma/lzma/lzma_encoder_optimum_fast.c
++++ b/src/liblzma/lzma/lzma_encoder_optimum_fast.c
+@@ -33,7 +33,7 @@ lzma_lzma_optimum_fast(lzma_coder *restrict coder, lzma_mf *restrict mf,
+ 	}
+ 
+ 	const uint8_t *buf = mf_ptr(mf) - 1;
+-	const uint32_t buf_avail = MIN(mf_avail(mf) + 1, MATCH_LEN_MAX);
++	const uint32_t buf_avail = my_min(mf_avail(mf) + 1, MATCH_LEN_MAX);
+ 
+ 	if (buf_avail < 2) {
+ 		// There's not enough input left to encode a match.
+diff --git a/src/liblzma/lzma/lzma_encoder_optimum_normal.c b/src/liblzma/lzma/lzma_encoder_optimum_normal.c
+index 9284c8a2..7e856493 100644
+--- a/src/liblzma/lzma/lzma_encoder_optimum_normal.c
++++ b/src/liblzma/lzma/lzma_encoder_optimum_normal.c
+@@ -287,7 +287,7 @@ helper1(lzma_coder *restrict coder, lzma_mf *restrict mf,
+ 		matches_count = coder->matches_count;
+ 	}
+ 
+-	const uint32_t buf_avail = MIN(mf_avail(mf) + 1, MATCH_LEN_MAX);
++	const uint32_t buf_avail = my_min(mf_avail(mf) + 1, MATCH_LEN_MAX);
+ 	if (buf_avail < 2) {
+ 		*back_res = UINT32_MAX;
+ 		*len_res = 1;
+@@ -371,7 +371,7 @@ helper1(lzma_coder *restrict coder, lzma_mf *restrict mf,
+ 		}
+ 	}
+ 
+-	const uint32_t len_end = MAX(len_main, rep_lens[rep_max_index]);
++	const uint32_t len_end = my_max(len_main, rep_lens[rep_max_index]);
+ 
+ 	if (len_end < 2) {
+ 		*back_res = coder->opts[1].back_prev;
+@@ -565,12 +565,12 @@ helper2(lzma_coder *coder, uint32_t *reps, const uint8_t *buf,
+ 	if (buf_avail_full < 2)
+ 		return len_end;
+ 
+-	const uint32_t buf_avail = MIN(buf_avail_full, nice_len);
++	const uint32_t buf_avail = my_min(buf_avail_full, nice_len);
+ 
+ 	if (!next_is_literal && match_byte != current_byte) { // speed optimization
+ 		// try literal + rep0
+ 		const uint8_t *const buf_back = buf - reps[0] - 1;
+-		const uint32_t limit = MIN(buf_avail_full, nice_len + 1);
++		const uint32_t limit = my_min(buf_avail_full, nice_len + 1);
+ 
+ 		uint32_t len_test = 1;
+ 		while (len_test < limit && buf[len_test] == buf_back[len_test])
+@@ -648,7 +648,7 @@ helper2(lzma_coder *coder, uint32_t *reps, const uint8_t *buf,
+ 
+ 
+ 		uint32_t len_test_2 = len_test + 1;
+-		const uint32_t limit = MIN(buf_avail_full,
++		const uint32_t limit = my_min(buf_avail_full,
+ 				len_test_2 + nice_len);
+ 		for (; len_test_2 < limit
+ 				&& buf[len_test_2] == buf_back[len_test_2];
+@@ -743,7 +743,7 @@ helper2(lzma_coder *coder, uint32_t *reps, const uint8_t *buf,
+ 				// Try Match + Literal + Rep0
+ 				const uint8_t *const buf_back = buf - cur_back - 1;
+ 				uint32_t len_test_2 = len_test + 1;
+-				const uint32_t limit = MIN(buf_avail_full,
++				const uint32_t limit = my_min(buf_avail_full,
+ 						len_test_2 + nice_len);
+ 
+ 				for (; len_test_2 < limit &&
+@@ -860,7 +860,7 @@ lzma_lzma_optimum_normal(lzma_coder *restrict coder, lzma_mf *restrict mf,
+ 
+ 		len_end = helper2(coder, reps, mf_ptr(mf) - 1, len_end,
+ 				position + cur, cur, mf->nice_len,
+-				MIN(mf_avail(mf) + 1, OPTS - 1 - cur));
++				my_min(mf_avail(mf) + 1, OPTS - 1 - cur));
+ 	}
+ 
+ 	backward(coder, len_res, back_res, cur);
+diff --git a/src/xz/args.c b/src/xz/args.c
+index fdd63b44..7b12529c 100644
+--- a/src/xz/args.c
++++ b/src/xz/args.c
+@@ -406,7 +406,8 @@ parse_environment(args_info *args, char *argv0)
+ 
+ 			// Keep argc small enough to fit into a singed int
+ 			// and to keep it usable for memory allocation.
+-			if (++argc == MIN(INT_MAX, SIZE_MAX / sizeof(char *)))
++			if (++argc == my_min(
++					INT_MAX, SIZE_MAX / sizeof(char *)))
+ 				message_fatal(_("The environment variable "
+ 						"XZ_OPT contains too many "
+ 						"arguments"));

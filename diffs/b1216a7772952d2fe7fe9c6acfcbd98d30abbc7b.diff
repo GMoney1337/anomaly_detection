@@ -1,0 +1,42 @@
+diff --git a/Makefile.am b/Makefile.am
+index 1756e5cb..0df658fd 100644
+--- a/Makefile.am
++++ b/Makefile.am
+@@ -44,12 +44,25 @@ examplesolddir = $(docdir)/examples_old
+ dist_examplesold_DATA = \
+ 	doc/examples_old/xz_pipe_comp.c \
+ 	doc/examples_old/xz_pipe_decomp.c
++
++# Install the Doxygen generated documentation if they were built.
++install-data-local:
++	if test -d "$(srcdir)/doc/liblzma" ; then \
++		$(MKDIR_P) "$(DESTDIR)$(docdir)/liblzma" && \
++		$(INSTALL_DATA) "$(srcdir)"/doc/liblzma/* \
++			"$(DESTDIR)$(docdir)/liblzma"; \
++	fi
++
++# Remove the Doxygen generated documentation when uninstalling.
++uninstall-local:
++	rm -rf "$(DESTDIR)$(docdir)/liblzma"
+ endif
+ 
+ EXTRA_DIST = \
+ 	po4a \
+ 	extra \
+ 	dos \
++	doxygen \
+ 	windows \
+ 	macosx \
+ 	cmake \
+@@ -99,6 +112,11 @@ dist-hook:
+ 				> "$$dest/txt/$$BASE.txt"; \
+ 		done; \
+ 	fi
++	if test -d "$(srcdir)/doc/liblzma" ; then \
++		$(MKDIR_P) "$(distdir)/doc/liblzma" && \
++		$(INSTALL_DATA) "$(srcdir)"/doc/liblzma/* \
++			"$(distdir)/doc/liblzma"; \
++	fi
+ 
+ # This works with GNU tar and gives cleaner package than normal 'make dist'.
+ # This also ensures that the man page translations are up to date (dist-hook

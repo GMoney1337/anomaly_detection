@@ -1,0 +1,13 @@
+diff --git a/src/liblzma/api/lzma/index.h b/src/liblzma/api/lzma/index.h
+index a0469b23..5ea12e35 100644
+--- a/src/liblzma/api/lzma/index.h
++++ b/src/liblzma/api/lzma/index.h
+@@ -368,7 +368,7 @@ extern LZMA_API(lzma_ret) lzma_index_stream_flags(
+ /**
+  * \brief       Get the types of integrity Checks
+  *
+- * If lzma_index_stream_padding() is used to set the Stream Flags for
++ * If lzma_index_stream_flags() is used to set the Stream Flags for
+  * every Stream, lzma_index_checks() can be used to get a bitmask to
+  * indicate which Check types have been used. It can be useful e.g. if
+  * showing the Check types to the user.

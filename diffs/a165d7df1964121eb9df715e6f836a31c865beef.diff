@@ -1,0 +1,94 @@
+diff --git a/src/xz/args.c b/src/xz/args.c
+index 6ae3c96f..7af3e850 100644
+--- a/src/xz/args.c
++++ b/src/xz/args.c
+@@ -180,6 +180,7 @@ parse_real(args_info *args, int argc, char **argv)
+ 		OPT_FILTERS7,
+ 		OPT_FILTERS8,
+ 		OPT_FILTERS9,
++		OPT_FILTERS_HELP,
+ 
+ 		OPT_X86,
+ 		OPT_POWERPC,
+@@ -261,6 +262,7 @@ parse_real(args_info *args, int argc, char **argv)
+ 		{ "filters7",     optional_argument, NULL,  OPT_FILTERS7},
+ 		{ "filters8",     optional_argument, NULL,  OPT_FILTERS8},
+ 		{ "filters9",     optional_argument, NULL,  OPT_FILTERS9},
++		{ "filters-help", optional_argument, NULL,  OPT_FILTERS_HELP},
+ 
+ 		{ "lzma1",        optional_argument, NULL,  OPT_LZMA1 },
+ 		{ "lzma2",        optional_argument, NULL,  OPT_LZMA2 },
+@@ -447,6 +449,12 @@ parse_real(args_info *args, int argc, char **argv)
+ 					(size_t)(c - OPT_FILTERS));
+ 			break;
+ 
++		// --filters-help
++		case OPT_FILTERS_HELP:
++			// This doesn't return.
++			message_filters_help();
++			break;
++
+ 		case OPT_X86:
+ 			coder_add_filter(LZMA_FILTER_X86,
+ 					options_bcj(optarg));
+diff --git a/src/xz/message.c b/src/xz/message.c
+index b28bb63c..a888d29e 100644
+--- a/src/xz/message.c
++++ b/src/xz/message.c
+@@ -1071,6 +1071,11 @@ message_help(bool long_help)
+ "                      string syntax to use with --block-list"
+ 		));
+ 
++		puts(_(
++"  --filters-help      display more information about the liblzma filter string\n"
++"                      syntax and exit."
++		));
++
+ #if defined(HAVE_ENCODER_LZMA1) || defined(HAVE_DECODER_LZMA1) \
+ 		|| defined(HAVE_ENCODER_LZMA2) || defined(HAVE_DECODER_LZMA2)
+ 		// TRANSLATORS: The word "literal" in "literal context bits"
+@@ -1158,3 +1163,28 @@ message_help(bool long_help)
+ 
+ 	tuklib_exit(E_SUCCESS, E_ERROR, verbosity != V_SILENT);
+ }
++
++
++extern void
++message_filters_help(void)
++{
++	char *encoder_options;
++	if (lzma_str_list_filters(&encoder_options, LZMA_VLI_UNKNOWN,
++			LZMA_STR_ENCODER, NULL) != LZMA_OK)
++		message_bug();
++
++	if (!opt_robot) {
++		puts(_(
++"Filter chains are set using the --filters=FILTERS or\n"
++"--filters1=FILTERS ... --filters9=FILTERS options. Each filter in the chain\n"
++"can be separated by spaces or `--'. Alternatively a preset <0-9>[e] can be\n"
++"specified instead of a filter chain.\n"
++		));
++
++		puts(_("The supported filters and their options are:"));
++	}
++
++	puts(encoder_options);
++
++	tuklib_exit(E_SUCCESS, E_ERROR, verbosity != V_SILENT);
++}
+diff --git a/src/xz/message.h b/src/xz/message.h
+index b264f821..21771eb4 100644
+--- a/src/xz/message.h
++++ b/src/xz/message.h
+@@ -107,6 +107,11 @@ extern void message_version(void) lzma_attribute((__noreturn__));
+ extern void message_help(bool long_help) lzma_attribute((__noreturn__));
+ 
+ 
++/// Prints a help message specifically for using the --filters and
++/// --filtersX command line options.
++extern void message_filters_help(void);
++
++
+ /// \brief      Set the total number of files to be processed
+ ///
+ /// Standard input is counted as a file here. This is used when printing

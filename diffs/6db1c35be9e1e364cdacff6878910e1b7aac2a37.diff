@@ -1,0 +1,13 @@
+diff --git a/src/xz/message.c b/src/xz/message.c
+index 4f8ca00d..5bce4cdd 100644
+--- a/src/xz/message.c
++++ b/src/xz/message.c
+@@ -1097,7 +1097,7 @@ message_help(bool long_help)
+ "                      ratio without increasing memory usage of the decoder"));
+ 
+ 	if (long_help)
+-		puts(_(
++		puts(_( // xgettext:no-c-format
+ "  -M, --memory=NUM    use roughly NUM bytes of memory at maximum; 0 indicates\n"
+ "                      the default setting, which is 40 % of total RAM"));
+ 

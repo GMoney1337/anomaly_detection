@@ -1,0 +1,12 @@
+diff --git a/THANKS b/THANKS
+index d5d505dc..9b76f858 100644
+--- a/THANKS
++++ b/THANKS
+@@ -187,6 +187,7 @@ has been important. :-) In alphabetical order:
+   - Xi Ruoyao
+   - Ryan Young
+   - Andreas Zieringer
++  - 榆柳松 (ZhengSen Wang)
+ 
+ Companies:
+   - Google

@@ -1,0 +1,12 @@
+diff --git a/THANKS b/THANKS
+index ef058adc..51eeb6d9 100644
+--- a/THANKS
++++ b/THANKS
+@@ -121,6 +121,7 @@ has been important. :-) In alphabetical order:
+   - Alexander Neumann
+   - Hongbo Ni
+   - Jonathan Nieder
++  - Asgeir Storesund Nilsen
+   - Andre Noll
+   - Peter O'Gorman
+   - Dimitri Papadopoulos Orfanos

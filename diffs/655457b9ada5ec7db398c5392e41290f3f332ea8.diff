@@ -1,0 +1,36 @@
+diff --git a/src/liblzma/check/crc32_x86.S b/src/liblzma/check/crc32_x86.S
+index f9574b27..4737a544 100644
+--- a/src/liblzma/check/crc32_x86.S
++++ b/src/liblzma/check/crc32_x86.S
+@@ -117,11 +117,8 @@ LZMA_CRC32:
+ 	 */
+ #if (!defined(PIC) && !defined(__PIC__)) \
+ 		|| (defined(_WIN32) || defined(__CYGWIN__))
+-	/*
+-	 * Not PIC.
+-	 * Using MAKE_SYM since $LZMA_CRC32_TABLE breaks with GCC 3.
+-	 */
+-	movl	MAKE_SYM($, LZMA_CRC32_TABLE), %ebx
++	/* Not PIC */
++	movl	$ LZMA_CRC32_TABLE, %ebx
+ #elif defined(__MACH__)
+ 	/* Mach-O */
+ 	call	.L_get_pc
+diff --git a/src/liblzma/check/crc64_x86.S b/src/liblzma/check/crc64_x86.S
+index b8e5ea3f..9a63726e 100644
+--- a/src/liblzma/check/crc64_x86.S
++++ b/src/liblzma/check/crc64_x86.S
+@@ -108,11 +108,8 @@ LZMA_CRC64:
+ 	 */
+ #if (!defined(PIC) && !defined(__PIC__)) \
+ 		|| (defined(_WIN32) || defined(__CYGWIN__))
+-	/*
+-	 * Not PIC.
+-	 * Using MAKE_SYM since $LZMA_CRC64_TABLE breaks with GCC 3.
+-	 */
+-	movl	MAKE_SYM($, LZMA_CRC64_TABLE), %ebx
++	/* Not PIC */
++	movl	$ LZMA_CRC64_TABLE, %ebx
+ #elif defined(__MACH__)
+ 	/* Mach-O */
+ 	call	.L_get_pc

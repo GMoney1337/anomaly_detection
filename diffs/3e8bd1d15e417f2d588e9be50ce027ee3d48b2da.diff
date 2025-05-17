@@ -1,0 +1,42 @@
+diff --git a/debug/full_flush.c b/debug/full_flush.c
+index 67442b15..227f7376 100644
+--- a/debug/full_flush.c
++++ b/debug/full_flush.c
+@@ -14,6 +14,8 @@
+ #include "lzma.h"
+ #include <stdio.h>
+ 
++#define CHUNK 64
++
+ 
+ static lzma_stream strm = LZMA_STREAM_INIT;
+ static FILE *file_in;
+@@ -22,7 +24,6 @@ static FILE *file_in;
+ static void
+ encode(size_t size, lzma_action action)
+ {
+-	static const size_t CHUNK = 64;
+ 	uint8_t in[CHUNK];
+ 	uint8_t out[CHUNK];
+ 	lzma_ret ret;
+diff --git a/debug/sync_flush.c b/debug/sync_flush.c
+index fc2ebcb2..22923331 100644
+--- a/debug/sync_flush.c
++++ b/debug/sync_flush.c
+@@ -14,6 +14,8 @@
+ #include "lzma.h"
+ #include <stdio.h>
+ 
++#define CHUNK 64
++
+ 
+ static lzma_stream strm = LZMA_STREAM_INIT;
+ static FILE *file_in;
+@@ -22,7 +24,6 @@ static FILE *file_in;
+ static void
+ encode(size_t size, lzma_action action)
+ {
+-	static const size_t CHUNK = 64;
+ 	uint8_t in[CHUNK];
+ 	uint8_t out[CHUNK];
+ 	lzma_ret ret;

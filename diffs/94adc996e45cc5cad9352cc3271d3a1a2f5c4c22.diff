@@ -1,0 +1,589 @@
+diff --git a/src/liblzma/common/alone_decoder.c b/src/liblzma/common/alone_decoder.c
+index 78af6515..e2b58e1f 100644
+--- a/src/liblzma/common/alone_decoder.c
++++ b/src/liblzma/common/alone_decoder.c
+@@ -134,8 +134,7 @@ alone_decode(void *coder_ptr, const lzma_allocator *allocator,
+ 
+ 		coder->pos = 0;
+ 		coder->sequence = SEQ_CODER_INIT;
+-
+-	// Fall through
++		FALLTHROUGH;
+ 
+ 	case SEQ_CODER_INIT: {
+ 		if (coder->memusage > coder->memlimit)
+diff --git a/src/liblzma/common/auto_decoder.c b/src/liblzma/common/auto_decoder.c
+index fdd520f9..da49345f 100644
+--- a/src/liblzma/common/auto_decoder.c
++++ b/src/liblzma/common/auto_decoder.c
+@@ -79,7 +79,7 @@ auto_decode(void *coder_ptr, const lzma_allocator *allocator,
+ 				return LZMA_GET_CHECK;
+ 		}
+ 
+-	// Fall through
++		FALLTHROUGH;
+ 
+ 	case SEQ_CODE: {
+ 		const lzma_ret ret = coder->next.code(
+@@ -91,10 +91,9 @@ auto_decode(void *coder_ptr, const lzma_allocator *allocator,
+ 			return ret;
+ 
+ 		coder->sequence = SEQ_FINISH;
++		FALLTHROUGH;
+ 	}
+ 
+-	// Fall through
+-
+ 	case SEQ_FINISH:
+ 		// When LZMA_CONCATENATED was used and we were decoding
+ 		// a LZMA_Alone file, we need to check that there is no
+diff --git a/src/liblzma/common/block_decoder.c b/src/liblzma/common/block_decoder.c
+index 2e369d31..bbc9f556 100644
+--- a/src/liblzma/common/block_decoder.c
++++ b/src/liblzma/common/block_decoder.c
+@@ -146,10 +146,9 @@ block_decode(void *coder_ptr, const lzma_allocator *allocator,
+ 		coder->block->uncompressed_size = coder->uncompressed_size;
+ 
+ 		coder->sequence = SEQ_PADDING;
++		FALLTHROUGH;
+ 	}
+ 
+-	// Fall through
+-
+ 	case SEQ_PADDING:
+ 		// Compressed Data is padded to a multiple of four bytes.
+ 		while (coder->compressed_size & 3) {
+@@ -173,8 +172,7 @@ block_decode(void *coder_ptr, const lzma_allocator *allocator,
+ 			lzma_check_finish(&coder->check, coder->block->check);
+ 
+ 		coder->sequence = SEQ_CHECK;
+-
+-	// Fall through
++		FALLTHROUGH;
+ 
+ 	case SEQ_CHECK: {
+ 		const size_t check_size = lzma_check_size(coder->block->check);
+diff --git a/src/liblzma/common/block_encoder.c b/src/liblzma/common/block_encoder.c
+index ce8c1de6..eb7997a7 100644
+--- a/src/liblzma/common/block_encoder.c
++++ b/src/liblzma/common/block_encoder.c
+@@ -94,10 +94,9 @@ block_encode(void *coder_ptr, const lzma_allocator *allocator,
+ 		coder->block->uncompressed_size = coder->uncompressed_size;
+ 
+ 		coder->sequence = SEQ_PADDING;
++		FALLTHROUGH;
+ 	}
+ 
+-	// Fall through
+-
+ 	case SEQ_PADDING:
+ 		// Pad Compressed Data to a multiple of four bytes. We can
+ 		// use coder->compressed_size for this since we don't need
+@@ -117,8 +116,7 @@ block_encode(void *coder_ptr, const lzma_allocator *allocator,
+ 		lzma_check_finish(&coder->check, coder->block->check);
+ 
+ 		coder->sequence = SEQ_CHECK;
+-
+-	// Fall through
++		FALLTHROUGH;
+ 
+ 	case SEQ_CHECK: {
+ 		const size_t check_size = lzma_check_size(coder->block->check);
+diff --git a/src/liblzma/common/common.c b/src/liblzma/common/common.c
+index cc0e06a5..fa95acf2 100644
+--- a/src/liblzma/common/common.c
++++ b/src/liblzma/common/common.c
+@@ -348,7 +348,7 @@ lzma_code(lzma_stream *strm, lzma_action action)
+ 		else
+ 			strm->internal->sequence = ISEQ_END;
+ 
+-	// Fall through
++		FALLTHROUGH;
+ 
+ 	case LZMA_NO_CHECK:
+ 	case LZMA_UNSUPPORTED_CHECK:
+diff --git a/src/liblzma/common/file_info.c b/src/liblzma/common/file_info.c
+index 7c85084a..4b2eb5d0 100644
+--- a/src/liblzma/common/file_info.c
++++ b/src/liblzma/common/file_info.c
+@@ -298,15 +298,13 @@ file_info_decode(void *coder_ptr, const lzma_allocator *allocator,
+ 		// Start looking for Stream Padding and Stream Footer
+ 		// at the end of the file.
+ 		coder->file_target_pos = coder->file_size;
+-
+-	// Fall through
++		FALLTHROUGH;
+ 
+ 	case SEQ_PADDING_SEEK:
+ 		coder->sequence = SEQ_PADDING_DECODE;
+ 		return_if_error(reverse_seek(
+ 				coder, in_start, in_pos, in_size));
+-
+-	// Fall through
++		FALLTHROUGH;
+ 
+ 	case SEQ_PADDING_DECODE: {
+ 		// Copy to coder->temp first. This keeps the code simpler if
+@@ -356,9 +354,9 @@ file_info_decode(void *coder_ptr, const lzma_allocator *allocator,
+ 		if (coder->temp_size < LZMA_STREAM_HEADER_SIZE)
+ 			return_if_error(reverse_seek(
+ 					coder, in_start, in_pos, in_size));
+-	}
+ 
+-	// Fall through
++		FALLTHROUGH;
++	}
+ 
+ 	case SEQ_FOOTER:
+ 		// Copy the Stream Footer field into coder->temp.
+@@ -414,7 +412,7 @@ file_info_decode(void *coder_ptr, const lzma_allocator *allocator,
+ 				return LZMA_SEEK_NEEDED;
+ 		}
+ 
+-	// Fall through
++		FALLTHROUGH;
+ 
+ 	case SEQ_INDEX_INIT: {
+ 		// Calculate the amount of memory already used by the earlier
+@@ -444,10 +442,9 @@ file_info_decode(void *coder_ptr, const lzma_allocator *allocator,
+ 
+ 		coder->index_remaining = coder->footer_flags.backward_size;
+ 		coder->sequence = SEQ_INDEX_DECODE;
++		FALLTHROUGH;
+ 	}
+ 
+-	// Fall through
+-
+ 	case SEQ_INDEX_DECODE: {
+ 		// Decode (a part of) the Index. If the whole Index is already
+ 		// in coder->temp, read it from there. Otherwise read from
+@@ -574,9 +571,9 @@ file_info_decode(void *coder_ptr, const lzma_allocator *allocator,
+ 			return_if_error(reverse_seek(coder,
+ 					in_start, in_pos, in_size));
+ 		}
+-	}
+ 
+-	// Fall through
++		FALLTHROUGH;
++	}
+ 
+ 	case SEQ_HEADER_DECODE:
+ 		// Copy the Stream Header field into coder->temp.
+@@ -596,8 +593,7 @@ file_info_decode(void *coder_ptr, const lzma_allocator *allocator,
+ 				coder->temp + coder->temp_size)));
+ 
+ 		coder->sequence = SEQ_HEADER_COMPARE;
+-
+-	// Fall through
++		FALLTHROUGH;
+ 
+ 	case SEQ_HEADER_COMPARE:
+ 		// Compare Stream Header against Stream Footer. They must
+diff --git a/src/liblzma/common/index_decoder.c b/src/liblzma/common/index_decoder.c
+index 4bcb3069..4eab56d9 100644
+--- a/src/liblzma/common/index_decoder.c
++++ b/src/liblzma/common/index_decoder.c
+@@ -93,8 +93,7 @@ index_decode(void *coder_ptr, const lzma_allocator *allocator,
+ 
+ 		coder->pos = 0;
+ 		coder->sequence = SEQ_MEMUSAGE;
+-
+-	// Fall through
++		FALLTHROUGH;
+ 
+ 	case SEQ_MEMUSAGE:
+ 		if (lzma_index_memusage(1, coder->count) > coder->memlimit) {
+@@ -153,8 +152,7 @@ index_decode(void *coder_ptr, const lzma_allocator *allocator,
+ 	case SEQ_PADDING_INIT:
+ 		coder->pos = lzma_index_padding_size(coder->index);
+ 		coder->sequence = SEQ_PADDING;
+-
+-	// Fall through
++		FALLTHROUGH;
+ 
+ 	case SEQ_PADDING:
+ 		if (coder->pos > 0) {
+@@ -170,8 +168,7 @@ index_decode(void *coder_ptr, const lzma_allocator *allocator,
+ 				*in_pos - in_start, coder->crc32);
+ 
+ 		coder->sequence = SEQ_CRC32;
+-
+-	// Fall through
++		FALLTHROUGH;
+ 
+ 	case SEQ_CRC32:
+ 		do {
+diff --git a/src/liblzma/common/index_encoder.c b/src/liblzma/common/index_encoder.c
+index ecc299c0..80f1be1e 100644
+--- a/src/liblzma/common/index_encoder.c
++++ b/src/liblzma/common/index_encoder.c
+@@ -93,8 +93,7 @@ index_encode(void *coder_ptr,
+ 		}
+ 
+ 		coder->sequence = SEQ_UNPADDED;
+-
+-	// Fall through
++		FALLTHROUGH;
+ 
+ 	case SEQ_UNPADDED:
+ 	case SEQ_UNCOMPRESSED: {
+@@ -127,8 +126,7 @@ index_encode(void *coder_ptr,
+ 				*out_pos - out_start, coder->crc32);
+ 
+ 		coder->sequence = SEQ_CRC32;
+-
+-	// Fall through
++		FALLTHROUGH;
+ 
+ 	case SEQ_CRC32:
+ 		// We don't use the main loop, because we don't want
+diff --git a/src/liblzma/common/index_hash.c b/src/liblzma/common/index_hash.c
+index caa5967c..b7f1b6b5 100644
+--- a/src/liblzma/common/index_hash.c
++++ b/src/liblzma/common/index_hash.c
+@@ -267,9 +267,9 @@ lzma_index_hash_decode(lzma_index_hash *index_hash, const uint8_t *in,
+ 		index_hash->pos = (LZMA_VLI_C(4) - index_size_unpadded(
+ 				index_hash->records.count,
+ 				index_hash->records.index_list_size)) & 3;
+-		index_hash->sequence = SEQ_PADDING;
+ 
+-	// Fall through
++		index_hash->sequence = SEQ_PADDING;
++		FALLTHROUGH;
+ 
+ 	case SEQ_PADDING:
+ 		if (index_hash->pos > 0) {
+@@ -302,8 +302,7 @@ lzma_index_hash_decode(lzma_index_hash *index_hash, const uint8_t *in,
+ 				*in_pos - in_start, index_hash->crc32);
+ 
+ 		index_hash->sequence = SEQ_CRC32;
+-
+-	// Fall through
++		FALLTHROUGH;
+ 
+ 	case SEQ_CRC32:
+ 		do {
+diff --git a/src/liblzma/common/lzip_decoder.c b/src/liblzma/common/lzip_decoder.c
+index 651a0ae7..4dff2d58 100644
+--- a/src/liblzma/common/lzip_decoder.c
++++ b/src/liblzma/common/lzip_decoder.c
+@@ -150,10 +150,9 @@ lzip_decode(void *coder_ptr, const lzma_allocator *allocator,
+ 		coder->member_size = sizeof(lzip_id_string);
+ 
+ 		coder->sequence = SEQ_VERSION;
++		FALLTHROUGH;
+ 	}
+ 
+-	// Fall through
+-
+ 	case SEQ_VERSION:
+ 		if (*in_pos >= in_size)
+ 			return LZMA_OK;
+@@ -173,7 +172,7 @@ lzip_decode(void *coder_ptr, const lzma_allocator *allocator,
+ 		if (coder->tell_any_check)
+ 			return LZMA_GET_CHECK;
+ 
+-	// Fall through
++		FALLTHROUGH;
+ 
+ 	case SEQ_DICT_SIZE: {
+ 		if (*in_pos >= in_size)
+@@ -220,10 +219,9 @@ lzip_decode(void *coder_ptr, const lzma_allocator *allocator,
+ 		// LZMA_MEMLIMIT_ERROR we need to be able to restart after
+ 		// the memlimit has been increased.
+ 		coder->sequence = SEQ_CODER_INIT;
++		FALLTHROUGH;
+ 	}
+ 
+-	// Fall through
+-
+ 	case SEQ_CODER_INIT: {
+ 		if (coder->memusage > coder->memlimit)
+ 			return LZMA_MEMLIMIT_ERROR;
+@@ -243,10 +241,9 @@ lzip_decode(void *coder_ptr, const lzma_allocator *allocator,
+ 
+ 		coder->crc32 = 0;
+ 		coder->sequence = SEQ_LZMA_STREAM;
++		FALLTHROUGH;
+ 	}
+ 
+-	// Fall through
+-
+ 	case SEQ_LZMA_STREAM: {
+ 		const size_t in_start = *in_pos;
+ 		const size_t out_start = *out_pos;
+@@ -273,10 +270,9 @@ lzip_decode(void *coder_ptr, const lzma_allocator *allocator,
+ 			return ret;
+ 
+ 		coder->sequence = SEQ_MEMBER_FOOTER;
++		FALLTHROUGH;
+ 	}
+ 
+-	// Fall through
+-
+ 	case SEQ_MEMBER_FOOTER: {
+ 		// The footer of .lz version 0 lacks the Member size field.
+ 		// This is the only difference between version 0 and
+diff --git a/src/liblzma/common/stream_decoder.c b/src/liblzma/common/stream_decoder.c
+index 7f426841..94004b74 100644
+--- a/src/liblzma/common/stream_decoder.c
++++ b/src/liblzma/common/stream_decoder.c
+@@ -154,9 +154,9 @@ stream_decode(void *coder_ptr, const lzma_allocator *allocator,
+ 
+ 		if (coder->tell_any_check)
+ 			return LZMA_GET_CHECK;
+-	}
+ 
+-	// Fall through
++		FALLTHROUGH;
++	}
+ 
+ 	case SEQ_BLOCK_HEADER: {
+ 		if (*in_pos >= in_size)
+@@ -187,10 +187,9 @@ stream_decode(void *coder_ptr, const lzma_allocator *allocator,
+ 
+ 		coder->pos = 0;
+ 		coder->sequence = SEQ_BLOCK_INIT;
++		FALLTHROUGH;
+ 	}
+ 
+-	// Fall through
+-
+ 	case SEQ_BLOCK_INIT: {
+ 		// Checking memusage and doing the initialization needs
+ 		// its own sequence point because we need to be able to
+@@ -252,10 +251,9 @@ stream_decode(void *coder_ptr, const lzma_allocator *allocator,
+ 			return ret;
+ 
+ 		coder->sequence = SEQ_BLOCK_RUN;
++		FALLTHROUGH;
+ 	}
+ 
+-	// Fall through
+-
+ 	case SEQ_BLOCK_RUN: {
+ 		const lzma_ret ret = coder->block_decoder.code(
+ 				coder->block_decoder.coder, allocator,
+@@ -291,10 +289,9 @@ stream_decode(void *coder_ptr, const lzma_allocator *allocator,
+ 			return ret;
+ 
+ 		coder->sequence = SEQ_STREAM_FOOTER;
++		FALLTHROUGH;
+ 	}
+ 
+-	// Fall through
+-
+ 	case SEQ_STREAM_FOOTER: {
+ 		// Copy the Stream Footer to the internal buffer.
+ 		lzma_bufcpy(in, in_pos, in_size, coder->buffer, &coder->pos,
+@@ -331,10 +328,9 @@ stream_decode(void *coder_ptr, const lzma_allocator *allocator,
+ 			return LZMA_STREAM_END;
+ 
+ 		coder->sequence = SEQ_STREAM_PADDING;
++		FALLTHROUGH;
+ 	}
+ 
+-	// Fall through
+-
+ 	case SEQ_STREAM_PADDING:
+ 		assert(coder->concatenated);
+ 
+diff --git a/src/liblzma/common/stream_decoder_mt.c b/src/liblzma/common/stream_decoder_mt.c
+index 244624a4..22c9375f 100644
+--- a/src/liblzma/common/stream_decoder_mt.c
++++ b/src/liblzma/common/stream_decoder_mt.c
+@@ -1077,9 +1077,9 @@ stream_decode_mt(void *coder_ptr, const lzma_allocator *allocator,
+ 
+ 		if (coder->tell_any_check)
+ 			return LZMA_GET_CHECK;
+-	}
+ 
+-	// Fall through
++		FALLTHROUGH;
++	}
+ 
+ 	case SEQ_BLOCK_HEADER: {
+ 		const size_t in_old = *in_pos;
+@@ -1214,10 +1214,9 @@ stream_decode_mt(void *coder_ptr, const lzma_allocator *allocator,
+ 		}
+ 
+ 		coder->sequence = SEQ_BLOCK_INIT;
++		FALLTHROUGH;
+ 	}
+ 
+-	// Fall through
+-
+ 	case SEQ_BLOCK_INIT: {
+ 		// Check if decoding is possible at all with the current
+ 		// memlimit_stop which we must never exceed.
+@@ -1303,10 +1302,9 @@ stream_decode_mt(void *coder_ptr, const lzma_allocator *allocator,
+ 		}
+ 
+ 		coder->sequence = SEQ_BLOCK_THR_INIT;
++		FALLTHROUGH;
+ 	}
+ 
+-	// Fall through
+-
+ 	case SEQ_BLOCK_THR_INIT: {
+ 		// We need to wait for a multiple conditions to become true
+ 		// until we can initialize the Block decoder and let a worker
+@@ -1508,10 +1506,9 @@ stream_decode_mt(void *coder_ptr, const lzma_allocator *allocator,
+ 		}
+ 
+ 		coder->sequence = SEQ_BLOCK_THR_RUN;
++		FALLTHROUGH;
+ 	}
+ 
+-	// Fall through
+-
+ 	case SEQ_BLOCK_THR_RUN: {
+ 		if (action == LZMA_FINISH && coder->fail_fast) {
+ 			// We know that we won't get more input and that
+@@ -1613,10 +1610,9 @@ stream_decode_mt(void *coder_ptr, const lzma_allocator *allocator,
+ 		coder->mem_direct_mode = coder->mem_next_filters;
+ 
+ 		coder->sequence = SEQ_BLOCK_DIRECT_RUN;
++		FALLTHROUGH;
+ 	}
+ 
+-	// Fall through
+-
+ 	case SEQ_BLOCK_DIRECT_RUN: {
+ 		const size_t in_old = *in_pos;
+ 		const size_t out_old = *out_pos;
+@@ -1652,8 +1648,7 @@ stream_decode_mt(void *coder_ptr, const lzma_allocator *allocator,
+ 			return LZMA_OK;
+ 
+ 		coder->sequence = SEQ_INDEX_DECODE;
+-
+-	// Fall through
++		FALLTHROUGH;
+ 
+ 	case SEQ_INDEX_DECODE: {
+ 		// If we don't have any input, don't call
+@@ -1672,10 +1667,9 @@ stream_decode_mt(void *coder_ptr, const lzma_allocator *allocator,
+ 			return ret;
+ 
+ 		coder->sequence = SEQ_STREAM_FOOTER;
++		FALLTHROUGH;
+ 	}
+ 
+-	// Fall through
+-
+ 	case SEQ_STREAM_FOOTER: {
+ 		// Copy the Stream Footer to the internal buffer.
+ 		const size_t in_old = *in_pos;
+@@ -1714,10 +1708,9 @@ stream_decode_mt(void *coder_ptr, const lzma_allocator *allocator,
+ 			return LZMA_STREAM_END;
+ 
+ 		coder->sequence = SEQ_STREAM_PADDING;
++		FALLTHROUGH;
+ 	}
+ 
+-	// Fall through
+-
+ 	case SEQ_STREAM_PADDING:
+ 		assert(coder->concatenated);
+ 
+diff --git a/src/liblzma/common/stream_encoder_mt.c b/src/liblzma/common/stream_encoder_mt.c
+index f0fef152..fd0eb98d 100644
+--- a/src/liblzma/common/stream_encoder_mt.c
++++ b/src/liblzma/common/stream_encoder_mt.c
+@@ -731,8 +731,7 @@ stream_encode_mt(void *coder_ptr, const lzma_allocator *allocator,
+ 
+ 		coder->header_pos = 0;
+ 		coder->sequence = SEQ_BLOCK;
+-
+-	// Fall through
++		FALLTHROUGH;
+ 
+ 	case SEQ_BLOCK: {
+ 		// Initialized to silence warnings.
+@@ -851,9 +850,9 @@ stream_encode_mt(void *coder_ptr, const lzma_allocator *allocator,
+ 		// to be ready to be copied out.
+ 		coder->progress_out += lzma_index_size(coder->index)
+ 				+ LZMA_STREAM_HEADER_SIZE;
+-	}
+ 
+-	// Fall through
++		FALLTHROUGH;
++	}
+ 
+ 	case SEQ_INDEX: {
+ 		// Call the Index encoder. It doesn't take any input, so
+@@ -873,10 +872,9 @@ stream_encode_mt(void *coder_ptr, const lzma_allocator *allocator,
+ 			return LZMA_PROG_ERROR;
+ 
+ 		coder->sequence = SEQ_STREAM_FOOTER;
++		FALLTHROUGH;
+ 	}
+ 
+-	// Fall through
+-
+ 	case SEQ_STREAM_FOOTER:
+ 		lzma_bufcpy(coder->header, &coder->header_pos,
+ 				sizeof(coder->header),
+diff --git a/src/liblzma/lzma/lzma2_encoder.c b/src/liblzma/lzma/lzma2_encoder.c
+index e20b75b3..71cfd9b4 100644
+--- a/src/liblzma/lzma/lzma2_encoder.c
++++ b/src/liblzma/lzma/lzma2_encoder.c
+@@ -159,8 +159,7 @@ lzma2_encode(void *coder_ptr, lzma_mf *restrict mf,
+ 		coder->uncompressed_size = 0;
+ 		coder->compressed_size = 0;
+ 		coder->sequence = SEQ_LZMA_ENCODE;
+-
+-	// Fall through
++		FALLTHROUGH;
+ 
+ 	case SEQ_LZMA_ENCODE: {
+ 		// Calculate how much more uncompressed data this chunk
+@@ -219,10 +218,9 @@ lzma2_encode(void *coder_ptr, lzma_mf *restrict mf,
+ 		lzma2_header_lzma(coder);
+ 
+ 		coder->sequence = SEQ_LZMA_COPY;
++		FALLTHROUGH;
+ 	}
+ 
+-	// Fall through
+-
+ 	case SEQ_LZMA_COPY:
+ 		// Copy the compressed chunk along its headers to the
+ 		// output buffer.
+@@ -244,8 +242,7 @@ lzma2_encode(void *coder_ptr, lzma_mf *restrict mf,
+ 			return LZMA_OK;
+ 
+ 		coder->sequence = SEQ_UNCOMPRESSED_COPY;
+-
+-	// Fall through
++		FALLTHROUGH;
+ 
+ 	case SEQ_UNCOMPRESSED_COPY:
+ 		// Copy the uncompressed data as is from the dictionary
+diff --git a/src/xz/args.c b/src/xz/args.c
+index b3743cea..cf0c9a3a 100644
+--- a/src/xz/args.c
++++ b/src/xz/args.c
+@@ -621,7 +621,7 @@ parse_real(args_info *args, int argc, char **argv)
+ 		case OPT_FILES:
+ 			args->files_delim = '\n';
+ 
+-		// Fall through
++			FALLTHROUGH;
+ 
+ 		case OPT_FILES0:
+ 			if (args->files_name != NULL)
+diff --git a/src/xz/list.c b/src/xz/list.c
+index 37588943..6a71d01e 100644
+--- a/src/xz/list.c
++++ b/src/xz/list.c
+@@ -525,8 +525,7 @@ parse_block_header(file_pair *pair, const lzma_index_iter *iter,
+ 
+ 		// If the above fails, the file is corrupt so
+ 		// LZMA_DATA_ERROR is a good error code.
+-
+-	// Fall through
++		FALLTHROUGH;
+ 
+ 	case LZMA_DATA_ERROR:
+ 		// Free the memory allocated by lzma_block_header_decode().

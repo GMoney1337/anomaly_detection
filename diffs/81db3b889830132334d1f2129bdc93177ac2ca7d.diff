@@ -1,0 +1,13 @@
+diff --git a/src/common/mythread.h b/src/common/mythread.h
+index 7a80f966..1cce50e9 100644
+--- a/src/common/mythread.h
++++ b/src/common/mythread.h
+@@ -79,7 +79,7 @@ do { \
+ } while (0)
+ 
+ 
+-#if !(defined(_WIN32) && !defined(__CYGWIN__))
++#if !(defined(_WIN32) && !defined(__CYGWIN__)) && !defined(__wasm__)
+ // Use sigprocmask() to set the signal mask in single-threaded programs.
+ #include <signal.h>
+ 

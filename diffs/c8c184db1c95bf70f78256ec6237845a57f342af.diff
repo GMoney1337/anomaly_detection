@@ -1,0 +1,13 @@
+diff --git a/src/xz/xz.1 b/src/xz/xz.1
+index 9c4149cf..2fef75f4 100644
+--- a/src/xz/xz.1
++++ b/src/xz/xz.1
+@@ -5,7 +5,7 @@
+ .\" This file has been put into the public domain.
+ .\" You can do whatever you want with this file.
+ .\"
+-.TH XZ 1 "2009-08-10" "Tukaani" "XZ Utils"
++.TH XZ 1 "2009-08-27" "Tukaani" "XZ Utils"
+ .SH NAME
+ xz, unxz, xzcat, lzma, unlzma, lzcat \- Compress or decompress .xz and .lzma files
+ .SH SYNOPSIS

@@ -1,0 +1,163 @@
+diff --git a/src/xz/args.c b/src/xz/args.c
+index 1ee9a232..835912ba 100644
+--- a/src/xz/args.c
++++ b/src/xz/args.c
+@@ -80,15 +80,15 @@ parse_real(args_info *args, int argc, char **argv)
+ 		// Filters
+ 		{ "lzma1",          optional_argument, NULL,  OPT_LZMA1 },
+ 		{ "lzma2",          optional_argument, NULL,  OPT_LZMA2 },
+-		{ "x86",            no_argument,       NULL,  OPT_X86 },
+-		{ "bcj",            no_argument,       NULL,  OPT_X86 },
+-		{ "powerpc",        no_argument,       NULL,  OPT_POWERPC },
+-		{ "ppc",            no_argument,       NULL,  OPT_POWERPC },
+-		{ "ia64",           no_argument,       NULL,  OPT_IA64 },
+-		{ "itanium",        no_argument,       NULL,  OPT_IA64 },
+-		{ "arm",            no_argument,       NULL,  OPT_ARM },
+-		{ "armthumb",       no_argument,       NULL,  OPT_ARMTHUMB },
+-		{ "sparc",          no_argument,       NULL,  OPT_SPARC },
++		{ "x86",            optional_argument, NULL,  OPT_X86 },
++		{ "bcj",            optional_argument, NULL,  OPT_X86 },
++		{ "powerpc",        optional_argument, NULL,  OPT_POWERPC },
++		{ "ppc",            optional_argument, NULL,  OPT_POWERPC },
++		{ "ia64",           optional_argument, NULL,  OPT_IA64 },
++		{ "itanium",        optional_argument, NULL,  OPT_IA64 },
++		{ "arm",            optional_argument, NULL,  OPT_ARM },
++		{ "armthumb",       optional_argument, NULL,  OPT_ARMTHUMB },
++		{ "sparc",          optional_argument, NULL,  OPT_SPARC },
+ 		{ "delta",          optional_argument, NULL,  OPT_DELTA },
+ 		{ "subblock",       optional_argument, NULL,  OPT_SUBBLOCK },
+ 
+@@ -222,27 +222,33 @@ parse_real(args_info *args, int argc, char **argv)
+ 			break;
+ 
+ 		case OPT_X86:
+-			coder_add_filter(LZMA_FILTER_X86, NULL);
++			coder_add_filter(LZMA_FILTER_X86,
++					options_bcj(optarg));
+ 			break;
+ 
+ 		case OPT_POWERPC:
+-			coder_add_filter(LZMA_FILTER_POWERPC, NULL);
++			coder_add_filter(LZMA_FILTER_POWERPC,
++					options_bcj(optarg));
+ 			break;
+ 
+ 		case OPT_IA64:
+-			coder_add_filter(LZMA_FILTER_IA64, NULL);
++			coder_add_filter(LZMA_FILTER_IA64,
++					options_bcj(optarg));
+ 			break;
+ 
+ 		case OPT_ARM:
+-			coder_add_filter(LZMA_FILTER_ARM, NULL);
++			coder_add_filter(LZMA_FILTER_ARM,
++					options_bcj(optarg));
+ 			break;
+ 
+ 		case OPT_ARMTHUMB:
+-			coder_add_filter(LZMA_FILTER_ARMTHUMB, NULL);
++			coder_add_filter(LZMA_FILTER_ARMTHUMB,
++					options_bcj(optarg));
+ 			break;
+ 
+ 		case OPT_SPARC:
+-			coder_add_filter(LZMA_FILTER_SPARC, NULL);
++			coder_add_filter(LZMA_FILTER_SPARC,
++					options_bcj(optarg));
+ 			break;
+ 
+ 		case OPT_DELTA:
+diff --git a/src/xz/message.c b/src/xz/message.c
+index 7598adce..1d9cb76e 100644
+--- a/src/xz/message.c
++++ b/src/xz/message.c
+@@ -1101,12 +1101,14 @@ message_help(bool long_help)
+ 
+ 		puts(_(
+ "\n"
+-"  --x86               x86 filter (sometimes called BCJ filter)\n"
+-"  --powerpc           PowerPC (big endian) filter\n"
+-"  --ia64              IA64 (Itanium) filter\n"
+-"  --arm               ARM filter\n"
+-"  --armthumb          ARM-Thumb filter\n"
+-"  --sparc             SPARC filter"));
++"  --x86[=OPTS]        x86 BCJ filter\n"
++"  --powerpc[=OPTS]    PowerPC BCJ filter (big endian only)\n"
++"  --ia64[=OPTS]       IA64 (Itanium) BCJ filter\n"
++"  --arm[=OPTS]        ARM BCJ filter (little endian only)\n"
++"  --armthumb[=OPTS]   ARM-Thumb BCJ filter (little endian only)\n"
++"  --sparc[=OPTS]      SPARC BCJ filter\n"
++"                      Valid OPTS for all BCJ filters:\n"
++"                        start=NUM  start offset for conversions (default=0)"));
+ 
+ #if defined(HAVE_ENCODER_DELTA) || defined(HAVE_DECODER_DELTA)
+ 		puts(_(
+diff --git a/src/xz/options.c b/src/xz/options.c
+index ea52a595..69e545be 100644
+--- a/src/xz/options.c
++++ b/src/xz/options.c
+@@ -225,6 +225,46 @@ options_delta(const char *str)
+ }
+ 
+ 
++/////////
++// BCJ //
++/////////
++
++enum {
++	OPT_START_OFFSET,
++};
++
++
++static void
++set_bcj(void *options, uint32_t key, uint64_t value)
++{
++	lzma_options_bcj *opt = options;
++	switch (key) {
++	case OPT_START_OFFSET:
++		opt->start_offset = value;
++		break;
++	}
++}
++
++
++extern lzma_options_bcj *
++options_bcj(const char *str)
++{
++	static const option_map opts[] = {
++		{ "start",    NULL,  0, UINT32_MAX },
++		{ NULL,       NULL,  0, 0 }
++	};
++
++	lzma_options_bcj *options = xmalloc(sizeof(lzma_options_bcj));
++	*options = (lzma_options_bcj){
++		.start_offset = 0,
++	};
++
++	parse_options(str, opts, &set_bcj, options);
++
++	return options;
++}
++
++
+ //////////
+ // LZMA //
+ //////////
+diff --git a/src/xz/options.h b/src/xz/options.h
+index 426086bd..e7389c8e 100644
+--- a/src/xz/options.h
++++ b/src/xz/options.h
+@@ -24,6 +24,13 @@ extern lzma_options_subblock *options_subblock(const char *str);
+ extern lzma_options_delta *options_delta(const char *str);
+ 
+ 
++/// \brief      Parser for BCJ options
++///
++/// \return     Pointer to allocated options structure.
++///             Doesn't return on error.
++extern lzma_options_bcj *options_bcj(const char *str);
++
++
+ /// \brief      Parser for LZMA options
+ ///
+ /// \return     Pointer to allocated options structure.

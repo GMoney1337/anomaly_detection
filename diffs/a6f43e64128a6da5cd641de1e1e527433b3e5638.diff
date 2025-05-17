@@ -1,0 +1,68 @@
+diff --git a/configure.ac b/configure.ac
+index 2df36e56..c9676cf8 100644
+--- a/configure.ac
++++ b/configure.ac
+@@ -534,8 +534,6 @@ lc_CPUCORES
+ # If using GCC, set some additional AM_CFLAGS:
+ ###############################################################################
+ 
+-Wno_uninitialized=no
+-
+ if test "x$GCC" = xyes ; then
+ 	echo
+ 	echo "GCC extensions:"
+@@ -544,15 +542,6 @@ if test "x$GCC" = xyes ; then
+ 		AM_CFLAGS="$AM_CFLAGS $CFLAG_VISIBILITY"
+ 	fi
+ 
+-	# -Wno-uninitialized is needed with -Werror with SHA256 code
+-	# to omit a bogus warning.
+-	AC_MSG_CHECKING([if $CC accepts -Wno-uninitialized])
+-	OLD_CFLAGS="$CFLAGS"
+-	CFLAGS="$CFLAGS -Wno-uninitialized"
+-	AC_COMPILE_IFELSE([void foo(void) { }], [Wno_uninitialized=yes])
+-	CFLAGS="$OLD_CFLAGS"
+-	AC_MSG_RESULT([$Wno_uninitialized])
+-
+ 	# Enable as much warnings as possible. These commented warnings won't
+ 	# work for this package though:
+ 	#   * -Wunreachable-code breaks several assert(0) cases, which are
+@@ -608,8 +597,6 @@ if test "x$GCC" = xyes ; then
+ 	fi
+ fi
+ 
+-AM_CONDITIONAL([COND_WNO_UNINITIALIZED], test "x$Wno_uninitialized" = "xyes")
+-
+ 
+ ###############################################################################
+ # Create the makefiles and config.h
+diff --git a/src/liblzma/check/Makefile.am b/src/liblzma/check/Makefile.am
+index 1409bec0..6c43a701 100644
+--- a/src/liblzma/check/Makefile.am
++++ b/src/liblzma/check/Makefile.am
+@@ -44,9 +44,4 @@ endif
+ 
+ if COND_CHECK_SHA256
+ libcheck_la_SOURCES += sha256.c
+-# Hide bogus warning to allow usage of -Werror. If more issues like this
+-# pop up, we'll drop -Werror.
+-if COND_WNO_UNINITIALIZED
+-AM_CFLAGS += -Wno-uninitialized
+-endif
+ endif
+diff --git a/src/liblzma/check/sha256.c b/src/liblzma/check/sha256.c
+index 978fc668..6053a51b 100644
+--- a/src/liblzma/check/sha256.c
++++ b/src/liblzma/check/sha256.c
+@@ -22,6 +22,11 @@
+ //
+ ///////////////////////////////////////////////////////////////////////////////
+ 
++// Avoid bogus warnings in transform().
++#if (__GNUC__ == 4 && __GNUC_MINOR__ >= 2) || __GNUC__ > 4
++#	pragma GCC diagnostic ignored "-Wuninitialized"
++#endif
++
+ #include "check.h"
+ 
+ #ifndef WORDS_BIGENDIAN

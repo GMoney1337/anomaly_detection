@@ -1,0 +1,434 @@
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+index fdabd9f7..11928406 100644
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -697,7 +697,7 @@ if(XZ_SMALL)
+     target_sources(liblzma PRIVATE src/liblzma/check/crc32_small.c)
+ else()
+     target_sources(liblzma PRIVATE
+-        src/liblzma/check/crc32_table.c
++        src/liblzma/check/crc32_fast.c
+         src/liblzma/check/crc32_table_be.h
+         src/liblzma/check/crc32_table_le.h
+     )
+@@ -705,8 +705,6 @@ else()
+     if(XZ_ASM_I386)
+         target_sources(liblzma PRIVATE src/liblzma/check/crc32_x86.S)
+         target_compile_definitions(liblzma PRIVATE HAVE_CRC_X86_ASM)
+-    else()
+-        target_sources(liblzma PRIVATE src/liblzma/check/crc32_fast.c)
+     endif()
+ endif()
+ 
+@@ -717,7 +715,7 @@ if("crc64" IN_LIST XZ_CHECKS)
+         target_sources(liblzma PRIVATE src/liblzma/check/crc64_small.c)
+     else()
+         target_sources(liblzma PRIVATE
+-            src/liblzma/check/crc64_table.c
++            src/liblzma/check/crc64_fast.c
+             src/liblzma/check/crc64_table_be.h
+             src/liblzma/check/crc64_table_le.h
+         )
+@@ -726,8 +724,6 @@ if("crc64" IN_LIST XZ_CHECKS)
+             target_sources(liblzma PRIVATE src/liblzma/check/crc64_x86.S)
+             # Adding #define HAVE_CRC_X86_ASM was already handled in
+             # the CRC32 case a few lines above. CRC32 is always built.
+-        else()
+-            target_sources(liblzma PRIVATE src/liblzma/check/crc64_fast.c)
+         endif()
+     endif()
+ endif()
+diff --git a/src/liblzma/check/Makefile.inc b/src/liblzma/check/Makefile.inc
+index 6c0e3739..8334924c 100644
+--- a/src/liblzma/check/Makefile.inc
++++ b/src/liblzma/check/Makefile.inc
+@@ -20,13 +20,11 @@ if COND_SMALL
+ liblzma_la_SOURCES += check/crc32_small.c
+ else
+ liblzma_la_SOURCES += \
+-	check/crc32_table.c \
++	check/crc32_fast.c \
+ 	check/crc32_table_le.h \
+ 	check/crc32_table_be.h
+ if COND_ASM_X86
+ liblzma_la_SOURCES += check/crc32_x86.S
+-else
+-liblzma_la_SOURCES += check/crc32_fast.c
+ endif
+ endif
+ 
+@@ -35,13 +33,11 @@ if COND_SMALL
+ liblzma_la_SOURCES += check/crc64_small.c
+ else
+ liblzma_la_SOURCES += \
+-	check/crc64_table.c \
++	check/crc64_fast.c \
+ 	check/crc64_table_le.h \
+ 	check/crc64_table_be.h
+ if COND_ASM_X86
+ liblzma_la_SOURCES += check/crc64_x86.S
+-else
+-liblzma_la_SOURCES += check/crc64_fast.c
+ endif
+ endif
+ endif
+diff --git a/src/liblzma/check/crc32_fast.c b/src/liblzma/check/crc32_fast.c
+index 832f6c08..725a025a 100644
+--- a/src/liblzma/check/crc32_fast.c
++++ b/src/liblzma/check/crc32_fast.c
+@@ -28,6 +28,17 @@
+ // Generic CRC32 //
+ ///////////////////
+ 
++#ifdef WORDS_BIGENDIAN
++#	include "crc32_table_be.h"
++#else
++#	include "crc32_table_le.h"
++#endif
++
++
++#ifdef HAVE_CRC_X86_ASM
++extern uint32_t lzma_crc32_generic(
++		const uint8_t *buf, size_t size, uint32_t crc);
++#else
+ static uint32_t
+ lzma_crc32_generic(const uint8_t *buf, size_t size, uint32_t crc)
+ {
+@@ -85,7 +96,8 @@ lzma_crc32_generic(const uint8_t *buf, size_t size, uint32_t crc)
+ 
+ 	return ~crc;
+ }
+-#endif
++#endif // HAVE_CRC_X86_ASM
++#endif // CRC32_GENERIC
+ 
+ 
+ #if defined(CRC32_GENERIC) && defined(CRC32_ARCH_OPTIMIZED)
+diff --git a/src/liblzma/check/crc32_table.c b/src/liblzma/check/crc32_table.c
+deleted file mode 100644
+index 56413eec..00000000
+--- a/src/liblzma/check/crc32_table.c
++++ /dev/null
+@@ -1,42 +0,0 @@
+-// SPDX-License-Identifier: 0BSD
+-
+-///////////////////////////////////////////////////////////////////////////////
+-//
+-/// \file       crc32_table.c
+-/// \brief      Precalculated CRC32 table with correct endianness
+-//
+-//  Author:     Lasse Collin
+-//
+-///////////////////////////////////////////////////////////////////////////////
+-
+-#include "common.h"
+-
+-
+-// FIXME: Compared to crc_common.h this has to check for __x86_64__ too
+-// so that in 32-bit builds crc32_x86.S won't break due to a missing table.
+-#if defined(HAVE_USABLE_CLMUL) && ((defined(__x86_64__) && defined(__SSSE3__) \
+-			&& defined(__SSE4_1__) && defined(__PCLMUL__)) \
+-		|| (defined(__e2k__) && __iset__ >= 6))
+-#	define NO_CRC32_TABLE
+-
+-#elif defined(HAVE_ARM64_CRC32) \
+-		&& !defined(WORDS_BIGENDIAN) \
+-		&& defined(__ARM_FEATURE_CRC32)
+-#	define NO_CRC32_TABLE
+-#endif
+-
+-
+-#if !defined(HAVE_ENCODERS) && defined(NO_CRC32_TABLE)
+-// No table needed. Use a typedef to avoid an empty translation unit.
+-typedef void lzma_crc32_dummy;
+-
+-#else
+-// Having the declaration here silences clang -Wmissing-variable-declarations.
+-extern const uint32_t lzma_crc32_table[8][256];
+-
+-#	ifdef WORDS_BIGENDIAN
+-#		include "crc32_table_be.h"
+-#	else
+-#		include "crc32_table_le.h"
+-#	endif
+-#endif
+diff --git a/src/liblzma/check/crc32_x86.S b/src/liblzma/check/crc32_x86.S
+index ddc3cee6..37ee063d 100644
+--- a/src/liblzma/check/crc32_x86.S
++++ b/src/liblzma/check/crc32_x86.S
+@@ -67,7 +67,7 @@ init_table(void)
+ #endif
+ #define MAKE_SYM_CAT(prefix, sym) prefix ## sym
+ #define MAKE_SYM(prefix, sym) MAKE_SYM_CAT(prefix, sym)
+-#define LZMA_CRC32 MAKE_SYM(__USER_LABEL_PREFIX__, lzma_crc32)
++#define LZMA_CRC32 MAKE_SYM(__USER_LABEL_PREFIX__, lzma_crc32_generic)
+ #define LZMA_CRC32_TABLE MAKE_SYM(__USER_LABEL_PREFIX__, lzma_crc32_table)
+ 
+ /*
+@@ -82,6 +82,9 @@ init_table(void)
+ 
+ 	.text
+ 	.globl	LZMA_CRC32
++#ifdef __ELF__
++	.hidden	LZMA_CRC32
++#endif
+ 
+ #if !defined(__APPLE__) && !defined(_WIN32) && !defined(__CYGWIN__) \
+ 		&& !defined(__MSDOS__)
+@@ -290,14 +293,7 @@ LZMA_CRC32:
+ 	.indirect_symbol LZMA_CRC32_TABLE
+ 	.long 0
+ 
+-#elif defined(_WIN32) || defined(__CYGWIN__)
+-#	ifdef DLL_EXPORT
+-	/* This is equivalent of __declspec(dllexport). */
+-	.section .drectve
+-	.ascii " -export:lzma_crc32"
+-#	endif
+-
+-#elif !defined(__MSDOS__)
++#elif !defined(_WIN32) && !defined(__CYGWIN__) && !defined(__MSDOS__)
+ 	/* ELF */
+ 	.size	LZMA_CRC32, .-LZMA_CRC32
+ #endif
+diff --git a/src/liblzma/check/crc64_fast.c b/src/liblzma/check/crc64_fast.c
+index 82389aa8..8a6770a4 100644
+--- a/src/liblzma/check/crc64_fast.c
++++ b/src/liblzma/check/crc64_fast.c
+@@ -25,6 +25,18 @@
+ // Generic slice-by-four CRC64 //
+ /////////////////////////////////
+ 
++#if defined(WORDS_BIGENDIAN)
++#	include "crc64_table_be.h"
++#else
++#	include "crc64_table_le.h"
++#endif
++
++
++#ifdef HAVE_CRC_X86_ASM
++extern uint64_t lzma_crc64_generic(
++		const uint8_t *buf, size_t size, uint64_t crc);
++#else
++
+ #ifdef WORDS_BIGENDIAN
+ #	define A1(x) ((x) >> 56)
+ #else
+@@ -78,7 +90,8 @@ lzma_crc64_generic(const uint8_t *buf, size_t size, uint64_t crc)
+ 
+ 	return ~crc;
+ }
+-#endif
++#endif // HAVE_CRC_X86_ASM
++#endif // CRC64_GENERIC
+ 
+ 
+ #if defined(CRC64_GENERIC) && defined(CRC64_ARCH_OPTIMIZED)
+@@ -148,9 +161,6 @@ lzma_crc64(const uint8_t *buf, size_t size, uint64_t crc)
+ 	// If arch-optimized version is used unconditionally without runtime
+ 	// CPU detection then omitting the generic version and its 8 KiB
+ 	// lookup table makes the library smaller.
+-	//
+-	// FIXME: Lookup table isn't currently omitted on 32-bit x86,
+-	// see crc64_table.c.
+ 	return crc64_arch_optimized(buf, size, crc);
+ 
+ #else
+diff --git a/src/liblzma/check/crc64_table.c b/src/liblzma/check/crc64_table.c
+deleted file mode 100644
+index 78e42759..00000000
+--- a/src/liblzma/check/crc64_table.c
++++ /dev/null
+@@ -1,37 +0,0 @@
+-// SPDX-License-Identifier: 0BSD
+-
+-///////////////////////////////////////////////////////////////////////////////
+-//
+-/// \file       crc64_table.c
+-/// \brief      Precalculated CRC64 table with correct endianness
+-//
+-//  Author:     Lasse Collin
+-//
+-///////////////////////////////////////////////////////////////////////////////
+-
+-#include "common.h"
+-
+-
+-// FIXME: Compared to crc_common.h this has to check for __x86_64__ too
+-// so that in 32-bit builds crc64_x86.S won't break due to a missing table.
+-#if defined(HAVE_USABLE_CLMUL) && ((defined(__x86_64__) && defined(__SSSE3__) \
+-			&& defined(__SSE4_1__) && defined(__PCLMUL__)) \
+-		|| (defined(__e2k__) && __iset__ >= 6))
+-#	define NO_CRC64_TABLE
+-#endif
+-
+-
+-#ifdef NO_CRC64_TABLE
+-// No table needed. Use a typedef to avoid an empty translation unit.
+-typedef void lzma_crc64_dummy;
+-
+-#else
+-// Having the declaration here silences clang -Wmissing-variable-declarations.
+-extern const uint64_t lzma_crc64_table[4][256];
+-
+-#	if defined(WORDS_BIGENDIAN)
+-#		include "crc64_table_be.h"
+-#	else
+-#		include "crc64_table_le.h"
+-#	endif
+-#endif
+diff --git a/src/liblzma/check/crc64_x86.S b/src/liblzma/check/crc64_x86.S
+index 47f60818..df500186 100644
+--- a/src/liblzma/check/crc64_x86.S
++++ b/src/liblzma/check/crc64_x86.S
+@@ -57,7 +57,7 @@ init_table(void)
+ #endif
+ #define MAKE_SYM_CAT(prefix, sym) prefix ## sym
+ #define MAKE_SYM(prefix, sym) MAKE_SYM_CAT(prefix, sym)
+-#define LZMA_CRC64 MAKE_SYM(__USER_LABEL_PREFIX__, lzma_crc64)
++#define LZMA_CRC64 MAKE_SYM(__USER_LABEL_PREFIX__, lzma_crc64_generic)
+ #define LZMA_CRC64_TABLE MAKE_SYM(__USER_LABEL_PREFIX__, lzma_crc64_table)
+ 
+ /*
+@@ -72,6 +72,9 @@ init_table(void)
+ 
+ 	.text
+ 	.globl	LZMA_CRC64
++#ifdef __ELF__
++	.hidden	LZMA_CRC64
++#endif
+ 
+ #if !defined(__APPLE__) && !defined(_WIN32) && !defined(__CYGWIN__) \
+ 		&& !defined(__MSDOS__)
+@@ -273,14 +276,7 @@ LZMA_CRC64:
+ 	.indirect_symbol LZMA_CRC64_TABLE
+ 	.long 0
+ 
+-#elif defined(_WIN32) || defined(__CYGWIN__)
+-#	ifdef DLL_EXPORT
+-	/* This is equivalent of __declspec(dllexport). */
+-	.section .drectve
+-	.ascii " -export:lzma_crc64"
+-#	endif
+-
+-#elif !defined(__MSDOS__)
++#elif !defined(_WIN32) && !defined(__CYGWIN__) && !defined(__MSDOS__)
+ 	/* ELF */
+ 	.size	LZMA_CRC64, .-LZMA_CRC64
+ #endif
+diff --git a/src/liblzma/check/crc_common.h b/src/liblzma/check/crc_common.h
+index 7106646f..6a4a8d16 100644
+--- a/src/liblzma/check/crc_common.h
++++ b/src/liblzma/check/crc_common.h
+@@ -62,9 +62,6 @@
+ // ARM64 CRC32 instruction is only useful for CRC32. Currently, only
+ // little endian is supported since we were unable to test on a big
+ // endian machine.
+-//
+-// NOTE: Keep this and the next check in sync with the macro
+-//       NO_CRC32_TABLE in crc32_table.c
+ #if defined(HAVE_ARM64_CRC32) && !defined(WORDS_BIGENDIAN)
+ 	// Allow ARM64 CRC32 instruction without a runtime check if
+ 	// __ARM_FEATURE_CRC32 is defined. GCC and Clang only define
+@@ -81,12 +78,17 @@
+ 
+ #if defined(HAVE_USABLE_CLMUL)
+ // If CLMUL is allowed unconditionally in the compiler options then the
+-// generic version can be omitted. Note that this doesn't work with MSVC
+-// as I don't know how to detect the features here.
++// generic version and the tables can be omitted. Exceptions:
++//
++//   - If 32-bit x86 assembly files are enabled then those are always
++//     built and runtime detection is used even if compiler flags
++//     were set to allow CLMUL unconditionally.
++//
++//   - This doesn't work with MSVC as I don't know how to detect
++//     the features here.
+ //
+-// NOTE: Keep this in sync with the NO_CRC32_TABLE macro in crc32_table.c
+-// and NO_CRC64_TABLE in crc64_table.c.
+-#	if (defined(__SSSE3__) && defined(__SSE4_1__) && defined(__PCLMUL__)) \
++#	if (defined(__SSSE3__) && defined(__SSE4_1__) && defined(__PCLMUL__) \
++			&& !defined(HAVE_CRC_X86_ASM)) \
+ 		|| (defined(__e2k__) && __iset__ >= 6)
+ #		define CRC32_ARCH_OPTIMIZED 1
+ #		define CRC64_ARCH_OPTIMIZED 1
+diff --git a/src/liblzma/check/crc_x86_clmul.h b/src/liblzma/check/crc_x86_clmul.h
+index 92647654..b302d6cf 100644
+--- a/src/liblzma/check/crc_x86_clmul.h
++++ b/src/liblzma/check/crc_x86_clmul.h
+@@ -18,11 +18,6 @@
+ /// can be built at a time. The version to build is selected by defining
+ /// BUILDING_CRC_CLMUL to 32 or 64 before including this file.
+ ///
+-/// FIXME: Builds for 32-bit x86 use the assembly .S files by default
+-/// unless configured with --disable-assembler. Even then the lookup table
+-/// isn't omitted in crc64_table.c since it doesn't know that assembly
+-/// code has been disabled.
+-///
+ /// NOTE: The x86 CLMUL CRC implementation was rewritten for XZ Utils 5.8.0.
+ //
+ //  Authors:    Lasse Collin
+diff --git a/src/liblzma/lz/lz_encoder.c b/src/liblzma/lz/lz_encoder.c
+index 4af23e14..e5c4057d 100644
+--- a/src/liblzma/lz/lz_encoder.c
++++ b/src/liblzma/lz/lz_encoder.c
+@@ -15,7 +15,7 @@
+ 
+ // See lz_encoder_hash.h. This is a bit hackish but avoids making
+ // endianness a conditional in makefiles.
+-#if defined(WORDS_BIGENDIAN) && !defined(HAVE_SMALL)
++#ifdef LZMA_LZ_HASH_TABLE_IS_NEEDED
+ #	include "lz_encoder_hash_table.h"
+ #endif
+ 
+diff --git a/src/liblzma/lz/lz_encoder_hash.h b/src/liblzma/lz/lz_encoder_hash.h
+index 8ace82b0..6020b183 100644
+--- a/src/liblzma/lz/lz_encoder_hash.h
++++ b/src/liblzma/lz/lz_encoder_hash.h
+@@ -5,23 +5,37 @@
+ /// \file       lz_encoder_hash.h
+ /// \brief      Hash macros for match finders
+ //
+-//  Author:     Igor Pavlov
++//  Authors:    Igor Pavlov
++//              Lasse Collin
+ //
+ ///////////////////////////////////////////////////////////////////////////////
+ 
+ #ifndef LZMA_LZ_ENCODER_HASH_H
+ #define LZMA_LZ_ENCODER_HASH_H
+ 
+-#if defined(WORDS_BIGENDIAN) && !defined(HAVE_SMALL)
+-	// This is to make liblzma produce the same output on big endian
+-	// systems that it does on little endian systems. lz_encoder.c
+-	// takes care of including the actual table.
++// We need to know if CRC32_GENERIC is defined.
++#include "crc_common.h"
++
++// If HAVE_SMALL is defined, then lzma_crc32_table[][] exists and
++// it's little endian even on big endian systems.
++//
++// If HAVE_SMALL isn't defined, lzma_crc32_table[][] is in native endian
++// but we want a little endian one so that the compressed output won't
++// depend on the processor endianness. Big endian systems are less common
++// so those get the burden of an extra 1 KiB table.
++//
++// If HAVE_SMALL isn't defined and CRC32_GENERIC isn't defined either,
++// then lzma_crc32_table[][] doesn't exist.
++#if defined(HAVE_SMALL) \
++		|| (defined(CRC32_GENERIC) && !defined(WORDS_BIGENDIAN))
++#	include "check.h"
++#	define hash_table lzma_crc32_table[0]
++#else
++	// lz_encoder.c takes care of including the actual table.
+ 	lzma_attr_visibility_hidden
+ 	extern const uint32_t lzma_lz_hash_table[256];
+ #	define hash_table lzma_lz_hash_table
+-#else
+-#	include "check.h"
+-#	define hash_table lzma_crc32_table[0]
++#	define LZMA_LZ_HASH_TABLE_IS_NEEDED 1
+ #endif
+ 
+ #define HASH_2_SIZE (UINT32_C(1) << 10)

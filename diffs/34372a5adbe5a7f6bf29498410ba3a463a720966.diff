@@ -1,0 +1,12 @@
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+index d2d29db6..c5573d7b 100644
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -448,6 +448,7 @@ set(SIMPLE_FILTERS
+     powerpc
+     ia64
+     sparc
++    riscv
+ )
+ 
+ # The SUPPORTED_FILTERS are shared between Encoders and Decoders

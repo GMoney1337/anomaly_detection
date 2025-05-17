@@ -1,0 +1,71 @@
+diff --git a/src/liblzma/api/lzma/base.h b/src/liblzma/api/lzma/base.h
+index fc165ab7..43dde8d6 100644
+--- a/src/liblzma/api/lzma/base.h
++++ b/src/liblzma/api/lzma/base.h
+@@ -478,8 +478,12 @@ typedef struct {
+ 	 */
+ 	void *reserved_ptr1;
+ 	void *reserved_ptr2;
++	void *reserved_ptr3;
++	void *reserved_ptr4;
+ 	uint64_t reserved_int1;
+ 	uint64_t reserved_int2;
++	size_t reserved_int3;
++	size_t reserved_int4;
+ 	lzma_reserved_enum reserved_enum1;
+ 	lzma_reserved_enum reserved_enum2;
+ 
+@@ -506,7 +510,8 @@ typedef struct {
+  */
+ #define LZMA_STREAM_INIT \
+ 	{ NULL, 0, 0, NULL, 0, 0, NULL, NULL, \
+-	NULL, NULL, 0, 0, LZMA_RESERVED_ENUM, LZMA_RESERVED_ENUM }
++	NULL, NULL, NULL, NULL, 0, 0, 0, 0, \
++	LZMA_RESERVED_ENUM, LZMA_RESERVED_ENUM }
+ 
+ 
+ /**
+diff --git a/src/liblzma/api/lzma/lzma.h b/src/liblzma/api/lzma/lzma.h
+index ae577282..8d5fdb6e 100644
+--- a/src/liblzma/api/lzma/lzma.h
++++ b/src/liblzma/api/lzma/lzma.h
+@@ -381,8 +381,6 @@ typedef struct {
+ 	 * with the currently supported options, so it is safe to leave these
+ 	 * uninitialized.
+ 	 */
+-	void *reserved_ptr1;
+-	void *reserved_ptr2;
+ 	uint32_t reserved_int1;
+ 	uint32_t reserved_int2;
+ 	uint32_t reserved_int3;
+@@ -395,6 +393,8 @@ typedef struct {
+ 	lzma_reserved_enum reserved_enum2;
+ 	lzma_reserved_enum reserved_enum3;
+ 	lzma_reserved_enum reserved_enum4;
++	void *reserved_ptr1;
++	void *reserved_ptr2;
+ 
+ } lzma_options_lzma;
+ 
+diff --git a/src/liblzma/api/lzma/stream_flags.h b/src/liblzma/api/lzma/stream_flags.h
+index c6e73037..bbdd4082 100644
+--- a/src/liblzma/api/lzma/stream_flags.h
++++ b/src/liblzma/api/lzma/stream_flags.h
+@@ -91,8 +91,6 @@ typedef struct {
+ 	lzma_reserved_enum reserved_enum2;
+ 	lzma_reserved_enum reserved_enum3;
+ 	lzma_reserved_enum reserved_enum4;
+-	lzma_reserved_enum reserved_enum5;
+-	lzma_reserved_enum reserved_enum6;
+ 	lzma_bool reserved_bool1;
+ 	lzma_bool reserved_bool2;
+ 	lzma_bool reserved_bool3;
+@@ -103,8 +101,6 @@ typedef struct {
+ 	lzma_bool reserved_bool8;
+ 	uint32_t reserved_int1;
+ 	uint32_t reserved_int2;
+-	uint32_t reserved_int3;
+-	uint32_t reserved_int4;
+ 
+ } lzma_stream_flags;
+ 

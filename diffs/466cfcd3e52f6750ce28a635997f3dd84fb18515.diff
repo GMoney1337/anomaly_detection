@@ -1,0 +1,13 @@
+diff --git a/src/xz/list.c b/src/xz/list.c
+index 70b4a9bb..06c9c1ee 100644
+--- a/src/xz/list.c
++++ b/src/xz/list.c
+@@ -101,7 +101,7 @@ static int colon_strs_fw[ARRAY_SIZE(colon_strs)];
+ 
+ 
+ /// Column headings
+-struct {
++static struct {
+ 	/// Table column heading string
+ 	const char *str;
+ 

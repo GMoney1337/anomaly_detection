@@ -1,0 +1,12 @@
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+index 2e4ae1ec..44869e59 100644
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -852,6 +852,7 @@ if(BUILD_TESTING)
+         test_hardware
+         test_index
+         test_index_hash
++        test_lzip_decoder
+         test_memlimit
+         test_stream_flags
+         test_vli

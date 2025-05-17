@@ -1,0 +1,12 @@
+diff --git a/THANKS b/THANKS
+index 699d025c..c2d268bd 100644
+--- a/THANKS
++++ b/THANKS
+@@ -144,6 +144,7 @@ has been important. :-) In alphabetical order:
+   - Brad Smith
+   - Bruce Stark
+   - Pippijn van Steenhoven
++  - Martin Storsjö
+   - Jonathan Stott
+   - Dan Stromberg
+   - Jia Tan

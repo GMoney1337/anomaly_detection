@@ -1,0 +1,202 @@
+diff --git a/src/liblzma/common/outqueue.c b/src/liblzma/common/outqueue.c
+index 6331a50c..71e8648a 100644
+--- a/src/liblzma/common/outqueue.c
++++ b/src/liblzma/common/outqueue.c
+@@ -34,7 +34,8 @@ lzma_outq_memusage(uint64_t buf_size_max, uint32_t threads)
+ 	if (threads > LZMA_THREADS_MAX || buf_size_max > limit)
+ 		return UINT64_MAX;
+ 
+-	return GET_BUFS_LIMIT(threads) * (sizeof(lzma_outbuf) + buf_size_max);
++	return GET_BUFS_LIMIT(threads)
++			* lzma_outq_outbuf_memusage(buf_size_max);
+ }
+ 
+ 
+@@ -45,8 +46,6 @@ move_head_to_cache(lzma_outq *outq, const lzma_allocator *allocator)
+ 	assert(outq->tail != NULL);
+ 	assert(outq->bufs_in_use > 0);
+ 
+-	--outq->bufs_in_use;
+-
+ 	lzma_outbuf *buf = outq->head;
+ 	outq->head = buf->next;
+ 	if (outq->head == NULL)
+@@ -58,6 +57,9 @@ move_head_to_cache(lzma_outq *outq, const lzma_allocator *allocator)
+ 	buf->next = outq->cache;
+ 	outq->cache = buf;
+ 
++	--outq->bufs_in_use;
++	outq->mem_in_use -= lzma_outq_outbuf_memusage(buf->allocated);
++
+ 	return;
+ }
+ 
+@@ -71,7 +73,7 @@ free_one_cached_buffer(lzma_outq *outq, const lzma_allocator *allocator)
+ 	outq->cache = buf->next;
+ 
+ 	--outq->bufs_allocated;
+-	outq->memusage -= sizeof(*buf) + buf->allocated;
++	outq->mem_allocated -= lzma_outq_outbuf_memusage(buf->allocated);
+ 
+ 	lzma_free(buf, allocator);
+ 	return;
+@@ -88,6 +90,25 @@ lzma_outq_clear_cache(lzma_outq *outq, const lzma_allocator *allocator)
+ }
+ 
+ 
++extern void
++lzma_outq_clear_cache2(lzma_outq *outq, const lzma_allocator *allocator,
++		size_t keep_size)
++{
++	if (outq->cache == NULL)
++		return;
++
++	// Free all but one.
++	while (outq->cache->next != NULL)
++		free_one_cached_buffer(outq, allocator);
++
++	// Free the last one only if its size doesn't equal to keep_size.
++	if (outq->cache->allocated != keep_size)
++		free_one_cached_buffer(outq, allocator);
++
++	return;
++}
++
++
+ extern lzma_ret
+ lzma_outq_init(lzma_outq *outq, const lzma_allocator *allocator,
+ 		uint32_t threads)
+@@ -139,10 +160,12 @@ lzma_outq_prealloc_buf(lzma_outq *outq, const lzma_allocator *allocator,
+ 	if (size > SIZE_MAX - sizeof(lzma_outbuf))
+ 		return LZMA_MEM_ERROR;
+ 
++	const size_t alloc_size = lzma_outq_outbuf_memusage(size);
++
+ 	// The cache may have buffers but their size is wrong.
+ 	lzma_outq_clear_cache(outq, allocator);
+ 
+-	outq->cache = lzma_alloc(sizeof(lzma_outbuf) + size, allocator);
++	outq->cache = lzma_alloc(alloc_size, allocator);
+ 	if (outq->cache == NULL)
+ 		return LZMA_MEM_ERROR;
+ 
+@@ -150,7 +173,7 @@ lzma_outq_prealloc_buf(lzma_outq *outq, const lzma_allocator *allocator,
+ 	outq->cache->allocated = size;
+ 
+ 	++outq->bufs_allocated;
+-	outq->memusage += sizeof(lzma_outbuf) + size;
++	outq->mem_allocated += alloc_size;
+ 
+ 	return LZMA_OK;
+ }
+@@ -180,12 +203,15 @@ lzma_outq_get_buf(lzma_outq *outq, void *worker)
+ 
+ 	buf->worker = worker;
+ 	buf->finished = false;
++	buf->finish_ret = LZMA_STREAM_END;
+ 	buf->pos = 0;
++	buf->decoder_in_pos = 0;
+ 
+ 	buf->unpadded_size = 0;
+ 	buf->uncompressed_size = 0;
+ 
+ 	++outq->bufs_in_use;
++	outq->mem_in_use += lzma_outq_outbuf_memusage(buf->allocated);
+ 
+ 	return buf;
+ }
+@@ -234,11 +260,14 @@ lzma_outq_read(lzma_outq *restrict outq,
+ 	if (uncompressed_size != NULL)
+ 		*uncompressed_size = buf->uncompressed_size;
+ 
++	// Remember the return value.
++	const lzma_ret finish_ret = buf->finish_ret;
++
+ 	// Free this buffer for further use.
+ 	move_head_to_cache(outq, allocator);
+ 	outq->read_pos = 0;
+ 
+-	return LZMA_STREAM_END;
++	return finish_ret;
+ }
+ 
+ 
+diff --git a/src/liblzma/common/outqueue.h b/src/liblzma/common/outqueue.h
+index 355e0ced..596911e9 100644
+--- a/src/liblzma/common/outqueue.h
++++ b/src/liblzma/common/outqueue.h
+@@ -36,12 +36,28 @@ struct lzma_outbuf_s {
+ 	///             to this variable needs a mutex.
+ 	size_t pos;
+ 
++	/// Decompression: Position in the input buffer in the worker thread
++	/// that matches the output "pos" above. This is used to detect if
++	/// more output might be possible from the worker thread: if it has
++	/// consumed all its input, then more output isn't possible.
++	///
++	/// \note       This is read by another thread and thus access
++	///             to this variable needs a mutex.
++	size_t decoder_in_pos;
++
+ 	/// True when no more data will be written into this buffer.
+ 	///
+ 	/// \note       This is read by another thread and thus access
+ 	///             to this variable needs a mutex.
+ 	bool finished;
+ 
++	/// Return value for lzma_outq_read() when the last byte from
++	/// a finished buffer has been read. Defaults to LZMA_STREAM_END.
++	/// This must *not* be LZMA_OK. The idea is to allow a decoder to
++	/// pass an error code to the main thread, setting the code here
++	/// together with finished = true.
++	lzma_ret finish_ret;
++
+ 	/// Additional size information. lzma_outq_read() may read these
+ 	/// when "finished" is true.
+ 	lzma_vli unpadded_size;
+@@ -69,7 +85,11 @@ typedef struct {
+ 	lzma_outbuf *cache;
+ 
+ 	/// Total amount of memory allocated for buffers
+-	uint64_t memusage;
++	uint64_t mem_allocated;
++
++	/// Amount of memory used by the buffers that are in use in
++	/// the head...tail linked list.
++	uint64_t mem_in_use;
+ 
+ 	/// Number of buffers in use in the head...tail list. If and only if
+ 	/// this is zero, the pointers head and tail above are NULL.
+@@ -123,6 +143,16 @@ extern void lzma_outq_clear_cache(
+ 		lzma_outq *outq, const lzma_allocator *allocator);
+ 
+ 
++/// \brief      Like lzma_outq_clear_cache() but might keep one buffer
++///
++/// One buffer is not freed if its size is equal to keep_size.
++/// This is useful if the caller knows that it will soon need a buffer of
++/// keep_size bytes. This way it won't be freed and immediately reallocated.
++extern void lzma_outq_clear_cache2(
++		lzma_outq *outq, const lzma_allocator *allocator,
++		size_t keep_size);
++
++
+ /// \brief      Preallocate a new buffer into cache
+ ///
+ /// Splitting the buffer allocation into a separate function makes it
+@@ -210,3 +240,15 @@ lzma_outq_is_empty(const lzma_outq *outq)
+ {
+ 	return outq->bufs_in_use == 0;
+ }
++
++
++/// \brief      Get the amount of memory needed for a single lzma_outbuf
++///
++/// \note       Caller must check that the argument is significantly less
++///             than SIZE_MAX to avoid an integer overflow!
++static inline uint64_t
++lzma_outq_outbuf_memusage(size_t buf_size)
++{
++	assert(buf_size <= SIZE_MAX - sizeof(lzma_outbuf));
++	return sizeof(lzma_outbuf) + buf_size;
++}

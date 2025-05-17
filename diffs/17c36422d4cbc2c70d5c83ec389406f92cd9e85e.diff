@@ -1,0 +1,13 @@
+diff --git a/src/lzma/options.c b/src/lzma/options.c
+index 2928aafc..c82cb1a0 100644
+--- a/src/lzma/options.c
++++ b/src/lzma/options.c
+@@ -113,7 +113,7 @@ parse_options(const char *str, const option_map *opts,
+ 					my_exit(ERROR);
+ 				}
+ 
+-				set(filter_options, i, j);
++				set(filter_options, i, opts[i].map[j].id);
+ 			}
+ 
+ 			found = true;

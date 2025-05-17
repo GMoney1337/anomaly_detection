@@ -1,0 +1,12 @@
+diff --git a/THANKS b/THANKS
+index 8f71b12f..e31f401c 100644
+--- a/THANKS
++++ b/THANKS
+@@ -41,6 +41,7 @@ has been important. :-) In alphabetical order:
+   - Marcus Comstedt
+   - Vincent Cruz
+   - Gabi Davar
++  - Ron Desmond
+   - İhsan Doğan
+   - Chris Donawa
+   - Andrew Dudman

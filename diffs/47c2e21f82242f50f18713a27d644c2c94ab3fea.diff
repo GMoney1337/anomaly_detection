@@ -1,0 +1,76 @@
+diff --git a/src/liblzma/api/lzma/container.h b/src/liblzma/api/lzma/container.h
+index b7a6128e..b8085ac4 100644
+--- a/src/liblzma/api/lzma/container.h
++++ b/src/liblzma/api/lzma/container.h
+@@ -124,6 +124,39 @@ extern LZMA_API(lzma_ret) lzma_easy_encoder(
+ 		lzma_attr_warn_unused_result;
+ 
+ 
++/**
++ * \brief       Single-call .xz Stream encoding using a preset number
++ *
++ * The maximum required output buffer size can be calculated with
++ * lzma_stream_buffer_bound().
++ *
++ * \param       preset      Compression preset to use. See the description
++ *                          in lzma_easy_encoder().
++ * \param       check       Type of the integrity check to calculate from
++ *                          uncompressed data.
++ * \param       allocator   lzma_allocator for custom allocator functions.
++ *                          Set to NULL to use malloc() and free().
++ * \param       in          Beginning of the input buffer
++ * \param       in_size     Size of the input buffer
++ * \param       out         Beginning of the output buffer
++ * \param       out_pos     The next byte will be written to out[*out_pos].
++ *                          *out_pos is updated only if encoding succeeds.
++ * \param       out_size    Size of the out buffer; the first byte into
++ *                          which no data is written to is out[out_size].
++ *
++ * \return      - LZMA_OK: Encoding was successful.
++ *              - LZMA_BUF_ERROR: Not enough output buffer space.
++ *              - LZMA_OPTIONS_ERROR
++ *              - LZMA_MEM_ERROR
++ *              - LZMA_DATA_ERROR
++ *              - LZMA_PROG_ERROR
++ */
++extern LZMA_API(lzma_ret) lzma_easy_buffer_encode(
++		uint32_t preset, lzma_check check,
++		lzma_allocator *allocator, const uint8_t *in, size_t in_size,
++		uint8_t *out, size_t *out_pos, size_t out_size);
++
++
+ /**
+  * \brief       Initialize .xz Stream encoder using a custom filter chain
+  *
+diff --git a/src/liblzma/common/Makefile.am b/src/liblzma/common/Makefile.am
+index 3cb5a653..5f4efbe6 100644
+--- a/src/liblzma/common/Makefile.am
++++ b/src/liblzma/common/Makefile.am
+@@ -28,6 +28,8 @@ libcommon_la_SOURCES = \
+ 	common.h \
+ 	bsr.h \
+ 	block_util.c \
++	easy_preset.c \
++	easy_preset.h \
+ 	filter_common.c \
+ 	filter_common.h \
+ 	index.c \
+@@ -43,7 +45,9 @@ libcommon_la_SOURCES += \
+ 	block_encoder.c \
+ 	block_encoder.h \
+ 	block_header_encoder.c \
+-	easy.c \
++	easy_buffer_encoder.c \
++	easy_encoder.c \
++	easy_encoder_memusage.c \
+ 	filter_buffer_encoder.c \
+ 	filter_encoder.c \
+ 	filter_encoder.h \
+@@ -66,6 +70,7 @@ libcommon_la_SOURCES += \
+ 	block_decoder.c \
+ 	block_decoder.h \
+ 	block_header_decoder.c \
++	easy_decoder_memusage.c \
+ 	filter_buffer_decoder.c \
+ 	filter_decoder.c \
+ 	filter_decoder.h \

@@ -1,0 +1,17 @@
+diff --git a/tests/test_compress.sh b/tests/test_compress.sh
+index 05668191..d0511e44 100755
+--- a/tests/test_compress.sh
++++ b/tests/test_compress.sh
+@@ -111,9 +111,9 @@ do
+ 		--subblock=size=8,rle=4 \
+ 		--subblock=size=8,rle=8 \
+ 		--subblock=size=4096,rle=12 \
+-		--delta=distance=1 \
+-		--delta=distance=4 \
+-		--delta=distance=256 \
++		--delta=dist=1 \
++		--delta=dist=4 \
++		--delta=dist=256 \
+ 		--x86 \
+ 		--powerpc \
+ 		--ia64 \

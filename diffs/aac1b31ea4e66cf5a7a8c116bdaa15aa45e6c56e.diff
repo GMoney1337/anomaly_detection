@@ -1,0 +1,28 @@
+diff --git a/src/liblzma/simple/simple_coder.c b/src/liblzma/simple/simple_coder.c
+index 37de7fa1..9e7bc289 100644
+--- a/src/liblzma/simple/simple_coder.c
++++ b/src/liblzma/simple/simple_coder.c
+@@ -35,9 +35,6 @@ copy_or_code(lzma_coder *coder, lzma_allocator *allocator,
+ 
+ 	} else {
+ 		// Call the next coder in the chain to provide us some data.
+-		// We don't care about uncompressed_size here, because
+-		// the next filter in the chain will do it for us (since
+-		// we don't change the size of the data).
+ 		const lzma_ret ret = coder->next.code(
+ 				coder->next.coder, allocator,
+ 				in, in_pos, in_size,
+diff --git a/src/liblzma/simple/simple_private.h b/src/liblzma/simple/simple_private.h
+index a69f8278..fcf9f7c1 100644
+--- a/src/liblzma/simple/simple_private.h
++++ b/src/liblzma/simple/simple_private.h
+@@ -22,8 +22,7 @@ struct lzma_coder_s {
+ 	/// Next filter in the chain
+ 	lzma_next_coder next;
+ 
+-	/// True if the next coder in the chain has returned LZMA_STREAM_END
+-	/// or if we have processed uncompressed_size bytes.
++	/// True if the next coder in the chain has returned LZMA_STREAM_END.
+ 	bool end_was_reached;
+ 
+ 	/// True if filter() should encode the data; false to decode.

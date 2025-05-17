@@ -1,0 +1,64 @@
+diff --git a/windows/Makefile b/windows/Makefile
+index 43f25af6..c4c036c1 100644
+--- a/windows/Makefile
++++ b/windows/Makefile
+@@ -36,6 +36,8 @@ STRIP = strip
+ endif
+ 
+ SED = sed
++MKDIR = mkdir
++CP = cp
+ RM = rm -f
+ 
+ CFLAGS = -g -Wall -Wextra -O2
+@@ -90,11 +92,11 @@ clean: liblzma-clean xzdec-clean xz-clean
+ 
+ pkg: all
+ 	$(RM) -r pkg
+-	install -d pkg/lib pkg/include/lzma
+-	install -m 0644 liblzma.dll xz.exe xzdec.exe lzmadec.exe pkg
+-	install -m 0644 liblzma.a liblzma.def pkg/lib
+-	install -m 0644 ../src/liblzma/api/lzma.h pkg/include
+-	install -m 0644 ../src/liblzma/api/lzma/*.h pkg/include/lzma
++	$(MKDIR) -p pkg/lib pkg/include/lzma
++	$(CP) liblzma.dll xz.exe xzdec.exe lzmadec.exe pkg
++	$(CP) liblzma.a liblzma.def pkg/lib
++	$(CP) ../src/liblzma/api/lzma.h pkg/include
++	$(CP) ../src/liblzma/api/lzma/*.h pkg/include/lzma
+ 
+ 
+ ###############
+diff --git a/windows/README b/windows/README
+index 4acc6802..dddbbe1d 100644
+--- a/windows/README
++++ b/windows/README
+@@ -65,23 +65,24 @@ Building for 32-bit Windows
+     Add MinGW and MSYS to PATH (adjust if you installed to non-default
+     location):
+ 
+-        C:\>set PATH=C:\MinGW\bin;C:\MSYS\1.0\bin;%PATH%
++        set PATH=C:\MinGW\bin;C:\MSYS\1.0\bin;%PATH%
+ 
+-    Then it should be enough to just run mingw32-make in this directory:
++    Then it should be enough to just run mingw32-make in this directory
++    (the directory containing this README):
+ 
+-        C:\xz-5.x.x\windows>mingw32-make
++        mingw32-make
+ 
+ 
+ Building for 64-bit Windows
+ 
+     For 64-bit build the PATH has to point to 64-bit MinGW:
+ 
+-        C:\>set PATH=C:\MinGW64\bin;C:\MSYS\1.0\bin;%PATH%
++        set PATH=C:\MinGW64\bin;C:\MSYS\1.0\bin;%PATH%
+ 
+     You need to pass W64=1 to mingw32-make (or make if you don't have
+     mingw32-make):
+ 
+-        C:\xz-5.x.x\windows>mingw32-make W64=1
++        mingw32-make W64=1
+ 
+ 
+ Additional Make Flags and Targets

@@ -1,0 +1,12 @@
+diff --git a/THANKS b/THANKS
+index fcd1e698..cad65242 100644
+--- a/THANKS
++++ b/THANKS
+@@ -68,6 +68,7 @@ has been important. :-) In alphabetical order:
+   - Iouri Kharon
+   - Thomas Klausner
+   - Richard Koch
++  - Anton Kochkov
+   - Ville Koskinen
+   - Marcin Kowalczyk
+   - Jan Kratochvil

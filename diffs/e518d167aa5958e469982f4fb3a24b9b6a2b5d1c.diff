@@ -1,0 +1,26 @@
+diff --git a/src/liblzma/simple/arm.c b/src/liblzma/simple/arm.c
+index a58b9ba6..46960fc8 100644
+--- a/src/liblzma/simple/arm.c
++++ b/src/liblzma/simple/arm.c
+@@ -19,7 +19,7 @@ arm_code(lzma_simple *simple lzma_attribute((unused)),
+ 		uint32_t now_pos, bool is_encoder,
+ 		uint8_t *buffer, size_t size)
+ {
+-	uint32_t i;
++	size_t i;
+ 	for (i = 0; i + 4 <= size; i += 4) {
+ 		if (buffer[i + 3] == 0xEB) {
+ 			uint32_t src = (buffer[i + 2] << 16)
+diff --git a/src/liblzma/simple/armthumb.c b/src/liblzma/simple/armthumb.c
+index 77cfce11..e20151cc 100644
+--- a/src/liblzma/simple/armthumb.c
++++ b/src/liblzma/simple/armthumb.c
+@@ -19,7 +19,7 @@ armthumb_code(lzma_simple *simple lzma_attribute((unused)),
+ 		uint32_t now_pos, bool is_encoder,
+ 		uint8_t *buffer, size_t size)
+ {
+-	uint32_t i;
++	size_t i;
+ 	for (i = 0; i + 4 <= size; i += 2) {
+ 		if ((buffer[i + 1] & 0xF8) == 0xF0
+ 				&& (buffer[i + 3] & 0xF8) == 0xF8) {

@@ -1,0 +1,25 @@
+diff --git a/src/liblzma/common/Makefile.inc b/src/liblzma/common/Makefile.inc
+index 8f0d84ec..78bc95bb 100644
+--- a/src/liblzma/common/Makefile.inc
++++ b/src/liblzma/common/Makefile.inc
+@@ -22,7 +22,10 @@ liblzma_la_SOURCES += \
+ 	common/vli_size.c
+ 
+ if COND_THREADS
+-liblzma_la_SOURCES += common/hardware_cputhreads.c
++liblzma_la_SOURCES += \
++	common/hardware_cputhreads.c \
++	common/outqueue.c \
++	common/outqueue.h
+ endif
+ 
+ if COND_MAIN_ENCODER
+@@ -50,8 +53,6 @@ liblzma_la_SOURCES += \
+ 
+ if COND_THREADS
+ liblzma_la_SOURCES += \
+-	common/outqueue.c \
+-	common/outqueue.h \
+ 	common/stream_encoder_mt.c
+ endif
+ endif

@@ -1,0 +1,15 @@
+diff --git a/src/xz/message.c b/src/xz/message.c
+index eba7205f..ae9b590e 100644
+--- a/src/xz/message.c
++++ b/src/xz/message.c
+@@ -1075,6 +1075,10 @@ message_help(bool long_help)
+ "  -0 .. -9            compression preset; 0-2 fast compression, 3-5 good\n"
+ "                      compression, 6-9 excellent compression; default is 6"));
+ 
++	puts(_(
++"  -e, --extreme       use more CPU time when encoding to increase compression\n"
++"                      ratio without increasing memory usage of the decoder"));
++
+ 	puts(_(
+ "  -M, --memory=NUM    use roughly NUM bytes of memory at maximum; 0 indicates\n"
+ "                      the default setting, which depends on the operation mode\n"

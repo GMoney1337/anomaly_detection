@@ -1,0 +1,87 @@
+diff --git a/src/liblzma/common/index.h b/src/liblzma/common/index.h
+index 64e97247..ea396714 100644
+--- a/src/liblzma/common/index.h
++++ b/src/liblzma/common/index.h
+@@ -22,6 +22,9 @@
+ /// Maximum Unpadded Size
+ #define UNPADDED_SIZE_MAX (LZMA_VLI_MAX & ~LZMA_VLI_C(3))
+ 
++/// Index Indicator based on xz specification
++#define INDEX_INDICATOR 0
++
+ 
+ /// Get the size of the Index Padding field. This is needed by Index encoder
+ /// and decoder, but applications should have no use for this.
+diff --git a/src/liblzma/common/index_decoder.c b/src/liblzma/common/index_decoder.c
+index b2689885..8622b2f0 100644
+--- a/src/liblzma/common/index_decoder.c
++++ b/src/liblzma/common/index_decoder.c
+@@ -80,7 +80,7 @@ index_decode(void *coder_ptr, const lzma_allocator *allocator,
+ 		// format". One could argue that the application should
+ 		// verify the Index Indicator before trying to decode the
+ 		// Index, but well, I suppose it is simpler this way.
+-		if (in[(*in_pos)++] != 0x00)
++		if (in[(*in_pos)++] != INDEX_INDICATOR)
+ 			return LZMA_DATA_ERROR;
+ 
+ 		coder->sequence = SEQ_COUNT;
+diff --git a/src/liblzma/common/index_encoder.c b/src/liblzma/common/index_encoder.c
+index ac97d0ce..c7cafb72 100644
+--- a/src/liblzma/common/index_encoder.c
++++ b/src/liblzma/common/index_encoder.c
+@@ -65,7 +65,7 @@ index_encode(void *coder_ptr,
+ 	while (*out_pos < out_size)
+ 	switch (coder->sequence) {
+ 	case SEQ_INDICATOR:
+-		out[*out_pos] = 0x00;
++		out[*out_pos] = INDEX_INDICATOR;
+ 		++*out_pos;
+ 		coder->sequence = SEQ_COUNT;
+ 		break;
+diff --git a/src/liblzma/common/index_hash.c b/src/liblzma/common/index_hash.c
+index 34df85d7..c3c56674 100644
+--- a/src/liblzma/common/index_hash.c
++++ b/src/liblzma/common/index_hash.c
+@@ -190,7 +190,7 @@ lzma_index_hash_decode(lzma_index_hash *index_hash, const uint8_t *in,
+ 	switch (index_hash->sequence) {
+ 	case SEQ_BLOCK:
+ 		// Check the Index Indicator is present.
+-		if (in[(*in_pos)++] != 0x00)
++		if (in[(*in_pos)++] != INDEX_INDICATOR)
+ 			return LZMA_DATA_ERROR;
+ 
+ 		index_hash->sequence = SEQ_COUNT;
+diff --git a/src/liblzma/common/stream_decoder.c b/src/liblzma/common/stream_decoder.c
+index dcf7c149..64283812 100644
+--- a/src/liblzma/common/stream_decoder.c
++++ b/src/liblzma/common/stream_decoder.c
+@@ -12,6 +12,7 @@
+ 
+ #include "stream_decoder.h"
+ #include "block_decoder.h"
++#include "index.h"
+ 
+ 
+ typedef struct {
+@@ -164,7 +165,7 @@ stream_decode(void *coder_ptr, const lzma_allocator *allocator,
+ 
+ 		if (coder->pos == 0) {
+ 			// Detect if it's Index.
+-			if (in[*in_pos] == 0x00) {
++			if (in[*in_pos] == INDEX_INDICATOR) {
+ 				coder->sequence = SEQ_INDEX;
+ 				break;
+ 			}
+diff --git a/src/liblzma/common/stream_decoder_mt.c b/src/liblzma/common/stream_decoder_mt.c
+index 5733c764..fd5cd7fd 100644
+--- a/src/liblzma/common/stream_decoder_mt.c
++++ b/src/liblzma/common/stream_decoder_mt.c
+@@ -887,7 +887,7 @@ decode_block_header(struct lzma_stream_coder *coder,
+ 
+ 	if (coder->pos == 0) {
+ 		// Detect if it's Index.
+-		if (in[*in_pos] == 0x00)
++		if (in[*in_pos] == INDEX_INDICATOR)
+ 			return LZMA_INDEX_DETECTED;
+ 
+ 		// Calculate the size of the Block Header. Note that

@@ -1,0 +1,171 @@
+diff --git a/configure.ac b/configure.ac
+index c9676cf8..ad43e4fb 100644
+--- a/configure.ac
++++ b/configure.ac
+@@ -427,7 +427,14 @@ echo
+ echo "Initializing Libtool:"
+ CXX=no
+ F77=no
++AC_LIBTOOL_WIN32_DLL
+ AC_PROG_LIBTOOL
++AC_LIBTOOL_RC
++
++dnl Some day we can drop support for libtool 1.5.x. Then the above five
++dnl lines can be replaced with these:
++dnl LT_INIT([win32-dll])
++dnl LT_LANG([Windows Resource])
+ 
+ 
+ ###############################################################################
+diff --git a/src/liblzma/api/lzma.h b/src/liblzma/api/lzma.h
+index 97e02958..77032f3a 100644
+--- a/src/liblzma/api/lzma.h
++++ b/src/liblzma/api/lzma.h
+@@ -173,9 +173,12 @@
+  * to operating systems like Windows, or at least don't care about linking
+  * against static liblzma on them, don't worry about LZMA_API_STATIC. That
+  * is, most developers will never need to use LZMA_API_STATIC.
++ *
++ * Cygwin is a special case on Windows. We rely on GCC doing the right thing
++ * and thus don't use dllimport and don't specify the calling convention.
+  */
+ #ifndef LZMA_API_IMPORT
+-#	if !defined(LZMA_API_STATIC) && defined(_WIN32)
++#	if !defined(LZMA_API_STATIC) && defined(_WIN32) && !defined(__CYGWIN__)
+ #		define LZMA_API_IMPORT __declspec(dllimport)
+ #	else
+ #		define LZMA_API_IMPORT
+@@ -183,7 +186,7 @@
+ #endif
+ 
+ #ifndef LZMA_API_CALL
+-#	ifdef _WIN32
++#	if defined(_WIN32) && !defined(__CYGWIN__)
+ #		define LZMA_API_CALL __cdecl
+ #	else
+ #		define LZMA_API_CALL
+diff --git a/src/liblzma/check/crc32_x86.S b/src/liblzma/check/crc32_x86.S
+index b3c7538f..2342168b 100644
+--- a/src/liblzma/check/crc32_x86.S
++++ b/src/liblzma/check/crc32_x86.S
+@@ -76,7 +76,8 @@ init_table(void)
+ 	.text
+ 	.globl	LZMA_CRC32
+ 
+-#if !defined(__MACH__) && !defined(_WIN32) && !defined(__MSDOS__)
++#if !defined(__MACH__) && !defined(_WIN32) && !defined(__CYGWIN__) \
++		&& !defined(__MSDOS__)
+ 	.type	LZMA_CRC32, @function
+ #endif
+ 
+@@ -275,8 +276,8 @@ LZMA_CRC32:
+ 	.indirect_symbol LZMA_CRC32_TABLE
+ 	.long 0
+ 
+-#elif defined(_WIN32)
+-#	ifndef LZMA_API_STATIC
++#elif defined(_WIN32) || defined(__CYGWIN__)
++#	ifdef DLL_EXPORT
+ 	/* This is equivalent of __declspec(dllexport). */
+ 	.section .drectve
+ 	.ascii " -export:lzma_crc32"
+diff --git a/src/liblzma/check/crc64_x86.S b/src/liblzma/check/crc64_x86.S
+index 5e170bc8..8b0a42db 100644
+--- a/src/liblzma/check/crc64_x86.S
++++ b/src/liblzma/check/crc64_x86.S
+@@ -66,7 +66,8 @@ init_table(void)
+ 	.text
+ 	.globl	LZMA_CRC64
+ 
+-#if !defined(__MACH__) && !defined(_WIN32) && !defined(__MSDOS__)
++#if !defined(__MACH__) && !defined(_WIN32) && !defined(__CYGWIN__) \
++		&& !defined(__MSDOS__)
+ 	.type	LZMA_CRC64, @function
+ #endif
+ 
+@@ -258,8 +259,8 @@ LZMA_CRC64:
+ 	.indirect_symbol LZMA_CRC64_TABLE
+ 	.long 0
+ 
+-#elif defined(_WIN32)
+-#	ifndef LZMA_API_STATIC
++#elif defined(_WIN32) || defined(__CYGWIN__)
++#	ifdef DLL_EXPORT
+ 	/* This is equivalent of __declspec(dllexport). */
+ 	.section .drectve
+ 	.ascii " -export:lzma_crc64"
+diff --git a/src/liblzma/common/common.h b/src/liblzma/common/common.h
+index de252604..1fd778b0 100644
+--- a/src/liblzma/common/common.h
++++ b/src/liblzma/common/common.h
+@@ -17,7 +17,7 @@
+ #include "../../common/mythread.h"
+ #include "../../common/integer.h"
+ 
+-#if !defined(LZMA_API_STATIC) && defined(_WIN32)
++#if defined(DLL_EXPORT) && (defined(_WIN32) || defined(__CYGWIN__))
+ #	define LZMA_API_EXPORT __declspec(dllexport)
+ // Don't use ifdef or defined() below.
+ #elif HAVE_VISIBILITY
+diff --git a/windows/Makefile b/windows/Makefile
+index d552b1c3..c6ebfc94 100644
+--- a/windows/Makefile
++++ b/windows/Makefile
+@@ -62,8 +62,6 @@ ALL_CPPFLAGS = \
+ 
+ ALL_CPPFLAGS += -DHAVE_CONFIG_H
+ 
+-STATIC_CPPFLAGS = -DLZMA_API_STATIC
+-
+ # This works with Wine too while using native GNU make, sed, and rm.
+ ifdef WINE
+ ifdef W64
+@@ -213,10 +211,10 @@ liblzma.dll: $(LIBLZMA_OBJS)
+ 	$(STRIP) --strip-all liblzma.dll
+ 
+ $(LIBLZMA_OBJS_C): %.o: %.c
+-	$(CC) $(ALL_CPPFLAGS) $(ALL_CFLAGS) -c -o $@ $<
++	$(CC) -DDLL_EXPORT $(ALL_CPPFLAGS) $(ALL_CFLAGS) -c -o $@ $<
+ 
+ $(LIBLZMA_OBJS_ASM): %.o: %.S
+-	$(CC) $(ALL_CPPFLAGS) $(ALL_CFLAGS) -c -o $@ $<
++	$(CC) -DDLL_EXPORT $(ALL_CPPFLAGS) $(ALL_CFLAGS) -c -o $@ $<
+ 
+ liblzma_static.lib: $(LIBLZMA_OBJS_STATIC)
+ 	$(RM) $@
+@@ -224,10 +222,10 @@ liblzma_static.lib: $(LIBLZMA_OBJS_STATIC)
+ 	$(STRIP) --strip-unneeded $@
+ 
+ $(LIBLZMA_OBJS_STATIC_C): %-static.o: %.c
+-	$(CC) $(STATIC_CPPFLAGS) $(ALL_CPPFLAGS) $(ALL_CFLAGS) -c -o $@ $<
++	$(CC) $(ALL_CPPFLAGS) $(ALL_CFLAGS) -c -o $@ $<
+ 
+ $(LIBLZMA_OBJS_STATIC_ASM): %-static.o: %.S
+-	$(CC) $(STATIC_CPPFLAGS) $(ALL_CPPFLAGS) $(ALL_CFLAGS) -c -o $@ $<
++	$(CC) $(ALL_CPPFLAGS) $(ALL_CFLAGS) -c -o $@ $<
+ 
+ .PHONY: liblzma-clean
+ liblzma-clean:
+@@ -252,11 +250,11 @@ lzmadec-dynamic.exe: liblzma.dll $(XZDEC_SRCS) lzmadec_rc.o
+ 	$(STRIP) --strip-all $@
+ 
+ xzdec.exe: liblzma_static.lib $(XZDEC_SRCS) xzdec_rc.o
+-	$(CC) $(STATIC_CPPFLAGS) $(ALL_CPPFLAGS) $(ALL_CFLAGS) $(XZDEC_SRCS) xzdec_rc.o -o $@ liblzma_static.lib
++	$(CC) -DLZMA_API_STATIC $(ALL_CPPFLAGS) $(ALL_CFLAGS) $(XZDEC_SRCS) xzdec_rc.o -o $@ liblzma_static.lib
+ 	$(STRIP) --strip-all $@
+ 
+ lzmadec.exe: liblzma_static.lib $(XZDEC_SRCS) lzmadec_rc.o
+-	$(CC) $(STATIC_CPPFLAGS) $(ALL_CPPFLAGS) -DLZMADEC $(ALL_CFLAGS) $(XZDEC_SRCS) lzmadec_rc.o -o $@ liblzma_static.lib
++	$(CC) -DLZMA_API_STATIC $(ALL_CPPFLAGS) -DLZMADEC $(ALL_CFLAGS) $(XZDEC_SRCS) lzmadec_rc.o -o $@ liblzma_static.lib
+ 	$(STRIP) --strip-all $@
+ 
+ .PHONY: xzdec-clean
+@@ -301,7 +299,7 @@ xz-dynamic.exe: liblzma.dll $(XZ_OBJS) xz_rc.o
+ 	$(STRIP) --strip-all $@
+ 
+ $(XZ_OBJS_STATIC): %-static.o: %-fixed.c
+-	$(CC) $(STATIC_CPPFLAGS) $(ALL_CPPFLAGS) $(ALL_CFLAGS) -c -o $@ $<
++	$(CC) -DLZMA_API_STATIC $(ALL_CPPFLAGS) $(ALL_CFLAGS) -c -o $@ $<
+ 
+ xz.exe: liblzma_static.lib $(XZ_OBJS_STATIC) xz_rc.o
+ 	$(CC) $(ALL_CFLAGS) $(XZ_OBJS_STATIC) xz_rc.o -o $@ liblzma_static.lib

@@ -1,0 +1,14 @@
+diff --git a/src/xz/suffix.c b/src/xz/suffix.c
+index 6bb35d42..09add381 100644
+--- a/src/xz/suffix.c
++++ b/src/xz/suffix.c
+@@ -18,6 +18,9 @@
+ 
+ // For case-insensitive filename suffix on case-insensitive systems
+ #if defined(TUKLIB_DOSLIKE) || defined(__VMS)
++#	ifdef HAVE_STRINGS_H
++#		include <strings.h>
++#	endif
+ #	define strcmp strcasecmp
+ #endif
+ 

@@ -1,0 +1,51 @@
+diff --git a/src/liblzma/check/crc32_fast.c b/src/liblzma/check/crc32_fast.c
+index 5229a4bd..3ac9b6d7 100644
+--- a/src/liblzma/check/crc32_fast.c
++++ b/src/liblzma/check/crc32_fast.c
+@@ -272,8 +272,7 @@ crc32_dispatch(const uint8_t *buf, size_t size, uint32_t crc)
+ #endif
+ 
+ 
+-#if defined(CRC_GENERIC) && defined(CRC_CLMUL) \
+-		&& defined(HAVE_FUNC_ATTRIBUTE_IFUNC)
++#ifdef CRC_USE_IFUNC
+ extern LZMA_API(uint32_t)
+ lzma_crc32(const uint8_t *buf, size_t size, uint32_t crc)
+ 		__attribute__((__ifunc__("crc32_resolve")));
+diff --git a/src/liblzma/check/crc64_fast.c b/src/liblzma/check/crc64_fast.c
+index 88ba7d33..79b662a4 100644
+--- a/src/liblzma/check/crc64_fast.c
++++ b/src/liblzma/check/crc64_fast.c
+@@ -274,8 +274,7 @@ crc64_dispatch(const uint8_t *buf, size_t size, uint64_t crc)
+ #endif
+ 
+ 
+-#if defined(CRC_GENERIC) && defined(CRC_CLMUL) \
+-		&& defined(HAVE_FUNC_ATTRIBUTE_IFUNC)
++#ifdef CRC_USE_IFUNC
+ extern LZMA_API(uint64_t)
+ lzma_crc64(const uint8_t *buf, size_t size, uint64_t crc)
+ 		__attribute__((__ifunc__("crc64_resolve")));
+diff --git a/src/liblzma/check/crc_common.h b/src/liblzma/check/crc_common.h
+index 867e53d9..55fdd55e 100644
+--- a/src/liblzma/check/crc_common.h
++++ b/src/liblzma/check/crc_common.h
+@@ -34,6 +34,7 @@
+ 
+ #undef CRC_GENERIC
+ #undef CRC_CLMUL
++#undef CRC_USE_IFUNC
+ #undef CRC_USE_GENERIC_FOR_SMALL_INPUTS
+ 
+ // If CLMUL cannot be used then only the generic slice-by-four is built.
+@@ -54,6 +55,10 @@
+ #	define CRC_GENERIC 1
+ #	define CRC_CLMUL 1
+ 
++#	ifdef HAVE_FUNC_ATTRIBUTE_IFUNC
++#		define CRC_USE_IFUNC 1
++#	endif
++
+ /*
+ 	// The generic code is much faster with 1-8-byte inputs and has
+ 	// similar performance up to 16 bytes  at least in microbenchmarks

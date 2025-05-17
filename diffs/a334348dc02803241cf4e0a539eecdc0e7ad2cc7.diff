@@ -1,0 +1,61 @@
+diff --git a/src/xz/message.c b/src/xz/message.c
+index 94140132..ff218c48 100644
+--- a/src/xz/message.c
++++ b/src/xz/message.c
+@@ -1180,15 +1180,6 @@ message_help(bool long_help)
+ "  --delta[=OPTS]      Delta filter; valid OPTS (valid values; default):\n"
+ "                        dist=NUM   distance between bytes being subtracted\n"
+ "                                   from each other (1-256; 1)"));
+-#endif
+-
+-#if defined(HAVE_ENCODER_SUBBLOCK) || defined(HAVE_DECODER_SUBBLOCK)
+-		puts(_(
+-"\n"
+-"  --subblock[=OPTS]   Subblock filter; valid OPTS (valid values; default):\n"
+-"                        size=NUM   number of bytes of data per subblock\n"
+-"                                   (1 - 256Mi; 4Ki)\n"
+-"                        rle=NUM    run-length encoder chunk size (0-256; 0)"));
+ #endif
+ 	}
+ 
+diff --git a/tests/test_filter_flags.c b/tests/test_filter_flags.c
+index 808682b5..ccd9ae98 100644
+--- a/tests/test_filter_flags.c
++++ b/tests/test_filter_flags.c
+@@ -71,26 +71,6 @@ decode(uint32_t known_size)
+ }
+ 
+ 
+-#if defined(HAVE_ENCODER_SUBBLOCK) && defined(HAVE_DECODER_SUBBLOCK)
+-static void
+-test_subblock(void)
+-{
+-	// Test 1
+-	known_flags.id = LZMA_FILTER_SUBBLOCK;
+-	known_flags.options = NULL;
+-	expect(!encode(2));
+-	expect(!decode(2));
+-	expect(decoded_flags.options == NULL);
+-
+-	// Test 2
+-	buffer[0] = LZMA_FILTER_SUBBLOCK;
+-	buffer[1] = 1;
+-	buffer[2] = 0;
+-	expect(!decode_ret(3, LZMA_OPTIONS_ERROR));
+-}
+-#endif
+-
+-
+ #if defined(HAVE_ENCODER_X86) && defined(HAVE_DECODER_X86)
+ static void
+ test_bcj(void)
+@@ -262,9 +242,6 @@ test_lzma(void)
+ int
+ main(void)
+ {
+-#if defined(HAVE_ENCODER_SUBBLOCK) && defined(HAVE_DECODER_SUBBLOCK)
+-	test_subblock();
+-#endif
+ #if defined(HAVE_ENCODER_X86) && defined(HAVE_DECODER_X86)
+ 	test_bcj();
+ #endif

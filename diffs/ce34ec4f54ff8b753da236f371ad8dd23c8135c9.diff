@@ -1,0 +1,489 @@
+diff --git a/INSTALL b/INSTALL
+index 5cd69a89..339fedb9 100644
+--- a/INSTALL
++++ b/INSTALL
+@@ -7,20 +7,23 @@ XZ Utils Installation
+        1.1. Compilers
+        1.2. Platform-specific notes
+             1.2.1. IRIX
+-            1.2.2. Tru64
+-            1.2.3. Windows
+-            1.2.4. DOS
+-            1.2.5. OS/2
+-            1.2.6. OpenVMS
++            1.2.2. MINIX 3
++            1.2.3. OpenVMS
++            1.2.4. Tru64
++            1.2.5. Windows
++            1.2.6. DOS
+        1.3. Adding support for new platforms
+     2. configure options
++       2.1. Static vs. dynamic linking of liblzma
++       2.2. Optimizing xzdec and lzmadec
+     3. xzgrep and other scripts
+        3.1. Dependencies
+        3.2. PATH
+     4. Troubleshooting
+        4.1. "No C99 compiler was found."
+-       4.1. "No POSIX conforming shell (sh) was found."
+-       4.2. configure works but build fails at crc32_x86.S
++       4.2. "No POSIX conforming shell (sh) was found."
++       4.3. configure works but build fails at crc32_x86.S
++       4.4. Lots of warnings about symbol visibility
+ 
+ 
+ 0. Preface
+@@ -66,21 +69,47 @@ XZ Utils Installation
+     work.
+ 
+ 
+-1.2.2. Tru64
++1.2.2. MINIX 3
++
++    The default install of MINIX 3 includes Amsterdam Compiler Kit (ACK),
++    which doesn't support C99. Install GCC to compile XZ Utils.
++
++    MINIX 3.1.8 (and possibly some other versions too) has bugs in
++    /usr/include/stdint.h, which has to be patched before XZ Utils
++    can be compiled correctly. See
++    <http://gforge.cs.vu.nl/gf/project/minix/tracker/?action=TrackerItemEdit&tracker_item_id=537>.
++
++    XZ Utils doesn't have code to detect the amount of physical RAM and
++    number of CPU cores on MINIX 3.
++
++    See section 4.4 in this file about symbol visibility warnings (you
++    may want to pass gl_cv_cc_visibility=no to configure).
++
++
++1.2.3. OpenVMS
++
++    XZ Utils can be built for OpenVMS, but the build system files
++    are not included in the XZ Utils source package. The required
++    OpenVMS-specific files are maintained by Jouk Jansen and can be
++    downloaded here:
++
++        http://nchrem.tnw.tudelft.nl/openvms/software2.html#xzutils
++
++
++1.2.4. Tru64
+ 
+     If you try to use the native C compiler on Tru64 (passing CC=cc to
+-    configure), it is possible that the configure script will complain
+-    that no C99 compiler was found even when the native compiler supports
+-    C99. You can safely override the test for C99 compiler by passing
+-    ac_cv_prog_cc_c99= as the argument to the configure script.
++    configure), you may need the workaround mention in section 4.1 in
++    this file (pass also ac_cv_prog_cc_c99= to configure).
+ 
+ 
+-1.2.3. Windows
++1.2.5. Windows
+ 
+-    Building XZ Utils on Windows is supported under MinGW + MSYS and
+-    Cygwin. There is windows/build.bash to ease packaging XZ Utils with
+-    MinGW + MSYS into a redistributable .zip or .7z file. See
+-    windows/INSTALL-Windows.txt for more information.
++    Building XZ Utils on Windows is supported under MinGW + MSYS,
++    MinGW-w64 + MSYS, and Cygwin. There is windows/build.bash to
++    ease packaging XZ Utils with MinGW(-w64) + MSYS into a
++    redistributable .zip or .7z file. See windows/INSTALL-Windows.txt
++    for more information.
+ 
+     It might be possible to build liblzma with a non-GNU toolchain too,
+     but that will probably require writing a separate makefile. Building
+@@ -94,7 +123,7 @@ XZ Utils Installation
+     windows/README-Windows.txt for details.
+ 
+ 
+-1.2.4. DOS
++1.2.6. DOS
+ 
+     There is an experimental Makefile in the "dos" directory to build
+     XZ Utils on DOS using DJGPP. Support for long file names (LFN) is
+@@ -104,24 +133,6 @@ XZ Utils Installation
+     would like to hear if it worked.
+ 
+ 
+-1.2.5. OS/2
+-
+-    To omit large number of harmless warnings about visibility support,
+-    pass gl_cv_cc_visibility=no as an argument to the configure script.
+-    This isn't mandatory since it should have no effect on the resulting
+-    binaries.
+-
+-
+-1.2.6. OpenVMS
+-
+-    XZ Utils can be built for OpenVMS, but the build system files are
+-    currently not included in the XZ Utils source package. The required
+-    OpenVMS-specific files are maintained by Jouk Jansen and can be
+-    downloaded here:
+-
+-        http://nchrem.tnw.tudelft.nl/openvms/software2.html#xzutils
+-
+-
+ 1.3. Adding support for new platforms
+ 
+     If you have written patches to make XZ Utils to work on previously
+@@ -139,7 +150,7 @@ XZ Utils Installation
+ 2. configure options
+ --------------------
+ 
+-    In most cases, the defaults are what you want. Most of the options
++    In most cases, the defaults are what you want. Many of the options
+     below are useful only when building a size-optimized version of
+     liblzma or command line tools.
+ 
+@@ -192,6 +203,29 @@ XZ Utils Installation
+                 the liblzma ABI, so this option should be used only when
+                 it is known to not cause problems.
+ 
++    --disable-xz
++    --disable-xzdec
++    --disable-lzmadec
++    --disable-lzmainfo
++                Don't build and install the command line tool mentioned
++                in the option name.
++
++                NOTE: Disabling xz will skip some tests in "make check".
++
++                NOTE: If xzdec is disabled and lzmadec is left enabled,
++                a dangling man page symlink lzmadec.1 -> xzdec.1 is
++                created.
++
++    --disable-lzma-links
++                Don't create symlinks for LZMA Utils compatibility.
++                This includes lzma, unlzma, and lzcat. If scripts are
++                installed, also lzdiff, lzcmp, lzgrep, lzegrep, lzfgrep,
++                lzmore, and lzless will be omitted if this option is used.
++
++    --disable-scripts
++                Don't install the scripts xzdiff, xzgrep, xzmore, xzless,
++                and their symlinks.
++
+     --disable-assembler
+                 liblzma includes some assembler optimizations. Currently
+                 there is only assembler code for CRC32 and CRC64 for
+@@ -259,28 +293,6 @@ XZ Utils Installation
+                 single-threaded applications and want to avoid dependency
+                 on libpthread.
+ 
+-    --enable-dynamic=TYPE
+-                Specify how command line tools should be linked against
+-                liblzma. Possible TYPES:
+-
+-                    yes     All command line tools are linked against
+-                            shared liblzma (if shared liblzma was built).
+-                            This is equivalent to --enable-dynamic (i.e.
+-                            no =TYPE).
+-
+-                    mixed   Some tools are linked against static liblzma
+-                            and some against shared liblzma. This is the
+-                            default and recommended way.
+-
+-                    no      All command line tools are linked against
+-                            static liblzma (if static liblzma was built).
+-                            This is equivalent to --disable-dynamic.
+-
+-                This option is mostly useful for packagers, if distro
+-                policy requires linking against shared libaries. See the
+-                file PACKAGERS for more information about pros and cons
+-                of this option.
+-
+     --enable-debug
+                 This enables the assert() macro and possibly some other
+                 run-time consistency checks. It makes the code slower, so
+@@ -293,6 +305,52 @@ XZ Utils Installation
+                 resulting binaries.
+ 
+ 
++2.1. Static vs. dynamic linking of liblzma
++
++    On 32-bit x86, linking against static liblzma can give a minor
++    speed improvement. Static libraries on x86 are usually compiled as
++    position-dependent code (non-PIC) and shared libraries are built as
++    position-independent code (PIC). PIC wastes one register, which can
++    make the code slightly slower compared to a non-PIC version. (Note
++    that this doesn't apply to x86-64.)
++
++    If you want to link xz against static liblzma, the simplest way
++    is to pass --disable-shared to configure. If you want also shared
++    liblzma, run configure again and run "make install" only for
++    src/liblzma.
++
++
++2.2. Optimizing xzdec and lzmadec
++
++    xzdec and lzmadec are intended to be relatively small instead of
++    optimizing for the best speed. Thus, it is a good idea to build
++    xzdec and lzmadec separately:
++
++      - To link the tools against static liblzma, pass --disable-shared
++        to configure.
++
++      - To select somewhat size-optimized variant of some things in
++        liblzma, pass --enable-small to configure.
++
++      - Tell the compiler to optimize for size instead of speed.
++        E.g. with GCC, put -Os into CFLAGS.
++
++      - xzdec and lzmadec will never use multithreading capabilities of
++        liblzma. You can avoid dependency on libpthread by passing
++        --disable-threads to configure.
++
++      - There are and will be no translated messages for xzdec and
++        lzmadec, so it is fine to pass also --disable-nls to configure.
++
++      - Only decoder code is needed, so you can speed up the build
++        slightly by passing --disable-encoders to configure. This
++        shouldn't affect the final size of the executables though,
++        because the linker is able to omit the encoder code anyway.
++
++    If you have no use for xzdec or lzmadec, you can disable them with
++    --disable-xzdec and --disable-lzmadec.
++
++
+ 3. xzgrep and other scripts
+ ---------------------------
+ 
+@@ -343,7 +401,7 @@ XZ Utils Installation
+     support enough C99.
+ 
+ 
+-4.1. "No POSIX conforming shell (sh) was found."
++4.2. "No POSIX conforming shell (sh) was found."
+ 
+     xzgrep and other scripts need a shell that (roughly) conforms
+     to POSIX. The configure script tries to find such a shell. If
+@@ -352,7 +410,7 @@ XZ Utils Installation
+     script.
+ 
+ 
+-4.2. configure works but build fails at crc32_x86.S
++4.3. configure works but build fails at crc32_x86.S
+ 
+     The easy fix is to pass --disable-assembler to the configure script.
+ 
+@@ -368,3 +426,15 @@ XZ Utils Installation
+     correct configure triplet using the --build=CPU-COMPANY-SYSTEM option
+     (see INSTALL.generic).
+ 
++
++4.4. Lots of warnings about symbol visibility
++
++    On some systems where symbol visibility isn't supported, GCC may
++    still accept the visibility options and attributes, which will make
++    configure think that visibility is supported. This will result in
++    many compiler warnings. You can avoid the warnings by forcing the
++    visibility support off by passing gl_cv_cc_visibility=no as an
++    argument to the configure script. This has no effect on the
++    resulting binaries, but fewer warnings looks nicer and may allow
++    using --enable-werror.
++
+diff --git a/PACKAGERS b/PACKAGERS
+index c5d375ab..6c5d219c 100644
+--- a/PACKAGERS
++++ b/PACKAGERS
+@@ -7,8 +7,6 @@ Information to packagers of XZ Utils
+     2. Package description
+     3. License
+     4. configure options
+-       4.1. Static vs. dynamic linking of liblzma
+-       4.2. Optimizing xzdec and lzmadec
+     5. Additional documentation
+     6. Extra files
+     7. Installing XZ Utils and LZMA Utils in parallel
+@@ -141,77 +139,31 @@ Information to packagers of XZ Utils
+         --enable-small (*)
+         --disable-threads (*)
+ 
+-    (*) These are OK when building xzdec and lzmadec as explained later.
++    (*) These are OK when building xzdec and lzmadec as described
++        in INSTALL.
+ 
+-    You may use --enable-werror but be careful with it since it may break
+-    the build due to some useless warning when the build environment
+-    changes (like CPU architecture or compiler version).
+-
+-
+-4.1. Static vs. dynamic linking of liblzma
+-
+-    The default is to link the most important command line tools against
+-    static liblzma, and the less important tools against shared liblzma.
+-    This can be changed by passing --enable-dynamic to configure, or by
+-    not building static libraries at all by passing --disable-static
+-    to configure. It is mildly recommended that you use the default, but
+-    the configure options make it easy to do otherwise if the distro policy
+-    so requires.
+-
+-    On 32-bit x86, linking against static liblzma can give a minor
+-    speed improvement. Static libraries on x86 are usually compiled as
+-    position-dependent code (non-PIC) and shared libraries are built as
+-    position-independent code (PIC). PIC wastes one register, which can
+-    make the code slightly slower compared to a non-PIC version. (Note
+-    that this doesn't apply to x86-64.)
+-
+-    Linking against static liblzma avoids a dependency on liblzma shared
+-    library, and makes it slightly easier to copy the command line tools
+-    between systems (e.g. quick 'n' dirty emergency recovery of some
+-    files). It also allows putting the command line tools to /bin while
+-    leaving liblzma to /usr/lib (assuming that your distribution uses
+-    such a file system hierarchy), if no other file in /bin would require
+-    liblzma.
+-
+-    If you don't want to distribute static libraries but you still
+-    want to link the command line tools against static liblzma, it is
+-    probably easiest to build both static and shared liblzma, but after
+-    "make DESTDIR=$PKG install" remove liblzma.a and modify liblzma.la
+-    to not contain a reference to liblzma.a.
+-
+-
+-4.2. Optimizing xzdec and lzmadec
+-
+-    xzdec and lzmadec are intended to be relatively small instead of
+-    optimizing for the best speed. Thus, it is a good idea to build
+-    xzdec and lzmadec separately:
+-
+-      - Only decoder code is needed, so you can speed up the build
+-        slightly by passing --disable-encoders to configure. This
+-        shouldn't affect the final size of the executables though,
+-        because the linker is able to omit the encoder code anyway.
+-
+-      - xzdec and lzmadec will never use multithreading capabilities of
+-        liblzma. You can avoid dependency on libpthread by passing
+-        --disable-threads to configure.
+-
+-      - There are and will be no translated messages for xzdec and
+-        lzmadec, so it is fine to pass also --disable-nls to configure.
+-
+-      - To select somewhat size-optimized variant of some things in
+-        liblzma, pass --enable-small to configure.
+-
+-      - Tell the compiler to optimize for size instead of speed.
+-        E.g. with GCC, put -Os into CFLAGS.
++    xzdec and lzmadec don't provide any functionality that isn't already
++    available in the xz tool. Shipping xzdec and lzmadec without size
++    optimization and statically-linked liblzma isn't very useful. Doing
++    that would give users the xzdec man page, which may make it easier
++    for people to find out that such tools exists, but the executables
++    wouldn't have any advantage over the full-featured xz.
+ 
+ 
+ 5. Additional documentation
+ ---------------------------
+ 
+     "make install" copies some additional documentation to $docdir
+-    (--docdir in configure). These a copy of the GNU GPL v2, which can
+-    be replaced with a symlink if your distro ships with shared copies
+-    of the common license texts.
++    (--docdir in configure). There is a copy of the GNU GPL v2, which
++    can be replaced with a symlink if your distro ships with shared
++    copies of the common license texts.
++
++    liblzma API is currently only documented using Doxygen tags in the
++    API headers. It hasn't been tested much how good results Doxygen
++    is able to make from the tags (e.g. Doxyfile might need tweaking,
++    the tagging may need to be improved etc.), so it might be simpler
++    to just let people read docs directly from the .h files for now,
++    and also save quite a bit in package size at the same time.
+ 
+ 
+ 6. Extra files
+@@ -246,32 +198,32 @@ Information to packagers of XZ Utils
+ ----------
+ 
+     Here is an example for i686 GNU/Linux that
+-      - links xz against static liblzma;
+-      - includes only shared liblzma in the final package;
+-      - links xzdec and lzmadec against static liblzma while
+-        avoiding libpthread dependency.
++      - links xz and lzmainfo against shared liblzma;
++      - links size-optimized xzdec and lzmadec against static liblzma
++        while avoiding libpthread dependency;
++      - includes only shared liblzma in the final package; and
++      - copies also the "extra" directory to the package.
+ 
+     PKG=/tmp/xz-pkg
+     tar xf xz-x.y.z.tar.gz
+     cd xz-x.y.z
+     ./configure \
+             --prefix=/usr \
+-            --sysconfdir=/etc \
+-            CFLAGS='-march=i686 -O2'
++            --disable-static \
++            --disable-xzdec \
++            --disable-lzmadec \
++            CFLAGS='-march=i686 -mtune=generic -O2'
+     make
+     make DESTDIR=$PKG install-strip
+-    rm -f $PKG/usr/lib/lib*.a
+-    sed -i "s/^old_library=.*$/old_library=''/" $PKG/usr/lib/lib*.la
+     make clean
+     ./configure \
+             --prefix=/usr \
+-            --sysconfdir=/etc \
+             --disable-shared \
+             --disable-nls \
+             --disable-encoders \
+             --enable-small \
+             --disable-threads \
+-            CFLAGS='-march=i686 -Os'
++            CFLAGS='-march=i686 -mtune=generic -Os'
+     make -C src/liblzma
+     make -C src/xzdec
+     make -C src/xzdec DESTDIR=$PKG install-strip
+diff --git a/TODO b/TODO
+index 9fac1b34..55fc4755 100644
+--- a/TODO
++++ b/TODO
+@@ -18,15 +18,20 @@ Known bugs
+ 
+     XZ Utils compress some files significantly worse than LZMA Utils.
+     This is due to faster compression presets used by XZ Utils, and
+-    can be worked around by using "xz --extreme". However, the presets
+-    need some tweaking and maybe this issue can be minimized without
+-    making the typical case too much slower.
++    can often be worked around by using "xz --extreme". With some files
++    --extreme isn't enough though: it's most likely with files that
++    compress extremely well, so going from compression ratio of 0.003
++    to 0.004 means big relative increase in the compressed file size.
+ 
+     xz doesn't quote unprintable characters when it displays file names
+     given on the command line.
+ 
+     tuklib_exit() doesn't block signals => EINTR is possible.
+ 
++    SIGTSTP is not handled. If xz is stopped, the estimated remaining
++    time and calculated (de)compression speed won't make sense in the
++    progress indicator (xz --verbose).
++
+ 
+ Missing features
+ ----------------
+@@ -41,11 +46,13 @@ Missing features
+     Buffer-to-buffer coding could use less RAM (especially when
+     decompressing LZMA1 or LZMA2).
+ 
+-    I/O library is not implemented. It will possibly be named libzzf.
++    I/O library is not implemented (similar to gzopen() in zlib).
++    It will be a separate library that supports uncompressed, .gz,
++    .bz2, .lzma, and .xz files.
+ 
+     lzma_strerror() to convert lzma_ret to human readable form?
+     This is tricky, because the same error codes are used with
+-    slightly different meanings.
++    slightly different meanings, and this cannot be fixed anymore.
+ 
+ 
+ Documentation
+diff --git a/dos/README b/dos/README
+index 1ed84934..9456ea1f 100644
+--- a/dos/README
++++ b/dos/README
+@@ -84,5 +84,5 @@ Bugs
+ 
+     Pressing Ctrl-c or Ctrl-Break won't remove the incomplete target file
+     when running under Windows XP Command Prompt (something goes wrong
+-    with SIGINT handling). Use the Windows build of XZ Utils on Windows.
++    with SIGINT handling). It works correctly under Windows 95/98/98SE/ME.
+ 

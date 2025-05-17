@@ -1,0 +1,69 @@
+diff --git a/.github/workflows/ci.yml b/.github/workflows/ci.yml
+index cbf3b7d9..9aa4f9aa 100644
+--- a/.github/workflows/ci.yml
++++ b/.github/workflows/ci.yml
+@@ -37,7 +37,7 @@ jobs:
+         if: ${{ matrix.os == 'ubuntu-latest' && matrix.build_system == 'autotools' }}
+         run: |
+             sudo apt-get update
+-            sudo apt-get install -y autoconf automake build-essential po4a autopoint gcc-multilib doxygen musl-tools
++            sudo apt-get install -y autoconf automake build-essential po4a autopoint gcc-multilib doxygen musl-tools valgrind
+ 
+       # Install Autotools on Mac
+       - name: Install Dependencies
+@@ -89,6 +89,15 @@ jobs:
+             ./build-aux/ci_build.sh -b autotools -p test -f "-fsanitize=address,undefined" -d sandbox
+             cd ../xz_build && make distclean
+ 
++      - name: Build with Valgrind
++        if: ${{ matrix.os == 'ubuntu-latest' && matrix.build_system == 'autotools' }}
++        run: ./build-aux/ci_build.sh -b autotools -p build -d sandbox
++      - name: Test with Valgrind
++        if: ${{ matrix.os == 'ubuntu-latest' && matrix.build_system == 'autotools' }}
++        run: |
++            ./build-aux/ci_build.sh -b autotools -p test -d sandbox -w "valgrind --quiet --trace-children=yes --exit-on-first-error=yes --error-exitcode=1"
++            cd ../xz_build && make distclean
++
+       - name: Build with musl libc
+         if: ${{ matrix.os == 'ubuntu-latest'}}
+         run: ./build-aux/ci_build.sh -b ${{ matrix.build_system }} -p build -m "/usr/bin/musl-gcc"
+diff --git a/build-aux/ci_build.sh b/build-aux/ci_build.sh
+index 9e2a7f8b..e6926d3e 100755
+--- a/build-aux/ci_build.sh
++++ b/build-aux/ci_build.sh
+@@ -53,7 +53,7 @@ ARTIFACTS_DIR_NAME="output"
+ # Parse arguments #
+ ###################
+ 
+-while getopts a:b:c:d:l:m:n:s:p:f:h opt; do
++while getopts a:b:c:d:l:m:n:s:p:f:w:h opt; do
+ 	# b option can have either value "autotools" OR "cmake"
+ 	case ${opt} in
+ 	h)
+@@ -108,6 +108,8 @@ while getopts a:b:c:d:l:m:n:s:p:f:h opt; do
+ 		CFLAGS="$OPTARG"
+ 		export CFLAGS
+ 	;;
++	w) WRAPPER="$OPTARG"
++	;;
+ 	esac
+ done
+ 
+@@ -260,7 +262,7 @@ then
+ 	autotools)
+ 		cd "$DEST_DIR"
+ 		# If the tests fail, copy the test logs into the artifacts folder
+-		if make check
++		if make check LOG_COMPILER="$WRAPPER"
+ 		then
+ 			:
+ 		else
+@@ -271,7 +273,7 @@ then
+ 	;;
+ 	cmake)
+ 		cd "$DEST_DIR"
+-		if make test
++		if ${WRAPPER} make test
+ 		then
+ 			:
+ 		else

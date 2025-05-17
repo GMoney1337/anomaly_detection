@@ -1,0 +1,23 @@
+diff --git a/Makefile.am b/Makefile.am
+index 6295d6fb..a2e3b84a 100644
+--- a/Makefile.am
++++ b/Makefile.am
+@@ -36,18 +36,6 @@ dist_examples_DATA = \
+ 	doc/examples/04_compress_easy_mt.c \
+ 	doc/examples/11_file_info.c \
+ 	doc/examples/Makefile
+-
+-# Install the Doxygen generated documentation if they were built.
+-install-data-local:
+-	if test -d "$(srcdir)/doc/api" ; then \
+-		$(MKDIR_P) "$(DESTDIR)$(docdir)/api" && \
+-		$(INSTALL_DATA) "$(srcdir)"/doc/api/* \
+-			"$(DESTDIR)$(docdir)/api"; \
+-	fi
+-
+-# Remove the Doxygen generated documentation when uninstalling.
+-uninstall-local:
+-	rm -rf "$(DESTDIR)$(docdir)/api"
+ endif
+ 
+ EXTRA_DIST = \

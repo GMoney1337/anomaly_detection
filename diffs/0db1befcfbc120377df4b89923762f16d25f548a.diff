@@ -1,0 +1,12 @@
+diff --git a/src/xz/args.c b/src/xz/args.c
+index 8d5d33c2..b50e28b7 100644
+--- a/src/xz/args.c
++++ b/src/xz/args.c
+@@ -489,7 +489,6 @@ args_parse(args_info *args, int argc, char **argv)
+ 	parse_environment(args, argv[0]);
+ 
+ 	// Then from the command line
+-	optind = 1;
+ 	parse_real(args, argc, argv);
+ 
+ 	// Never remove the source file when the destination is not on disk.

@@ -1,0 +1,13 @@
+diff --git a/.github/workflows/ci.yml b/.github/workflows/ci.yml
+index 253d7889..cd8e2f08 100644
+--- a/.github/workflows/ci.yml
++++ b/.github/workflows/ci.yml
+@@ -96,7 +96,7 @@ jobs:
+       - name: Test with Valgrind
+         if: ${{ matrix.os == 'ubuntu-latest' && matrix.build_system == 'autotools' }}
+         run: |
+-            ./build-aux/ci_build.bash -b autotools -p test -d sandbox -w "valgrind --quiet --trace-children=yes --exit-on-first-error=yes --error-exitcode=1"
++            ./build-aux/ci_build.bash -b autotools -p test -d sandbox -w "valgrind --quiet --trace-children=yes --trace-children-skip-by-arg=ls,cp,sed,grep,bash,sh --exit-on-first-error=yes --error-exitcode=1"
+             cd ../xz_build && make distclean
+ 
+       - name: Build with musl libc

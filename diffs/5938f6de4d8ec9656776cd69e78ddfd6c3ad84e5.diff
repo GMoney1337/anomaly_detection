@@ -1,0 +1,13 @@
+diff --git a/src/liblzma/lz/lz_decoder.h b/src/liblzma/lz/lz_decoder.h
+index fbbe9a38..cb61b6e2 100644
+--- a/src/liblzma/lz/lz_decoder.h
++++ b/src/liblzma/lz/lz_decoder.h
+@@ -206,7 +206,7 @@ dict_put(lzma_dict *dict, uint8_t byte)
+ static inline bool
+ dict_put_safe(lzma_dict *dict, uint8_t byte)
+ {
+-	if (dict->pos == dict->limit)
++	if (unlikely(dict->pos == dict->limit))
+ 		return true;
+ 
+ 	dict_put(dict, byte);

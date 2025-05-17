@@ -1,0 +1,171 @@
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+index e3af3bf6..11f3a055 100644
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -48,6 +48,7 @@
+ 
+ cmake_minimum_required(VERSION 3.13...3.16 FATAL_ERROR)
+ 
++include(CMakePushCheckState)
+ include(CheckSymbolExists)
+ include(CheckStructHasMember)
+ include(cmake/tuklib_integer.cmake)
+@@ -387,6 +388,20 @@ if(NOT TUKLIB_CPUCORES_FOUND OR NOT TUKLIB_PHYSMEM_FOUND)
+             "To build anyway, edit this CMakeLists.txt to ignore this error.")
+ endif()
+ 
++# Check for __attribute__((__constructor__)) support.
++# This needs -Werror because some compilers just warn
++# about this being unsupported.
++cmake_push_check_state()
++set(CMAKE_REQUIRED_FLAGS "-Werror")
++check_c_source_compiles("
++        __attribute__((__constructor__))
++        static void my_constructor_func(void) { return; }
++        int main(void) { return 0; }
++    "
++    HAVE_FUNC_ATTRIBUTE_CONSTRUCTOR)
++cmake_pop_check_state()
++tuklib_add_definition_if(liblzma HAVE_FUNC_ATTRIBUTE_CONSTRUCTOR)
++
+ # immintrin.h:
+ include(CheckIncludeFile)
+ check_include_file(immintrin.h HAVE_IMMINTRIN_H)
+diff --git a/INSTALL b/INSTALL
+index a6c0551f..2c94ecea 100644
+--- a/INSTALL
++++ b/INSTALL
+@@ -456,7 +456,9 @@ XZ Utils Installation
+ 
+                         no      Disable threading support. This is the
+                                 same as using --disable-threads.
+-                                NOTE: If combined with --enable-small, the
++                                NOTE: If combined with --enable-small
++                                and the compiler doesn't support
++                                __attribute__((__constructor__)), the
+                                 resulting liblzma won't be thread safe,
+                                 that is, if a multi-threaded application
+                                 calls any liblzma functions from more than
+diff --git a/configure.ac b/configure.ac
+index 15b4ba4c..cf226b29 100644
+--- a/configure.ac
++++ b/configure.ac
+@@ -768,6 +768,29 @@ AC_CHECK_MEMBERS([
+ AC_SYS_LARGEFILE
+ AC_C_BIGENDIAN
+ 
++# __attribute__((__constructor__)) can be used for one-time initializations.
++# Use -Werror because some compilers accept unknown attributes and just
++# give a warning. If it works this should give no warnings, even
++# clang -Weverything should be fine.
++# dnl This doesn't need AC_LANG_SOURCE, minimal code is enough.
++AC_MSG_CHECKING([if __attribute__((__constructor__)) can be used])
++have_func_attribute_constructor=no
++OLD_CFLAGS="$CFLAGS"
++CFLAGS="$CFLAGS -Werror"
++AC_COMPILE_IFELSE([
++	__attribute__((__constructor__))
++	static void my_constructor_func(void) { return; }
++], [
++	AC_DEFINE([HAVE_FUNC_ATTRIBUTE_CONSTRUCTOR], [1],
++		[Define to 1 if __attribute__((__constructor__))
++		is supported for functions.])
++	have_func_attribute_constructor=yes
++	AC_MSG_RESULT([yes])
++], [
++	AC_MSG_RESULT([no])
++])
++CFLAGS="$OLD_CFLAGS"
++
+ 
+ ###############################################################################
+ # Checks for library functions.
+@@ -1005,9 +1028,11 @@ if test x$tuklib_cv_cpucores_method = xunknown; then
+ 	echo "No supported method to detect the number of CPU cores."
+ fi
+ 
+-if test "x$enable_threads$enable_small" = xnoyes; then
++if test "x$enable_threads$enable_small$have_func_attribute_constructor" \
++		= xnoyesno; then
+ 	echo
+ 	echo "NOTE:"
+-	echo "liblzma will be thread unsafe due the combination"
+-	echo "of --disable-threads --enable-small."
++	echo "liblzma will be thread-unsafe due to the combination"
++	echo "of --disable-threads --enable-small when using a compiler"
++	echo "that doesn't support __attribute__((__constructor__))."
+ fi
+diff --git a/src/liblzma/check/crc32_small.c b/src/liblzma/check/crc32_small.c
+index 5f8a3286..186966e9 100644
+--- a/src/liblzma/check/crc32_small.c
++++ b/src/liblzma/check/crc32_small.c
+@@ -16,6 +16,9 @@
+ uint32_t lzma_crc32_table[1][256];
+ 
+ 
++#ifdef HAVE_FUNC_ATTRIBUTE_CONSTRUCTOR
++__attribute__((__constructor__))
++#endif
+ static void
+ crc32_init(void)
+ {
+@@ -37,18 +40,22 @@ crc32_init(void)
+ }
+ 
+ 
++#ifndef HAVE_FUNC_ATTRIBUTE_CONSTRUCTOR
+ extern void
+ lzma_crc32_init(void)
+ {
+ 	mythread_once(crc32_init);
+ 	return;
+ }
++#endif
+ 
+ 
+ extern LZMA_API(uint32_t)
+ lzma_crc32(const uint8_t *buf, size_t size, uint32_t crc)
+ {
++#ifndef HAVE_FUNC_ATTRIBUTE_CONSTRUCTOR
+ 	lzma_crc32_init();
++#endif
+ 
+ 	crc = ~crc;
+ 
+diff --git a/src/liblzma/check/crc64_small.c b/src/liblzma/check/crc64_small.c
+index 55d72316..420f7cfb 100644
+--- a/src/liblzma/check/crc64_small.c
++++ b/src/liblzma/check/crc64_small.c
+@@ -16,6 +16,9 @@
+ static uint64_t crc64_table[256];
+ 
+ 
++#ifdef HAVE_FUNC_ATTRIBUTE_CONSTRUCTOR
++__attribute__((__constructor__))
++#endif
+ static void
+ crc64_init(void)
+ {
+@@ -40,7 +43,9 @@ crc64_init(void)
+ extern LZMA_API(uint64_t)
+ lzma_crc64(const uint8_t *buf, size_t size, uint64_t crc)
+ {
++#ifndef HAVE_FUNC_ATTRIBUTE_CONSTRUCTOR
+ 	mythread_once(crc64_init);
++#endif
+ 
+ 	crc = ~crc;
+ 
+diff --git a/src/liblzma/lz/lz_encoder.c b/src/liblzma/lz/lz_encoder.c
+index 890d1bc4..2dad7e5f 100644
+--- a/src/liblzma/lz/lz_encoder.c
++++ b/src/liblzma/lz/lz_encoder.c
+@@ -543,7 +543,7 @@ lzma_lz_encoder_init(lzma_next_coder *next, const lzma_allocator *allocator,
+ 			const lzma_allocator *allocator, const void *options,
+ 			lzma_lz_options *lz_options))
+ {
+-#ifdef HAVE_SMALL
++#if defined(HAVE_SMALL) && !defined(HAVE_FUNC_ATTRIBUTE_CONSTRUCTOR)
+ 	// We need that the CRC32 table has been initialized.
+ 	lzma_crc32_init();
+ #endif

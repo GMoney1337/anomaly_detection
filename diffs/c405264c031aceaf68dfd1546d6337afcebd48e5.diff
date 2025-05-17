@@ -1,0 +1,86 @@
+diff --git a/src/common/tuklib_mbstr_nonprint.c b/src/common/tuklib_mbstr_nonprint.c
+index cac10bfe..dc778757 100644
+--- a/src/common/tuklib_mbstr_nonprint.c
++++ b/src/common/tuklib_mbstr_nonprint.c
+@@ -12,6 +12,7 @@
+ #include "tuklib_mbstr_nonprint.h"
+ #include <stdlib.h>
+ #include <string.h>
++#include <errno.h>
+ 
+ #ifdef HAVE_MBRTOWC
+ #	include <wchar.h>
+@@ -94,13 +95,18 @@ has_nonprint(const char *str, size_t len)
+ extern bool
+ tuklib_has_nonprint(const char *str)
+ {
+-	return has_nonprint(str, strlen(str));
++	const int saved_errno = errno;
++	const bool ret = has_nonprint(str, strlen(str));
++	errno = saved_errno;
++	return ret;
+ }
+ 
+ 
+ extern const char *
+ tuklib_mask_nonprint_r(const char *str, char **mem)
+ {
++	const int saved_errno = errno;
++
+ 	// Free the old string, if any.
+ 	free(*mem);
+ 	*mem = NULL;
+@@ -108,8 +114,10 @@ tuklib_mask_nonprint_r(const char *str, char **mem)
+ 	// If the whole input string contains only printable characters,
+ 	// return the input string.
+ 	const size_t len = strlen(str);
+-	if (!has_nonprint(str, len))
++	if (!has_nonprint(str, len)) {
++		errno = saved_errno;
+ 		return str;
++	}
+ 
+ 	// Allocate memory for the masked string. Since we use the single-byte
+ 	// character '?' to mask non-printable characters, it's possible that
+@@ -119,8 +127,10 @@ tuklib_mask_nonprint_r(const char *str, char **mem)
+ 	// If allocation fails, return "???" because it should be safer than
+ 	// returning the unmasked string.
+ 	*mem = malloc(len + 1);
+-	if (*mem == NULL)
++	if (*mem == NULL) {
++		errno = saved_errno;
+ 		return "???";
++	}
+ 
+ 	// Replace all non-printable characters with '?'.
+ 	char *dest = *mem;
+@@ -139,6 +149,7 @@ tuklib_mask_nonprint_r(const char *str, char **mem)
+ 
+ 	*dest = '\0';
+ 
++	errno = saved_errno;
+ 	return *mem;
+ }
+ 
+diff --git a/src/common/tuklib_mbstr_nonprint.h b/src/common/tuklib_mbstr_nonprint.h
+index 7c2bef15..6fc96910 100644
+--- a/src/common/tuklib_mbstr_nonprint.h
++++ b/src/common/tuklib_mbstr_nonprint.h
+@@ -25,7 +25,8 @@ extern bool tuklib_has_nonprint(const char *str);
+ /// \brief      Check if a string contains any non-printable characters
+ ///
+ /// \return     false if str contains only valid multibyte characters and
+-///             iswprint(3) returns non-zero for all of them; true otherwise
++///             iswprint(3) returns non-zero for all of them; true otherwise.
++///             The value of errno is preserved.
+ ///
+ /// \note       In case mbrtowc(3) isn't available, single-byte character set
+ ///             is assumed and isprint(3) is used instead of iswprint(3).
+@@ -49,6 +50,7 @@ extern const char *tuklib_mask_nonprint_r(const char *str, char **mem);
+ ///             allocated memory is also stored to *mem. A modified string
+ ///             has the problematic characters replaced by '?'. If memory
+ ///             allocation fails, "???" is returned and *mem is NULL.
++///             The value of errno is preserved.
+ 
+ #define tuklib_mask_nonprint TUKLIB_SYMBOL(tuklib_mask_nonprint)
+ extern const char *tuklib_mask_nonprint(const char *str);

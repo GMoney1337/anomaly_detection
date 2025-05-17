@@ -1,0 +1,39 @@
+diff --git a/src/liblzma/lzma/Makefile.inc b/src/liblzma/lzma/Makefile.inc
+index 7fc4d172..0c8cd380 100644
+--- a/src/liblzma/lzma/Makefile.inc
++++ b/src/liblzma/lzma/Makefile.inc
+@@ -9,12 +9,16 @@ EXTRA_DIST += lzma/fastpos_tablegen.c
+ 
+ liblzma_la_SOURCES += lzma/lzma_common.h
+ 
++if COND_FILTER_LZMA1
++liblzma_la_SOURCES += \
++	lzma/lzma_presets.c
++endif
++
+ if COND_ENCODER_LZMA1
+ liblzma_la_SOURCES += \
+ 	lzma/fastpos.h \
+ 	lzma/lzma_encoder.h \
+ 	lzma/lzma_encoder.c \
+-	lzma/lzma_encoder_presets.c \
+ 	lzma/lzma_encoder_private.h \
+ 	lzma/lzma_encoder_optimum_fast.c \
+ 	lzma/lzma_encoder_optimum_normal.c
+diff --git a/src/liblzma/lzma/lzma_encoder_presets.c b/src/liblzma/lzma/lzma_presets.c
+similarity index 94%
+rename from src/liblzma/lzma/lzma_encoder_presets.c
+rename to src/liblzma/lzma/lzma_presets.c
+index 8484b774..d49d2427 100644
+--- a/src/liblzma/lzma/lzma_encoder_presets.c
++++ b/src/liblzma/lzma/lzma_presets.c
+@@ -1,7 +1,8 @@
+ ///////////////////////////////////////////////////////////////////////////////
+ //
+-/// \file       lzma_encoder_presets.c
++/// \file       lzma_presets.c
+ /// \brief      Encoder presets
++/// \note       xz needs this even when only decoding is enabled.
+ //
+ //  Author:     Lasse Collin
+ //

@@ -1,0 +1,42 @@
+diff --git a/configure.ac b/configure.ac
+index aa68e33b..970712dd 100644
+--- a/configure.ac
++++ b/configure.ac
+@@ -650,8 +650,8 @@ gl_GETOPT
+ # Find the best function to set timestamps.
+ AC_CHECK_FUNCS([futimens futimes futimesat utimes utime], [break])
+ 
+-# These are nice to have but not mandatory.
+-AC_CHECK_FUNCS([posix_fadvise pipe2])
++# This is nice to have but not mandatory.
++AC_CHECK_FUNCS([posix_fadvise])
+ 
+ TUKLIB_PROGNAME
+ TUKLIB_INTEGER
+diff --git a/src/xz/file_io.c b/src/xz/file_io.c
+index 8a5e0453..e5a29925 100644
+--- a/src/xz/file_io.c
++++ b/src/xz/file_io.c
+@@ -95,13 +95,7 @@ io_init(void)
+ 	// we are root.
+ 	warn_fchown = geteuid() == 0;
+ 
+-	// Create a pipe for the self-pipe trick. If pipe2() is available,
+-	// we can avoid the fcntl() calls.
+-#	ifdef HAVE_PIPE2
+-	if (pipe2(user_abort_pipe, O_NONBLOCK))
+-		message_fatal(_("Error creating a pipe: %s"),
+-				strerror(errno));
+-#	else
++	// Create a pipe for the self-pipe trick.
+ 	if (pipe(user_abort_pipe))
+ 		message_fatal(_("Error creating a pipe: %s"),
+ 				strerror(errno));
+@@ -114,7 +108,6 @@ io_init(void)
+ 			message_fatal(_("Error creating a pipe: %s"),
+ 					strerror(errno));
+ 	}
+-#	endif
+ #endif
+ 
+ #ifdef __DJGPP__

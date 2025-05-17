@@ -1,0 +1,185 @@
+diff --git a/src/liblzma/api/lzma/container.h b/src/liblzma/api/lzma/container.h
+index 48a64365..7e4ca3bf 100644
+--- a/src/liblzma/api/lzma/container.h
++++ b/src/liblzma/api/lzma/container.h
+@@ -435,6 +435,34 @@ extern LZMA_API(lzma_ret) lzma_stream_encoder_mt(
+ 		lzma_nothrow lzma_attr_warn_unused_result;
+ 
+ 
++/**
++ * \brief       Calculate recommended Block size for multithreaded .xz encoder
++ *
++ * This calculates a recommended Block size for multithreaded encoding given
++ * a filter chain. This is used internally by lzma_stream_encoder_mt() to
++ * determine the Block size if the block_size member is not set to the
++ * special value of 0 in the lzma_mt options struct.
++ *
++ * If one wishes to change the filters between Blocks, this function is
++ * helpful to set the block_size member of the lzma_mt struct before calling
++ * lzma_stream_encoder_mt(). Since the block_size member represents the
++ * maximum possible Block size for the multithreaded .xz encoder, one can
++ * use this function to find the maximum recommended Block size based on
++ * all planned filter chains. Otherwise, the multithreaded encoder will
++ * base its maximum Block size on the first filter chain used (if the
++ * block_size member is not set), which may unnecessarily limit the Block
++ * size for a later filter chain.
++ *
++ * \param       filters   Array of filters terminated with
++ *                        .id == LZMA_VLI_UNKNOWN.
++ *
++ * \return      Recommended Block size in bytes, or UINT64_MAX if
++ *              an error occurred.
++ */
++extern LZMA_API(uint64_t) lzma_mt_block_size(const lzma_filter *filters)
++		lzma_nothrow;
++
++
+ /**
+  * \brief       Initialize .lzma encoder (legacy file format)
+  *
+diff --git a/src/liblzma/common/filter_encoder.c b/src/liblzma/common/filter_encoder.c
+index 46fe8af1..0699bcee 100644
+--- a/src/liblzma/common/filter_encoder.c
++++ b/src/liblzma/common/filter_encoder.c
+@@ -33,7 +33,8 @@ typedef struct {
+ 	/// Calculates the recommended Uncompressed Size for .xz Blocks to
+ 	/// which the input data can be split to make multithreaded
+ 	/// encoding possible. If this is NULL, it is assumed that
+-	/// the encoder is fast enough with single thread.
++	/// the encoder is fast enough with single thread. If the options
++	/// are invalid, UINT64_MAX is returned.
+ 	uint64_t (*block_size)(const void *options);
+ 
+ 	/// Tells the size of the Filter Properties field. If options are
+@@ -248,26 +249,29 @@ lzma_raw_encoder_memusage(const lzma_filter *filters)
+ }
+ 
+ 
+-extern uint64_t
++extern LZMA_API(uint64_t)
+ lzma_mt_block_size(const lzma_filter *filters)
+ {
++	if (filters == NULL)
++		return UINT64_MAX;
++
+ 	uint64_t max = 0;
+ 
+ 	for (size_t i = 0; filters[i].id != LZMA_VLI_UNKNOWN; ++i) {
+ 		const lzma_filter_encoder *const fe
+ 				= encoder_find(filters[i].id);
++		if (fe == NULL)
++			return UINT64_MAX;
++
+ 		if (fe->block_size != NULL) {
+ 			const uint64_t size
+ 					= fe->block_size(filters[i].options);
+-			if (size == 0)
+-				return 0;
+-
+ 			if (size > max)
+ 				max = size;
+ 		}
+ 	}
+ 
+-	return max;
++	return max == 0 ? UINT64_MAX : max;
+ }
+ 
+ 
+diff --git a/src/liblzma/common/filter_encoder.h b/src/liblzma/common/filter_encoder.h
+index f1d5683f..da92be8b 100644
+--- a/src/liblzma/common/filter_encoder.h
++++ b/src/liblzma/common/filter_encoder.h
+@@ -1,6 +1,6 @@
+ ///////////////////////////////////////////////////////////////////////////////
+ //
+-/// \file       filter_encoder.c
++/// \file       filter_encoder.h
+ /// \brief      Filter ID mapping to filter-specific functions
+ //
+ //  Author:     Lasse Collin
+@@ -16,10 +16,6 @@
+ #include "common.h"
+ 
+ 
+-// FIXME: Might become a part of the public API.
+-extern uint64_t lzma_mt_block_size(const lzma_filter *filters);
+-
+-
+ extern lzma_ret lzma_raw_encoder_init(
+ 		lzma_next_coder *next, const lzma_allocator *allocator,
+ 		const lzma_filter *filters);
+diff --git a/src/liblzma/common/stream_encoder_mt.c b/src/liblzma/common/stream_encoder_mt.c
+index 5990742b..703b794e 100644
+--- a/src/liblzma/common/stream_encoder_mt.c
++++ b/src/liblzma/common/stream_encoder_mt.c
+@@ -979,20 +979,18 @@ get_options(const lzma_mt *options, lzma_options_easy *opt_easy,
+ 		*filters = opt_easy->filters;
+ 	}
+ 
+-	// Block size
+-	if (options->block_size > 0) {
+-		if (options->block_size > BLOCK_SIZE_MAX)
+-			return LZMA_OPTIONS_ERROR;
+-
++	// If the Block size is not set, determine it from the filter chain.
++	if (options->block_size > 0)
+ 		*block_size = options->block_size;
+-	} else {
+-		// Determine the Block size from the filter chain.
++	else
+ 		*block_size = lzma_mt_block_size(*filters);
+-		if (*block_size == 0)
+-			return LZMA_OPTIONS_ERROR;
+ 
+-		assert(*block_size <= BLOCK_SIZE_MAX);
+-	}
++	// UINT64_MAX > BLOCK_SIZE_MAX, so the second condition
++	// should be optimized out by any reasonable compiler.
++	// The second condition should be there in the unlikely event that
++	// the macros change and UINT64_MAX < BLOCK_SIZE_MAX.
++	if (*block_size > BLOCK_SIZE_MAX || *block_size == UINT64_MAX)
++		return LZMA_OPTIONS_ERROR;
+ 
+ 	// Calculate the maximum amount output that a single output buffer
+ 	// may need to hold. This is the same as the maximum total size of
+diff --git a/src/liblzma/liblzma_generic.map b/src/liblzma/liblzma_generic.map
+index bb82167e..b251d366 100644
+--- a/src/liblzma/liblzma_generic.map
++++ b/src/liblzma/liblzma_generic.map
+@@ -119,3 +119,8 @@ global:
+ 	lzma_str_list_filters;
+ 	lzma_str_to_filters;
+ } XZ_5.2;
++
++XZ_5.5.0alpha {
++global:
++	lzma_mt_block_size;
++} XZ_5.4;
+diff --git a/src/liblzma/liblzma_linux.map b/src/liblzma/liblzma_linux.map
+index 449f5fd6..25b39388 100644
+--- a/src/liblzma/liblzma_linux.map
++++ b/src/liblzma/liblzma_linux.map
+@@ -134,3 +134,8 @@ global:
+ 	lzma_str_list_filters;
+ 	lzma_str_to_filters;
+ } XZ_5.2;
++
++XZ_5.5.0alpha {
++global:
++	lzma_mt_block_size;
++} XZ_5.4;
+diff --git a/src/liblzma/lzma/lzma2_encoder.c b/src/liblzma/lzma/lzma2_encoder.c
+index 4b6b2311..5043a07e 100644
+--- a/src/liblzma/lzma/lzma2_encoder.c
++++ b/src/liblzma/lzma/lzma2_encoder.c
+@@ -409,6 +409,9 @@ lzma_lzma2_block_size(const void *options)
+ {
+ 	const lzma_options_lzma *const opt = options;
+ 
++	if (!IS_ENC_DICT_SIZE_VALID(opt->dict_size))
++		return UINT64_MAX;
++
+ 	// Use at least 1 MiB to keep compression ratio better.
+ 	return my_max((uint64_t)(opt->dict_size) * 3, UINT64_C(1) << 20);
+ }

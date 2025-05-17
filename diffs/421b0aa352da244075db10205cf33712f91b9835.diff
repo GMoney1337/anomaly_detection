@@ -1,0 +1,25 @@
+diff --git a/src/liblzma/rangecoder/range_encoder.h b/src/liblzma/rangecoder/range_encoder.h
+index 1bcfd7a5..5e2afafe 100644
+--- a/src/liblzma/rangecoder/range_encoder.h
++++ b/src/liblzma/rangecoder/range_encoder.h
+@@ -274,7 +274,7 @@ rc_encode_dummy(const lzma_range_encoder *rc, size_t out_size)
+ 
+ 	size_t pos = rc->pos;
+ 
+-	while (pos < rc->count) {
++	while (true) {
+ 		// Normalize
+ 		if (range < RC_TOP_VALUE) {
+ 			if (rc_shift_low_dummy(&low, &cache_size, &cache,
+@@ -284,6 +284,11 @@ rc_encode_dummy(const lzma_range_encoder *rc, size_t out_size)
+ 			range <<= RC_SHIFT_BITS;
+ 		}
+ 
++		// This check is here because the normalization above must
++		// be done before flushing the last bytes.
++		if (pos == rc->count)
++			break;
++
+ 		// Encode a bit
+ 		switch (rc->symbols[pos]) {
+ 		case RC_BIT_0: {

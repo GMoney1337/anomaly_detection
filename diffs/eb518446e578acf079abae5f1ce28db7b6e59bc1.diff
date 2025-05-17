@@ -1,0 +1,127 @@
+diff --git a/src/liblzma/lzma/lzma_common.h b/src/liblzma/lzma/lzma_common.h
+index 77b62955..d46b8502 100644
+--- a/src/liblzma/lzma/lzma_common.h
++++ b/src/liblzma/lzma/lzma_common.h
+@@ -83,6 +83,20 @@ typedef enum {
+ 				? (state) - 3 \
+ 				: (state) - 6))
+ 
++/// Like update_literal(state) but when it is already known that
++/// is_literal_state(state) is true.
++#define update_literal_normal(state) \
++	state = ((state) <= STATE_SHORTREP_LIT_LIT \
++			? STATE_LIT_LIT \
++			: (state) - 3);
++
++/// Like update_literal(state) but when it is already known that
++/// is_literal_state(state) is false.
++#define update_literal_matched(state) \
++	state = ((state) <= STATE_LIT_SHORTREP \
++			? (state) - 3 \
++			: (state) - 6);
++
+ /// Indicate that the latest state was a match.
+ #define update_match(state) \
+ 	state = ((state) < LIT_STATES ? STATE_LIT_MATCH : STATE_NONLIT_MATCH)
+diff --git a/src/liblzma/lzma/lzma_decoder.c b/src/liblzma/lzma/lzma_decoder.c
+index 0788558f..c5049a48 100644
+--- a/src/liblzma/lzma/lzma_decoder.c
++++ b/src/liblzma/lzma/lzma_decoder.c
+@@ -307,24 +307,6 @@ lzma_decode(void *coder_ptr, lzma_dict *restrict dictptr,
+ 		might_finish_without_eopm = true;
+ 	}
+ 
+-	// Lookup table used to update the literal state.
+-	// Compared to other state updates, this would need two branches.
+-	// The lookup table is used by both Resumable and Non-resumable modes.
+-	static const lzma_lzma_state next_state[] = {
+-		STATE_LIT_LIT,
+-		STATE_LIT_LIT,
+-		STATE_LIT_LIT,
+-		STATE_LIT_LIT,
+-		STATE_MATCH_LIT_LIT,
+-		STATE_REP_LIT_LIT,
+-		STATE_SHORTREP_LIT_LIT,
+-		STATE_MATCH_LIT,
+-		STATE_REP_LIT,
+-		STATE_SHORTREP_LIT,
+-		STATE_MATCH_LIT,
+-		STATE_REP_LIT
+-	};
+-
+ 	// The main decoder loop. The "switch" is used to resume the decoder at
+ 	// correct location. Once resumed, the "switch" is no longer used.
+ 	// The decoder loops is split into two modes:
+@@ -381,16 +363,18 @@ lzma_decode(void *coder_ptr, lzma_dict *restrict dictptr,
+ 					dict.pos, dict_get(&dict, 0));
+ 
+ 			if (is_literal_state(state)) {
++				update_literal_normal(state);
++
+ 				// Decode literal without match byte.
+ 				rc_bittree8(probs, 0);
+ 			} else {
++				update_literal_matched(state);
++
+ 				// Decode literal with match byte.
+ 				rc_matched_literal(probs,
+ 						dict_get(&dict, rep0));
+ 			}
+ 
+-			state = next_state[state];
+-
+ 			// Write decoded literal to dictionary
+ 			dict_put(&dict, symbol);
+ 			continue;
+@@ -705,6 +689,8 @@ slow:
+ 			symbol = 1;
+ 
+ 			if (is_literal_state(state)) {
++				update_literal_normal(state);
++
+ 				// Decode literal without match byte.
+ 				// The "slow" version does not unroll
+ 				// the loop.
+@@ -714,6 +700,8 @@ slow:
+ 							SEQ_LITERAL);
+ 				} while (symbol < (1 << 8));
+ 			} else {
++				update_literal_matched(state);
++
+ 				// Decode literal with match byte.
+ 				len = (uint32_t)(dict_get(&dict, rep0)) << 1;
+ 
+@@ -742,8 +730,6 @@ slow:
+ 				} while (symbol < (1 << 8));
+ 			}
+ 
+-			state = next_state[state];
+-
+ 	case SEQ_LITERAL_WRITE:
+ 			if (dict_put_safe(&dict, symbol)) {
+ 				coder->sequence = SEQ_LITERAL_WRITE;
+diff --git a/src/liblzma/lzma/lzma_encoder.c b/src/liblzma/lzma/lzma_encoder.c
+index eba48a41..89d4f4e5 100644
+--- a/src/liblzma/lzma/lzma_encoder.c
++++ b/src/liblzma/lzma/lzma_encoder.c
+@@ -54,18 +54,18 @@ literal(lzma_lzma1_encoder *coder, lzma_mf *mf, uint32_t position)
+ 	if (is_literal_state(coder->state)) {
+ 		// Previous LZMA-symbol was a literal. Encode a normal
+ 		// literal without a match byte.
++		update_literal_normal(coder->state);
+ 		rc_bittree(&coder->rc, subcoder, 8, cur_byte);
+ 	} else {
+ 		// Previous LZMA-symbol was a match. Use the last byte of
+ 		// the match as a "match byte". That is, compare the bits
+ 		// of the current literal and the match byte.
++		update_literal_matched(coder->state);
+ 		const uint8_t match_byte = mf->buffer[
+ 				mf->read_pos - coder->reps[0] - 1
+ 				- mf->read_ahead];
+ 		literal_matched(&coder->rc, subcoder, match_byte, cur_byte);
+ 	}
+-
+-	update_literal(coder->state);
+ }
+ 
+ 

@@ -1,0 +1,77 @@
+diff --git a/tests/create_compress_files.c b/tests/create_compress_files.c
+index 797a73e7..76aa3e30 100644
+--- a/tests/create_compress_files.c
++++ b/tests/create_compress_files.c
+@@ -24,7 +24,7 @@
+ // Avoid re-creating the test files every time the tests are run.
+ #define maybe_create_test(argc, argv, name) \
+ do { \
+-	if ((argc < 2 || strcmp(argv[1], #name) == 0) \
++	if ((argc < 2 || strcmp(argv[1], "compress_generated_" #name) == 0) \
+ 			&& !file_exists("compress_generated_" #name)) { \
+ 		FILE *file = file_create("compress_generated_" #name); \
+ 		write_ ## name(file); \
+diff --git a/tests/test_compress.sh b/tests/test_compress.sh
+index 0692a8b1..361903a7 100755
+--- a/tests/test_compress.sh
++++ b/tests/test_compress.sh
+@@ -85,9 +85,16 @@ test -x ../src/xzdec/xzdec || XZDEC=
+ 
+ # Create the required input file if needed.
+ FILE=$1
++# Derive temporary filenames for compressed and uncompressed outputs
++# from the input filename. This is needed when multiple tests are
++# run in parallel.
++TMP_COMP="tmp_comp_$FILE"
++TMP_UNCOMP="tmp_uncomp_$FILE"
+ case $FILE in
++#	compress_generated files will be created in the build directory
++#	in the /tests/ sub-directory.
+ 	compress_generated_*)
+-		if ./create_compress_files "${FILE#compress_generated_}" ; then
++		if ./create_compress_files "$FILE" ; then
+ 			:
+ 		else
+ 			rm -f "$FILE"
+@@ -95,18 +102,17 @@ case $FILE in
+ 			exit 1
+ 		fi
+ 		;;
++#	compress_prepared files exist in the source directory since they
++#       do not need to be copied or regenerated.
++	compress_prepared_*)
++		FILE="$srcdir/$FILE"
++		;;
+ 	'')
+ 		echo "No test file was specified."
+ 		exit 1
+ 		;;
+ esac
+ 
+-# Derive temporary filenames for compressed and uncompressed outputs
+-# from the input filename. This is needed when multiple tests are
+-# run in parallel.
+-TMP_COMP="tmp_comp_${FILE##*/}"
+-TMP_UNCOMP="tmp_uncomp_${FILE##*/}"
+-
+ # Remove temporary now (in case they are something weird), and on exit.
+ rm -f "$TMP_COMP" "$TMP_UNCOMP"
+ trap 'rm -f "$TMP_COMP" "$TMP_UNCOMP"' 0
+diff --git a/tests/test_compress_prepared_bcj_sparc b/tests/test_compress_prepared_bcj_sparc
+index 01447e13..deb76ef6 100755
+--- a/tests/test_compress_prepared_bcj_sparc
++++ b/tests/test_compress_prepared_bcj_sparc
+@@ -1,3 +1,3 @@
+ #!/bin/sh
+ 
+-exec "$srcdir/test_compress.sh" "$srcdir/compress_prepared_bcj_sparc"
++exec "$srcdir/test_compress.sh" compress_prepared_bcj_sparc
+diff --git a/tests/test_compress_prepared_bcj_x86 b/tests/test_compress_prepared_bcj_x86
+index a2771498..3452d7ff 100755
+--- a/tests/test_compress_prepared_bcj_x86
++++ b/tests/test_compress_prepared_bcj_x86
+@@ -1,3 +1,3 @@
+ #!/bin/sh
+ 
+-exec "$srcdir/test_compress.sh" "$srcdir/compress_prepared_bcj_x86"
++exec "$srcdir/test_compress.sh" compress_prepared_bcj_x86

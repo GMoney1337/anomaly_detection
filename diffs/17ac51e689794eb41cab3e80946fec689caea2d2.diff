@@ -1,0 +1,12 @@
+diff --git a/THANKS b/THANKS
+index e49576d3..5f8ca492 100644
+--- a/THANKS
++++ b/THANKS
+@@ -43,6 +43,7 @@ has been important. :-) In alphabetical order:
+   - Mike Frysinger
+   - Daniel Richard G.
+   - Bjarni Ingi Gislason
++  - John Paul Adrian Glaubitz
+   - Bill Glessner
+   - Jason Gorski
+   - Juan Manuel Guerrero

@@ -1,0 +1,352 @@
+diff --git a/src/liblzma/api/Makefile.am b/src/liblzma/api/Makefile.am
+index 7f5e6de4..83e47444 100644
+--- a/src/liblzma/api/Makefile.am
++++ b/src/liblzma/api/Makefile.am
+@@ -22,6 +22,7 @@ nobase_include_HEADERS = \
+ 	lzma/check.h \
+ 	lzma/copy.h \
+ 	lzma/delta.h \
++	lzma/easy.h \
+ 	lzma/extra.h \
+ 	lzma/filter.h \
+ 	lzma/index.h \
+diff --git a/src/liblzma/api/lzma.h b/src/liblzma/api/lzma.h
+index ad39d349..fedcd25b 100644
+--- a/src/liblzma/api/lzma.h
++++ b/src/liblzma/api/lzma.h
+@@ -111,6 +111,7 @@ extern "C" {
+ #include "lzma/alone.h"
+ #include "lzma/raw.h"
+ #include "lzma/auto.h"
++#include "lzma/easy.h"
+ 
+ /* Advanced features */
+ #include "lzma/info.h"
+diff --git a/src/liblzma/common/Makefile.am b/src/liblzma/common/Makefile.am
+index 048f4c73..dad80ecd 100644
+--- a/src/liblzma/common/Makefile.am
++++ b/src/liblzma/common/Makefile.am
+@@ -70,6 +70,10 @@ libcommon_la_SOURCES += \
+ 	block_encoder.c \
+ 	block_encoder.h \
+ 	block_header_encoder.c \
++	easy_common.c \
++	easy_common.h \
++	easy_single.c \
++	easy_multi.c \
+ 	filter_flags_encoder.c \
+ 	init_encoder.c \
+ 	metadata_encoder.c \
+@@ -80,6 +84,7 @@ libcommon_la_SOURCES += \
+ 	stream_common.h \
+ 	stream_encoder_single.c \
+ 	stream_encoder_multi.c \
++	stream_encoder_multi.h \
+ 	stream_flags_encoder.c \
+ 	vli_encoder.c
+ endif
+diff --git a/src/liblzma/common/easy_common.c b/src/liblzma/common/easy_common.c
+new file mode 100644
+index 00000000..e0c12a52
+--- /dev/null
++++ b/src/liblzma/common/easy_common.c
+@@ -0,0 +1,54 @@
++///////////////////////////////////////////////////////////////////////////////
++//
++/// \file       easy_common.c
++/// \brief      Shared stuff for easy encoder initialization functions
++//
++//  Copyright (C) 2008 Lasse Collin
++//
++//  This library is free software; you can redistribute it and/or
++//  modify it under the terms of the GNU Lesser General Public
++//  License as published by the Free Software Foundation; either
++//  version 2.1 of the License, or (at your option) any later version.
++//
++//  This library is distributed in the hope that it will be useful,
++//  but WITHOUT ANY WARRANTY; without even the implied warranty of
++//  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
++//  Lesser General Public License for more details.
++//
++///////////////////////////////////////////////////////////////////////////////
++
++#include "easy_common.h"
++
++
++extern bool
++lzma_easy_set_filters(lzma_options_filter *filters, uint32_t level)
++{
++	bool error = false;
++
++	if (level == 0) {
++		filters[0].id = LZMA_VLI_VALUE_UNKNOWN;
++
++#ifdef HAVE_FILTER_LZMA
++	} else if (level <= 9) {
++		filters[0].id = LZMA_FILTER_LZMA;
++		filters[0].options = (void *)(&lzma_preset_lzma[level - 1]);
++		filters[1].id = LZMA_VLI_VALUE_UNKNOWN;
++#endif
++
++	} else {
++		error = true;
++	}
++
++	return error;
++}
++
++
++extern LZMA_API uint32_t
++lzma_easy_memory_usage(lzma_easy_level level)
++{
++	lzma_options_filter filters[8];
++	if (lzma_easy_set_filters(filters, level))
++		return UINT32_MAX;
++
++	return lzma_memory_usage(filters, true);
++}
+diff --git a/src/liblzma/common/easy_common.h b/src/liblzma/common/easy_common.h
+new file mode 100644
+index 00000000..d864cce5
+--- /dev/null
++++ b/src/liblzma/common/easy_common.h
+@@ -0,0 +1,28 @@
++///////////////////////////////////////////////////////////////////////////////
++//
++/// \file       easy_common.c
++/// \brief      Shared stuff for easy encoder initialization functions
++//
++//  Copyright (C) 2008 Lasse Collin
++//
++//  This library is free software; you can redistribute it and/or
++//  modify it under the terms of the GNU Lesser General Public
++//  License as published by the Free Software Foundation; either
++//  version 2.1 of the License, or (at your option) any later version.
++//
++//  This library is distributed in the hope that it will be useful,
++//  but WITHOUT ANY WARRANTY; without even the implied warranty of
++//  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
++//  Lesser General Public License for more details.
++//
++///////////////////////////////////////////////////////////////////////////////
++
++#include "common.h"
++
++#ifndef LZMA_EASY_COMMON_H
++#define LZMA_EASY_COMMON_H
++
++extern bool lzma_easy_set_filters(
++		lzma_options_filter *filters, uint32_t level);
++
++#endif
+diff --git a/src/liblzma/common/easy_multi.c b/src/liblzma/common/easy_multi.c
+new file mode 100644
+index 00000000..15778fab
+--- /dev/null
++++ b/src/liblzma/common/easy_multi.c
+@@ -0,0 +1,103 @@
++///////////////////////////////////////////////////////////////////////////////
++//
++/// \file       easy_multi.c
++/// \brief      Easy Multi-Block Stream encoder initialization
++//
++//  Copyright (C) 2008 Lasse Collin
++//
++//  This library is free software; you can redistribute it and/or
++//  modify it under the terms of the GNU Lesser General Public
++//  License as published by the Free Software Foundation; either
++//  version 2.1 of the License, or (at your option) any later version.
++//
++//  This library is distributed in the hope that it will be useful,
++//  but WITHOUT ANY WARRANTY; without even the implied warranty of
++//  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
++//  Lesser General Public License for more details.
++//
++///////////////////////////////////////////////////////////////////////////////
++
++#include "easy_common.h"
++#include "stream_encoder_multi.h"
++
++
++struct lzma_coder_s {
++	lzma_next_coder encoder;
++	lzma_options_stream options;
++};
++
++
++static lzma_ret
++easy_encode(lzma_coder *coder, lzma_allocator *allocator,
++		const uint8_t *restrict in, size_t *restrict in_pos,
++		size_t in_size, uint8_t *restrict out,
++		size_t *restrict out_pos, size_t out_size, lzma_action action)
++{
++	return coder->encoder.code(coder->encoder.coder, allocator,
++			in, in_pos, in_size, out, out_pos, out_size, action);
++}
++
++
++static void
++easy_encoder_end(lzma_coder *coder, lzma_allocator *allocator)
++{
++	lzma_next_coder_end(&coder->encoder, allocator);
++	lzma_free(coder, allocator);
++	return;
++}
++
++
++static lzma_ret
++easy_encoder_init(lzma_next_coder *next, lzma_allocator *allocator,
++		lzma_easy_level level, lzma_easy_level metadata_level,
++		const lzma_extra *header, const lzma_extra *footer)
++{
++	if (next->coder == NULL) {
++		next->coder = lzma_alloc(sizeof(lzma_coder), allocator);
++		if (next->coder == NULL)
++			return LZMA_MEM_ERROR;
++
++		next->code = &easy_encode;
++		next->end = &easy_encoder_end;
++
++		next->coder->encoder = LZMA_NEXT_CODER_INIT;
++	}
++
++	next->coder->options = (lzma_options_stream){
++		.check = LZMA_CHECK_CRC32,
++		.has_crc32 = true,
++		.uncompressed_size = LZMA_VLI_VALUE_UNKNOWN,
++		.alignment = 0,
++		.header = header,
++		.footer = footer,
++	};
++
++	if (lzma_easy_set_filters(next->coder->options.filters, level)
++			|| lzma_easy_set_filters(
++				next->coder->options.metadata_filters,
++				metadata_level))
++		return LZMA_HEADER_ERROR;
++
++	return lzma_stream_encoder_multi_init(&next->coder->encoder,
++			allocator, &next->coder->options);
++}
++
++
++extern LZMA_API lzma_ret
++lzma_easy_encoder_multi(lzma_stream *strm,
++		lzma_easy_level level, lzma_easy_level metadata_level,
++		const lzma_extra *header, const lzma_extra *footer)
++{
++	// This is more complicated than lzma_easy_encoder_single(),
++	// because lzma_stream_encoder_multi() wants that the options
++	// structure is available until the encoding is finished.
++	lzma_next_strm_init(strm, easy_encoder_init,
++			level, metadata_level, header, footer);
++
++	strm->internal->supported_actions[LZMA_RUN] = true;
++	strm->internal->supported_actions[LZMA_SYNC_FLUSH] = true;
++	strm->internal->supported_actions[LZMA_FULL_FLUSH] = true;
++	strm->internal->supported_actions[LZMA_FINISH] = true;
++
++	return LZMA_OK;
++}
+diff --git a/src/liblzma/common/easy_single.c b/src/liblzma/common/easy_single.c
+new file mode 100644
+index 00000000..e2fa4e13
+--- /dev/null
++++ b/src/liblzma/common/easy_single.c
+@@ -0,0 +1,37 @@
++///////////////////////////////////////////////////////////////////////////////
++//
++/// \file       easy_single.c
++/// \brief      Easy Single-Block Stream encoder initialization
++//
++//  Copyright (C) 2008 Lasse Collin
++//
++//  This library is free software; you can redistribute it and/or
++//  modify it under the terms of the GNU Lesser General Public
++//  License as published by the Free Software Foundation; either
++//  version 2.1 of the License, or (at your option) any later version.
++//
++//  This library is distributed in the hope that it will be useful,
++//  but WITHOUT ANY WARRANTY; without even the implied warranty of
++//  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
++//  Lesser General Public License for more details.
++//
++///////////////////////////////////////////////////////////////////////////////
++
++#include "easy_common.h"
++
++
++extern LZMA_API lzma_ret
++lzma_easy_encoder_single(lzma_stream *strm, lzma_easy_level level)
++{
++	lzma_options_stream opt_stream = {
++		.check = LZMA_CHECK_CRC32,
++		.has_crc32 = true,
++		.uncompressed_size = LZMA_VLI_VALUE_UNKNOWN,
++		.alignment = 0,
++	};
++
++	if (lzma_easy_set_filters(opt_stream.filters, level))
++		return LZMA_HEADER_ERROR;
++
++	return lzma_stream_encoder_single(strm, &opt_stream);
++}
+diff --git a/src/liblzma/common/stream_encoder_multi.c b/src/liblzma/common/stream_encoder_multi.c
+index f37b56a7..33b4efd9 100644
+--- a/src/liblzma/common/stream_encoder_multi.c
++++ b/src/liblzma/common/stream_encoder_multi.c
+@@ -18,6 +18,7 @@
+ ///////////////////////////////////////////////////////////////////////////////
+ 
+ #include "stream_common.h"
++#include "stream_encoder_multi.h"
+ #include "block_encoder.h"
+ #include "metadata_encoder.h"
+ 
+@@ -417,14 +418,12 @@ stream_encoder_init(lzma_next_coder *next,
+ }
+ 
+ 
+-/*
+ extern lzma_ret
+ lzma_stream_encoder_multi_init(lzma_next_coder *next,
+ 		lzma_allocator *allocator, const lzma_options_stream *options)
+ {
+ 	lzma_next_coder_init(stream_encoder_init, next, allocator, options);
+ }
+-*/
+ 
+ 
+ extern LZMA_API lzma_ret
+diff --git a/src/liblzma/common/stream_encoder_multi.h b/src/liblzma/common/stream_encoder_multi.h
+new file mode 100644
+index 00000000..e0ff02f3
+--- /dev/null
++++ b/src/liblzma/common/stream_encoder_multi.h
+@@ -0,0 +1,26 @@
++///////////////////////////////////////////////////////////////////////////////
++//
++/// \file       stream_encoder_multi.h
++/// \brief      Encodes Multi-Block .lzma files
++//
++//  Copyright (C) 2007 Lasse Collin
++//
++//  This library is free software; you can redistribute it and/or
++//  modify it under the terms of the GNU Lesser General Public
++//  License as published by the Free Software Foundation; either
++//  version 2.1 of the License, or (at your option) any later version.
++//
++//  This library is distributed in the hope that it will be useful,
++//  but WITHOUT ANY WARRANTY; without even the implied warranty of
++//  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
++//  Lesser General Public License for more details.
++//
++///////////////////////////////////////////////////////////////////////////////
++
++#ifndef LZMA_STREAM_ENCODER_MULTI_H
++#define LZMA_STREAM_ENCODER_MULTI_H
++
++extern lzma_ret lzma_stream_encoder_multi_init(lzma_next_coder *next,
++		lzma_allocator *allocator, const lzma_options_stream *options);
++
++#endif

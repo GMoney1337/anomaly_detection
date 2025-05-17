@@ -1,0 +1,14 @@
+diff --git a/src/liblzma/api/lzma/filter.h b/src/liblzma/api/lzma/filter.h
+index 04825c65..5ec9976d 100644
+--- a/src/liblzma/api/lzma/filter.h
++++ b/src/liblzma/api/lzma/filter.h
+@@ -120,7 +120,8 @@ extern LZMA_API(lzma_bool) lzma_filter_decoder_is_supported(lzma_vli id)
+  */
+ extern LZMA_API(lzma_ret) lzma_filters_copy(
+ 		const lzma_filter *src, lzma_filter *dest,
+-		const lzma_allocator *allocator) lzma_nothrow;
++		const lzma_allocator *allocator)
++		lzma_nothrow lzma_attr_warn_unused_result;
+ 
+ 
+ /**

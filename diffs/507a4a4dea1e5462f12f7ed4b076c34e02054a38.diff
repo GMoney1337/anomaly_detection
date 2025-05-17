@@ -1,0 +1,59 @@
+diff --git a/INSTALL b/INSTALL
+index 5f38085e..805f1175 100644
+--- a/INSTALL
++++ b/INSTALL
+@@ -78,7 +78,7 @@ XZ Utils Installation
+ 1.2.3. Windows
+ 
+     Building XZ Utils on Windows is supported under MinGW + MSYS and
+-    Cygwin. There is windows/build.sh to ease packaging XZ Utils with
++    Cygwin. There is windows/build.bash to ease packaging XZ Utils with
+     MinGW + MSYS into a redistributable .zip or .7z file. See
+     windows/INSTALL-Windows.txt for more information.
+ 
+diff --git a/windows/INSTALL-Windows.txt b/windows/INSTALL-Windows.txt
+index b5ac9630..b3ed93e3 100644
+--- a/windows/INSTALL-Windows.txt
++++ b/windows/INSTALL-Windows.txt
+@@ -118,13 +118,13 @@ Building XZ Utils
+         cd /c/devel
+         tar xzf xz-5.x.x.tar.gz
+         cd xz-5.x.x
+-        sh windows/build.sh
++        bash windows/build.bash
+ 
+     If you used some other directory than C:\devel\tools for the build
+-    tools, edit the variables near the beginning of build.sh first.
++    tools, edit the variables near the beginning of build.bash first.
+ 
+     If you want to build manually, read the buildit() function in
+-    build.sh. Look especially at the latter configure invocation.
++    build.bash. Look especially at the latter configure invocation.
+ 
+     Be patient. Running configure and other scripts used by the build
+     system is (very) slow under Windows.
+diff --git a/windows/build.sh b/windows/build.bash
+similarity index 98%
+rename from windows/build.sh
+rename to windows/build.bash
+index 665951b9..e6754358 100644
+--- a/windows/build.sh
++++ b/windows/build.bash
+@@ -1,4 +1,4 @@
+-#!/bin/sh
++#!/bin/bash
+ #
+ ###############################################################################
+ #
+@@ -48,9 +48,9 @@ esac
+ 
+ # This script can be run either at the top-level directory of the package
+ # or in the same directory containing this script.
+-if [ ! -f windows/build.sh ]; then
++if [ ! -f windows/build.bash ]; then
+ 	cd ..
+-	if [ ! -f windows/build.sh ]; then
++	if [ ! -f windows/build.bash ]; then
+ 		echo "You are in a wrong directory." >&2
+ 		exit 1
+ 	fi

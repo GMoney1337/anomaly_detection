@@ -1,0 +1,12 @@
+diff --git a/THANKS b/THANKS
+index f127e510..93dc3ba7 100644
+--- a/THANKS
++++ b/THANKS
+@@ -64,6 +64,7 @@ has been important. :-) In alphabetical order:
+   - Conley Moorhous
+   - Rafał Mużyło
+   - Adrien Nader
++  - Evan Nemerson
+   - Hongbo Ni
+   - Jonathan Nieder
+   - Andre Noll

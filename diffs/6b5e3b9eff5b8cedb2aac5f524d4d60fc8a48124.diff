@@ -1,0 +1,115 @@
+diff --git a/src/xz/args.c b/src/xz/args.c
+index d71a23c4..041c8007 100644
+--- a/src/xz/args.c
++++ b/src/xz/args.c
+@@ -22,6 +22,7 @@ bool opt_stdout = false;
+ bool opt_force = false;
+ bool opt_keep_original = false;
+ bool opt_robot = false;
++bool opt_ignore_check = false;
+ 
+ // We don't modify or free() this, but we need to assign it in some
+ // non-const pointers.
+@@ -141,6 +142,7 @@ parse_real(args_info *args, int argc, char **argv)
+ 		OPT_INFO_MEMORY,
+ 		OPT_ROBOT,
+ 		OPT_FLUSH_TIMEOUT,
++		OPT_IGNORE_CHECK,
+ 	};
+ 
+ 	static const char short_opts[]
+@@ -169,6 +171,7 @@ parse_real(args_info *args, int argc, char **argv)
+ 		// Basic compression settings
+ 		{ "format",       required_argument, NULL,  'F' },
+ 		{ "check",        required_argument, NULL,  'C' },
++		{ "ignore-check", no_argument,       NULL,  OPT_IGNORE_CHECK },
+ 		{ "block-size",   required_argument, NULL,  OPT_BLOCK_SIZE },
+ 		{ "block-list",  required_argument, NULL,  OPT_BLOCK_LIST },
+ 		{ "memlimit-compress",   required_argument, NULL, OPT_MEM_COMPRESS },
+@@ -438,6 +441,10 @@ parse_real(args_info *args, int argc, char **argv)
+ 			break;
+ 		}
+ 
++		case OPT_IGNORE_CHECK:
++			opt_ignore_check = true;
++			break;
++
+ 		case OPT_BLOCK_SIZE:
+ 			opt_block_size = str_to_uint64("block-size", optarg,
+ 					0, LZMA_VLI_MAX);
+diff --git a/src/xz/args.h b/src/xz/args.h
+index 53c4a98a..1defad12 100644
+--- a/src/xz/args.h
++++ b/src/xz/args.h
+@@ -36,6 +36,7 @@ extern bool opt_force;
+ extern bool opt_keep_original;
+ // extern bool opt_recursive;
+ extern bool opt_robot;
++extern bool opt_ignore_check;
+ 
+ extern const char stdin_filename[];
+ 
+diff --git a/src/xz/coder.c b/src/xz/coder.c
+index 947b4721..a94bdb83 100644
+--- a/src/xz/coder.c
++++ b/src/xz/coder.c
+@@ -450,7 +450,15 @@ coder_init(file_pair *pair)
+ 			break;
+ 		}
+ 	} else {
+-		uint32_t flags = LZMA_TELL_UNSUPPORTED_CHECK;
++		uint32_t flags = 0;
++
++		// It seems silly to warn about unsupported check if the
++		// check won't be verified anyway due to --ignore-check.
++		if (opt_ignore_check)
++			flags |= LZMA_IGNORE_CHECK;
++		else
++			flags |= LZMA_TELL_UNSUPPORTED_CHECK;
++
+ 		if (!opt_single_stream)
+ 			flags |= LZMA_CONCATENATED;
+ 
+diff --git a/src/xz/message.c b/src/xz/message.c
+index c85a2cb3..8a31b00e 100644
+--- a/src/xz/message.c
++++ b/src/xz/message.c
+@@ -1122,6 +1122,8 @@ message_help(bool long_help)
+ "                      `auto' (default), `xz', `lzma', and `raw'\n"
+ "  -C, --check=CHECK   integrity check type: `none' (use with caution),\n"
+ "                      `crc32', `crc64' (default), or `sha256'"));
++		puts(_(
++"      --ignore-check  don't verify the integrity check when decompressing"));
+ 	}
+ 
+ 	puts(_(
+diff --git a/src/xz/xz.1 b/src/xz/xz.1
+index 7d7620a5..49b07784 100644
+--- a/src/xz/xz.1
++++ b/src/xz/xz.1
+@@ -609,6 +609,25 @@ Integrity of the
+ headers is always verified with CRC32.
+ It is not possible to change or disable it.
+ .TP
++.B \-\-ignore\-check
++Don't verify the integrity check of the compressed data when decompressing.
++The CRC32 values in the
++.B .xz
++headers will still be verified normally.
++.IP ""
++.B "Do not use this option unless you know what you are doing."
++Possible reasons to use this option:
++.RS
++.IP \(bu 3
++Trying to recover data from a corrupt .xz file.
++.IP \(bu 3
++Speeding up decompression.
++This matters mostly with SHA-256 or
++with files that have compressed extremely well.
++It's recommended to not use this option for this purpose
++unless the file integrity is verified externally in some other way.
++.RE
++.TP
+ .BR \-0 " ... " \-9
+ Select a compression preset level.
+ The default is

@@ -1,0 +1,425 @@
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+index 5b840b46..7767896e 100644
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -65,10 +65,10 @@ string(REGEX REPLACE
+ #define LZMA_VERSION_MINOR ([0-9]+)\n\
+ #define LZMA_VERSION_PATCH ([0-9]+)\n\
+ .*$"
+-       "\\1.\\2.\\3" XZ_VERSION ${XZ_VERSION})
++       "\\1.\\2.\\3" XZ_VERSION "${XZ_VERSION}")
+ 
+ # Among other things, this gives us variables xz_VERSION and xz_VERSION_MAJOR.
+-project(xz VERSION ${XZ_VERSION} LANGUAGES C)
++project(xz VERSION "${XZ_VERSION}" LANGUAGES C)
+ 
+ # Definitions common to all targets:
+ add_compile_definitions(
+@@ -152,7 +152,7 @@ if(NOT WIN32 AND NOT DEFINED CACHE{HAVE_CLOCK_GETTIME})
+         # when clock_gettime is available.
+         add_compile_definitions(
+             HAVE_CLOCK_GETTIME
+-            HAVE_DECL_CLOCK_MONOTONIC=$<BOOL:${HAVE_DECL_CLOCK_MONOTONIC}>
++            HAVE_DECL_CLOCK_MONOTONIC=$<BOOL:"${HAVE_DECL_CLOCK_MONOTONIC}">
+         )
+     endif()
+ endif()
+@@ -167,7 +167,7 @@ else()
+ 
+     # Check if pthread_condattr_setclock() exists to use CLOCK_MONOTONIC.
+     if(HAVE_DECL_CLOCK_MONOTONIC)
+-        list(INSERT CMAKE_REQUIRED_LIBRARIES 0 ${CMAKE_THREAD_LIBS_INIT})
++        list(INSERT CMAKE_REQUIRED_LIBRARIES 0 "${CMAKE_THREAD_LIBS_INIT}")
+         check_symbol_exists(pthread_condattr_setclock pthread.h
+                             HAVE_PTHREAD_CONDATTR_SETCLOCK)
+         tuklib_add_definition_if(ALL HAVE_PTHREAD_CONDATTR_SETCLOCK)
+@@ -395,11 +395,11 @@ if(WIN32)
+ elseif(CMAKE_SYSTEM_NAME MATCHES "^Linux$|^FreeBSD$")
+     # Symbol versioning for shared liblzma. This doesn't affect static builds.
+     target_link_options(liblzma PRIVATE
+-        -Wl,--version-script=${CMAKE_CURRENT_SOURCE_DIR}/src/liblzma/liblzma.map
++        "-Wl,--version-script=${CMAKE_CURRENT_SOURCE_DIR}/src/liblzma/liblzma.map"
+     )
+     set_target_properties(liblzma PROPERTIES
+-        LINK_DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/src/liblzma/liblzma.map
+-        LINK_DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/src/common/common_w32res.rc
++        LINK_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/src/liblzma/liblzma.map"
++        LINK_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/src/common/common_w32res.rc"
+     )
+ endif()
+ 
+@@ -407,8 +407,8 @@ set_target_properties(liblzma PROPERTIES
+     # At least for now the package versioning matches the rules used for
+     # shared library versioning (excluding development releases) so it is
+     # fine to use the package version here.
+-    SOVERSION ${xz_VERSION_MAJOR}
+-    VERSION ${xz_VERSION}
++    SOVERSION "${xz_VERSION_MAJOR}"
++    VERSION "${xz_VERSION}"
+ 
+     # It's liblzma.so or liblzma.dll, not libliblzma.so or lzma.dll.
+     # Avoid the name lzma.dll because it would conflict with LZMA SDK.
+@@ -421,12 +421,12 @@ set_target_properties(liblzma PROPERTIES
+ # for development releases where each release may have incompatible changes.
+ include(CMakePackageConfigHelpers)
+ write_basic_package_version_file(
+-    ${CMAKE_CURRENT_BINARY_DIR}/liblzmaConfigVersion.cmake
+-    VERSION ${liblzma_VERSION}
++    "${CMAKE_CURRENT_BINARY_DIR}/liblzmaConfigVersion.cmake"
++    VERSION "${liblzma_VERSION}"
+     COMPATIBILITY SameMajorVersion)
+ 
+ # Create liblzmaConfig.cmake.
+-file(WRITE ${CMAKE_CURRENT_BINARY_DIR}/liblzmaConfig.cmake
++file(WRITE "${CMAKE_CURRENT_BINARY_DIR}/liblzmaConfig.cmake"
+ "include(CMakeFindDependencyMacro)
+ set(THREADS_PREFER_PTHREAD_FLAG TRUE)
+ find_dependency(Threads)
+@@ -439,36 +439,36 @@ include(GNUInstallDirs)
+ # Install the library binary. The INCLUDES specifies the include path that
+ # is exported for other projects to use but it doesn't install any files.
+ install(TARGETS liblzma EXPORT liblzmaTargets
+-        RUNTIME  DESTINATION ${CMAKE_INSTALL_BINDIR}
++        RUNTIME  DESTINATION "${CMAKE_INSTALL_BINDIR}"
+                  COMPONENT liblzma_Runtime
+-        LIBRARY  DESTINATION ${CMAKE_INSTALL_LIBDIR}
++        LIBRARY  DESTINATION "${CMAKE_INSTALL_LIBDIR}"
+                  COMPONENT liblzma_Runtime
+                  NAMELINK_COMPONENT liblzma_Development
+-        ARCHIVE  DESTINATION ${CMAKE_INSTALL_LIBDIR}
++        ARCHIVE  DESTINATION "${CMAKE_INSTALL_LIBDIR}"
+                  COMPONENT liblzma_Development
+-        INCLUDES DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
++        INCLUDES DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}")
+ 
+ # Install the liblzma API headers. These use a subdirectory so
+ # this has to be done as a separate step.
+ install(DIRECTORY src/liblzma/api/
+         COMPONENT liblzma_Development
+-        DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
++        DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}"
+         FILES_MATCHING PATTERN "*.h")
+ 
+ # Install the CMake files that other packages can use to find liblzma.
+ set(liblzma_INSTALL_CMAKEDIR
+-    ${CMAKE_INSTALL_LIBDIR}/cmake/liblzma
++    "${CMAKE_INSTALL_LIBDIR}/cmake/liblzma"
+     CACHE STRING "Path to liblzma's .cmake files")
+ 
+ install(EXPORT liblzmaTargets
+         NAMESPACE liblzma::
+         FILE liblzmaTargets.cmake
+-        DESTINATION ${liblzma_INSTALL_CMAKEDIR}
++        DESTINATION "${liblzma_INSTALL_CMAKEDIR}"
+         COMPONENT liblzma_Development)
+ 
+-install(FILES ${CMAKE_CURRENT_BINARY_DIR}/liblzmaConfig.cmake
+-              ${CMAKE_CURRENT_BINARY_DIR}/liblzmaConfigVersion.cmake
+-        DESTINATION ${liblzma_INSTALL_CMAKEDIR}
++install(FILES "${CMAKE_CURRENT_BINARY_DIR}/liblzmaConfig.cmake"
++              "${CMAKE_CURRENT_BINARY_DIR}/liblzmaConfigVersion.cmake"
++        DESTINATION "${liblzma_INSTALL_CMAKEDIR}"
+         COMPONENT liblzma_Development)
+ 
+ 
+@@ -507,12 +507,12 @@ if(HAVE_GETOPT_LONG)
+     tuklib_progname(xzdec)
+ 
+     install(TARGETS xzdec
+-            RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
++            RUNTIME DESTINATION "${CMAKE_INSTALL_BINDIR}"
+                     COMPONENT xzdec)
+ 
+     if(UNIX)
+         install(FILES src/xzdec/xzdec.1
+-                DESTINATION ${CMAKE_INSTALL_MANDIR}/man1
++                DESTINATION "${CMAKE_INSTALL_MANDIR}/man1"
+                 COMPONENT xzdec)
+     endif()
+ endif()
+@@ -634,10 +634,10 @@ if(NOT MSVC AND HAVE_GETOPT_LONG)
+     endif()
+ 
+     install(TARGETS xz
+-            RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
++            RUNTIME DESTINATION "${CMAKE_INSTALL_BINDIR}"
+                     COMPONENT xz)
+ 
+     install(FILES src/xz/xz.1
+-            DESTINATION ${CMAKE_INSTALL_MANDIR}/man1
++            DESTINATION "${CMAKE_INSTALL_MANDIR}/man1"
+             COMPONENT xz)
+ endif()
+diff --git a/cmake/tuklib_common.cmake b/cmake/tuklib_common.cmake
+index c3d2c536..088a3cb1 100644
+--- a/cmake/tuklib_common.cmake
++++ b/cmake/tuklib_common.cmake
+@@ -8,16 +8,18 @@
+ #
+ 
+ function(tuklib_add_definitions TARGET_OR_ALL DEFINITIONS)
++    # DEFINITIONS may be an empty string/list but it's fine here. There is
++    # no need to quote ${DEFINITIONS} as empty arguments are fine here.
+     if(TARGET_OR_ALL STREQUAL "ALL")
+         add_compile_definitions(${DEFINITIONS})
+     else()
+-        target_compile_definitions(${TARGET_OR_ALL} PRIVATE ${DEFINITIONS})
++        target_compile_definitions("${TARGET_OR_ALL}" PRIVATE ${DEFINITIONS})
+     endif()
+ endfunction()
+ 
+ function(tuklib_add_definition_if TARGET_OR_ALL VAR)
+     if(${VAR})
+-        tuklib_add_definitions(${TARGET_OR_ALL} ${VAR})
++        tuklib_add_definitions("${TARGET_OR_ALL}" "${VAR}")
+     endif()
+ endfunction()
+ 
+@@ -28,7 +30,7 @@ macro(tuklib_use_system_extensions TARGET_OR_ALL)
+         # FIXME? The Solaris-specific __EXTENSIONS__ should be conditional
+         #        even on Solaris. See gnulib: git log m4/extensions.m4.
+         # FIXME? gnulib and autoconf.git has lots of new stuff.
+-        tuklib_add_definitions(${TARGET_OR_ALL}
++        tuklib_add_definitions("${TARGET_OR_ALL}"
+             _GNU_SOURCE
+             __EXTENSIONS__
+             _POSIX_PTHREAD_SEMANTICS
+diff --git a/cmake/tuklib_cpucores.cmake b/cmake/tuklib_cpucores.cmake
+index 34546b0d..5844e4b2 100644
+--- a/cmake/tuklib_cpucores.cmake
++++ b/cmake/tuklib_cpucores.cmake
+@@ -7,15 +7,11 @@
+ # You can do whatever you want with this file.
+ #
+ 
+-include(${CMAKE_CURRENT_LIST_DIR}/tuklib_common.cmake)
++include("${CMAKE_CURRENT_LIST_DIR}/tuklib_common.cmake")
+ include(CheckCSourceCompiles)
+ include(CheckIncludeFile)
+ 
+ function(tuklib_cpucores_internal_check)
+-    if(CACHE{TUKLIB_CPUCORES_DEFINITIONS})
+-        return()
+-    endif()
+-
+     if(WIN32 OR CYGWIN)
+         # Nothing to do, the tuklib_cpucores.c handles it.
+         set(TUKLIB_CPUCORES_DEFINITIONS "" CACHE INTERNAL "")
+@@ -158,16 +154,22 @@ function(tuklib_cpucores_internal_check)
+ endfunction()
+ 
+ function(tuklib_cpucores TARGET_OR_ALL)
+-    message(STATUS "Checking how to detect the number of available CPU cores")
++    if(NOT DEFINED CACHE{TUKLIB_CPUCORES_FOUND})
++        message(STATUS
++                "Checking how to detect the number of available CPU cores")
++        tuklib_cpucores_internal_check()
+ 
+-    tuklib_cpucores_internal_check()
++        if(DEFINED CACHE{TUKLIB_CPUCORES_DEFINITIONS})
++            set(TUKLIB_CPUCORES_FOUND 1 CACHE INTERNAL "")
++        else()
++            set(TUKLIB_CPUCORES_FOUND 0 CACHE INTERNAL "")
++            message(WARNING
++                    "No method to detect the number of CPU cores was found")
++        endif()
++    endif()
+ 
+-    if(NOT DEFINED CACHE{TUKLIB_CPUCORES_DEFINITIONS})
+-        set(TUKLIB_CPUCORES_FOUND 0 PARENT_SCOPE)
+-        message(WARNING
+-                "No method to detect the number of CPU cores was found")
+-    else()
+-        set(TUKLIB_CPUCORES_FOUND 1 PARENT_SCOPE)
+-        tuklib_add_definitions(${TARGET_OR_ALL} ${TUKLIB_CPUCORES_DEFINITIONS})
++    if(TUKLIB_CPUCORES_FOUND)
++        tuklib_add_definitions("${TARGET_OR_ALL}"
++                               "${TUKLIB_CPUCORES_DEFINITIONS}")
+     endif()
+ endfunction()
+diff --git a/cmake/tuklib_integer.cmake b/cmake/tuklib_integer.cmake
+index aeb7ff6f..d7e2e28c 100644
+--- a/cmake/tuklib_integer.cmake
++++ b/cmake/tuklib_integer.cmake
+@@ -7,7 +7,7 @@
+ # You can do whatever you want with this file.
+ #
+ 
+-include(${CMAKE_CURRENT_LIST_DIR}/tuklib_common.cmake)
++include("${CMAKE_CURRENT_LIST_DIR}/tuklib_common.cmake")
+ include(TestBigEndian)
+ include(CheckCSourceCompiles)
+ include(CheckIncludeFile)
+@@ -22,7 +22,7 @@ function(tuklib_integer TARGET_OR_ALL)
+     if(NOT DEFINED WORDS_BIGENDIAN)
+         message(FATAL_ERROR "Cannot determine endianness")
+     endif()
+-    tuklib_add_definition_if(${TARGET_OR_ALL} WORDS_BIGENDIAN)
++    tuklib_add_definition_if("${TARGET_OR_ALL}" WORDS_BIGENDIAN)
+ 
+     # Look for a byteswapping method.
+     check_c_source_compiles("
+@@ -36,24 +36,25 @@ function(tuklib_integer TARGET_OR_ALL)
+         "
+         HAVE___BUILTIN_BSWAPXX)
+     if(HAVE___BUILTIN_BSWAPXX)
+-        tuklib_add_definitions(${TARGET_OR_ALL} HAVE___BUILTIN_BSWAPXX)
++        tuklib_add_definitions("${TARGET_OR_ALL}" HAVE___BUILTIN_BSWAPXX)
+     else()
+         check_include_file(byteswap.h HAVE_BYTESWAP_H)
+         if(HAVE_BYTESWAP_H)
+-            tuklib_add_definitions(${TARGET_OR_ALL} HAVE_BYTESWAP_H)
++            tuklib_add_definitions("${TARGET_OR_ALL}" HAVE_BYTESWAP_H)
+             check_symbol_exists(bswap_16 byteswap.h HAVE_BSWAP_16)
+-            tuklib_add_definition_if(${TARGET_OR_ALL} HAVE_BSWAP_16)
++            tuklib_add_definition_if("${TARGET_OR_ALL}" HAVE_BSWAP_16)
+             check_symbol_exists(bswap_32 byteswap.h HAVE_BSWAP_32)
+-            tuklib_add_definition_if(${TARGET_OR_ALL} HAVE_BSWAP_32)
++            tuklib_add_definition_if("${TARGET_OR_ALL}" HAVE_BSWAP_32)
+             check_symbol_exists(bswap_64 byteswap.h HAVE_BSWAP_64)
+-            tuklib_add_definition_if(${TARGET_OR_ALL} HAVE_BSWAP_64)
++            tuklib_add_definition_if("${TARGET_OR_ALL}" HAVE_BSWAP_64)
+         else()
+             check_include_file(sys/endian.h HAVE_SYS_ENDIAN_H)
+             if(HAVE_SYS_ENDIAN_H)
+-                tuklib_add_definitions(${TARGET_OR_ALL} HAVE_SYS_ENDIAN_H)
++                tuklib_add_definitions("${TARGET_OR_ALL}" HAVE_SYS_ENDIAN_H)
+             else()
+                 check_include_file(sys/byteorder.h HAVE_SYS_BYTEORDER_H)
+-                tuklib_add_definition_if(${TARGET_OR_ALL} HAVE_SYS_BYTEORDER_H)
++                tuklib_add_definition_if("${TARGET_OR_ALL}"
++                                         HAVE_SYS_BYTEORDER_H)
+             endif()
+         endif()
+     endif()
+@@ -72,16 +73,17 @@ function(tuklib_integer TARGET_OR_ALL)
+     #       on ARM and always assumes that unaligned is fast on ARM.
+     set(FAST_UNALIGNED_GUESS OFF)
+     if(CMAKE_SYSTEM_PROCESSOR MATCHES
+-       [Xx3456]86|^[Xx]64|^[Aa][Mm][Dd]64|^[Aa][Rr][Mm]|^aarch|^powerpc|^ppc)
++       "[Xx3456]86|^[Xx]64|^[Aa][Mm][Dd]64|^[Aa][Rr][Mm]|^aarch|^powerpc|^ppc")
+         if(NOT WORDS_BIGENDIAN OR
+-           NOT CMAKE_SYSTEM_PROCESSOR MATCHES ^powerpc|^ppc)
++           NOT CMAKE_SYSTEM_PROCESSOR MATCHES "^powerpc|^ppc")
+            set(FAST_UNALIGNED_GUESS ON)
+         endif()
+     endif()
+     option(TUKLIB_FAST_UNALIGNED_ACCESS
+-           "Enable if the system supports *fast* unaligned memory access with 16-bit and 32-bit integers."
+-           ${FAST_UNALIGNED_GUESS})
+-    tuklib_add_definition_if(${TARGET_OR_ALL} TUKLIB_FAST_UNALIGNED_ACCESS)
++           "Enable if the system supports *fast* unaligned memory access \
++with 16-bit and 32-bit integers."
++           "${FAST_UNALIGNED_GUESS}")
++    tuklib_add_definition_if("${TARGET_OR_ALL}" TUKLIB_FAST_UNALIGNED_ACCESS)
+ 
+     # Unsafe type punning:
+     option(TUKLIB_USE_UNSAFE_TYPE_PUNNING
+@@ -90,11 +92,11 @@ may result in broken code. However, this might improve performance \
+ in some cases, especially with old compilers \
+ (e.g. GCC 3 and early 4.x on x86, GCC < 6 on ARMv6 and ARMv7)."
+            OFF)
+-    tuklib_add_definition_if(${TARGET_OR_ALL} TUKLIB_USE_UNSAFE_TYPE_PUNNING)
++    tuklib_add_definition_if("${TARGET_OR_ALL}" TUKLIB_USE_UNSAFE_TYPE_PUNNING)
+ 
+     # Check for GCC/Clang __builtin_assume_aligned().
+     check_c_source_compiles(
+         "int main(void) { __builtin_assume_aligned(\"\", 1); return 0; }"
+         HAVE___BUILTIN_ASSUME_ALIGNED)
+-    tuklib_add_definition_if(${TARGET_OR_ALL} HAVE___BUILTIN_ASSUME_ALIGNED)
++    tuklib_add_definition_if("${TARGET_OR_ALL}" HAVE___BUILTIN_ASSUME_ALIGNED)
+ endfunction()
+diff --git a/cmake/tuklib_mbstr.cmake b/cmake/tuklib_mbstr.cmake
+index a39a96b4..e073be6a 100644
+--- a/cmake/tuklib_mbstr.cmake
++++ b/cmake/tuklib_mbstr.cmake
+@@ -7,14 +7,14 @@
+ # You can do whatever you want with this file.
+ #
+ 
+-include(${CMAKE_CURRENT_LIST_DIR}/tuklib_common.cmake)
++include("${CMAKE_CURRENT_LIST_DIR}/tuklib_common.cmake")
+ include(CheckSymbolExists)
+ 
+ function(tuklib_mbstr TARGET_OR_ALL)
+     check_symbol_exists(mbrtowc wchar.h HAVE_MBRTOWC)
+-    tuklib_add_definition_if(${TARGET_OR_ALL} HAVE_MBRTOWC)
++    tuklib_add_definition_if("${TARGET_OR_ALL}" HAVE_MBRTOWC)
+ 
+     # NOTE: wcwidth() requires _GNU_SOURCE or _XOPEN_SOURCE on GNU/Linux.
+     check_symbol_exists(wcwidth wchar.h HAVE_WCWIDTH)
+-    tuklib_add_definition_if(${TARGET_OR_ALL} HAVE_WCWIDTH)
++    tuklib_add_definition_if("${TARGET_OR_ALL}" HAVE_WCWIDTH)
+ endfunction()
+diff --git a/cmake/tuklib_physmem.cmake b/cmake/tuklib_physmem.cmake
+index dc895a15..ea5bcc46 100644
+--- a/cmake/tuklib_physmem.cmake
++++ b/cmake/tuklib_physmem.cmake
+@@ -10,15 +10,11 @@
+ # You can do whatever you want with this file.
+ #
+ 
+-include(${CMAKE_CURRENT_LIST_DIR}/tuklib_common.cmake)
++include("${CMAKE_CURRENT_LIST_DIR}/tuklib_common.cmake")
+ include(CheckCSourceCompiles)
+ include(CheckIncludeFile)
+ 
+ function(tuklib_physmem_internal_check)
+-    if(CACHE{TUKLIB_PHYSMEM_DEFINITIONS})
+-        return()
+-    endif()
+-
+     # Shortcut on Windows:
+     if(WIN32 OR CYGWIN)
+         # Nothing to do, the tuklib_physmem.c handles it.
+@@ -134,16 +130,21 @@ function(tuklib_physmem_internal_check)
+ endfunction()
+ 
+ function(tuklib_physmem TARGET_OR_ALL)
+-    message(STATUS "Checking how to detect the amount of physical memory")
+-
+-    tuklib_physmem_internal_check()
++    if(NOT DEFINED CACHE{TUKLIB_PHYSMEM_FOUND})
++        message(STATUS "Checking how to detect the amount of physical memory")
++        tuklib_physmem_internal_check()
+ 
+-    if(NOT DEFINED CACHE{TUKLIB_PHYSMEM_DEFINITIONS})
+-        set(TUKLIB_PHYSMEM_FOUND 0 PARENT_SCOPE)
+-        message(WARNING
++        if(DEFINED CACHE{TUKLIB_PHYSMEM_DEFINITIONS})
++            set(TUKLIB_PHYSMEM_FOUND 1 CACHE INTERNAL "")
++        else()
++            set(TUKLIB_PHYSMEM_FOUND 0 CACHE INTERNAL "")
++            message(WARNING
+                 "No method to detect the amount of physical memory was found")
+-    else()
+-        set(TUKLIB_PHYSMEM_FOUND 1 PARENT_SCOPE)
+-        tuklib_add_definitions(${TARGET_OR_ALL} ${TUKLIB_PHYSMEM_DEFINITIONS})
++        endif()
++    endif()
++
++    if(TUKLIB_PHYSMEM_FOUND)
++        tuklib_add_definitions("${TARGET_OR_ALL}"
++                               "${TUKLIB_PHYSMEM_DEFINITIONS}")
+     endif()
+ endfunction()
+diff --git a/cmake/tuklib_progname.cmake b/cmake/tuklib_progname.cmake
+index 417495e6..0fa1d3d7 100644
+--- a/cmake/tuklib_progname.cmake
++++ b/cmake/tuklib_progname.cmake
+@@ -7,13 +7,13 @@
+ # You can do whatever you want with this file.
+ #
+ 
+-include(${CMAKE_CURRENT_LIST_DIR}/tuklib_common.cmake)
++include("${CMAKE_CURRENT_LIST_DIR}/tuklib_common.cmake")
+ include(CheckSymbolExists)
+ 
+ function(tuklib_progname TARGET_OR_ALL)
+     # NOTE: This glibc extension requires _GNU_SOURCE.
+     check_symbol_exists(program_invocation_name errno.h
+                         HAVE_DECL_PROGRAM_INVOCATION_NAME)
+-    tuklib_add_definition_if(${TARGET_OR_ALL}
++    tuklib_add_definition_if("${TARGET_OR_ALL}"
+                              HAVE_DECL_PROGRAM_INVOCATION_NAME)
+ endfunction()

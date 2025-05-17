@@ -1,0 +1,73 @@
+diff --git a/src/liblzma/api/lzma/check.h b/src/liblzma/api/lzma/check.h
+index 9897e7cb..2df103f1 100644
+--- a/src/liblzma/api/lzma/check.h
++++ b/src/liblzma/api/lzma/check.h
+@@ -63,22 +63,15 @@ typedef enum {
+  * \brief       Maximum valid Check ID
+  *
+  * The .xz file format specification specifies 16 Check IDs (0-15). Some
+- * of them are only reserved i.e. no actual Check algorithm has been assigned.
+- * Still liblzma accepts any of these IDs for future compatibility when
+- * decoding files. If a valid but unsupported Check ID is detected, liblzma
+- * indicates a warning with LZMA_UNSUPPORTED_CHECK.
+- *
+- * FIXME bad desc
++ * of them are only reserved, that is, no actual Check algorithm has been
++ * assigned. When decoding, liblzma still accepts unknown Check IDs for
++ * future compatibility. If a valid but unsupported Check ID is detected,
++ * liblzma can indicate a warning; see the flags LZMA_TELL_NO_CHECK,
++ * LZMA_TELL_UNSUPPORTED_CHECK, and LZMA_TELL_ANY_CHECK in container.h.
+  */
+ #define LZMA_CHECK_ID_MAX 15
+ 
+ 
+-/**
+- * \brief       Maximum size of a Check field
+- */
+-#define LZMA_CHECK_SIZE_MAX 64
+-
+-
+ /**
+  * \brief       Test if the given Check ID is supported
+  *
+@@ -106,6 +99,12 @@ extern lzma_bool lzma_check_is_supported(lzma_check check)
+ extern uint32_t lzma_check_size(lzma_check check) lzma_attr_const;
+ 
+ 
++/**
++ * \brief       Maximum size of a Check field
++ */
++#define LZMA_CHECK_SIZE_MAX 64
++
++
+ /**
+  * \brief       Calculate CRC32
+  *
+diff --git a/src/liblzma/api/lzma/container.h b/src/liblzma/api/lzma/container.h
+index ba2c4f8f..f5c0e7ab 100644
+--- a/src/liblzma/api/lzma/container.h
++++ b/src/liblzma/api/lzma/container.h
+@@ -76,7 +76,7 @@ extern uint64_t lzma_easy_encoder_memusage(uint32_t preset)
+ 
+ 
+ /**
+- * \brief       Calculate rough memory usage FIXME
++ * \brief       Calculate rough decoder memory usage of a preset
+  *
+  * This function is a wrapper for lzma_raw_decoder_memusage().
+  *
+diff --git a/src/liblzma/api/lzma/version.h b/src/liblzma/api/lzma/version.h
+index 2a36120e..b1e74404 100644
+--- a/src/liblzma/api/lzma/version.h
++++ b/src/liblzma/api/lzma/version.h
+@@ -30,7 +30,9 @@
+  *  - zzz = revision
+  *  - s indicates stability: 0 = alpha, 1 = beta, 2 = stable
+  *
+- * See the README file for details about the version numbering. FIXME
++ * The same xyyyzzz triplet is never reused with different stability levels.
++ * For example, if 5.1.0alpha has been released, there will never be 5.1.0beta
++ * or 5.1.0 stable.
+  *
+  * \note        The version number of liblzma has nothing to with
+  *              the version number of Igor Pavlov's LZMA SDK.

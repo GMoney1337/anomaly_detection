@@ -1,0 +1,20 @@
+diff --git a/autogen.sh b/autogen.sh
+index 84608172..f9b9c602 100755
+--- a/autogen.sh
++++ b/autogen.sh
+@@ -11,9 +11,9 @@
+ 
+ set -e -x
+ 
+-autopoint -f
+-libtoolize -c -f || glibtoolize -c -f
+-aclocal -I m4
+-autoconf
+-autoheader
+-automake -acf --foreign
++${AUTOPOINT:-autopoint} -f
++${LIBTOOLIZE:-libtoolize} -c -f || glibtoolize -c -f
++${ACLOCAL:-aclocal} -I m4
++${AUTOCONF:-autoconf}
++${AUTOHEADER:-autoheader}
++${AUTOMAKE:-automake} -acf --foreign

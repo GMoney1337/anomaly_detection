@@ -1,0 +1,14 @@
+diff --git a/src/liblzma/common/index.c b/src/liblzma/common/index.c
+index 62e4f8ba..bc1ef292 100644
+--- a/src/liblzma/common/index.c
++++ b/src/liblzma/common/index.c
+@@ -829,6 +829,9 @@ lzma_index_cat(lzma_index *restrict dest, lzma_index *restrict src,
+ 				s->groups.rightmost = &newg->node;
+ 
+ 			lzma_free(g, allocator);
++
++			// NOTE: newg isn't leaked here because
++			// newg == (void *)&newg->node.
+ 		}
+ 	}
+ 

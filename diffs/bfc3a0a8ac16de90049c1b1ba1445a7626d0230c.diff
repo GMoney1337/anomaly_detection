@@ -1,0 +1,99 @@
+diff --git a/tests/test_block_header.c b/tests/test_block_header.c
+index 747925b3..43c7df43 100644
+--- a/tests/test_block_header.c
++++ b/tests/test_block_header.c
+@@ -189,7 +189,7 @@ test_lzma_block_header_size(void)
+ 
+ 	// Use an invalid block option. The check type isn't stored in
+ 	// the Block Header and so _header_size ignores it.
+-	block.check = 0x1000;
++	block.check = INVALID_LZMA_CHECK_ID;
+ 	block.ignore_check = false;
+ 
+ 	assert_lzma_ret(lzma_block_header_size(&block), LZMA_OK);
+@@ -270,7 +270,7 @@ test_lzma_block_header_encode(void)
+ 	block.uncompressed_size = LZMA_VLI_UNKNOWN;
+ 
+ 	// Test invalid block check
+-	block.check = 0x1000;
++	block.check = INVALID_LZMA_CHECK_ID;
+ 	block.ignore_check = false;
+ 	assert_lzma_ret(lzma_block_header_encode(&block, out),
+ 			LZMA_PROG_ERROR);
+@@ -466,7 +466,7 @@ test_lzma_block_header_decode(void)
+ 	assert_uint_eq(decoded_block.version, 1);
+ 
+ 	// Test bad check type
+-	decoded_block.check = LZMA_CHECK_ID_MAX + 1;
++	decoded_block.check = INVALID_LZMA_CHECK_ID;
+ 	assert_lzma_ret(lzma_block_header_decode(&decoded_block, NULL, out),
+ 			LZMA_PROG_ERROR);
+ 	decoded_block.check = LZMA_CHECK_CRC32;
+diff --git a/tests/test_check.c b/tests/test_check.c
+index 1d5b3a10..cb1ad251 100644
+--- a/tests/test_check.c
++++ b/tests/test_check.c
+@@ -176,7 +176,7 @@ test_lzma_check_size(void)
+ 	for (lzma_check i = 0; i < ARRAY_SIZE(expected_check_sizes); i++)
+ 		assert_uint_eq(expected_check_sizes[i], lzma_check_size(i));
+ 
+-	assert_uint_eq(lzma_check_size(LZMA_CHECK_ID_MAX + 1), UINT32_MAX);
++	assert_uint_eq(lzma_check_size(INVALID_LZMA_CHECK_ID), UINT32_MAX);
+ }
+ 
+ 
+diff --git a/tests/test_stream_flags.c b/tests/test_stream_flags.c
+index 26b4c613..2248e67a 100644
+--- a/tests/test_stream_flags.c
++++ b/tests/test_stream_flags.c
+@@ -87,7 +87,7 @@ test_lzma_stream_header_encode(void)
+ 	flags.version = 0;
+ 
+ 	// Should fail if Check ID is invalid
+-	flags.check = LZMA_CHECK_ID_MAX + 1;
++	flags.check = INVALID_LZMA_CHECK_ID;
+ 	assert_lzma_ret(lzma_stream_header_encode(&flags, header),
+ 			LZMA_PROG_ERROR);
+ 	flags.check = LZMA_CHECK_CRC32;
+@@ -170,7 +170,7 @@ test_lzma_stream_footer_encode(void)
+ 	flags.version = 0;
+ 
+ 	// Should fail if Check ID is invalid
+-	flags.check = LZMA_CHECK_ID_MAX + 1;
++	flags.check = INVALID_LZMA_CHECK_ID;
+ 	assert_lzma_ret(lzma_stream_footer_encode(&flags, footer),
+ 			LZMA_PROG_ERROR);
+ 
+@@ -410,10 +410,10 @@ test_lzma_stream_flags_compare(void)
+ 	second.version = 0;
+ 
+ 	// Check types must be under the maximum
+-	first.check = LZMA_CHECK_ID_MAX + 1;
++	first.check = INVALID_LZMA_CHECK_ID;
+ 	assert_lzma_ret(lzma_stream_flags_compare(&first, &second),
+ 			LZMA_PROG_ERROR);
+-	second.check = LZMA_CHECK_ID_MAX + 1;
++	second.check = INVALID_LZMA_CHECK_ID;
+ 	assert_lzma_ret(lzma_stream_flags_compare(&first, &second),
+ 			LZMA_PROG_ERROR);
+ 	first.check = LZMA_CHECK_CRC32;
+diff --git a/tests/tests.h b/tests/tests.h
+index 4d6169b0..8d53e9de 100644
+--- a/tests/tests.h
++++ b/tests/tests.h
+@@ -19,6 +19,15 @@
+ #include "tuktest.h"
+ 
+ 
++// Invalid value for the lzma_check enumeration. This must be positive
++// but small enough to fit into signed char since the underlying type might
++// one some platform be a signed char.
++//
++// Don't put LZMA_ at the beginning of the name so that it is obvious that
++// this constant doesn't come from the API headers.
++#define INVALID_LZMA_CHECK_ID ((lzma_check)(LZMA_CHECK_ID_MAX + 1))
++
++
+ #define memcrap(buf, size) memset(buf, 0xFD, size)
+ 
+ 

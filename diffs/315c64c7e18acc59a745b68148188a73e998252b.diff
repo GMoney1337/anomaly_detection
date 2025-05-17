@@ -1,0 +1,12 @@
+diff --git a/.gitignore b/.gitignore
+index 7f2dec23..d6b144f1 100644
+--- a/.gitignore
++++ b/.gitignore
+@@ -25,6 +25,7 @@ Makefile.in
+ /libtool
+ /stamp-h1
+ 
++build-aux/artifacts
+ build-aux/compile
+ build-aux/config.guess
+ build-aux/config.rpath

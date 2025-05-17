@@ -1,0 +1,12 @@
+diff --git a/THANKS b/THANKS
+index b45f71bf..40b8689e 100644
+--- a/THANKS
++++ b/THANKS
+@@ -55,6 +55,7 @@ has been important. :-) In alphabetical order:
+   - Charles Wilson
+   - Lars Wirzenius
+   - Pilorz Wojciech
++  - Ryan Young
+   - Andreas Zieringer
+ 
+ Also thanks to all the people who have participated in the Tukaani project.

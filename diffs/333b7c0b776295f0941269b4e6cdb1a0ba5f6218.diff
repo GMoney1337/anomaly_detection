@@ -1,0 +1,410 @@
+diff --git a/po4a/ko.po b/po4a/ko.po
+index ddcfab07..f147f2c9 100644
+--- a/po4a/ko.po
++++ b/po4a/ko.po
+@@ -5,9 +5,9 @@
+ #
+ msgid ""
+ msgstr ""
+-"Project-Id-Version: xz-man 5.7.1-dev1\n"
+-"POT-Creation-Date: 2025-01-23 12:06+0200\n"
+-"PO-Revision-Date: 2025-01-30 23:49+0900\n"
++"Project-Id-Version: xz-man 5.8.0-pre1\n"
++"POT-Creation-Date: 2025-03-08 14:50+0200\n"
++"PO-Revision-Date: 2025-03-11 01:03+0900\n"
+ "Last-Translator: Seong-ho Cho <darkcircle.0426@gmail.com>\n"
+ "Language-Team: Korean <translation-team-ko@googlegroups.com>\n"
+ "Language: ko\n"
+@@ -27,8 +27,8 @@ msgstr "XZ"
+ #. type: TH
+ #: ../src/xz/xz.1
+ #, no-wrap
+-msgid "2025-01-05"
+-msgstr "2025-01-05"
++msgid "2025-03-08"
++msgstr "2025-03-08"
+ 
+ #. type: TH
+ #: ../src/xz/xz.1 ../src/xzdec/xzdec.1 ../src/lzmainfo/lzmainfo.1
+@@ -213,6 +213,8 @@ msgstr "B<xz> 메모리 사용은 수백 킬로바이트로 시작하여 수 기
+ msgid "Especially users of older systems may find the possibility of very large memory usage annoying.  To prevent uncomfortable surprises, B<xz> has a built-in memory usage limiter, which is disabled by default.  While some operating systems provide ways to limit the memory usage of processes, relying on it wasn't deemed to be flexible enough (for example, using B<ulimit>(1)  to limit virtual memory tends to cripple B<mmap>(2))."
+ msgstr "특히 이전 시스템 사용자의 경우 메모리 사용량이 엄청나게 늘어나는 점에 짜증이 날 수 있습니다.  이런 불편한 상황을 피하기 위해, B<xz>에 기본적으로 비활성 상태인 내장 메모리 사용 제한 기능을 넣었습니다.  일부 운영체제에서 처리 중 메모리 사용을 제한하는 수단을 제공하긴 하지만, 여기에 의지하기에는 충분히 유연하지 않습니다(예를 들면, B<ulimit>(1)을 사용하면 가상 메모리를 제한하여  B<mmap>(2)을 먹통으로 만듭니다)."
+ 
++#.  TRANSLATORS: Don't translate the uppercase XZ_DEFAULTS.
++#.  It's a name of an environment variable.
+ #. type: Plain text
+ #: ../src/xz/xz.1
+ msgid "The memory usage limiter can be enabled with the command line option B<--memlimit=>I<limit>.  Often it is more convenient to enable the limiter by default by setting the environment variable B<XZ_DEFAULTS>, for example, B<XZ_DEFAULTS=--memlimit=150MiB>.  It is possible to set the limits separately for compression and decompression by using B<--memlimit-compress=>I<limit> and B<--memlimit-decompress=>I<limit>.  Using these two options outside B<XZ_DEFAULTS> is rarely useful because a single run of B<xz> cannot do both compression and decompression and B<--memlimit=>I<limit> (or B<-M> I<limit>)  is shorter to type on the command line."
+@@ -531,6 +533,7 @@ msgstr "B<-F> I<format>, B<--format=>I<E<lt>형식E<gt>>"
+ msgid "Specify the file I<format> to compress or decompress:"
+ msgstr "압축 또는 압축해제 파일 I<E<lt>형식E<gt>>을 지정합니다:"
+ 
++#.  TRANSLATORS: Don't translate bold string B<auto>.
+ #. type: TP
+ #: ../src/xz/xz.1
+ #, no-wrap
+@@ -612,6 +615,9 @@ msgstr "무결성 검사 방식을 지정합니다.  검사 방식은 B<.xz> 파
+ msgid "Supported I<check> types:"
+ msgstr "지원 I<검사> 형식:"
+ 
++#.  TRANSLATORS: Don't translate the bold strings B<none>, B<crc32>,
++#.  B<crc64>, and B<sha256>. The command line option --check accepts
++#.  only the untranslated strings.
+ #. type: TP
+ #: ../src/xz/xz.1
+ #, no-wrap
+@@ -1536,6 +1542,11 @@ msgstr "LZMA1은 고전 필터로, LZMA1만 지원하는 고전 B<.lzma> 파일
+ msgid "LZMA1 and LZMA2 share the same set of I<options>:"
+ msgstr "LZMA1과 LZMA2는 동일한 I<E<lt>옵션E<gt>> 집합을 공유합니다:"
+ 
++#.  TRANSLATORS: Don't translate bold strings like B<preset>, B<dict>,
++#.  B<mode>, B<nice>, B<fast>, or B<normal> because those are command line
++#.  options. On the other hand, do translate the italic strings like
++#.  I<preset>, I<size>, and I<mode>, because such italic strings are
++#.  placeholders which a user replaces with an actual value.
+ #. type: TP
+ #: ../src/xz/xz.1
+ #, no-wrap
+@@ -2238,11 +2249,16 @@ msgstr "목록 모드"
+ msgid "B<xz --robot --list> uses tab-separated output.  The first column of every line has a string that indicates the type of the information found on that line:"
+ msgstr "B<xz --robot --list> 명령은 탭으로 구분한 출력 형태를 활용합니다.  모든 행의 첫번째 컬럼에는 해당 행에서 찾을 수 있는 정보의 형식을 나타냅니다:"
+ 
++#.  TRANSLATORS: The bold strings B<name>, B<file>, B<stream>, B<block>,
++#.  B<summary>, and B<totals> are produced by the xz tool for scripts to
++#.  parse, thus the untranslated strings must be included in the translated
++#.  man page. It may be useful to provide a translated string in parenthesis
++#.  without bold, for example: "B<name> (nimi)"
+ #. type: TP
+ #: ../src/xz/xz.1
+ #, no-wrap
+ msgid "B<name>"
+-msgstr "B<이름>"
++msgstr "B<name>"
+ 
+ #. type: Plain text
+ #: ../src/xz/xz.1
+@@ -2253,51 +2269,51 @@ msgstr "이 행은 항상 파일 목록 시작 부분의 첫번째 줄에 있습
+ #: ../src/xz/xz.1
+ #, no-wrap
+ msgid "B<file>"
+-msgstr "B<파일>"
++msgstr "B<file>"
+ 
+ #. type: Plain text
+ #: ../src/xz/xz.1
+ msgid "This line contains overall information about the B<.xz> file.  This line is always printed after the B<name> line."
+-msgstr "이 행에는 B<.xz> 파일의 전반적인 정보가 들어있습니다.  이 행은 항상 B<이름> 행 다음에 있습니다."
++msgstr "이 행에는 B<.xz> 파일의 전반적인 정보가 들어있습니다.  이 행은 항상 B<name> 행 다음에 있습니다."
+ 
+ #. type: TP
+ #: ../src/xz/xz.1
+ #, no-wrap
+ msgid "B<stream>"
+-msgstr "B<스트림>"
++msgstr "B<stream>"
+ 
+ #. type: Plain text
+ #: ../src/xz/xz.1
+ msgid "This line type is used only when B<--verbose> was specified.  There are as many B<stream> lines as there are streams in the B<.xz> file."
+-msgstr "이 행 형식은 B<--verbose> 옵션을 지정했을 때만 사용합니다.  B<.xz> 파일의 B<스트림> 행 수만큼 나타납니다."
++msgstr "이 행 형식은 B<--verbose> 옵션을 지정했을 때만 사용합니다.  B<.xz> 파일의 B<stream> 행 수만큼 나타납니다."
+ 
+ #. type: TP
+ #: ../src/xz/xz.1
+ #, no-wrap
+ msgid "B<block>"
+-msgstr "B<블록>"
++msgstr "B<block>"
+ 
+ #. type: Plain text
+ #: ../src/xz/xz.1
+ msgid "This line type is used only when B<--verbose> was specified.  There are as many B<block> lines as there are blocks in the B<.xz> file.  The B<block> lines are shown after all the B<stream> lines; different line types are not interleaved."
+-msgstr "이 행 형식은 B<--verbose> 옵션을 지정했을 때만 사용합니다.  B<.xz> 파일의 블록 수만큼 B<블록> 행이 나타납니다.  B<블록> 행은 모든 B<스트림> 행 다음에 나타납니다. 다른 형식의 행이 끼어들지는 않습니다."
++msgstr "이 행 형식은 B<--verbose> 옵션을 지정했을 때만 사용합니다.  B<.xz> 파일의 블록 수만큼 B<block> 행이 나타납니다.  B<block> 행은 모든 B<stream> 행 다음에 나타납니다. 다른 형식의 행이 끼어들지는 않습니다."
+ 
+ #. type: TP
+ #: ../src/xz/xz.1
+ #, no-wrap
+ msgid "B<summary>"
+-msgstr "B<요약>"
++msgstr "B<summary>"
+ 
+ #. type: Plain text
+ #: ../src/xz/xz.1
+ msgid "This line type is used only when B<--verbose> was specified twice.  This line is printed after all B<block> lines.  Like the B<file> line, the B<summary> line contains overall information about the B<.xz> file."
+-msgstr "이 행 형식은 B<--verbose> 옵션을 두번 지정했을 때만 사용합니다.  이 행은 모든 B<블록> 행 다음에 출력합니다.  B<파일> 행과 비슷하게, B<요약> 행에는 B<.xz> 파일의 전반적인 정보가 담겨있습니다."
++msgstr "이 행 형식은 B<--verbose> 옵션을 두번 지정했을 때만 사용합니다.  이 행은 모든 B<block> 행 다음에 출력합니다.  B<file> 행과 비슷하게, B<summary> 행에는 B<.xz> 파일의 전반적인 정보가 담겨있습니다."
+ 
+ #. type: TP
+ #: ../src/xz/xz.1
+ #, no-wrap
+ msgid "B<totals>"
+-msgstr "B<총계>"
++msgstr "B<totals>"
+ 
+ #. type: Plain text
+ #: ../src/xz/xz.1
+@@ -2307,7 +2323,7 @@ msgstr "이 행은 목록 출력의 가장 마지막에 항상 나타납니다.
+ #. type: Plain text
+ #: ../src/xz/xz.1
+ msgid "The columns of the B<file> lines:"
+-msgstr "B<파일> 행 컬럼:"
++msgstr "B<file> 행 컬럼:"
+ 
+ #. type: IP
+ #: ../src/xz/xz.1
+@@ -2370,6 +2386,9 @@ msgstr "예를 들면, B<0.123>과 같은 압축율 입니다.  비율이 9.999
+ msgid "7."
+ msgstr "7."
+ 
++#.  TRANSLATORS: Don't translate the bold strings B<None>, B<CRC32>,
++#.  B<CRC64>, B<SHA-256>, or B<Unknown-> here. In robot mode, xz produces
++#.  them in untranslated form for scripts to parse.
+ #. type: Plain text
+ #: ../src/xz/xz.1
+ msgid "Comma-separated list of integrity check names.  The following strings are used for the known check types: B<None>, B<CRC32>, B<CRC64>, and B<SHA-256>.  For unknown check types, B<Unknown->I<N> is used, where I<N> is the Check ID as a decimal number (one or two digits)."
+@@ -2389,7 +2408,7 @@ msgstr "파일의 스트림 패딩 총 길이"
+ #. type: Plain text
+ #: ../src/xz/xz.1
+ msgid "The columns of the B<stream> lines:"
+-msgstr "B<스트림> 행 컬럼:"
++msgstr "B<stream> 행 컬럼:"
+ 
+ #. type: Plain text
+ #: ../src/xz/xz.1
+@@ -2451,7 +2470,7 @@ msgstr "스트림 패딩 길이"
+ #. type: Plain text
+ #: ../src/xz/xz.1
+ msgid "The columns of the B<block> lines:"
+-msgstr "B<블록> 행 컬럼:"
++msgstr "B<block> 행 컬럼:"
+ 
+ #. type: Plain text
+ #: ../src/xz/xz.1
+@@ -2486,7 +2505,7 @@ msgstr "총 블록 압축 크기 (헤더 포함)"
+ #. type: Plain text
+ #: ../src/xz/xz.1
+ msgid "If B<--verbose> was specified twice, additional columns are included on the B<block> lines.  These are not displayed with a single B<--verbose>, because getting this information requires many seeks and can thus be slow:"
+-msgstr "B<--verbose>를 두 번 지정하면, 추가 컬럼을 B<블록> 행에 넣습니다.  B<--verbose> 단일 지정시에는 이 정보를 볼 때 탐색을 여러번 수행해야 하기 때문에 실행 과정이 느려질 수 있어서 나타내지 않습니다:"
++msgstr "B<--verbose>를 두 번 지정하면, 추가 컬럼을 B<block> 행에 넣습니다.  B<--verbose> 단일 지정시에는 이 정보를 볼 때 탐색을 여러번 수행해야 하기 때문에 실행 과정이 느려질 수 있어서 나타내지 않습니다:"
+ 
+ #. type: IP
+ #: ../src/xz/xz.1
+@@ -2557,7 +2576,7 @@ msgstr "필터 체인.  대부분 사용하는 옵션은 압축 해제시 필요
+ #. type: Plain text
+ #: ../src/xz/xz.1
+ msgid "The columns of the B<summary> lines:"
+-msgstr "B<요약> 행 컬럼:"
++msgstr "B<summary> 행 컬럼:"
+ 
+ #. type: Plain text
+ #: ../src/xz/xz.1
+@@ -2582,7 +2601,7 @@ msgstr "파일 압축 해제시 필요한 최소 B<xz> 버전"
+ #. type: Plain text
+ #: ../src/xz/xz.1
+ msgid "The columns of the B<totals> line:"
+-msgstr "B<총계> 행 컬럼:"
++msgstr "B<totals> 행 컬럼:"
+ 
+ #. type: Plain text
+ #: ../src/xz/xz.1
+@@ -2617,12 +2636,12 @@ msgstr "스트림 패딩 길이"
+ #. type: Plain text
+ #: ../src/xz/xz.1
+ msgid "Number of files.  This is here to keep the order of the earlier columns the same as on B<file> lines."
+-msgstr "파일 갯수.  B<파일> 행의 컬럼 순서를 따라갑니다."
++msgstr "파일 갯수.  B<file> 행의 컬럼 순서를 따라갑니다."
+ 
+ #. type: Plain text
+ #: ../src/xz/xz.1
+ msgid "If B<--verbose> was specified twice, additional columns are included on the B<totals> line:"
+-msgstr "B<--verbose> 옵션을 두 번 지정하면, B<총계> 행에 추가 컬럼이 들어갑니다:"
++msgstr "B<--verbose> 옵션을 두 번 지정하면, B<totals> 행에 추가 컬럼이 들어갑니다:"
+ 
+ #. type: Plain text
+ #: ../src/xz/xz.1
+@@ -2751,6 +2770,7 @@ msgstr "버전"
+ msgid "B<xz --robot --version> prints the version number of B<xz> and liblzma in the following format:"
+ msgstr "B<xz --robot --version> 은 B<xz> 와 liblzma의 버전 번호를 다음 형식으로 나타냅니다:"
+ 
++#.  TRANSLATORS: Don't translate the uppercase XZ_VERSION or LIBLZMA_VERSION.
+ #. type: Plain text
+ #: ../src/xz/xz.1
+ msgid "B<XZ_VERSION=>I<XYYYZZZS>"
+@@ -2867,11 +2887,18 @@ msgstr "표준 오류에 출력하는 알림(경고 또는 오류 아님)는 종
+ msgid "ENVIRONMENT"
+ msgstr "환경"
+ 
++#.  TRANSLATORS: Don't translate the uppercase XZ_DEFAULTS or XZ_OPT.
++#.  They are names of environment variables.
+ #. type: Plain text
+ #: ../src/xz/xz.1
+ msgid "B<xz> parses space-separated lists of options from the environment variables B<XZ_DEFAULTS> and B<XZ_OPT>, in this order, before parsing the options from the command line.  Note that only options are parsed from the environment variables; all non-options are silently ignored.  Parsing is done with B<getopt_long>(3)  which is used also for the command line arguments."
+ msgstr "B<xz>는 빈칸으로 구분한 옵션 값 목록을 B<XZ_DEFAULTS>, B<XZ_OPT> 환경 변수에서 순서대로, 명령행에서 옵션을 해석하기 전에 불러옵니다.  참고로 환경 변수에서 옵션만 해석하며, 옵션이 아닌 부분은 조용히 무시합니다.  해석은 B<getopt_long>(3)으로 가능하며,  명령행 인자로 활용하기도 합니다."
+ 
++#. type: Plain text
++#: ../src/xz/xz.1
++msgid "B<Warning:> By setting these environment variables, one is effectively modifying programs and scripts that run B<xz>.  Most of the time it is safe to set memory usage limits, number of threads, and compression options via the environment variables.  However, some options can break scripts.  An obvious example is B<--help> which makes B<xz> show the help text instead of compressing or decompressing a file.  More subtle examples are B<--quiet> and B<--verbose>.  In many cases it works well to enable the progress indicator using B<--verbose>, but in some situations the extra messages create problems.  The verbosity level also affects the behavior of B<--list>."
++msgstr "B<경고:> 환경 변수를 설정하면, 프로그램과 B<xz>를 실행하는 스크립트의 동작이 바뀝니다.  대부분의 경우 메모리 사용 제한량, 스레드 수, 압축 옵션을 환경 변수로 설정하는게 안전합니다.  그러나 일부 옵션은 스크립트의 동작을 망가뜨릴 수 있습니다.  분명한 예제로는 B<xz>에서 파일의 압축 및 해제 대신 도움말 내용을 표시하는 B<--help> 옵션이 있습니다.  좀 더 묘한 예제로는 B<--quiet> 와 B<--verbose> 옵션이 있습니다.  대부분의 경우 B<--verbose> 옵션을 사용하여 프로세스 상황을 표시하는데 잘 동작하지만, 어떤 경우에는 추가 메시지가 나타나는 문제가 있습니다.  출력 상세 수준은 B<--list>의 동작에도 영향을 줍니다."
++
+ #. type: TP
+ #: ../src/xz/xz.1
+ #, no-wrap
+@@ -2880,8 +2907,8 @@ msgstr "B<XZ_DEFAULTS>"
+ 
+ #. type: Plain text
+ #: ../src/xz/xz.1
+-msgid "User-specific or system-wide default options.  Typically this is set in a shell initialization script to enable B<xz>'s memory usage limiter by default.  Excluding shell initialization scripts and similar special cases, scripts must never set or unset B<XZ_DEFAULTS>."
+-msgstr "사용자별, 시스템 범위 기본 옵션입니다.  보통 B<xz>의 메모리 사용량 제한을 기본으로 걸어둘 경우 셸 초기화 스크립트에 설정합니다.  셸 초기화 스크립트와 별도의 유사한 경우를 제외하고라면, 스크립트에서는 B<XZ_DEFAULTS> 환경 변수를 설정하지 말거나 설정을 해제해야합니다."
++msgid "User-specific or system-wide default options.  Typically this is set in a shell initialization script to enable B<xz>'s memory usage limiter by default or set the default number of threads.  Excluding shell initialization scripts and similar special cases, scripts should never set or unset B<XZ_DEFAULTS>."
++msgstr "사용자별, 시스템 범위 기본 옵션입니다.  보통 B<xz>의 메모리 사용량 제한을 기본으로 걸어두거나 기본 스레드 수를 설정할 경우 셸 초기화 스크립트에 설정합니다.  셸 초기화 스크립트와 별도의 유사한 경우를 제외하고라면, 스크립트에서는 B<XZ_DEFAULTS> 환경 변수를 설정하지 않거나 설정을 해제해야합니다."
+ 
+ #. type: TP
+ #: ../src/xz/xz.1
+@@ -3555,10 +3582,11 @@ msgid "XZDIFF"
+ msgstr "XZDIFF"
+ 
+ #. type: TH
+-#: ../src/scripts/xzdiff.1 ../src/scripts/xzgrep.1
++#: ../src/scripts/xzdiff.1 ../src/scripts/xzgrep.1 ../src/scripts/xzless.1
++#: ../src/scripts/xzmore.1
+ #, no-wrap
+-msgid "2024-02-13"
+-msgstr "2024-02-13"
++msgid "2025-03-06"
++msgstr "2025-03-06"
+ 
+ #. type: Plain text
+ #: ../src/scripts/xzdiff.1
+@@ -3577,13 +3605,13 @@ msgstr "B<xzdiff> \\&..."
+ 
+ #. type: Plain text
+ #: ../src/scripts/xzdiff.1
+-msgid "B<lzcmp> \\&..."
+-msgstr "B<lzcmp> \\&..."
++msgid "B<lzcmp> \\&...  (DEPRECATED)"
++msgstr "B<lzcmp> \\&...  (사용 안 함)"
+ 
+ #. type: Plain text
+ #: ../src/scripts/xzdiff.1
+-msgid "B<lzdiff> \\&..."
+-msgstr "B<lzdiff> \\&..."
++msgid "B<lzdiff> \\&...  (DEPRECATED)"
++msgstr "B<lzdiff> \\&...  (사용 안 함)"
+ 
+ #. type: Plain text
+ #: ../src/scripts/xzdiff.1
+@@ -3602,8 +3630,8 @@ msgstr "파일 이름을 하나만 지정한다면, I<E<lt>파일1E<gt>>의 확
+ 
+ #. type: Plain text
+ #: ../src/scripts/xzdiff.1
+-msgid "The commands B<lzcmp> and B<lzdiff> are provided for backward compatibility with LZMA Utils."
+-msgstr "B<lzcmp>와 B<lzdiff> 명령은 LZMA 유틸리티 하위 호환용으로 제공합니다."
++msgid "The commands B<lzcmp> and B<lzdiff> are provided for backward compatibility with LZMA Utils.  They are deprecated and will be removed in a future version."
++msgstr "B<lzcmp>와 B<lzdiff> 명령은 LZMA 유틸리티 하위 호환용으로 제공합니다.  해당 명령은 오래되어 이후 버전에서 제거합니다."
+ 
+ #. type: Plain text
+ #: ../src/scripts/xzdiff.1
+@@ -3643,18 +3671,18 @@ msgstr "B<xzfgrep> \\&..."
+ 
+ #. type: Plain text
+ #: ../src/scripts/xzgrep.1
+-msgid "B<lzgrep> \\&..."
+-msgstr "B<lzgrep> \\&..."
++msgid "B<lzgrep> \\&...  (DEPRECATED)"
++msgstr "B<lzgrep> \\&...  (사용 안 함)"
+ 
+ #. type: Plain text
+ #: ../src/scripts/xzgrep.1
+-msgid "B<lzegrep> \\&..."
+-msgstr "B<lzegrep> \\&..."
++msgid "B<lzegrep> \\&...  (DEPRECATED)"
++msgstr "B<lzegrep> \\&...  (사용 안 함)"
+ 
+ #. type: Plain text
+ #: ../src/scripts/xzgrep.1
+-msgid "B<lzfgrep> \\&..."
+-msgstr "B<lzfgrep> \\&..."
++msgid "B<lzfgrep> \\&...  (DEPRECATED)"
++msgstr "B<lzfgrep> \\&...  (사용 안 함)"
+ 
+ #. type: Plain text
+ #: ../src/scripts/xzgrep.1
+@@ -3723,8 +3751,8 @@ msgstr "B<xzegrep>은 B<xzgrep -E> 명령의 별칭입니다.  B<xzfgrep>은 B<x
+ 
+ #. type: Plain text
+ #: ../src/scripts/xzgrep.1
+-msgid "The commands B<lzgrep>, B<lzegrep>, and B<lzfgrep> are provided for backward compatibility with LZMA Utils."
+-msgstr "B<lzgrep>, B<lzegrep>, B<lzfgrep> 명령은 LZMA 유틸리티 하위 호환용으로 제공합니다."
++msgid "The commands B<lzgrep>, B<lzegrep>, and B<lzfgrep> are provided for backward compatibility with LZMA Utils.  They are deprecated and will be removed in a future version."
++msgstr "B<lzgrep>, B<lzegrep>, B<lzfgrep> 명령은 LZMA 유틸리티 하위 호환용으로 제공합니다.  해당 명령은 오래되어 이후 버전에서 제거합니다."
+ 
+ #. type: Plain text
+ #: ../src/scripts/xzgrep.1
+@@ -3769,12 +3797,6 @@ msgstr "B<grep>(1), B<xz>(1), B<gzip>(1), B<bzip2>(1), B<lzop>(1), B<zstd>(1), B
+ msgid "XZLESS"
+ msgstr "XZLESS"
+ 
+-#. type: TH
+-#: ../src/scripts/xzless.1 ../src/scripts/xzmore.1
+-#, no-wrap
+-msgid "2024-02-12"
+-msgstr "2024-02-12"
+-
+ #. type: Plain text
+ #: ../src/scripts/xzless.1
+ msgid "xzless, lzless - view xz or lzma compressed (text) files"
+@@ -3787,8 +3809,8 @@ msgstr "B<xzless> [I<E<lt>파일E<gt>>...]"
+ 
+ #. type: Plain text
+ #: ../src/scripts/xzless.1
+-msgid "B<lzless> [I<file>...]"
+-msgstr "B<lzless> [I<E<lt>파일E<gt>>...]"
++msgid "B<lzless> [I<file>...] (DEPRECATED)"
++msgstr "B<lzless> [I<file>...] (사용 안 함)"
+ 
+ #. type: Plain text
+ #: ../src/scripts/xzless.1
+@@ -3802,8 +3824,8 @@ msgstr "B<xzless> 는 B<less>(1)  를 사용하여 출력을 막습니다.  B<xz
+ 
+ #. type: Plain text
+ #: ../src/scripts/xzless.1
+-msgid "The command named B<lzless> is provided for backward compatibility with LZMA Utils."
+-msgstr "B<lzless> 명령은 LZMA 유틸리티 하위 호환용으로 제공합니다."
++msgid "The command named B<lzless> is provided for backward compatibility with LZMA Utils.  It is deprecated and will be removed in a future version."
++msgstr "B<lzless> 명령은 LZMA 유틸리티 하위 호환용으로 제공합니다.  해당 명령은 오래되어 이후 버전에서 제거합니다."
+ 
+ #. type: TP
+ #: ../src/scripts/xzless.1
+@@ -3850,8 +3872,8 @@ msgstr "B<xzmore> [I<E<lt>파일E<gt>>...]"
+ 
+ #. type: Plain text
+ #: ../src/scripts/xzmore.1
+-msgid "B<lzmore> [I<file>...]"
+-msgstr "B<lzmore> [I<E<lt>파일E<gt>>...]"
++msgid "B<lzmore> [I<file>...] (DEPRECATED)"
++msgstr "B<lzmore> [I<file>...] (사용 안 함)"
+ 
+ #. type: Plain text
+ #: ../src/scripts/xzmore.1
+@@ -3865,9 +3887,11 @@ msgstr "참고로 B<more>(1) 명령 구현체에 따라 반대 방향(윗방향)
+ 
+ #. type: Plain text
+ #: ../src/scripts/xzmore.1
+-msgid "The command B<lzmore> is provided for backward compatibility with LZMA Utils."
+-msgstr "B<lzmore> 명령은 LZMA 유틸리티 하위 호환용으로 제공합니다."
++msgid "The command B<lzmore> is provided for backward compatibility with LZMA Utils.  It is deprecated and will be removed in a future version."
++msgstr "B<lzmore> 명령은 LZMA 유틸리티 하위 호환용으로 제공합니다.  해당 명령은 오래되어 이후 버전에서 제거합니다."
+ 
++#.  TRANSLATORS: Don't translate the uppercase PAGER.
++#.  It is a name of an environment variable.
+ #. type: TP
+ #: ../src/scripts/xzmore.1
+ #, no-wrap
+@@ -3883,6 +3907,3 @@ msgstr "B<PAGER> 환경변수 값을 설정했다면, B<more>(1) 대신 해당 
+ #: ../src/scripts/xzmore.1
+ msgid "B<more>(1), B<xz>(1), B<xzless>(1), B<zmore>(1)"
+ msgstr "B<more>(1), B<xz>(1), B<xzless>(1), B<zmore>(1)"
+-
+-#~ msgid "Decompress."
+-#~ msgstr "압축을 해제합니다."

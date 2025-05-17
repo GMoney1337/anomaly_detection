@@ -1,0 +1,1297 @@
+diff --git a/src/xz/args.c b/src/xz/args.c
+index 7468a496..d28a3d40 100644
+--- a/src/xz/args.c
++++ b/src/xz/args.c
+@@ -28,6 +28,32 @@ bool opt_robot = false;
+ const char *const stdin_filename = "(stdin)";
+ 
+ 
++/// Parse and set the memory usage limit for compression and/or decompression.
++static void
++parse_memlimit(const char *name, const char *name_percentage, char *str,
++		bool set_compress, bool set_decompress)
++{
++	bool is_percentage = false;
++	uint64_t value;
++
++	const size_t len = strlen(str);
++	if (len > 0 && str[len - 1] == '%') {
++		str[len - 1] = '\0';
++		is_percentage = true;
++		value = str_to_uint64(name_percentage, str, 1, 100);
++	} else {
++		// On 32-bit systems, SIZE_MAX would make more sense than
++		// UINT64_MAX. But use UINT64_MAX still so that scripts
++		// that assume > 4 GiB values don't break.
++		value = str_to_uint64(name, str, 0, UINT64_MAX);
++	}
++
++	hardware_memlimit_set(
++			value, set_compress, set_decompress, is_percentage);
++	return;
++}
++
++
+ static void
+ parse_real(args_info *args, int argc, char **argv)
+ {
+@@ -45,6 +71,8 @@ parse_real(args_info *args, int argc, char **argv)
+ 		OPT_NO_SPARSE,
+ 		OPT_FILES,
+ 		OPT_FILES0,
++		OPT_MEM_COMPRESS,
++		OPT_MEM_DECOMPRESS,
+ 		OPT_NO_ADJUST,
+ 		OPT_INFO_MEMORY,
+ 		OPT_ROBOT,
+@@ -75,8 +103,11 @@ parse_real(args_info *args, int argc, char **argv)
+ 		// Basic compression settings
+ 		{ "format",       required_argument, NULL,  'F' },
+ 		{ "check",        required_argument, NULL,  'C' },
++		{ "memlimit-compress",   required_argument, NULL, OPT_MEM_COMPRESS },
++		{ "memlimit-decompress", required_argument, NULL, OPT_MEM_DECOMPRESS },
++		{ "memlimit",     required_argument, NULL,  'M' },
++		{ "memory",       required_argument, NULL,  'M' }, // Old alias
+ 		{ "no-adjust",    no_argument,       NULL,  OPT_NO_ADJUST },
+-		{ "memory",       required_argument, NULL,  'M' },
+ 		{ "threads",      required_argument, NULL,  'T' },
+ 
+ 		{ "extreme",      no_argument,       NULL,  'e' },
+@@ -104,7 +135,7 @@ parse_real(args_info *args, int argc, char **argv)
+ 		{ "long-help",    no_argument,       NULL,  'H' },
+ 		{ "version",      no_argument,       NULL,  'V' },
+ 
+-		{ NULL,                 0,                 NULL,   0 }
++		{ NULL,           0,                 NULL,   0 }
+ 	};
+ 
+ 	int c;
+@@ -118,28 +149,25 @@ parse_real(args_info *args, int argc, char **argv)
+ 			coder_set_preset(c - '0');
+ 			break;
+ 
+-		// --memory
+-		case 'M': {
+-			// Support specifying the limit as a percentage of
+-			// installed physical RAM.
+-			size_t len = strlen(optarg);
+-			if (len > 0 && optarg[len - 1] == '%') {
+-				optarg[len - 1] = '\0';
+-				hardware_memlimit_set_percentage(
+-						str_to_uint64(
+-						"memory%", optarg, 1, 100));
+-			} else {
+-				// On 32-bit systems, SIZE_MAX would make more
+-				// sense than UINT64_MAX. But use UINT64_MAX
+-				// still so that scripts that assume > 4 GiB
+-				// values don't break.
+-				hardware_memlimit_set(str_to_uint64(
+-						"memory", optarg,
+-						0, UINT64_MAX));
+-			}
++		// --memlimit-compress
++		case OPT_MEM_COMPRESS:
++			parse_memlimit("memlimit-compress",
++					"memlimit-compress%", optarg,
++					true, false);
++			break;
+ 
++		// --memlimit-decompress
++		case OPT_MEM_DECOMPRESS:
++			parse_memlimit("memlimit-decompress",
++					"memlimit-decompress%", optarg,
++					false, true);
++			break;
++
++		// --memlimit
++		case 'M':
++			parse_memlimit("memlimit", "memlimit%", optarg,
++					true, true);
+ 			break;
+-		}
+ 
+ 		// --suffix
+ 		case 'S':
+@@ -179,7 +207,7 @@ parse_real(args_info *args, int argc, char **argv)
+ 		// --info-memory
+ 		case OPT_INFO_MEMORY:
+ 			// This doesn't return.
+-			message_memlimit();
++			hardware_memlimit_show();
+ 
+ 		// --help
+ 		case 'h':
+@@ -384,9 +412,9 @@ parse_real(args_info *args, int argc, char **argv)
+ 
+ 
+ static void
+-parse_environment(args_info *args, char *argv0)
++parse_environment(args_info *args, char *argv0, const char *varname)
+ {
+-	char *env = getenv("XZ_OPT");
++	char *env = getenv(varname);
+ 	if (env == NULL)
+ 		return;
+ 
+@@ -415,8 +443,8 @@ parse_environment(args_info *args, char *argv0)
+ 			if (++argc == my_min(
+ 					INT_MAX, SIZE_MAX / sizeof(char *)))
+ 				message_fatal(_("The environment variable "
+-						"XZ_OPT contains too many "
+-						"arguments"));
++						"%s contains too many "
++						"arguments"), varname);
+ 		}
+ 	}
+ 
+@@ -504,8 +532,9 @@ args_parse(args_info *args, int argc, char **argv)
+ 		}
+ 	}
+ 
+-	// First the flags from environment
+-	parse_environment(args, argv[0]);
++	// First the flags from the environment
++	parse_environment(args, argv[0], "XZ_DEFAULTS");
++	parse_environment(args, argv[0], "XZ_OPT");
+ 
+ 	// Then from the command line
+ 	parse_real(args, argc, argv);
+diff --git a/src/xz/coder.c b/src/xz/coder.c
+index ff50d63c..093d5f29 100644
+--- a/src/xz/coder.c
++++ b/src/xz/coder.c
+@@ -169,7 +169,7 @@ coder_set_compression_settings(void)
+ 	// If using --format=raw, we can be decoding. The memusage function
+ 	// also validates the filter chain and the options used for the
+ 	// filters.
+-	const uint64_t memory_limit = hardware_memlimit_get();
++	const uint64_t memory_limit = hardware_memlimit_get(opt_mode);
+ 	uint64_t memory_usage;
+ 	if (opt_mode == MODE_COMPRESS)
+ 		memory_usage = lzma_raw_encoder_memusage(filters);
+@@ -406,12 +406,14 @@ coder_init(file_pair *pair)
+ 
+ 		case FORMAT_XZ:
+ 			ret = lzma_stream_decoder(&strm,
+-					hardware_memlimit_get(), flags);
++					hardware_memlimit_get(
++						MODE_DECOMPRESS), flags);
+ 			break;
+ 
+ 		case FORMAT_LZMA:
+ 			ret = lzma_alone_decoder(&strm,
+-					hardware_memlimit_get());
++					hardware_memlimit_get(
++						MODE_DECOMPRESS));
+ 			break;
+ 
+ 		case FORMAT_RAW:
+diff --git a/src/xz/hardware.c b/src/xz/hardware.c
+index 74742fce..c7d4f4f0 100644
+--- a/src/xz/hardware.c
++++ b/src/xz/hardware.c
+@@ -18,8 +18,11 @@
+ /// the --threads=NUM command line option.
+ static uint32_t threadlimit;
+ 
+-/// Memory usage limit
+-static uint64_t memlimit;
++/// Memory usage limit for compression
++static uint64_t memlimit_compress;
++
++/// Memory usage limit for decompression
++static uint64_t memlimit_decompress;
+ 
+ /// Total amount of physical RAM
+ static uint64_t total_ram;
+@@ -49,50 +52,77 @@ hardware_threadlimit_get(void)
+ 
+ 
+ extern void
+-hardware_memlimit_set(uint64_t new_memlimit)
++hardware_memlimit_set(uint64_t new_memlimit,
++		bool set_compress, bool set_decompress, bool is_percentage)
+ {
+-	if (new_memlimit != 0) {
+-		memlimit = new_memlimit;
+-	} else {
+-		// The default depends on the amount of RAM but so that
+-		// on "low-memory" systems the relative limit is higher
+-		// to make it more likely that files created with "xz -9"
+-		// will still decompress without overriding the limit
+-		// manually.
+-		//
+-		// If 40 % of RAM is 80 MiB or more, use 40 % of RAM as
+-		// the limit.
+-		memlimit = 40 * total_ram / 100;
+-		if (memlimit < UINT64_C(80) * 1024 * 1024) {
+-			// If 80 % of RAM is less than 80 MiB,
+-			// use 80 % of RAM as the limit.
+-			memlimit = 80 * total_ram / 100;
+-			if (memlimit > UINT64_C(80) * 1024 * 1024) {
+-				// Otherwise use 80 MiB as the limit.
+-				memlimit = UINT64_C(80) * 1024 * 1024;
+-			}
+-		}
++	if (is_percentage) {
++		assert(new_memlimit > 0);
++		assert(new_memlimit <= 100);
++		new_memlimit = (uint32_t)new_memlimit * total_ram / 100;
+ 	}
+ 
++	if (set_compress)
++		memlimit_compress = new_memlimit;
++
++	if (set_decompress)
++		memlimit_decompress = new_memlimit;
++
+ 	return;
+ }
+ 
+ 
+-extern void
+-hardware_memlimit_set_percentage(uint32_t percentage)
++extern uint64_t
++hardware_memlimit_get(enum operation_mode mode)
+ {
+-	assert(percentage > 0);
+-	assert(percentage <= 100);
++	// Zero is a special value that indicates the default. Currently
++	// the default simply disables the limit. Once there is threading
++	// support, this might be a little more complex, because there will
++	// probably be a special case where a user asks for "optimal" number
++	// of threads instead of a specific number (this might even become
++	// the default mode). Each thread may use a significant amount of
++	// memory. When there are no memory usage limits set, we need some
++	// default soft limit for calculating the "optimal" number of
++	// threads.
++	const uint64_t memlimit = mode == MODE_COMPRESS
++			? memlimit_compress : memlimit_decompress;
++	return memlimit != 0 ? memlimit : UINT64_MAX;
++}
++
++
++/// Helper for hardware_memlimit_show() to print one human-readable info line.
++static void
++memlimit_show(const char *str, uint64_t value)
++{
++	// The memory usage limit is considered to be disabled if value
++	// is 0 or UINT64_MAX. This might get a bit more complex once there
++	// is threading support. See the comment in hardware_memlimit_get().
++	if (value == 0 || value == UINT64_MAX)
++		printf("%s %s\n", str, _("Disabled"));
++	else
++		printf("%s %s MiB (%s B)\n", str,
++				uint64_to_str(round_up_to_mib(value), 0),
++				uint64_to_str(value, 1));
+ 
+-	memlimit = percentage * total_ram / 100;
+ 	return;
+ }
+ 
+ 
+-extern uint64_t
+-hardware_memlimit_get(void)
++extern void
++hardware_memlimit_show(void)
+ {
+-	return memlimit;
++	if (opt_robot) {
++		printf("%" PRIu64 "\t%" PRIu64 "\t%" PRIu64 "\n", total_ram,
++				memlimit_compress, memlimit_decompress);
++	} else {
++		memlimit_show(_("Total amount of physical memory (RAM): "),
++				total_ram);
++		memlimit_show(_("Memory usage limit for compression:    "),
++				memlimit_compress);
++		memlimit_show(_("Memory usage limit for decompression:  "),
++				memlimit_decompress);
++	}
++
++	tuklib_exit(E_SUCCESS, E_ERROR, message_verbosity_get() != V_SILENT);
+ }
+ 
+ 
+@@ -106,7 +136,7 @@ hardware_init(void)
+ 		total_ram = (uint64_t)(ASSUME_RAM) * 1024 * 1024;
+ 
+ 	// Set the defaults.
+-	hardware_memlimit_set(0);
++	hardware_memlimit_set(0, true, true, false);
+ 	hardware_threadlimit_set(0);
+ 	return;
+ }
+diff --git a/src/xz/hardware.h b/src/xz/hardware.h
+index b2cf34cb..bed952b0 100644
+--- a/src/xz/hardware.h
++++ b/src/xz/hardware.h
+@@ -23,13 +23,16 @@ extern void hardware_threadlimit_set(uint32_t threadlimit);
+ extern uint32_t hardware_threadlimit_get(void);
+ 
+ 
+-/// Set custom memory usage limit. This is used for both encoding and
+-/// decoding. Zero indicates resetting the limit back to defaults.
+-extern void hardware_memlimit_set(uint64_t memlimit);
+-
+-/// Set custom memory usage limit as a percentage of installed RAM.
+-/// The percentage must be in the range [1, 100].
+-extern void hardware_memlimit_set_percentage(uint32_t percentage);
+-
+-/// Get the current memory usage limit.
+-extern uint64_t hardware_memlimit_get(void);
++/// Set the memory usage limit. There are separate limits for compression
++/// and decompression (the latter includes also --list), one or both can
++/// be set with a single call to this function. Zero indicates resetting
++/// the limit back to the defaults. The limit can also be set as a percentage
++/// of installed RAM; the percentage must be in the range [1, 100].
++extern void hardware_memlimit_set(uint64_t new_memlimit,
++		bool set_compress, bool set_decompress, bool is_percentage);
++
++/// Get the current memory usage limit for compression or decompression.
++extern uint64_t hardware_memlimit_get(enum operation_mode mode);
++
++/// Display the amount of RAM and memory usage limits and exit.
++extern void hardware_memlimit_show(void) lzma_attribute((noreturn));
+diff --git a/src/xz/list.c b/src/xz/list.c
+index dda7c9bd..8e0fd818 100644
+--- a/src/xz/list.c
++++ b/src/xz/list.c
+@@ -203,7 +203,7 @@ parse_indexes(xz_file_info *xfi, file_pair *pair)
+ 		pos -= index_size;
+ 
+ 		// See how much memory we can use for decoding this Index.
+-		uint64_t memlimit = hardware_memlimit_get();
++		uint64_t memlimit = hardware_memlimit_get(MODE_LIST);
+ 		uint64_t memused = 0;
+ 		if (combined_index != NULL) {
+ 			memused = lzma_index_memused(combined_index);
+diff --git a/src/xz/message.c b/src/xz/message.c
+index 5044ea22..c62e2b2c 100644
+--- a/src/xz/message.c
++++ b/src/xz/message.c
+@@ -854,7 +854,7 @@ message_mem_needed(enum message_verbosity v, uint64_t memusage)
+ 	// Show the memory usage limit as MiB unless it is less than 1 MiB.
+ 	// This way it's easy to notice errors where one has typed
+ 	// --memory=123 instead of --memory=123MiB.
+-	uint64_t memlimit = hardware_memlimit_get();
++	uint64_t memlimit = hardware_memlimit_get(opt_mode);
+ 	if (memlimit < (UINT32_C(1) << 20)) {
+ 		snprintf(memlimitstr, sizeof(memlimitstr), "%s B",
+ 				uint64_to_str(memlimit, 1));
+@@ -1052,21 +1052,6 @@ message_try_help(void)
+ }
+ 
+ 
+-extern void
+-message_memlimit(void)
+-{
+-	if (opt_robot)
+-		printf("%" PRIu64 "\n", hardware_memlimit_get());
+-	else
+-		printf(_("%s MiB (%s bytes)\n"),
+-			uint64_to_str(
+-				round_up_to_mib(hardware_memlimit_get()), 0),
+-			uint64_to_str(hardware_memlimit_get(), 1));
+-
+-	tuklib_exit(E_SUCCESS, E_ERROR, verbosity != V_SILENT);
+-}
+-
+-
+ extern void
+ message_version(void)
+ {
+@@ -1138,12 +1123,16 @@ message_help(bool long_help)
+ "                      ratio without increasing memory usage of the decoder"));
+ 
+ 	if (long_help) {
++		puts(_( // xgettext:no-c-format
++"      --memlimit-compress=LIMIT\n"
++"      --memlimit-decompress=LIMIT\n"
++"  -M, --memlimit=LIMIT\n"
++"                      set memory usage limit for compression, decompression,\n"
++"                      or both; LIMIT is in bytes, % of RAM, or 0 for defaults"));
++
+ 		puts(_(
+ "      --no-adjust     if compression settings exceed the memory usage limit,\n"
+ "                      give an error instead of adjusting the settings downwards"));
+-		puts(_( // xgettext:no-c-format
+-"  -M, --memory=NUM    use roughly NUM bytes of memory at maximum; 0 indicates\n"
+-"                      the default setting, which is 40 % of total RAM"));
+ 	}
+ 
+ 	if (long_help) {
+@@ -1201,7 +1190,8 @@ message_help(bool long_help)
+ "      --robot         use machine-parsable messages (useful for scripts)"));
+ 		puts("");
+ 		puts(_(
+-"      --info-memory   display the memory usage limit and exit"));
++"      --info-memory   display the total amount of RAM and the currently active\n"
++"                      memory usage limits, and exit"));
+ 		puts(_(
+ "  -h, --help          display the short help (lists only the basic options)\n"
+ "  -H, --long-help     display this long help and exit"));
+@@ -1216,15 +1206,6 @@ message_help(bool long_help)
+ 
+ 	puts(_("\nWith no FILE, or when FILE is -, read standard input.\n"));
+ 
+-	if (long_help) {
+-		printf(_(
+-"On this system and configuration, this program will use a maximum of roughly\n"
+-"%s MiB RAM and "), uint64_to_str(round_up_to_mib(hardware_memlimit_get()), 0));
+-		printf(N_("one thread.\n\n", "%s threads.\n\n",
+-				hardware_threadlimit_get()),
+-				uint64_to_str(hardware_threadlimit_get(), 0));
+-	}
+-
+ 	// TRANSLATORS: This message indicates the bug reporting address
+ 	// for this package. Please add _another line_ saying
+ 	// "Report translation bugs to <...>\n" with the email or WWW
+diff --git a/src/xz/message.h b/src/xz/message.h
+index aea4fdfd..dd5fa4d4 100644
+--- a/src/xz/message.h
++++ b/src/xz/message.h
+@@ -107,10 +107,6 @@ extern void message_filters_show(
+ extern void message_try_help(void);
+ 
+ 
+-/// Print the memory usage limit and exit.
+-extern void message_memlimit(void) lzma_attribute((noreturn));
+-
+-
+ /// Prints the version number to stdout and exits with exit status SUCCESS.
+ extern void message_version(void) lzma_attribute((noreturn));
+ 
+diff --git a/src/xz/xz.1 b/src/xz/xz.1
+index 644822ac..a2eabd72 100644
+--- a/src/xz/xz.1
++++ b/src/xz/xz.1
+@@ -5,7 +5,7 @@
+ .\" This file has been put into the public domain.
+ .\" You can do whatever you want with this file.
+ .\"
+-.TH XZ 1 "2010-07-28" "Tukaani" "XZ Utils"
++.TH XZ 1 "2010-08-07" "Tukaani" "XZ Utils"
+ .SH NAME
+ xz, unxz, xzcat, lzma, unlzma, lzcat \- Compress or decompress .xz and .lzma files
+ .SH SYNOPSIS
+@@ -188,52 +188,56 @@ The memory usage of
+ .B xz
+ varies from a few hundred kilobytes to several gigabytes depending on
+ the compression settings. The settings used when compressing a file
+-affect also the memory usage of the decompressor. Typically the decompressor
+-needs only 5\ % to 20\ % of the amount of RAM that the compressor needed when
+-creating the file. Still, the worst-case memory usage of the decompressor
+-is several gigabytes.
++determine the memory requirements of the decompressor. Typically the
++decompressor needs only 5\ % to 20\ % of the amount of memory that the
++compressor needed when creating the file. For example, decompressing a
++file created with
++.B xz \-9
++currently requires 65 MiB of memory. Still, it is possible to have
++.B .xz
++files that need several gigabytes of memory to decompress.
+ .PP
+-To prevent uncomfortable surprises caused by huge memory usage,
++Especially users of older systems may find the possibility of very large
++memory usage annoying. To prevent uncomfortable surprises,
+ .B xz
+-has a built-in memory usage limiter. While some operating systems provide
+-ways to limit the memory usage of processes, relying on it wasn't deemed
+-to be flexible enough. The default limit depends on the total amount of
+-physical RAM:
+-.IP \(bu 3
+-If 40\ % of RAM is at least 80 MiB, 40\ % of RAM is used as the limit.
+-.IP \(bu 3
+-If 80\ % of RAM is less than 80 MiB, 80\ % of RAM is used as the limit.
+-.IP \(bu 3
+-Otherwise 80 MiB is used as the limit.
++has a built-in memory usage limiter, which is disabled by default.
++While some operating systems provide ways to limit the memory usage of
++processes, relying on it wasn't deemed to be flexible enough (e.g. using
++.BR ulimit (1)
++to limit virtual memory tends to cripple
++.BR mmap (2)).
+ .PP
+-When compressing, if the selected compression settings exceed the memory
+-usage limit, the settings are automatically adjusted downwards and a notice
+-about this is displayed. As an exception, if the memory usage limit is
+-exceeded when compressing with
+-.B \-\-format=raw
+-or
+-.BR \-\-no\-adjust ,
+-an error is displayed and
++The memory usage limiter can be enabled with the command line option
++\fB\-\-memlimit=\fIlimit\fR, but often it is more convenient to enable
++the limiter by default by setting the environment variable
++.BR XZ_DEFAULTS ,
++e.g.
++.BR XZ_DEFAULTS=\-\-memlimit=150MiB .
++It is possible to set the limits separately for compression and decompression
++by using \fB\-\-memlimit\-compress=\fIlimit\fR and
++\fB\-\-memlimit\-decompress=\fIlimit\fR, respectively.
++Using these two options outside
++.B XZ_DEFAULTS
++is rarely useful, because a single run of
+ .B xz
+-will exit with exit status
+-.BR 1 .
++cannot do both compression and decompression and
++.BI \-\-memlimit= limit
++(or \fB\-M\fR \fIlimit\fR)
++is shorter to type on the command line.
+ .PP
+-If source
+-.I file
+-cannot be decompressed without exceeding the memory usage limit, an error
+-message is displayed and the file is skipped. Note that compressed files
+-may contain many blocks, which may have been compressed with different
+-settings. Typically all blocks will have roughly the same memory requirements,
+-but it is possible that a block later in the file will exceed the memory usage
+-limit, and an error about too low memory usage limit gets displayed after some
+-data has already been decompressed.
+-.PP
+-The absolute value of the active memory usage limit can be seen with
+-.B \-\-info-memory
+-or near the bottom of the output of
+-.BR \-\-long\-help .
+-The default limit can be overridden with
+-\fB\-\-memory=\fIlimit\fR.
++If the specified memory usage limit is exceeded when decompressing,
++.B xz
++will display an error and decompressing the file will fail.
++If the limit is exceeded when compressing,
++.B xz
++will try to scale the settings down so that the limit is no longer exceeded
++(except when using \fB\-\-format=raw\fR or \fB\-\-no\-adjust\fR).
++This way the operation won't fail unless the limit is very small. The scaling
++of the settings is done in steps that don't match the compression level
++presets, e.g. if the limit is only slightly less than the amount required for
++.BR "xz \-9" ,
++the settings will be scaled down only a little, not all the way down to
++.BR "xz \-8" .
+ .SS Concatenation and padding with .xz files
+ It is possible to concatenate
+ .B .xz
+@@ -363,7 +367,7 @@ doesn't recognize the type of the source file,
+ .B xz
+ will copy the source file as is to standard output. This allows using
+ .B xzcat
+-.B \--force
++.B \-\-force
+ like
+ .BR cat (1)
+ for files that have not been compressed with
+@@ -380,7 +384,7 @@ can be used to restrict
+ to decompress only a single file format.
+ .RE
+ .TP
+-.BR \-c ", " \-\-stdout ", " \-\-to-stdout
++.BR \-c ", " \-\-stdout ", " \-\-to\-stdout
+ Write the compressed or decompressed data to standard output instead of
+ a file. This implies
+ .BR \-\-keep .
+@@ -559,12 +563,8 @@ due to speed and memory usage.
+ The exact compression settings (filter chain) used by each preset may
+ vary between
+ .B xz
+-versions. The settings may also vary between files being compressed, if
+-.B xz
+-determines that modified settings will probably give better compression
+-ratio without significantly affecting compression time or memory usage.
+-.IP
+-Because the settings may vary, the memory usage may vary too. The following
++versions. Because the settings may vary, the memory usage may vary
++slightly too. FIXME The following
+ table lists the maximum memory usage of each preset level, which won't be
+ exceeded even in future versions of
+ .BR xz .
+@@ -590,12 +590,6 @@ Preset;Compression;Decompression
+ .TE
+ .RE
+ .RE
+-.IP
+-When compressing,
+-.B xz
+-automatically adjusts the compression settings downwards if
+-the memory usage limit would be exceeded, so it is safe to specify
+-a high preset level even on systems that don't have lots of RAM.
+ .TP
+ .BR \-\-fast " and " \-\-best
+ These are somewhat misleading aliases for
+@@ -619,16 +613,25 @@ of the compressor or decompressor (exception: compressor memory usage may
+ increase a little with presets \fB\-0\fR ... \fB\-2\fR). The downside is that
+ the compression time will increase dramatically (it can easily double).
+ .TP
++.BI \-\-memlimit\-compress= limit
++Set a memory usage limit for compression. If this option is specified
++multiple times, the last one takes effect.
++.IP
++If the compression settings exceed the
++.IR limit ,
++.B xz
++will adjust the settings downwards so that the limit is no longer exceeded
++and display a notice that automatic adjustment was done. Adjustment is never
++done when compressing with
++.B \-\-format=raw
++or if
+ .B \-\-no\-adjust
+-Display an error and exit if the compression settings exceed the
+-the memory usage limit. The default is to adjust the settings downwards so
+-that the memory usage limit is not exceeded. Automatic adjusting is
+-always disabled when creating raw streams
+-.RB ( \-\-format=raw ).
+-.TP
+-\fB\-M\fR \fIlimit\fR, \fB\-\-memory=\fIlimit
+-Set the memory usage limit. If this option is specified multiple times,
+-the last one takes effect. The
++has been specified. In those cases, an error is displayed and
++.B xz
++will exit with exit status
++.BR 1 .
++.IP
++The
+ .I limit
+ can be specified in multiple ways:
+ .RS
+@@ -638,52 +641,80 @@ The
+ can be an absolute value in bytes. Using an integer suffix like
+ .B MiB
+ can be useful. Example:
+-.B "\-\-memory=80MiB"
++.B "\-\-memlimit\-compress=80MiB"
+ .IP \(bu 3
+ The
+ .I limit
+-can be specified as a percentage of physical RAM. Example:
+-.B "\-\-memory=70%"
++can be specified as a percentage of total physical memory (RAM).
++This can be useful especially when setting the
++.B XZ_DEFAULTS
++environment variable in a shell initialization script that is shared
++between different computers. That way the limit is automatically bigger
++on systems with more memory. Example:
++.B "\-\-memlimit\-compress=70%"
+ .IP \(bu 3
+ The
+ .I limit
+ can be reset back to its default value by setting it to
+ .BR 0 .
+-See the section
+-.B "Memory usage"
+-for how the default limit is defined.
+-.IP \(bu 3
+-The memory usage limiting can be effectively disabled by setting
++This is currently equivalent to setting the
+ .I limit
+ to
+-.BR max .
+-This isn't recommended. It's usually better to use, for example,
+-.BR \-\-memory=90% .
++.B max
++i.e. no memory usage limit. Once multithreading support has been implemented,
++there may be a difference between
++.B 0
++and
++.B max
++for the multithreaded case, so it is recommended to use
++.B 0
++instead of
++.B max
++at least until the details have been decided.
+ .RE
+ .IP
+-The current
+-.I limit
+-can be seen near the bottom of the output of the
+-.B \-\-long-help
+-option.
++See also the section
++.BR "Memory usage" .
++.TP
++.BI \-\-memlimit\-decompress= limit
++Set a memory usage limit for decompression. This affects also the
++.B \-\-list
++mode. If the operation is not possible without exceeding the
++.IR limit ,
++.B xz
++will display an error and decompressing the file will fail. See
++.BI \-\-memlimit\-compress= limit
++for possible ways to specify the
++.IR limit .
++.TP
++\fB\-M\fR \fIlimit\fR, \fB\-\-memlimit=\fIlimit\fR, \fB\-\-memory=\fIlimit
++This is equivalent to specifying \fB\-\-memlimit\-compress=\fIlimit
++\fB\-\-memlimit\-decompress=\fIlimit\fR.
++.TP
++.B \-\-no\-adjust
++Display an error and exit if the compression settings exceed the
++the memory usage limit. The default is to adjust the settings downwards so
++that the memory usage limit is not exceeded. Automatic adjusting is
++always disabled when creating raw streams
++.RB ( \-\-format=raw ).
+ .TP
+ \fB\-T\fR \fIthreads\fR, \fB\-\-threads=\fIthreads
+-Specify the maximum number of worker threads to use. The default is
+-the number of available CPU cores. You can see the current value of
+-.I threads
+-near the end of the output of the
+-.B \-\-long\-help
+-option.
+-.IP
+-The actual number of worker threads can be less than
++Specify the number of worker threads to use. The actual number of threads
++can be less than
+ .I threads
+ if using more threads would exceed the memory usage limit.
+-In addition to CPU-intensive worker threads,
+-.B xz
+-may use a few auxiliary threads, which don't use a lot of CPU time.
+ .IP
+ .B "Multithreaded compression and decompression are not implemented yet,"
+ .B "so this option has no effect for now."
++.IP
++.B "As of writing (2010-08-07), it hasn't been decided if threads will be"
++.B "used by default on multicore systems once support for threading has"
++.B "been implemented. Comments are welcome."
++The complicating factor is that using many threads will increase the memory
++usage dramatically. Note that if multithreading will be the default,
++it will be done so that single-threaded and multithreaded modes produce
++the same output, so compression ratio won't be significantly affected if
++threading will be enabled by default.
+ .SS Custom compressor filter chains
+ A custom filter chain allows specifying the compression settings in detail
+ instead of relying on the settings associated to the preset levels.
+@@ -1037,7 +1068,8 @@ Currently only simple byte-wise delta calculation is supported. It can
+ be useful when compressing e.g. uncompressed bitmap images or uncompressed
+ PCM audio. However, special purpose algorithms may give significantly better
+ results than Delta + LZMA2. This is true especially with audio, which
+-compresses faster and better e.g. with FLAC.
++compresses faster and better e.g. with
++.BR flac (1).
+ .IP
+ Supported
+ .IR options :
+@@ -1087,18 +1119,17 @@ processed so far.
+ .IP \(bu 3
+ Compression or decompression speed. This is measured as the amount of
+ uncompressed data consumed (compression) or produced (decompression)
+-per second. It is shown once a few seconds have passed since
++per second. It is shown after a few seconds have passed since
+ .B xz
+ started processing the file.
+ .IP \(bu 3
+-Elapsed time or estimated time remaining.
+-Elapsed time is displayed in the format M:SS or H:MM:SS.
+-The estimated remaining time is displayed in a less precise format
+-which never has colons, for example, 2 min 30 s. The estimate can
+-be shown only when the size of the input file is known and a couple of
+-seconds have already passed since
++Elapsed time in the format M:SS or H:MM:SS.
++.IP \(bu 3
++Estimated remaining time is shown only when the size of the input file is
++known and a couple of seconds have already passed since
+ .B xz
+-started processing the file.
++started processing the file. The time is shown in a less precise format which
++never has any colons, e.g. 2 min 30 s.
+ .RE
+ .IP
+ When standard error is not a terminal,
+@@ -1106,11 +1137,11 @@ When standard error is not a terminal,
+ will make
+ .B xz
+ print the filename, compressed size, uncompressed size, compression ratio,
+-speed, and elapsed time on a single line to standard error after
+-compressing or decompressing the file. If operating took at least a few
+-seconds, also the speed and elapsed time are printed. If the operation
+-didn't finish, for example due to user interruption, also the completion
+-percentage is printed if the size of the input file is known.
++and possibly also the speed and elapsed time on a single line to standard
++error after compressing or decompressing the file. The speed and elapsed
++time are included only when the operation took at least a few seconds.
++If the operation didn't finish, for example due to user interruption, also
++the completion percentage is printed if the size of the input file is known.
+ .TP
+ .BR \-Q ", " \-\-no\-warn
+ Don't set the exit status to
+@@ -1133,12 +1164,11 @@ releases. See the section
+ .B "ROBOT MODE"
+ for details.
+ .TP
+-.BR \-\-info-memory
+-Display the current memory usage limit in human-readable format on
+-a single line, and exit successfully. To see how much RAM
++.BR \-\-info\-memory
++Display, in human-readable format, how much physical memory (RAM)
+ .B xz
+-thinks your system has, use
+-.BR "\-\-memory=100% \-\-info\-memory" .
++thinks the system has and the memory usage limits for compression
++and decompression, and exit successfully.
+ .TP
+ .BR \-h ", " \-\-help
+ Display a help message describing the most commonly used options,
+@@ -1165,7 +1195,7 @@ easier to parse by other programs. Currently
+ .B \-\-robot
+ is supported only together with
+ .BR \-\-version ,
+-.BR \-\-info-memory ,
++.BR \-\-info\-memory ,
+ and
+ .BR \-\-list .
+ It will be supported for normal compression and decompression in the future.
+@@ -1216,10 +1246,24 @@ and
+ 5.0.0 is
+ .BR 50000002 .
+ .SS Memory limit information
+-.B "xz \-\-robot \-\-info-memory"
+-prints the current memory usage limit as bytes on a single line.
+-To get the total amount of installed RAM, use
+-.BR "xz \-\-robot \-\-memory=100% \-\-info-memory" .
++.B "xz \-\-robot \-\-info\-memory"
++prints a single line with three tab-separated columns:
++.RS
++.IP 1. 4
++Total amount of physical memory (RAM) as bytes
++.IP 2. 4
++Memory usage limit for compression as bytes.
++A special value of zero indicates the default setting,
++which for single-threaded mode is the same as no limit.
++.IP 3. 4
++Memory usage limit for decompression as bytes.
++A special value of zero indicates the default setting,
++which for single-threaded mode is the same as no limit.
++.RE
++.PP
++In the future, the output of
++.B "xz \-\-robot \-\-info\-memory"
++may have more columns, but never more than a single line.
+ .SS List mode
+ .B "xz \-\-robot \-\-list"
+ uses tab-separated output. The first column of every line has a string
+@@ -1455,16 +1499,52 @@ Something worth a warning occurred, but no actual errors occurred.
+ Notices (not warnings or errors) printed on standard error don't affect
+ the exit status.
+ .SH ENVIRONMENT
++.B xz
++parses space-separated lists of options from the environment variables
++.B XZ_DEFAULTS
++and
++.BR XZ_OPT ,
++in this order, before parsing the options from the command line. Note that
++only options are parsed from the environment variables; all non-options
++are silently ignored. Parsing is done with
++.BR getopt_long (3)
++which is used also for the command line arguments.
++.TP
++.B XZ_DEFAULTS
++User-specific or system-wide default options.
++Typically this is set in a shell initialization script to enable
++.BR xz 's
++memory usage limiter by default. Excluding shell initialization scripts
++and similar special cases, scripts must never set or unset
++.BR XZ_DEFAULTS .
+ .TP
+ .B XZ_OPT
+-A space-separated list of options is parsed from
++This is for passing options to
++.B xz
++when it is not possible to set the options directly on the
++.B xz
++command line. This is the case e.g. when
++.B xz
++is run by a script or tool, e.g. GNU
++.BR tar (1):
++.RS
++.IP
++\fBXZ_OPT=\-2v tar caf foo.tar.xz foo
++.RE
++.IP
++Scripts may use
+ .B XZ_OPT
+-before parsing the options given on the command line. Note that only
+-options are parsed from
+-.BR XZ_OPT ;
+-all non-options are silently ignored. Parsing is done with
+-.BR getopt_long (3)
+-which is used also for the command line arguments.
++e.g. to set script-specific default compression options.
++It is still recommended to allow users to override
++.B XZ_OPT
++if that is reasonable, e.g. in
++.BR sh (1)
++scripts one may use something like this:
++.RS
++.IP
++\fBXZ_OPT=${XZ_OPT\-"\-7e"}; export XZ_OPT
++.RE
++.IP
+ .SH "LZMA UTILS COMPATIBILITY"
+ The command line syntax of
+ .B xz
+@@ -1663,7 +1743,7 @@ XZ Embedded supports BCJ filters, but only with the default start offset.
+ A mix of compressed and uncompressed files can be decompressed
+ to standard output with a single command:
+ .IP
+-.B "xz -dcf a.txt b.txt.xz c.txt d.txt.xz > abcd.txt"
++.B "xz \-dcf a.txt b.txt.xz c.txt d.txt.xz > abcd.txt"
+ .SS Parallel compression of many files
+ On GNU and *BSD,
+ .BR find (1)
+@@ -1672,7 +1752,8 @@ and
+ can be used to parallelize compression of many files:
+ .PP
+ .IP
+-.B "find . \-type f \e! \-name '*.xz' \-print0 | xargs \-0r \-P4 \-n16 xz"
++.B "find . \-type f \e! \-name '*.xz' \-print0 |"
++.B "xargs \-0r \-P4 \-n16 xz \-T1"
+ .PP
+ The
+ .B \-P
+@@ -1690,11 +1771,19 @@ or even more may be appropriate to reduce the number of
+ processes that
+ .BR xargs (1)
+ will eventually create.
++.PP
++The option
++.B \-T1
++for
++.B xz
++is there to force it to single-threaded mode, because
++.BR xargs (1)
++is used to control the amount of parallelization.
+ .SS Robot mode examples
+ Calculating how many bytes have been saved in total after compressing
+ multiple files:
+ .IP
+-.B "xz --robot --list *.xz | awk '/^totals/{print $5\-$4}'"
++.B "xz \-\-robot \-\-list *.xz | awk '/^totals/{print $5\-$4}'"
+ .SH "SEE ALSO"
+ .BR xzdec (1),
+ .BR gzip (1),
+diff --git a/src/xzdec/xzdec.1 b/src/xzdec/xzdec.1
+index 3057c586..ed14a03c 100644
+--- a/src/xzdec/xzdec.1
++++ b/src/xzdec/xzdec.1
+@@ -4,7 +4,7 @@
+ .\" This file has been put into the public domain.
+ .\" You can do whatever you want with this file.
+ .\"
+-.TH XZDEC 1 "2010-03-07" "Tukaani" "XZ Utils"
++.TH XZDEC 1 "2010-08-07" "Tukaani" "XZ Utils"
+ .SH NAME
+ xzdec, lzmadec \- Small .xz and .lzma decompressors
+ .SH SYNOPSIS
+@@ -44,8 +44,10 @@ files.
+ To reduce the size of the executable,
+ .B xzdec
+ doesn't support multithreading or localization, and doesn't read options from
++.B XZ_DEFAULTS
++and
+ .B XZ_OPT
+-environment variable.
++environment variables.
+ .B xzdec
+ doesn't support displaying intermediate progress information: sending
+ .B SIGINFO
+@@ -77,45 +79,6 @@ compatibility.
+ .B xzdec
+ always writes the decompressed data to standard output.
+ .TP
+-\fB\-M\fR \fIlimit\fR, \fB\-\-memory=\fIlimit
+-Set the memory usage
+-.IR limit .
+-If this option is specified multiple times, the last one takes effect. The
+-.I limit
+-can be specified in multiple ways:
+-.RS
+-.IP \(bu 3
+-The
+-.I limit
+-can be an absolute value in bytes. Using an integer suffix like
+-.B MiB
+-can be useful. Example:
+-.B "\-\-memory=80MiB"
+-.IP \(bu 3
+-The
+-.I limit
+-can be specified as a percentage of physical RAM. Example:
+-.B "\-\-memory=70%"
+-.IP \(bu 3
+-The
+-.I limit
+-can be reset back to its default value by setting it to
+-.BR 0 .
+-.IP \(bu 3
+-The memory usage limiting can be effectively disabled by setting
+-.I limit
+-to
+-.BR max .
+-This isn't recommended. It's usually better to use, for example,
+-.BR \-\-memory=90% .
+-.RE
+-.IP
+-The current
+-.I limit
+-can be seen near the bottom of the output of the
+-.B \-\-help
+-option.
+-.TP
+ .BR \-q ", " \-\-quiet
+ Specifying this once does nothing since
+ .B xzdec
+diff --git a/src/xzdec/xzdec.c b/src/xzdec/xzdec.c
+index 7f2e0fdc..fd015076 100644
+--- a/src/xzdec/xzdec.c
++++ b/src/xzdec/xzdec.c
+@@ -35,12 +35,6 @@
+ #endif
+ 
+ 
+-/// Number of bytes to use memory at maximum
+-static uint64_t memlimit;
+-
+-/// Total amount of physical RAM
+-static uint64_t total_ram;
+-
+ /// Error messages are suppressed if this is zero, which is the case when
+ /// --quiet has been given at least twice.
+ static unsigned int display_errors = 2;
+@@ -66,10 +60,6 @@ my_errorf(const char *fmt, ...)
+ static void lzma_attribute((noreturn))
+ help(void)
+ {
+-	// Round up to the next MiB and do it correctly also with UINT64_MAX.
+-	const uint64_t mem_mib = (memlimit >> 20)
+-			+ ((memlimit & ((UINT32_C(1) << 20) - 1)) != 0);
+-
+ 	printf(
+ "Usage: %s [OPTION]... [FILE]...\n"
+ "Uncompress files in the ." TOOL_FORMAT " format to the standard output.\n"
+@@ -77,7 +67,6 @@ help(void)
+ "  -c, --stdout       (ignored)\n"
+ "  -d, --decompress   (ignored)\n"
+ "  -k, --keep         (ignored)\n"
+-"  -M, --memory=NUM   use NUM bytes of memory at maximum (0 means default)\n"
+ "  -q, --quiet        specify *twice* to suppress errors\n"
+ "  -Q, --no-warn      (ignored)\n"
+ "  -h, --help         display this help and exit\n"
+@@ -85,11 +74,9 @@ help(void)
+ "\n"
+ "With no FILE, or when FILE is -, read standard input.\n"
+ "\n"
+-"On this system and configuration, this program will use a maximum of roughly\n"
+-"%" PRIu64 " MiB RAM.\n"
+-"\n"
+ "Report bugs to <" PACKAGE_BUGREPORT "> (in English or Finnish).\n"
+-PACKAGE_NAME " home page: <" PACKAGE_URL ">\n", progname, mem_mib);
++PACKAGE_NAME " home page: <" PACKAGE_URL ">\n", progname);
++
+ 	tuklib_exit(EXIT_SUCCESS, EXIT_FAILURE, display_errors);
+ }
+ 
+@@ -104,126 +91,6 @@ version(void)
+ }
+ 
+ 
+-/// Find out the amount of physical memory (RAM) in the system, and set
+-/// the memory usage limit to the given percentage of RAM.
+-static void
+-memlimit_set_percentage(uint32_t percentage)
+-{
+-	memlimit = percentage * total_ram / 100;
+-	return;
+-}
+-
+-
+-/// Set the memory usage limit to give number of bytes. Zero is a special
+-/// value to indicate the default limit.
+-static void
+-memlimit_set(uint64_t new_memlimit)
+-{
+-	if (new_memlimit != 0) {
+-		memlimit = new_memlimit;
+-	} else {
+-		memlimit = 40 * total_ram / 100;
+-		if (memlimit < UINT64_C(80) * 1024 * 1024) {
+-			memlimit = 80 * total_ram / 100;
+-			if (memlimit > UINT64_C(80) * 1024 * 1024)
+-				memlimit = UINT64_C(80) * 1024 * 1024;
+-		}
+-	}
+-
+-	return;
+-}
+-
+-
+-/// Get the total amount of physical RAM and set the memory usage limit
+-/// to the default value.
+-static void
+-memlimit_init(void)
+-{
+-	// If we cannot determine the amount of RAM, use the assumption
+-	// defined by the configure script.
+-	total_ram = lzma_physmem();
+-	if (total_ram == 0)
+-		total_ram = (uint64_t)(ASSUME_RAM) * 1024 * 1024;
+-
+-	memlimit_set(0);
+-	return;
+-}
+-
+-
+-/// \brief      Convert a string to uint64_t
+-///
+-/// This is rudely copied from src/xz/util.c and modified a little. :-(
+-/// Since this function is used only for parsing the memory usage limit,
+-/// this cheats a little and saturates too big values to UINT64_MAX instead
+-/// of giving an error.
+-///
+-/// \param      max     Return value when the string "max" was specified.
+-///
+-static uint64_t
+-str_to_uint64(const char *value, uint64_t max)
+-{
+-	uint64_t result = 0;
+-
+-	// Accept special value "max".
+-	if (strcmp(value, "max") == 0)
+-		return max;
+-
+-	if (*value < '0' || *value > '9') {
+-		my_errorf("%s: Value is not a non-negative decimal integer",
+-				value);
+-		exit(EXIT_FAILURE);
+-	}
+-
+-	do {
+-		// Don't overflow.
+-		if (result > UINT64_MAX / 10)
+-			return UINT64_MAX;
+-
+-		result *= 10;
+-
+-		// Another overflow check
+-		const uint32_t add = *value - '0';
+-		if (UINT64_MAX - add < result)
+-			return UINT64_MAX;
+-
+-		result += add;
+-		++value;
+-	} while (*value >= '0' && *value <= '9');
+-
+-	if (*value != '\0') {
+-		// Look for suffix.
+-		uint64_t multiplier = 0;
+-		if (*value == 'k' || *value == 'K')
+-			multiplier = UINT64_C(1) << 10;
+-		else if (*value == 'm' || *value == 'M')
+-			multiplier = UINT64_C(1) << 20;
+-		else if (*value == 'g' || *value == 'G')
+-			multiplier = UINT64_C(1) << 30;
+-
+-		++value;
+-
+-		// Allow also e.g. Ki, KiB, and KB.
+-		if (*value != '\0' && strcmp(value, "i") != 0
+-				&& strcmp(value, "iB") != 0
+-				&& strcmp(value, "B") != 0)
+-			multiplier = 0;
+-
+-		if (multiplier == 0) {
+-			my_errorf("%s: Invalid suffix", value - 1);
+-			exit(EXIT_FAILURE);
+-		}
+-
+-		// Don't overflow here either.
+-		if (result > UINT64_MAX / multiplier)
+-			result = UINT64_MAX;
+-		else
+-			result *= multiplier;
+-	}
+-
+-	return result;
+-}
+-
+-
+ /// Parses command line options.
+ static void
+ parse_options(int argc, char **argv)
+@@ -235,7 +102,6 @@ parse_options(int argc, char **argv)
+ 		{ "decompress",   no_argument,         NULL, 'd' },
+ 		{ "uncompress",   no_argument,         NULL, 'd' },
+ 		{ "keep",         no_argument,         NULL, 'k' },
+-		{ "memory",       required_argument,   NULL, 'M' },
+ 		{ "quiet",        no_argument,         NULL, 'q' },
+ 		{ "no-warn",      no_argument,         NULL, 'Q' },
+ 		{ "help",         no_argument,         NULL, 'h' },
+@@ -254,31 +120,6 @@ parse_options(int argc, char **argv)
+ 		case 'Q':
+ 			break;
+ 
+-		case 'M': {
+-			// Support specifying the limit as a percentage of
+-			// installed physical RAM.
+-			const size_t len = strlen(optarg);
+-			if (len > 0 && optarg[len - 1] == '%') {
+-				// Memory limit is a percentage of total
+-				// installed RAM.
+-				optarg[len - 1] = '\0';
+-				const uint64_t percentage
+-						= str_to_uint64(optarg, 100);
+-				if (percentage < 1 || percentage > 100) {
+-					my_errorf("Percentage must be in "
+-							"the range [1, 100]");
+-					exit(EXIT_FAILURE);
+-				}
+-
+-				memlimit_set_percentage(percentage);
+-			} else {
+-				memlimit_set(str_to_uint64(
+-						optarg, UINT64_MAX));
+-			}
+-
+-			break;
+-		}
+-
+ 		case 'q':
+ 			if (display_errors > 0)
+ 				--display_errors;
+@@ -307,13 +148,12 @@ uncompress(lzma_stream *strm, FILE *file, const char *filename)
+ 
+ 	// Initialize the decoder
+ #ifdef LZMADEC
+-	ret = lzma_alone_decoder(strm, memlimit);
++	ret = lzma_alone_decoder(strm, UINT64_MAX);
+ #else
+-	ret = lzma_stream_decoder(strm, memlimit, LZMA_CONCATENATED);
++	ret = lzma_stream_decoder(strm, UINT64_MAX, LZMA_CONCATENATED);
+ #endif
+ 
+ 	// The only reasonable error here is LZMA_MEM_ERROR.
+-	// FIXME: Maybe also LZMA_MEMLIMIT_ERROR in future?
+ 	if (ret != LZMA_OK) {
+ 		my_errorf("%s", ret == LZMA_MEM_ERROR ? strerror(ENOMEM)
+ 				: "Internal error (bug)");
+@@ -401,10 +241,6 @@ uncompress(lzma_stream *strm, FILE *file, const char *filename)
+ 				msg = strerror(ENOMEM);
+ 				break;
+ 
+-			case LZMA_MEMLIMIT_ERROR:
+-				msg = "Memory usage limit reached";
+-				break;
+-
+ 			case LZMA_FORMAT_ERROR:
+ 				msg = "File format not recognized";
+ 				break;
+@@ -440,10 +276,6 @@ main(int argc, char **argv)
+ 	// Initialize progname which we will be used in error messages.
+ 	tuklib_progname_init(argv);
+ 
+-	// Set the default memory usage limit. This is needed before parsing
+-	// the command line arguments.
+-	memlimit_init();
+-
+ 	// Parse the command line options.
+ 	parse_options(argc, argv);
+ 

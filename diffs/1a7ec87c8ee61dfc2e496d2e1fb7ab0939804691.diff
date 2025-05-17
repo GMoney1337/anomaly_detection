@@ -1,0 +1,3373 @@
+diff --git a/src/liblzma/api/lzma/index.h b/src/liblzma/api/lzma/index.h
+index 3490e4c6..f9d1910a 100644
+--- a/src/liblzma/api/lzma/index.h
++++ b/src/liblzma/api/lzma/index.h
+@@ -1,6 +1,6 @@
+ /**
+  * \file        lzma/index.h
+- * \brief       Handling of .xz Index lists
++ * \brief       Handling of .xz Index and related information
+  */
+ 
+ /*
+@@ -18,98 +18,295 @@
+ 
+ 
+ /**
+- * \brief       Opaque data type to hold the Index
++ * \brief       Opaque data type to hold the Index(es) and other information
++ *
++ * lzma_index often holds just one .xz Index and possibly the Stream Flags
++ * of the same Stream and size of the Stream Padding field. However,
++ * multiple lzma_indexes can be concatenated with lzma_index_cat() and then
++ * there may be information about multiple Streams in the same lzma_index.
++ *
++ * Notes about thread safety: Only one thread may modify lzma_index at
++ * a time. All functions that take non-const pointer to lzma_index
++ * modify it. As long as no thread is modifying the lzma_index, getting
++ * information from the same lzma_index can be done from multiple threads
++ * at the same time with functions that take a const pointer to
++ * lzma_index or use lzma_index_iter. The same iterator must be used
++ * only by one thread at a time, of course, but there can be as many
++ * iterators for the same lzma_index as needed.
+  */
+ typedef struct lzma_index_s lzma_index;
+ 
+ 
+ /**
+- * \brief       Index Record and its location
++ * \brief       Iterator to get information about Blocks and Streams
+  */
+ typedef struct {
+-	/**
+-	 * \brief       Total encoded size of a Block including Block Padding
+-	 *
+-	 * This value is useful if you need to know the actual size of the
+-	 * Block that the Block decoder will read.
++	struct {
++		/**
++		 * \brief       Pointer to Stream Flags
++		 *
++		 * This is NULL if Stream Flags have not been set for
++		 * this Stream with lzma_index_stream_flags().
++		 */
++		const lzma_stream_flags *flags;
++
++		const void *reserved_ptr1;
++		const void *reserved_ptr2;
++		const void *reserved_ptr3;
++
++		/**
++		 * \brief       Stream number in the lzma_index
++		 *
++		 * The first Stream is 1.
++		 */
++		lzma_vli number;
++
++		/**
++		 * \brief       Number of Blocks in the Stream
++		 *
++		 * If this is zero, the block structure below has
++		 * undefined values.
++		 */
++		lzma_vli block_count;
++
++		/**
++		 * \brief       Compressed start offset of this Stream
++		 *
++		 * The offset is relative to the beginning of the lzma_index
++		 * (i.e. usually the beginning of the .xz file).
++		 */
++		lzma_vli compressed_offset;
++
++		/**
++		 * \brief       Uncompressed start offset of this Stream
++		 *
++		 * The offset is relative to the beginning of the lzma_index
++		 * (i.e. usually the beginning of the .xz file).
++		 */
++		lzma_vli uncompressed_offset;
++
++		/**
++		 * \brief       Compressed size of this Stream
++		 *
++		 * This includes all headers except the possible
++		 * Stream Padding after this Stream.
++		 */
++		lzma_vli compressed_size;
++
++		/**
++		 * \brief       Uncompressed size of this Stream
++		 */
++		lzma_vli uncompressed_size;
++
++		/**
++		 * \brief       Size of Stream Padding after this Stream
++		 *
++		 * If it hasn't been set with lzma_index_stream_padding(),
++		 * this defaults to zero. Stream Padding is always
++		 * a multiple of four bytes.
++		 */
++		lzma_vli padding;
++
++		lzma_vli reserved_vli1;
++		lzma_vli reserved_vli2;
++		lzma_vli reserved_vli3;
++		lzma_vli reserved_vli4;
++	} stream;
++
++	struct {
++		/**
++		 * \brief       Block number in the file
++		 *
++		 * The first Block is 1.
++		 */
++		lzma_vli number_in_file;
++
++		/**
++		 * \brief       Compressed start offset of this Block
++		 *
++		 * This offset is relative to the beginning of the
++		 * lzma_index (i.e. usually the beginning of the .xz file).
++		 * Normally this is where you should seek in the .xz file
++		 * to start decompressing this Block.
++		 */
++		lzma_vli compressed_file_offset;
++
++		/**
++		 * \brief       Uncompressed start offset of this Block
++		 *
++		 * This offset is relative to the beginning of the lzma_index
++		 * (i.e. usually the beginning of the .xz file).
++		 */
++		lzma_vli uncompressed_file_offset;
++
++		/**
++		 * \brief       Block number in this Stream
++		 *
++		 * The first Block is 1.
++		 */
++		lzma_vli number_in_stream;
++
++		/**
++		 * \brief       Compressed start offset of this Block
++		 *
++		 * This offset is relative to the beginning of the Stream
++		 * containing this Block.
++		 */
++		lzma_vli compressed_stream_offset;
++
++		/**
++		 * \brief       Uncompressed start offset of this Block
++		 *
++		 * This offset is relative to the beginning of the Stream
++		 * containing this Block.
++		 */
++		lzma_vli uncompressed_stream_offset;
++
++		/**
++		 * \brief       Uncompressed size of this Block
++		 *
++		 * You should pass this to the Block decoder if you will
++		 * decode this Block.
++		 *
++		 * When doing random-access reading, it is possible that
++		 * the target offset is not exactly at Block boundary. One
++		 * will need to compare the target offset against
++		 * uncompressed_file_offset or uncompressed_stream_offset,
++		 * and possibly decode and throw away some amount of data
++		 * before reaching the target offset.
++		 */
++		lzma_vli uncompressed_size;
++
++		/**
++		 * \brief       Unpadded size of this Block
++		 *
++		 * You should pass this to the Block decoder if you will
++		 * decode this Block.
++		 */
++		lzma_vli unpadded_size;
++
++		/**
++		 * \brief       Total compressed size
++		 *
++		 * This includes all headers and padding in this Block.
++		 * This is useful if you need to know how many bytes
++		 * the Block decoder will actually read.
++		 */
++		lzma_vli total_size;
++
++		lzma_vli reserved_vli1;
++		lzma_vli reserved_vli2;
++		lzma_vli reserved_vli3;
++		lzma_vli reserved_vli4;
++
++		const void *reserved_ptr1;
++		const void *reserved_ptr2;
++		const void *reserved_ptr3;
++		const void *reserved_ptr4;
++	} block;
++
++	/*
++	 * Internal data which is used to store the state of the iterator.
++	 * The exact format may vary between liblzma versions, so don't
++	 * touch these in any way.
+ 	 */
+-	lzma_vli total_size;
+-
+-	/**
+-	 * \brief       Encoded size of a Block excluding Block Padding
+-	 *
+-	 * This value is stored in the Index. When doing random-access
+-	 * reading, you should give this value to the Block decoder along
+-	 * with uncompressed_size.
+-	 */
+-	lzma_vli unpadded_size;
++	union {
++		const void *p;
++		size_t s;
++		lzma_vli v;
++	} internal[6];
++} lzma_index_iter;
+ 
+-	/**
+-	 * \brief       Uncompressed Size of a Block
+-	 */
+-	lzma_vli uncompressed_size;
+-
+-	/**
+-	 * \brief       Compressed offset in the Stream(s)
+-	 *
+-	 * This is the offset of the first byte of the Block, that is,
+-	 * where you need to seek to decode the Block. The offset
+-	 * is relative to the beginning of the Stream, or if there are
+-	 * multiple Indexes combined, relative to the beginning of the
+-	 * first Stream.
+-	 */
+-	lzma_vli stream_offset;
+-
+-	/**
+-	 * \brief       Uncompressed offset
+-	 *
+-	 * When doing random-access reading, it is possible that the target
+-	 * offset is not exactly at Block boundary. One will need to compare
+-	 * the target offset against uncompressed_offset, and possibly decode
+-	 * and throw away some amount of data before reaching the target
+-	 * offset.
+-	 */
+-	lzma_vli uncompressed_offset;
+ 
+-} lzma_index_record;
++/**
++ * \brief       Operation mode for lzma_index_iter_next()
++ */
++typedef enum {
++	LZMA_INDEX_ITER_ANY             = 0,
++		/**<
++		 * \brief       Get the next Block or Stream
++		 *
++		 * Go to the next Block if the current Stream has at least
++		 * one Block left. Otherwise go to the next Stream even if
++		 * it has no Blocks. If the Stream has no Blocks
++		 * (lzma_index_iter.stream.block_count == 0),
++		 * lzma_index_iter.block will have undefined values.
++		 */
++
++	LZMA_INDEX_ITER_STREAM          = 1,
++		/**<
++		 * \brief       Get the next Stream
++		 *
++		 * Go to the next Stream even if the current Stream has
++		 * unread Blocks left. If the next Stream has at least one
++		 * Block, the iterator will point to the first Block.
++		 * If there are no Blocks, lzma_index_iter.block will have
++		 * undefined values.
++		 */
++
++	LZMA_INDEX_ITER_BLOCK           = 2,
++		/**<
++		 * \brief       Get the next Block
++		 *
++		 * Go to the next Block if the current Stream has at least
++		 * one Block left. If the current Stream has no Blocks left,
++		 * the next Stream with at least one Block is located and
++		 * the iterator will be made to point to the first Block of
++		 * that Stream.
++		 */
++
++	LZMA_INDEX_ITER_NONEMPTY_BLOCK  = 3
++		/**<
++		 * \brief       Get the next non-empty Block
++		 *
++		 * This is like LZMA_INDEX_ITER_BLOCK except that it will
++		 * skip Blocks whose Uncompressed Size is zero.
++		 */
++
++} lzma_index_iter_mode;
+ 
+ 
+ /**
+- * \brief       Calculate memory usage for Index with given number of Records
++ * \brief       Calculate memory usage of lzma_index
+  *
+  * On disk, the size of the Index field depends on both the number of Records
+  * stored and how big values the Records store (due to variable-length integer
+  * encoding). When the Index is kept in lzma_index structure, the memory usage
+- * depends only on the number of Records stored in the Index. The size in RAM
+- * is almost always a lot bigger than in encoded form on disk.
+- *
+- * This function calculates an approximate amount of memory needed hold the
+- * given number of Records in lzma_index structure. This value may vary
+- * between liblzma versions if the internal implementation is modified.
++ * depends only on the number of Records/Blocks stored in the Index(es), and
++ * in case of concatenated lzma_indexes, the number of Streams. The size in
++ * RAM is almost always significantly bigger than in the encoded form on disk.
++ *
++ * This function calculates an approximate amount of memory needed hold
++ * the given number of Streams and Blocks in lzma_index structure. This
++ * value may vary between CPU archtectures and also between liblzma versions
++ * if the internal implementation is modified.
++ */
++extern LZMA_API(uint64_t) lzma_index_memusage(
++		lzma_vli streams, lzma_vli blocks) lzma_nothrow;
++
++
++/**
++ * \brief       Calculate the memory usage of an existing lzma_index
+  *
+- * If you want to know how much memory an existing lzma_index structure is
+- * using, use lzma_index_memusage(lzma_index_count(i)).
++ * This is a shorthand for lzma_index_memusage(lzma_index_stream_count(i),
++ * lzma_index_block_count(i)).
+  */
+-extern LZMA_API(uint64_t) lzma_index_memusage(lzma_vli record_count)
++extern LZMA_API(uint64_t) lzma_index_memused(const lzma_index *i)
+ 		lzma_nothrow;
+ 
+ 
+ /**
+  * \brief       Allocate and initialize a new lzma_index structure
+  *
+- * If i is NULL, a new lzma_index structure is allocated, initialized,
+- * and a pointer to it returned. If allocation fails, NULL is returned.
+- *
+- * If i is non-NULL, it is reinitialized and the same pointer returned.
+- * In this case, return value cannot be NULL or a different pointer than
+- * the i that was given as an argument.
++ * \return      On success, a pointer to an empty initialized lzma_index is
++ *              returned. If allocation fails, NULL is returned.
+  */
+-extern LZMA_API(lzma_index *) lzma_index_init(
+-		lzma_index *i, lzma_allocator *allocator) lzma_nothrow;
++extern LZMA_API(lzma_index *) lzma_index_init(lzma_allocator *allocator)
++		lzma_nothrow;
+ 
+ 
+ /**
+- * \brief       Deallocate the Index
++ * \brief       Deallocate lzma_index
+  *
+  * If i is NULL, this does nothing.
+  */
+@@ -118,7 +315,7 @@ extern LZMA_API(void) lzma_index_end(lzma_index *i, lzma_allocator *allocator)
+ 
+ 
+ /**
+- * \brief       Add a new Record to an Index
++ * \brief       Add a new Block to lzma_index
+  *
+  * \param       i                 Pointer to a lzma_index structure
+  * \param       allocator         Pointer to lzma_allocator, or NULL to
+@@ -130,7 +327,10 @@ extern LZMA_API(void) lzma_index_end(lzma_index *i, lzma_allocator *allocator)
+  *                                taken directly from lzma_block structure
+  *                                after encoding or decoding the Block.
+  *
+- * Appending a new Record does not affect the read position.
++ * Appending a new Block does not invalidate iterators. For example,
++ * if an iterator was pointing to the end of the lzma_index, after
++ * lzma_index_append() it is possible to read the next Block with
++ * an existing iterator.
+  *
+  * \return      - LZMA_OK
+  *              - LZMA_MEM_ERROR
+@@ -145,9 +345,72 @@ extern LZMA_API(lzma_ret) lzma_index_append(
+ 
+ 
+ /**
+- * \brief       Get the number of Records
++ * \brief       Set the Stream Flags
++ *
++ * Set the Stream Flags of the last (and typically the only) Stream
++ * in lzma_index. This can be useful when reading information from the
++ * lzma_index, because to decode Blocks, knowing the integrity check type
++ * is needed.
++ *
++ * The given Stream Flags are copied into internal preallocated structure
++ * in the lzma_index, thus the caller doesn't need to keep the *stream_flags
++ * available after calling this function.
++ *
++ * \return      - LZMA_OK
++ *              - LZMA_OPTIONS_ERROR: Unsupported stream_flags->version.
++ *              - LZMA_PROG_ERROR
++ */
++extern LZMA_API(lzma_ret) lzma_index_stream_flags(
++		lzma_index *i, const lzma_stream_flags *stream_flags)
++		lzma_nothrow lzma_attr_warn_unused_result;
++
++
++/**
++ * \brief       Get the types of integrity Checks
++ *
++ * If lzma_index_stream_padding() is used to set the Stream Flags for
++ * every Stream, lzma_index_checks() can be used to get a bitmask to
++ * indicate which Check types have been used. It can be useful e.g. if
++ * showing the Check types to the user.
++ *
++ * The bitmask is 1 << check_id, e.g. CRC32 is 1 << 1 and SHA-256 is 1 << 10.
++ */
++extern LZMA_API(uint32_t) lzma_index_checks(const lzma_index *i)
++		lzma_nothrow lzma_attr_pure;
++
++
++/**
++ * \brief       Set the amount of Stream Padding
++ *
++ * Set the amount of Stream Padding of the last (and typically the only)
++ * Stream in the lzma_index. This is needed when planning to do random-access
++ * reading within multiple concatenated Streams.
++ *
++ * By default, the amount of Stream Padding is assumed to be zero bytes.
++ *
++ * \return      - LZMA_OK
++ *              - LZMA_DATA_ERROR: The file size would grow too big.
++ *              - LZMA_PROG_ERROR
++ */
++extern LZMA_API(lzma_ret) lzma_index_stream_padding(
++		lzma_index *i, lzma_vli stream_padding)
++		lzma_nothrow lzma_attr_warn_unused_result;
++
++
++/**
++ * \brief       Get the number of Streams
+  */
+-extern LZMA_API(lzma_vli) lzma_index_count(const lzma_index *i)
++extern LZMA_API(lzma_vli) lzma_index_stream_count(const lzma_index *i)
++		lzma_nothrow lzma_attr_pure;
++
++
++/**
++ * \brief       Get the number of Blocks
++ *
++ * This returns the total number of Blocks in lzma_index. To get number
++ * of Blocks in individual Streams, use lzma_index_iter.
++ */
++extern LZMA_API(lzma_vli) lzma_index_block_count(const lzma_index *i)
+ 		lzma_nothrow lzma_attr_pure;
+ 
+ 
+@@ -161,147 +424,165 @@ extern LZMA_API(lzma_vli) lzma_index_size(const lzma_index *i)
+ 
+ 
+ /**
+- * \brief       Get the total size of the Blocks
++ * \brief       Get the total size of the Stream
+  *
+- * This doesn't include the Stream Header, Stream Footer, Stream Padding,
+- * or Index fields.
++ * If multiple lzma_indexes have been combined, this works as if the Blocks
++ * were in a single Stream. This is useful if you are going to combine
++ * Blocks from multiple Streams into a single new Stream.
+  */
+-extern LZMA_API(lzma_vli) lzma_index_total_size(const lzma_index *i)
++extern LZMA_API(lzma_vli) lzma_index_stream_size(const lzma_index *i)
+ 		lzma_nothrow lzma_attr_pure;
+ 
+ 
+ /**
+- * \brief       Get the total size of the Stream
++ * \brief       Get the total size of the Blocks
+  *
+- * If multiple Indexes have been combined, this works as if the Blocks
+- * were in a single Stream.
++ * This doesn't include the Stream Header, Stream Footer, Stream Padding,
++ * or Index fields.
+  */
+-extern LZMA_API(lzma_vli) lzma_index_stream_size(const lzma_index *i)
++extern LZMA_API(lzma_vli) lzma_index_total_size(const lzma_index *i)
+ 		lzma_nothrow lzma_attr_pure;
+ 
+ 
+ /**
+  * \brief       Get the total size of the file
+  *
+- * When no Indexes have been combined with lzma_index_cat(), this function is
+- * identical to lzma_index_stream_size(). If multiple Indexes have been
+- * combined, this includes also the headers of each separate Stream and the
+- * possible Stream Padding fields.
++ * When no lzma_indexes have been combined with lzma_index_cat() and there is
++ * no Stream Padding, this function is identical to lzma_index_stream_size().
++ * If multiple lzma_indexes have been combined, this includes also the headers
++ * of each separate Stream and the possible Stream Padding fields.
+  */
+ extern LZMA_API(lzma_vli) lzma_index_file_size(const lzma_index *i)
+ 		lzma_nothrow lzma_attr_pure;
+ 
+ 
+ /**
+- * \brief       Get the uncompressed size of the Stream
++ * \brief       Get the uncompressed size of the file
+  */
+ extern LZMA_API(lzma_vli) lzma_index_uncompressed_size(const lzma_index *i)
+ 		lzma_nothrow lzma_attr_pure;
+ 
+ 
+ /**
+- * \brief       Get the next Record from the Index
++ * \brief       Initialize an iterator
++ *
++ * \param       iter    Pointer to a lzma_index_iter structure
++ * \param       i       lzma_index to which the iterator will be associated
++ *
++ * This function associates the iterator with the given lzma_index, and calls
++ * lzma_index_iter_rewind() on the iterator.
++ *
++ * This function doesn't allocate any memory, thus there is no
++ * lzma_index_iter_end(). The iterator is valid as long as the
++ * associated lzma_index is valid, that is, until lzma_index_end() or
++ * using it as source in lzma_index_cat(). Specifically, lzma_index doesn't
++ * become invalid if new Blocks are added to it with lzma_index_append() or
++ * if it is used as the destionation in lzma_index_cat().
++ *
++ * It is safe to make copies of an initialized lzma_index_iter, for example,
++ * to easily restart reading at some particular position.
++ */
++extern LZMA_API(void) lzma_index_iter_init(
++		lzma_index_iter *iter, const lzma_index *i) lzma_nothrow;
++
++
++/**
++ * \brief       Rewind the iterator
++ *
++ * Rewind the iterator so that next call to lzma_index_iter_next() will
++ * return the first Block or Stream.
+  */
+-extern LZMA_API(lzma_bool) lzma_index_read(
+-		lzma_index *i, lzma_index_record *record)
+-		lzma_nothrow lzma_attr_warn_unused_result;
++extern LZMA_API(void) lzma_index_iter_rewind(lzma_index_iter *iter)
++		lzma_nothrow;
+ 
+ 
+ /**
+- * \brief       Rewind the Index
++ * \brief       Get the next Block or Stream
++ *
++ * \param       iter    Iterator initialized with lzma_index_iter_init()
++ * \param       mode    Specify what kind of information the caller wants
++ *                      to get. See lzma_index_iter_mode for details.
+  *
+- * Rewind the Index so that next call to lzma_index_read() will return the
+- * first Record.
++ * \return      If next Block or Stream matching the mode was found, *iter
++ *              is updated and this function returns false. If no Block or
++ *              Stream matching the mode is found, *iter is not modified
++ *              and this function returns true. If mode is set to an unknown
++ *              value, *iter is not modified and this function returns true.
+  */
+-extern LZMA_API(void) lzma_index_rewind(lzma_index *i) lzma_nothrow;
++extern LZMA_API(lzma_bool) lzma_index_iter_next(
++		lzma_index_iter *iter, lzma_index_iter_mode mode)
++		lzma_nothrow lzma_attr_warn_unused_result;
+ 
+ 
+ /**
+- * \brief       Locate a Record
++ * \brief       Locate a Block
+  *
+- * When the Index is available, it is possible to do random-access reading
+- * with granularity of Block size.
++ * If it is possible to seek in the .xz file, it is possible to parse
++ * the Index field(s) and use lzma_index_iter_locate() to do random-access
++ * reading with granularity of Block size.
+  *
+- * \param       i       Pointer to lzma_index structure
+- * \param       record  Pointer to a structure to hold the search results
++ * \param       iter    Iterator that was earlier initialized with
++ *                      lzma_index_iter_init().
+  * \param       target  Uncompressed target offset which the caller would
+  *                      like to locate from the Stream
+  *
+  * If the target is smaller than the uncompressed size of the Stream (can be
+  * checked with lzma_index_uncompressed_size()):
+- *  - Information about the Record containing the requested uncompressed
+- *    offset is stored into *record.
+- *  - Read offset will be adjusted so that calling lzma_index_read() can be
+- *    used to read subsequent Records.
++ *  - Information about the Stream and Block containing the requested
++ *    uncompressed offset is stored into *iter.
++ *  - Internal state of the iterator is adjusted so that
++ *    lzma_index_iter_next() can be used to read subsequent Blocks or Streams.
+  *  - This function returns false.
+  *
+- * If target is greater than the uncompressed size of the Stream, *record
+- * and the read position are not modified, and this function returns true.
++ * If target is greater than the uncompressed size of the Stream, *iter
++ * is not modified, and this function returns true.
+  */
+-extern LZMA_API(lzma_bool) lzma_index_locate(
+-		lzma_index *i, lzma_index_record *record, lzma_vli target)
+-		lzma_nothrow;
++extern LZMA_API(lzma_bool) lzma_index_iter_locate(
++		lzma_index_iter *iter, lzma_vli target) lzma_nothrow;
+ 
+ 
+ /**
+- * \brief       Concatenate Indexes of two Streams
++ * \brief       Concatenate lzma_indexes
+  *
+- * Concatenating Indexes is useful when doing random-access reading in
++ * Concatenating lzma_indexes is useful when doing random-access reading in
+  * multi-Stream .xz file, or when combining multiple Streams into single
+  * Stream.
+  *
+- * \param       dest      Destination Index after which src is appended
+- * \param       src       Source Index. If this function succeeds, the
+- *                        memory allocated for src is freed or moved to
+- *                        be part of dest.
++ * \param       dest      lzma_index after which src is appended
++ * \param       src       lzma_index to be appeneded after dest. If this
++ *                        function succeeds, the memory allocated for src
++ *                        is freed or moved to be part of dest, and all
++ *                        iterators pointing to src will become invalid.
+  * \param       allocator Custom memory allocator; can be NULL to use
+  *                        malloc() and free().
+- * \param       padding   Size of the Stream Padding field between Streams.
+- *                        This must be a multiple of four.
+  *
+- * \return      - LZMA_OK: Indexes concatenated successfully. src is now
+- *                a dangling pointer.
++ * \return      - LZMA_OK: lzma_indexes were concatenated successfully.
++ *                src is now a dangling pointer.
+  *              - LZMA_DATA_ERROR: *dest would grow too big.
+  *              - LZMA_MEM_ERROR
+  *              - LZMA_PROG_ERROR
+  */
+ extern LZMA_API(lzma_ret) lzma_index_cat(lzma_index *lzma_restrict dest,
+ 		lzma_index *lzma_restrict src,
+-		lzma_allocator *allocator, lzma_vli padding)
++		lzma_allocator *allocator)
+ 		lzma_nothrow lzma_attr_warn_unused_result;
+ 
+ 
+ /**
+- * \brief       Duplicate an Index list
+- *
+- * Makes an identical copy of the Index. Also the read position is copied.
++ * \brief       Duplicate lzma_index
+  *
+- * \return      A copy of the Index, or NULL if memory allocation failed.
++ * \return      A copy of the lzma_index, or NULL if memory allocation failed.
+  */
+ extern LZMA_API(lzma_index *) lzma_index_dup(
+ 		const lzma_index *i, lzma_allocator *allocator)
+ 		lzma_nothrow lzma_attr_warn_unused_result;
+ 
+ 
+-/**
+- * \brief       Compare if two Index lists are identical
+- *
+- * Read positions are not compared.
+- *
+- * \return      True if *a and *b are equal, false otherwise.
+- */
+-extern LZMA_API(lzma_bool) lzma_index_equal(
+-		const lzma_index *a, const lzma_index *b)
+-		lzma_nothrow lzma_attr_pure;
+-
+-
+ /**
+  * \brief       Initialize .xz Index encoder
+  *
+  * \param       strm        Pointer to properly prepared lzma_stream
+  * \param       i           Pointer to lzma_index which should be encoded.
+- *                          The read position will be at the end of the Index
+- *                          after lzma_code() has returned LZMA_STREAM_END.
+  *
+  * The only valid action value for lzma_code() is LZMA_RUN.
+  *
+@@ -309,7 +590,8 @@ extern LZMA_API(lzma_bool) lzma_index_equal(
+  *              - LZMA_MEM_ERROR
+  *              - LZMA_PROG_ERROR
+  */
+-extern LZMA_API(lzma_ret) lzma_index_encoder(lzma_stream *strm, lzma_index *i)
++extern LZMA_API(lzma_ret) lzma_index_encoder(
++		lzma_stream *strm, const lzma_index *i)
+ 		lzma_nothrow lzma_attr_warn_unused_result;
+ 
+ 
+@@ -322,10 +604,10 @@ extern LZMA_API(lzma_ret) lzma_index_encoder(lzma_stream *strm, lzma_index *i)
+  *                          set *i to NULL (the old value is ignored). If
+  *                          decoding succeeds (lzma_code() returns
+  *                          LZMA_STREAM_END), *i will be set to point
+- *                          to the decoded Index, which the application
++ *                          to a new lzma_index, which the application
+  *                          has to later free with lzma_index_end().
+- * \param       memlimit    How much memory the resulting Index is allowed
+- *                          to require.
++ * \param       memlimit    How much memory the resulting lzma_index is
++ *                          allowed to require.
+  *
+  * The only valid action value for lzma_code() is LZMA_RUN.
+  *
+@@ -349,9 +631,7 @@ extern LZMA_API(lzma_ret) lzma_index_decoder(
+ /**
+  * \brief       Single-call .xz Index encoder
+  *
+- * \param       i         Index to be encoded. The read position will be at
+- *                        the end of the Index if encoding succeeds, or at
+- *                        unspecified position in case an error occurs.
++ * \param       i         lzma_index to be encoded
+  * \param       out       Beginning of the output buffer
+  * \param       out_pos   The next byte will be written to out[*out_pos].
+  *                        *out_pos is updated only if encoding succeeds.
+@@ -367,23 +647,23 @@ extern LZMA_API(lzma_ret) lzma_index_decoder(
+  * \note        This function doesn't take allocator argument since all
+  *              the internal data is allocated on stack.
+  */
+-extern LZMA_API(lzma_ret) lzma_index_buffer_encode(lzma_index *i,
++extern LZMA_API(lzma_ret) lzma_index_buffer_encode(const lzma_index *i,
+ 		uint8_t *out, size_t *out_pos, size_t out_size) lzma_nothrow;
+ 
+ 
+ /**
+  * \brief       Single-call .xz Index decoder
+  *
+- * \param       i           If decoding succeeds, *i will point to the
+- *                          decoded Index, which the application has to
++ * \param       i           If decoding succeeds, *i will point to a new
++ *                          lzma_index, which the application has to
+  *                          later free with lzma_index_end(). If an error
+  *                          occurs, *i will be NULL. The old value of *i
+  *                          is always ignored and thus doesn't need to be
+  *                          initialized by the caller.
+- * \param       memlimit    Pointer to how much memory the resulting Index
+- *                          is allowed to require. The value pointed by
+- *                          this pointer is modified if and only if
+- *                          LZMA_MEMLIMIT_ERROR is returned.
++ * \param       memlimit    Pointer to how much memory the resulting
++ *                          lzma_index is allowed to require. The value
++ *                          pointed by this pointer is modified if and only
++ *                          if LZMA_MEMLIMIT_ERROR is returned.
+  * \param       allocator   Pointer to lzma_allocator, or NULL to use malloc()
+  * \param       in          Beginning of the input buffer
+  * \param       in_pos      The next byte will be read from in[*in_pos].
+diff --git a/src/liblzma/common/index.c b/src/liblzma/common/index.c
+index 014abff1..9907fbab 100644
+--- a/src/liblzma/common/index.c
++++ b/src/liblzma/common/index.c
+@@ -1,7 +1,7 @@
+ ///////////////////////////////////////////////////////////////////////////////
+ //
+ /// \file       index.c
+-/// \brief      Handling of Index
++/// \brief      Handling of .xz Indexes and some other Stream information
+ //
+ //  Author:     Lasse Collin
+ //
+@@ -11,149 +11,400 @@
+ ///////////////////////////////////////////////////////////////////////////////
+ 
+ #include "index.h"
++#include "stream_flags_common.h"
+ 
+ 
+-/// Number of Records to allocate at once in the unrolled list.
+-#define INDEX_GROUP_SIZE 256
++/// \brief      How many Records to allocate at once
++///
++/// This should be big enough to avoid making lots of tiny allocations
++/// but small enough to avoid too much unused memory at once.
++#define INDEX_GROUP_SIZE 500
+ 
+ 
+-typedef struct lzma_index_group_s lzma_index_group;
+-struct lzma_index_group_s {
+-	/// Previous group
+-	lzma_index_group *prev;
++/// \brief      How many Records can be allocated at once at maximum
++#define PREALLOC_MAX ((SIZE_MAX - sizeof(index_group)) / sizeof(index_record))
+ 
+-	/// Next group
+-	lzma_index_group *next;
+ 
+-	/// Index of the last Record in this group
++/// \brief      Base structure for index_stream and index_group structures
++typedef struct index_tree_node_s index_tree_node;
++struct index_tree_node_s {
++	/// Uncompressed start offset of this Stream (relative to the
++	/// beginning of the file) or Block (relative to the beginning
++	/// of the Stream)
++	lzma_vli uncompressed_base;
++
++	/// Compressed start offset of this Stream or Block
++	lzma_vli compressed_base;
++
++	index_tree_node *parent;
++	index_tree_node *left;
++	index_tree_node *right;
++};
++
++
++/// \brief      AVL tree to hold index_stream or index_group structures
++typedef struct {
++	/// Root node
++	index_tree_node *root;
++
++	/// Leftmost node. Since the tree will be filled sequentially,
++	/// this won't change after the first node has been added to
++	/// the tree.
++	index_tree_node *leftmost;
++
++	/// The rightmost node in the tree. Since the tree is filled
++	/// sequentially, this is always the node where to add the new data.
++	index_tree_node *rightmost;
++
++	/// Number of nodes in the tree
++	uint32_t count;
++
++} index_tree;
++
++
++typedef struct {
++	lzma_vli uncompressed_sum;
++	lzma_vli unpadded_sum;
++} index_record;
++
++
++typedef struct {
++	/// Every Record group is part of index_stream.groups tree.
++	index_tree_node node;
++
++	/// Number of Blocks in this Stream before this group.
++	lzma_vli number_base;
++
++	/// Number of Records that can be put in records[].
++	size_t allocated;
++
++	/// Index of the last Record in use.
+ 	size_t last;
+ 
+-	/// Unpadded Size fields as special cumulative sum relative to the
+-	/// beginning of the group. It's special in sense that the previous
+-	/// value is rounded up the next multiple of four with before
+-	/// calculating the new value. The total encoded size of the Blocks
+-	/// in the group is unpadded_sums[last] rounded up to the next
+-	/// multiple of four.
++	/// The sizes in this array are stored as cumulative sums relative
++	/// to the beginning of the Stream. This makes it possible to
++	/// use binary search in lzma_index_locate().
++	///
++	/// Note that the cumulative summing is done specially for
++	/// unpadded_sum: The previous value is rounded up to the next
++	/// multiple of four before adding the Unpadded Size of the new
++	/// Block. The total encoded size of the Blocks in the Stream
++	/// is records[last].unpadded_sum in the last Record group of
++	/// the Stream.
+ 	///
+-	/// For example, if the Unpadded Sizes are 39, 57, and 81, the stored
+-	/// values are 39, 97 (40 + 57), and 181 (100 + 181). The total
+-	/// encoded size of these Blocks is 184.
++	/// For example, if the Unpadded Sizes are 39, 57, and 81, the
++	/// stored values are 39, 97 (40 + 57), and 181 (100 + 181).
++	/// The total encoded size of these Blocks is 184.
+ 	///
+-	/// This encoding is nice from point of view of lzma_index_locate().
+-	lzma_vli unpadded_sums[INDEX_GROUP_SIZE];
++	/// This is a flexible array, because it makes easy to optimize
++	/// memory usage in case someone concatenates many Streams that
++	/// have only one or few Blocks.
++	index_record records[];
+ 
+-	/// Uncompressed Size fields as cumulative sum relative to the
+-	/// beginning of the group. The uncompressed size of the group is
+-	/// uncompressed_sums[last].
+-	lzma_vli uncompressed_sums[INDEX_GROUP_SIZE];
++} index_group;
+ 
+-	/// True if the Record is padding
+-	bool paddings[INDEX_GROUP_SIZE];
+-};
++
++typedef struct {
++	/// Every index_stream is a node in the tree of Sreams.
++	index_tree_node node;
++
++	/// Number of this Stream (first one is 1)
++	uint32_t number;
++
++	/// Total number of Blocks before this Stream
++	lzma_vli block_number_base;
++
++	/// Record groups of this Stream are stored in a tree.
++	/// It's a T-tree with AVL-tree balancing. There are
++	/// INDEX_GROUP_SIZE Records per node by default.
++	/// This keeps the number of memory allocations reasonable
++	/// and finding a Record is fast.
++	index_tree groups;
++
++	/// Number of Records in this Stream
++	lzma_vli record_count;
++
++	/// Size of the List of Records field in this Stream. This is used
++	/// together with record_count to calculate the size of the Index
++	/// field and thus the total size of the Stream.
++	lzma_vli index_list_size;
++
++	/// Stream Flags of this Stream. This is meaningful only if
++	/// the Stream Flags have been told us with lzma_index_stream_flags().
++	/// Initially stream_flags.version is set to UINT32_MAX to indicate
++	/// that the Stream Flags are unknown.
++	lzma_stream_flags stream_flags;
++
++	/// Amount of Stream Padding after this Stream. This defaults to
++	/// zero and can be set with lzma_index_stream_padding().
++	lzma_vli stream_padding;
++
++} index_stream;
+ 
+ 
+ struct lzma_index_s {
+-	/// Total size of the Blocks and padding
+-	lzma_vli total_size;
++	/// AVL-tree containing the Stream(s). Often there is just one
++	/// Stream, but using a tree keeps lookups fast even when there
++	/// are many concatenated Streams.
++	index_tree streams;
+ 
+-	/// Uncompressed size of the Stream
++	/// Uncompressed size of all the Blocks in the Stream(s)
+ 	lzma_vli uncompressed_size;
+ 
+-	/// Number of non-padding records. This is needed for Index encoder.
+-	lzma_vli count;
++	/// Total size of all the Blocks in the Stream(s)
++	lzma_vli total_size;
+ 
+-	/// Size of the List of Records field; this is updated every time
+-	/// a new non-padding Record is added.
++	/// Total number of Records in all Streams in this lzma_index
++	lzma_vli record_count;
++
++	/// Size of the List of Records field if all the Streams in this
++	/// lzma_index were packed into a single Stream (makes it simpler to
++	/// take many .xz files and combine them into a single Stream).
++	///
++	/// This value together with record_count is needed to calculate
++	/// Backward Size that is stored into Stream Footer.
+ 	lzma_vli index_list_size;
+ 
+-	/// First group of Records
+-	lzma_index_group *head;
++	/// How many Records to allocate at once in lzma_index_append().
++	/// This defaults to INDEX_GROUP_SIZE but can be overriden with
++	/// lzma_index_prealloc().
++	size_t prealloc;
+ 
+-	/// Last group of Records
+-	lzma_index_group *tail;
++	/// Bitmask indicating what integrity check types have been used
++	/// as set by lzma_index_stream_flags(). The bit of the last Stream
++	/// is not included here, since it is possible to change it by
++	/// calling lzma_index_stream_flags() again.
++	uint32_t checks;
++};
+ 
+-	/// Tracking the read position
+-	struct {
+-		/// Group where the current read position is.
+-		lzma_index_group *group;
+ 
+-		/// The most recently read Record in *group
+-		size_t record;
++static void
++index_tree_init(index_tree *tree)
++{
++	tree->root = NULL;
++	tree->leftmost = NULL;
++	tree->rightmost = NULL;
++	tree->count = 0;
++	return;
++}
+ 
+-		/// Uncompressed offset of the beginning of *group relative
+-		/// to the beginning of the Stream
+-		lzma_vli uncompressed_offset;
+ 
+-		/// Compressed offset of the beginning of *group relative
+-		/// to the beginning of the Stream
+-		lzma_vli stream_offset;
+-	} current;
++/// Helper for index_tree_end()
++static void
++index_tree_node_end(index_tree_node *node, lzma_allocator *allocator,
++		void (*free_func)(void *node, lzma_allocator *allocator))
++{
++	// The tree won't ever be very huge, so recursion should be fine.
++	// 20 levels in the tree is likely quite a lot already in practice.
++	if (node->left != NULL)
++		index_tree_node_end(node->left, allocator, free_func);
+ 
+-	/// Information about earlier Indexes when multiple Indexes have
+-	/// been combined.
+-	struct {
+-		/// Sum of the Record counts of the all but the last Stream.
+-		lzma_vli count;
++	if (node->right != NULL)
++		index_tree_node_end(node->right, allocator, free_func);
+ 
+-		/// Sum of the List of Records fields of all but the last
+-		/// Stream. This is needed when a new Index is concatenated
+-		/// to this lzma_index structure.
+-		lzma_vli index_list_size;
++	if (free_func != NULL)
++		free_func(node, allocator);
+ 
+-		/// Total size of all but the last Stream and all Stream
+-		/// Padding fields.
+-		lzma_vli streams_size;
+-	} old;
+-};
++	lzma_free(node, allocator);
++	return;
++}
+ 
+ 
+-extern LZMA_API(lzma_vli)
+-lzma_index_memusage(lzma_vli count)
++/// Free the meory allocated for a tree. If free_func is not NULL,
++/// it is called on each node before freeing the node. This is used
++/// to free the Record groups from each index_stream before freeing
++/// the index_stream itself.
++static void
++index_tree_end(index_tree *tree, lzma_allocator *allocator,
++		void (*free_func)(void *node, lzma_allocator *allocator))
+ {
+-	if (count > LZMA_VLI_MAX)
+-		return UINT64_MAX;
++	if (tree->root != NULL)
++		index_tree_node_end(tree->root, allocator, free_func);
+ 
+-	return sizeof(lzma_index) + (count + INDEX_GROUP_SIZE - 1)
+-			/ INDEX_GROUP_SIZE * sizeof(lzma_index_group);
++	return;
+ }
+ 
+ 
++/// Add a new node to the tree. node->uncompressed_base and
++/// node->compressed_base must have been set by the caller already.
+ static void
+-free_index_list(lzma_index *i, lzma_allocator *allocator)
++index_tree_append(index_tree *tree, index_tree_node *node)
++{
++	node->parent = tree->rightmost;
++	node->left = NULL;
++	node->right = NULL;
++
++	++tree->count;
++
++	// Handle the special case of adding the first node.
++	if (tree->root == NULL) {
++		tree->root = node;
++		tree->leftmost = node;
++		tree->rightmost = node;
++		return;
++	}
++
++	// The tree is always filled sequentially.
++	assert(tree->rightmost->uncompressed_base <= node->uncompressed_base);
++	assert(tree->rightmost->compressed_base < node->compressed_base);
++
++	// Add the new node after the rightmost node. It's the correct
++	// place due to the reason above.
++	tree->rightmost->right = node;
++	tree->rightmost = node;
++
++	// Balance the AVL-tree if needed. We don't need to keep the balance
++	// factors in nodes, because we always fill the tree sequentially,
++	// and thus know the state of the tree just by looking at the node
++	// count. From the node count we can calculate how many steps to go
++	// up in the tree to find the rotation root.
++	uint32_t up = tree->count ^ (UINT32_C(1) << bsr32(tree->count));
++	if (up != 0) {
++		// Locate the root node for the rotation.
++		up = ctz32(tree->count) + 2;
++		do {
++			node = node->parent;
++		} while (--up > 0);
++
++		// Rotate left using node as the rotation root.
++		index_tree_node *pivot = node->right;
++
++		if (node->parent == NULL) {
++			tree->root = pivot;
++		} else {
++			assert(node->parent->right == node);
++			node->parent->right = pivot;
++		}
++
++		pivot->parent = node->parent;
++
++		node->right = pivot->left;
++		if (node->right != NULL)
++			node->right->parent = node;
++
++		pivot->left = node;
++		node->parent = pivot;
++	}
++
++	return;
++}
++
++
++/// Get the next node in the tree. Return NULL if there are no more nodes.
++static void *
++index_tree_next(const index_tree_node *node)
+ {
+-	lzma_index_group *g = i->head;
++	if (node->right != NULL) {
++		node = node->right;
++		while (node->left != NULL)
++			node = node->left;
+ 
+-	while (g != NULL) {
+-		lzma_index_group *tmp = g->next;
+-		lzma_free(g, allocator);
+-		g = tmp;
++		return (void *)(node);
+ 	}
+ 
++	while (node->parent != NULL && node->parent->right == node)
++		node = node->parent;
++
++	return (void *)(node->parent);
++}
++
++
++/// Locate a node that contains the given uncompressed offset. It is
++/// caller's job to check that target is not bigger than the uncompressed
++/// size of the tree (the last node would be returned in that case still).
++static void *
++index_tree_locate(const index_tree *tree, lzma_vli target)
++{
++	const index_tree_node *result = NULL;
++	const index_tree_node *node = tree->root;
++
++	assert(tree->leftmost == NULL
++			|| tree->leftmost->uncompressed_base == 0);
++
++	// Consecutive nodes may have the same uncompressed_base.
++	// We must pick the rightmost one.
++	while (node != NULL) {
++		if (node->uncompressed_base > target) {
++			node = node->left;
++		} else {
++			result = node;
++			node = node->right;
++		}
++	}
++
++	return (void *)(result);
++}
++
++
++/// Allocate and initialize a new Stream using the given base offsets.
++static index_stream *
++index_stream_init(lzma_vli compressed_base, lzma_vli uncompressed_base,
++		lzma_vli stream_number, lzma_vli block_number_base,
++		lzma_allocator *allocator)
++{
++	index_stream *s = lzma_alloc(sizeof(index_stream), allocator);
++	if (s == NULL)
++		return NULL;
++
++	s->node.uncompressed_base = uncompressed_base;
++	s->node.compressed_base = compressed_base;
++	s->node.parent = NULL;
++	s->node.left = NULL;
++	s->node.right = NULL;
++
++	s->number = stream_number;
++	s->block_number_base = block_number_base;
++
++	index_tree_init(&s->groups);
++
++	s->record_count = 0;
++	s->index_list_size = 0;
++	s->stream_flags.version = UINT32_MAX;
++	s->stream_padding = 0;
++
++	return s;
++}
++
++
++/// Free the memory allocated for a Stream and its Record groups.
++static void
++index_stream_end(void *node, lzma_allocator *allocator)
++{
++	index_stream *s = node;
++	index_tree_end(&s->groups, allocator, NULL);
+ 	return;
+ }
+ 
+ 
++static lzma_index *
++index_init_plain(lzma_allocator *allocator)
++{
++	lzma_index *i = lzma_alloc(sizeof(lzma_index), allocator);
++	if (i != NULL) {
++		index_tree_init(&i->streams);
++		i->uncompressed_size = 0;
++		i->total_size = 0;
++		i->record_count = 0;
++		i->index_list_size = 0;
++		i->prealloc = INDEX_GROUP_SIZE;
++		i->checks = 0;
++	}
++
++	return i;
++}
++
++
+ extern LZMA_API(lzma_index *)
+-lzma_index_init(lzma_index *i, lzma_allocator *allocator)
++lzma_index_init(lzma_allocator *allocator)
+ {
+-	if (i == NULL) {
+-		i = lzma_alloc(sizeof(lzma_index), allocator);
+-		if (i == NULL)
+-			return NULL;
+-	} else {
+-		free_index_list(i, allocator);
++	lzma_index *i = index_init_plain(allocator);
++	index_stream *s = index_stream_init(0, 0, 1, 0, allocator);
++	if (i == NULL || s == NULL) {
++		index_stream_end(s, allocator);
++		lzma_free(i, allocator);
+ 	}
+ 
+-	i->total_size = 0;
+-	i->uncompressed_size = 0;
+-	i->count = 0;
+-	i->index_list_size = 0;
+-	i->head = NULL;
+-	i->tail = NULL;
+-	i->current.group = NULL;
+-	i->old.count = 0;
+-	i->old.index_list_size = 0;
+-	i->old.streams_size = 0;
++	index_tree_append(&i->streams, &s->node);
+ 
+ 	return i;
+ }
+@@ -162,8 +413,10 @@ lzma_index_init(lzma_index *i, lzma_allocator *allocator)
+ extern LZMA_API(void)
+ lzma_index_end(lzma_index *i, lzma_allocator *allocator)
+ {
++	// NOTE: If you modify this function, check also the bottom
++	// of lzma_index_cat().
+ 	if (i != NULL) {
+-		free_index_list(i, allocator);
++		index_tree_end(&i->streams, allocator, &index_stream_end);
+ 		lzma_free(i, allocator);
+ 	}
+ 
+@@ -171,17 +424,91 @@ lzma_index_end(lzma_index *i, lzma_allocator *allocator)
+ }
+ 
+ 
++extern void
++lzma_index_prealloc(lzma_index *i, lzma_vli records)
++{
++	if (records > PREALLOC_MAX)
++		records = PREALLOC_MAX;
++
++	i->prealloc = (size_t)(records);
++	return;
++}
++
++
++extern LZMA_API(uint64_t)
++lzma_index_memusage(lzma_vli streams, lzma_vli blocks)
++{
++	// This calculates an upper bound that is only a little bit
++	// bigger than the exact maximum memory usage with the given
++	// parameters.
++
++	// Typical malloc() overhead is 2 * sizeof(void *) but we take
++	// a little bit extra just in case. Using LZMA_MEMUSAGE_BASE
++	// instead would give too inaccurate estimate.
++	const size_t alloc_overhead = 4 * sizeof(void *);
++
++	// Amount of memory needed for each Stream base structures.
++	// We assume that every Stream has at least one Block and
++	// thus at least one group.
++	const size_t stream_base = sizeof(index_stream)
++			+ sizeof(index_group) + 2 * alloc_overhead;
++
++	// Amount of memory needed per group.
++	const size_t group_base = sizeof(index_group)
++			+ INDEX_GROUP_SIZE * sizeof(index_record)
++			+ alloc_overhead;
++
++	// Number of groups. There may actually be more, but that overhead
++	// has been taken into account in stream_base already.
++	const lzma_vli groups
++			= (blocks + INDEX_GROUP_SIZE - 1) / INDEX_GROUP_SIZE;
++
++	// Memory used by index_stream and index_group structures.
++	const uint64_t streams_mem = streams * stream_base;
++	const uint64_t groups_mem = groups * group_base;
++
++	// Memory used by the base structure.
++	const uint64_t index_base = sizeof(lzma_index) + alloc_overhead;
++
++	// Validate the arguments and catch integer overflows.
++	// Maximum number of Streams is "only" UINT32_MAX, because
++	// that limit is used by the tree containing the Streams.
++	const uint64_t limit = UINT64_MAX - index_base;
++	if (streams == 0 || streams > UINT32_MAX || blocks > LZMA_VLI_MAX
++			|| streams > limit / stream_base
++			|| groups > limit / group_base
++			|| limit - streams_mem < groups_mem)
++		return UINT64_MAX;
++
++	return index_base + streams_mem + groups_mem;
++}
++
++
++extern LZMA_API(uint64_t)
++lzma_index_memused(const lzma_index *i)
++{
++	return lzma_index_memusage(i->streams.count, i->record_count);
++}
++
++
+ extern LZMA_API(lzma_vli)
+-lzma_index_count(const lzma_index *i)
++lzma_index_block_count(const lzma_index *i)
+ {
+-	return i->count;
++	return i->record_count;
++}
++
++
++extern LZMA_API(lzma_vli)
++lzma_index_stream_count(const lzma_index *i)
++{
++	return i->streams.count;
+ }
+ 
+ 
+ extern LZMA_API(lzma_vli)
+ lzma_index_size(const lzma_index *i)
+ {
+-	return index_size(i->count, i->index_list_size);
++	return index_size(i->record_count, i->index_list_size);
+ }
+ 
+ 
+@@ -197,22 +524,44 @@ lzma_index_stream_size(const lzma_index *i)
+ {
+ 	// Stream Header + Blocks + Index + Stream Footer
+ 	return LZMA_STREAM_HEADER_SIZE + i->total_size
+-			+ index_size(i->count, i->index_list_size)
++			+ index_size(i->record_count, i->index_list_size)
+ 			+ LZMA_STREAM_HEADER_SIZE;
+ }
+ 
+ 
++static lzma_vli
++index_file_size(lzma_vli compressed_base, lzma_vli unpadded_sum,
++		lzma_vli record_count, lzma_vli index_list_size,
++		lzma_vli stream_padding)
++{
++	// Earlier Streams and Stream Paddings + Stream Header
++	// + Blocks + Index + Stream Footer + Stream Padding
++	//
++	// This might go over LZMA_VLI_MAX due to too big unpadded_sum
++	// when this function is used in lzma_index_append().
++	lzma_vli file_size = compressed_base + 2 * LZMA_STREAM_HEADER_SIZE
++			+ stream_padding + vli_ceil4(unpadded_sum);
++	if (file_size > LZMA_VLI_MAX)
++		return LZMA_VLI_UNKNOWN;
++
++	// The same applies here.
++	file_size += index_size(record_count, index_list_size);
++	if (file_size > LZMA_VLI_MAX)
++		return LZMA_VLI_UNKNOWN;
++
++	return file_size;
++}
++
++
+ extern LZMA_API(lzma_vli)
+ lzma_index_file_size(const lzma_index *i)
+ {
+-	// If multiple Streams are concatenated, the Stream Header, Index,
+-	// and Stream Footer fields of all but the last Stream are already
+-	// included in old.streams_size. Thus, we need to calculate only the
+-	// size of the last Index, not all Indexes.
+-	return i->old.streams_size + LZMA_STREAM_HEADER_SIZE + i->total_size
+-			+ index_size(i->count - i->old.count,
+-				i->index_list_size - i->old.index_list_size)
+-			+ LZMA_STREAM_HEADER_SIZE;
++	const index_stream *s = (const index_stream *)(i->streams.rightmost);
++	const index_group *g = (const index_group *)(s->groups.rightmost);
++	return index_file_size(s->node.compressed_base,
++			g == NULL ? 0 : g->records[g->last].unpadded_sum,
++			s->record_count, s->index_list_size,
++			s->stream_padding);
+ }
+ 
+ 
+@@ -223,58 +572,63 @@ lzma_index_uncompressed_size(const lzma_index *i)
+ }
+ 
+ 
++extern LZMA_API(uint32_t)
++lzma_index_checks(const lzma_index *i)
++{
++	uint32_t checks = i->checks;
++
++	// Get the type of the Check of the last Stream too.
++	const index_stream *s = (const index_stream *)(i->streams.rightmost);
++	if (s->stream_flags.version != UINT32_MAX)
++		checks |= UINT32_C(1) << s->stream_flags.check;
++
++	return checks;
++}
++
++
+ extern uint32_t
+ lzma_index_padding_size(const lzma_index *i)
+ {
+-	return (LZMA_VLI_C(4)
+-		- index_size_unpadded(i->count, i->index_list_size)) & 3;
++	return (LZMA_VLI_C(4) - index_size_unpadded(
++			i->record_count, i->index_list_size)) & 3;
+ }
+ 
+ 
+-/// Appends a new Record to the Index. If needed, this allocates a new
+-/// Record group.
+-static lzma_ret
+-index_append_real(lzma_index *i, lzma_allocator *allocator,
+-		lzma_vli unpadded_size, lzma_vli uncompressed_size,
+-		bool is_padding)
++extern LZMA_API(lzma_ret)
++lzma_index_stream_flags(lzma_index *i, const lzma_stream_flags *stream_flags)
+ {
+-	// Add the new record.
+-	if (i->tail == NULL || i->tail->last == INDEX_GROUP_SIZE - 1) {
+-		// Allocate a new group.
+-		lzma_index_group *g = lzma_alloc(sizeof(lzma_index_group),
+-				allocator);
+-		if (g == NULL)
+-			return LZMA_MEM_ERROR;
++	if (i == NULL || stream_flags == NULL)
++		return LZMA_PROG_ERROR;
+ 
+-		// Initialize the group and set its first record.
+-		g->prev = i->tail;
+-		g->next = NULL;
+-		g->last = 0;
+-		g->unpadded_sums[0] = unpadded_size;
+-		g->uncompressed_sums[0] = uncompressed_size;
+-		g->paddings[0] = is_padding;
++	// Validate the Stream Flags.
++	return_if_error(lzma_stream_flags_compare(
++			stream_flags, stream_flags));
+ 
+-		// If this is the first group, make it the head.
+-		if (i->head == NULL)
+-			i->head = g;
+-		else
+-			i->tail->next = g;
++	index_stream *s = (index_stream *)(i->streams.rightmost);
++	s->stream_flags = *stream_flags;
+ 
+-		// Make it the new tail.
+-		i->tail = g;
++	return LZMA_OK;
++}
+ 
+-	} else {
+-		// i->tail has space left for at least one record.
+-		i->tail->unpadded_sums[i->tail->last + 1]
+-				= unpadded_size + vli_ceil4(
+-					i->tail->unpadded_sums[i->tail->last]);
+-		i->tail->uncompressed_sums[i->tail->last + 1]
+-				= i->tail->uncompressed_sums[i->tail->last]
+-					+ uncompressed_size;
+-		i->tail->paddings[i->tail->last + 1] = is_padding;
+-		++i->tail->last;
++
++extern LZMA_API(lzma_ret)
++lzma_index_stream_padding(lzma_index *i, lzma_vli stream_padding)
++{
++	if (i == NULL || stream_padding > LZMA_VLI_MAX
++			|| (stream_padding & 3) != 0)
++		return LZMA_PROG_ERROR;
++
++	index_stream *s = (index_stream *)(i->streams.rightmost);
++
++	// Check that the new value won't make the file grow too big.
++	const lzma_vli old_stream_padding = s->stream_padding;
++	s->stream_padding = 0;
++	if (lzma_index_file_size(i) + stream_padding > LZMA_VLI_MAX) {
++		s->stream_padding = old_stream_padding;
++		return LZMA_DATA_ERROR;
+ 	}
+ 
++	s->stream_padding = stream_padding;
+ 	return LZMA_OK;
+ }
+ 
+@@ -283,502 +637,605 @@ extern LZMA_API(lzma_ret)
+ lzma_index_append(lzma_index *i, lzma_allocator *allocator,
+ 		lzma_vli unpadded_size, lzma_vli uncompressed_size)
+ {
+-	if (unpadded_size < UNPADDED_SIZE_MIN
++	// Validate.
++	if (i == NULL || unpadded_size < UNPADDED_SIZE_MIN
+ 			|| unpadded_size > UNPADDED_SIZE_MAX
+ 			|| uncompressed_size > LZMA_VLI_MAX)
+ 		return LZMA_PROG_ERROR;
+ 
+-	// This looks a bit ugly. We want to first validate that the Index
+-	// and Stream stay in valid limits after adding this Record. After
+-	// validating, we may need to allocate a new lzma_index_group (it's
+-	// slightly more correct to validate before allocating, YMMV).
+-	lzma_ret ret;
++	index_stream *s = (index_stream *)(i->streams.rightmost);
++	index_group *g = (index_group *)(s->groups.rightmost);
+ 
+-	// First update the overall info so we can validate it.
+-	const lzma_vli index_list_size_add = lzma_vli_size(unpadded_size)
++	const lzma_vli compressed_base = g == NULL ? 0
++			: vli_ceil4(g->records[g->last].unpadded_sum);
++	const lzma_vli uncompressed_base = g == NULL ? 0
++			: g->records[g->last].uncompressed_sum;
++	const uint32_t index_list_size_add = lzma_vli_size(unpadded_size)
+ 			+ lzma_vli_size(uncompressed_size);
+ 
+-	const lzma_vli total_size = vli_ceil4(unpadded_size);
++	// Check that the file size will stay within limits.
++	if (index_file_size(s->node.compressed_base,
++			compressed_base + unpadded_size, s->record_count + 1,
++			s->index_list_size + index_list_size_add,
++			s->stream_padding) == LZMA_VLI_UNKNOWN)
++		return LZMA_DATA_ERROR;
+ 
+-	i->total_size += total_size;
+-	i->uncompressed_size += uncompressed_size;
+-	++i->count;
+-	i->index_list_size += index_list_size_add;
++	// The size of the Index field must not exceed the maximum value
++	// that can be stored in the Backward Size field.
++	if (index_size(i->record_count + 1,
++			i->index_list_size + index_list_size_add)
++			> LZMA_BACKWARD_SIZE_MAX)
++		return LZMA_DATA_ERROR;
+ 
+-	if (i->total_size > LZMA_VLI_MAX
+-			|| i->uncompressed_size > LZMA_VLI_MAX
+-			|| lzma_index_size(i) > LZMA_BACKWARD_SIZE_MAX
+-			|| lzma_index_file_size(i) > LZMA_VLI_MAX)
+-		ret = LZMA_DATA_ERROR; // Would grow past the limits.
+-	else
+-		ret = index_append_real(i, allocator, unpadded_size,
+-				uncompressed_size, false);
+-
+-	if (ret != LZMA_OK) {
+-		// Something went wrong. Undo the updates.
+-		i->total_size -= total_size;
+-		i->uncompressed_size -= uncompressed_size;
+-		--i->count;
+-		i->index_list_size -= index_list_size_add;
+-	}
++	if (g != NULL && g->last + 1 < g->allocated) {
++		// There is space in the last group at least for one Record.
++		++g->last;
++	} else {
++		// We need to allocate a new group.
++		g = lzma_alloc(sizeof(index_group)
++				+ i->prealloc * sizeof(index_record),
++				allocator);
++		if (g == NULL)
++			return LZMA_MEM_ERROR;
+ 
+-	return ret;
+-}
++		g->last = 0;
++		g->allocated = i->prealloc;
+ 
++		// Reset prealloc so that if the application happens to
++		// add new Records, the allocation size will be sane.
++		i->prealloc = INDEX_GROUP_SIZE;
+ 
+-/// Initialize i->current to point to the first Record.
+-/// Return true if there are no Records.
+-static bool
+-init_current(lzma_index *i)
+-{
+-	if (i->count == 0)
+-		return true;
++		// Set the start offsets of this group.
++		g->node.uncompressed_base = uncompressed_base;
++		g->node.compressed_base = compressed_base;
++		g->number_base = s->record_count + 1;
+ 
+-	assert(i->head != NULL);
+-	i->current.group = i->head;
+-	i->current.record = 0;
+-	i->current.stream_offset = LZMA_STREAM_HEADER_SIZE;
+-	i->current.uncompressed_offset = 0;
++		// Add the new group to the Stream.
++		index_tree_append(&s->groups, &g->node);
++	}
+ 
+-	return false;
+-}
++	// Add the new Record to the group.
++	g->records[g->last].uncompressed_sum
++			= uncompressed_base + uncompressed_size;
++	g->records[g->last].unpadded_sum
++			= compressed_base + unpadded_size;
+ 
++	// Update the totals.
++	++s->record_count;
++	s->index_list_size += index_list_size_add;
+ 
+-/// Go backward to the previous group.
+-static void
+-previous_group(lzma_index *i)
+-{
+-	assert(i->current.group->prev != NULL);
++	i->total_size += vli_ceil4(unpadded_size);
++	i->uncompressed_size += uncompressed_size;
++	++i->record_count;
++	i->index_list_size += index_list_size_add;
+ 
+-	// Go to the previous group first.
+-	i->current.group = i->current.group->prev;
+-	i->current.record = i->current.group->last;
++	return LZMA_OK;
++}
+ 
+-	// Then update the offsets.
+-	i->current.stream_offset -= vli_ceil4(i->current.group->unpadded_sums[
+-			i->current.group->last]);
+-	i->current.uncompressed_offset -= i->current.group->uncompressed_sums[
+-			i->current.group->last];
+ 
+-	return;
+-}
++/// Structure to pass info to index_cat_helper()
++typedef struct {
++	/// Uncompressed size of the destination
++	lzma_vli uncompressed_size;
+ 
++	/// Compressed file size of the destination
++	lzma_vli file_size;
+ 
+-/// Go forward to the next group.
+-static void
+-next_group(lzma_index *i)
+-{
+-	assert(i->current.group->next != NULL);
++	/// Same as above but for Block numbers
++	lzma_vli block_number_add;
+ 
+-	// Update the offsets first.
+-	i->current.stream_offset += vli_ceil4(i->current.group->unpadded_sums[
+-			i->current.group->last]);
+-	i->current.uncompressed_offset += i->current.group
+-			->uncompressed_sums[i->current.group->last];
++	/// Number of Streams that were in the destination index before we
++	/// started appending new Streams from the source index. This is
++	/// used to fix the Stream numbering.
++	uint32_t stream_number_add;
+ 
+-	// Then go to the next group.
+-	i->current.record = 0;
+-	i->current.group = i->current.group->next;
++	/// Destination index' Stream tree
++	index_tree *streams;
+ 
+-	return;
+-}
++} index_cat_info;
+ 
+ 
+-/// Set *info from i->current.
++/// Add the Stream nodes from the source index to dest using recursion.
++/// Simplest iterative traversal of the source tree wouldn't work, because
++/// we update the pointers in nodes when moving them to the destinatino tree.
+ static void
+-set_info(const lzma_index *i, lzma_index_record *info)
+-{
+-	// First copy the cumulative sizes from the current Record of the
+-	// current group.
+-	info->unpadded_size
+-			= i->current.group->unpadded_sums[i->current.record];
+-	info->total_size = vli_ceil4(info->unpadded_size);
+-	info->uncompressed_size = i->current.group->uncompressed_sums[
+-			i->current.record];
+-
+-	// Copy the start offsets of this group.
+-	info->stream_offset = i->current.stream_offset;
+-	info->uncompressed_offset = i->current.uncompressed_offset;
+-
+-	// If it's not the first Record in this group, we need to do some
+-	// adjustements.
+-	if (i->current.record > 0) {
+-		// Since the _sums[] are cumulative, we substract the sums of
+-		// the previous Record to get the sizes of the current Record,
+-		// and add the sums of the previous Record to the offsets.
+-		// With unpadded_sums[] we need to take into account that it
+-		// uses a bit weird way to do the cumulative summing
+-		const lzma_vli total_sum
+-				= vli_ceil4(i->current.group->unpadded_sums[
+-					i->current.record - 1]);
+-
+-		const lzma_vli uncompressed_sum = i->current.group
+-				->uncompressed_sums[i->current.record - 1];
+-
+-		info->total_size -= total_sum;
+-		info->unpadded_size -= total_sum;
+-		info->uncompressed_size -= uncompressed_sum;
+-
+-		info->stream_offset += total_sum;
+-		info->uncompressed_offset += uncompressed_sum;
+-	}
++index_cat_helper(const index_cat_info *info, index_stream *this)
++{
++	index_stream *left = (index_stream *)(this->node.left);
++	index_stream *right = (index_stream *)(this->node.right);
++
++	if (left != NULL)
++		index_cat_helper(info, left);
++
++	this->node.uncompressed_base += info->uncompressed_size;
++	this->node.compressed_base += info->file_size;
++	this->number += info->stream_number_add;
++	this->block_number_base += info->block_number_add;
++	index_tree_append(info->streams, &this->node);
++
++	if (right != NULL)
++		index_cat_helper(info, right);
+ 
+ 	return;
+ }
+ 
+ 
+-extern LZMA_API(lzma_bool)
+-lzma_index_read(lzma_index *i, lzma_index_record *info)
++extern LZMA_API(lzma_ret)
++lzma_index_cat(lzma_index *restrict dest, lzma_index *restrict src,
++		lzma_allocator *allocator)
+ {
+-	bool get_next = true;
++	const lzma_vli dest_file_size = lzma_index_file_size(dest);
+ 
+-	if (i->current.group == NULL) {
+-		// We are at the beginning of the Record list. Set up
+-		// i->current to point at the first Record. Return if
+-		// there are no Records.
+-		if (init_current(i))
+-			return true;
++	// Check that we don't exceed the file size limits.
++	if (dest_file_size + lzma_index_file_size(src) > LZMA_VLI_MAX
++			|| dest->uncompressed_size + src->uncompressed_size
++				> LZMA_VLI_MAX)
++		return LZMA_DATA_ERROR;
+ 
+-		// This is the first Record. We don't need to look for the
+-		// next Record unless this one is Stream Padding.
+-		get_next = false;
++	// Check that the encoded size of the combined lzma_indexes stays
++	// within limits. In theory, this should be done only if we know
++	// that the user plans to actually combine the Streams and thus
++	// construct a single Index (probably rare). However, exceeding
++	// this limit is quite theoretical, so we do this check always
++	// to simplify things elsewhere.
++	{
++		const lzma_vli dest_size = index_size_unpadded(
++				dest->record_count, dest->index_list_size);
++		const lzma_vli src_size = index_size_unpadded(
++				src->record_count, src->index_list_size);
++		if (vli_ceil4(dest_size + src_size) > LZMA_BACKWARD_SIZE_MAX)
++			return LZMA_DATA_ERROR;
+ 	}
+ 
+-	// Find the next Record that isn't Stream Padding.
+-	while (get_next || i->current.group->paddings[i->current.record]) {
+-		get_next = false;
+-
+-		if (i->current.record < i->current.group->last)
+-			++i->current.record;
+-		else if (i->current.group->next == NULL)
+-			return true;
+-		else
+-			next_group(i);
++	// Optimize the last group to minimize memory usage. Allocation has
++	// to be done before modifying dest or src.
++	{
++		index_stream *s = (index_stream *)(dest->streams.rightmost);
++		index_group *g = (index_group *)(s->groups.rightmost);
++		if (g != NULL && g->last + 1 < g->allocated) {
++			assert(g->node.left == NULL);
++			assert(g->node.right == NULL);
++
++			index_group *newg = lzma_alloc(sizeof(index_group)
++					+ (g->last + 1)
++					* sizeof(index_record),
++					allocator);
++			if (newg == NULL)
++				return LZMA_MEM_ERROR;
++
++			newg->node = g->node;
++			newg->allocated = g->last + 1;
++			newg->last = g->last;
++			newg->number_base = g->number_base;
++
++			memcpy(newg->records, g->records, newg->allocated
++					* sizeof(index_record));
++
++			if (g->node.parent != NULL) {
++				assert(g->node.parent->right == &g->node);
++				g->node.parent->right = &newg->node;
++			}
++
++			if (s->groups.leftmost == &g->node) {
++				assert(s->groups.root == &g->node);
++				s->groups.leftmost = &newg->node;
++				s->groups.root = &newg->node;
++			}
++
++			if (s->groups.rightmost == &g->node)
++				s->groups.rightmost = &newg->node;
++
++			lzma_free(g, allocator);
++		}
+ 	}
+ 
+-	// We found a new Record. Set the information to *info.
+-	set_info(i, info);
+-
+-	return false;
+-}
++	// Add all the Streams from src to dest. Update the base offsets
++	// of each Stream from src.
++	const index_cat_info info = {
++		.uncompressed_size = dest->uncompressed_size,
++		.file_size = dest_file_size,
++		.stream_number_add = dest->streams.count,
++		.block_number_add = dest->record_count,
++		.streams = &dest->streams,
++	};
++	index_cat_helper(&info, (index_stream *)(src->streams.root));
++
++	// Update info about all the combined Streams.
++	dest->uncompressed_size += src->uncompressed_size;
++	dest->total_size += src->total_size;
++	dest->record_count += src->record_count;
++	dest->index_list_size += src->index_list_size;
++	dest->checks = lzma_index_checks(dest) | src->checks;
+ 
++	// There's nothing else left in src than the base structure.
++	lzma_free(src, allocator);
+ 
+-extern LZMA_API(void)
+-lzma_index_rewind(lzma_index *i)
+-{
+-	i->current.group = NULL;
+-	return;
++	return LZMA_OK;
+ }
+ 
+ 
+-extern LZMA_API(lzma_bool)
+-lzma_index_locate(lzma_index *i, lzma_index_record *info, lzma_vli target)
++/// Duplicate an index_stream.
++static index_stream *
++index_dup_stream(const index_stream *src, lzma_allocator *allocator)
+ {
+-	// Check if it is possible to fullfill the request.
+-	if (target >= i->uncompressed_size)
+-		return true;
++	// Catch a somewhat theoretical integer overflow.
++	if (src->record_count > PREALLOC_MAX)
++		return NULL;
+ 
+-	// Now we know that we will have an answer. Initialize the current
+-	// read position if needed.
+-	if (i->current.group == NULL && init_current(i))
+-		return true;
++	// Allocate and initialize a new Stream.
++	index_stream *dest = index_stream_init(src->node.compressed_base,
++			src->node.uncompressed_base, src->number,
++			src->block_number_base, allocator);
++
++	// Return immediatelly if allocation failed or if there are
++	// no groups to duplicate.
++	if (dest == NULL || src->groups.leftmost == NULL)
++		return dest;
++
++	// Copy the overall information.
++	dest->record_count = src->record_count;
++	dest->index_list_size = src->index_list_size;
++	dest->stream_flags = src->stream_flags;
++	dest->stream_padding = src->stream_padding;
++
++	// Allocate memory for the Records. We put all the Records into
++	// a single group. It's simplest and also tends to make
++	// lzma_index_locate() a little bit faster with very big Indexes.
++	index_group *destg = lzma_alloc(sizeof(index_group)
++			+ src->record_count * sizeof(index_record),
++			allocator);
++	if (destg == NULL) {
++		index_stream_end(dest, allocator);
++		return NULL;
++	}
+ 
+-	// Locate the group where the wanted Block is. First search forward.
+-	while (i->current.uncompressed_offset <= target) {
+-		// If the first uncompressed byte of the next group is past
+-		// the target offset, it has to be this or an earlier group.
+-		if (i->current.uncompressed_offset + i->current.group
+-				->uncompressed_sums[i->current.group->last]
+-				> target)
+-			break;
++	// Initialize destg.
++	destg->node.uncompressed_base = 0;
++	destg->node.compressed_base = 0;
++	destg->number_base = 1;
++	destg->allocated = src->record_count;
++	destg->last = src->record_count - 1;
+ 
+-		// Go forward to the next group.
+-		next_group(i);
+-	}
++	// Go through all the groups in src and copy the Records into destg.
++	const index_group *srcg = (const index_group *)(src->groups.leftmost);
++	size_t i = 0;
++	do {
++		memcpy(destg->records + i, srcg->records,
++				(srcg->last + 1) * sizeof(index_record));
++		i += srcg->last + 1;
++		srcg = index_tree_next(&srcg->node);
++	} while (srcg != NULL);
+ 
+-	// Then search backward.
+-	while (i->current.uncompressed_offset > target)
+-		previous_group(i);
++	assert(i == destg->allocated);
+ 
+-	// Now the target Block is somewhere in i->current.group. Offsets
+-	// in groups are relative to the beginning of the group, thus
+-	// we must adjust the target before starting the search loop.
+-	assert(target >= i->current.uncompressed_offset);
+-	target -= i->current.uncompressed_offset;
++	// Add the group to the new Stream.
++	index_tree_append(&dest->groups, &destg->node);
+ 
+-	// Use binary search to locate the exact Record. It is the first
+-	// Record whose uncompressed_sums[] value is greater than target.
+-	// This is because we want the rightmost Record that fullfills the
+-	// search criterion. It is possible that there are empty Blocks or
+-	// padding, we don't want to return them.
+-	size_t left = 0;
+-	size_t right = i->current.group->last;
++	return dest;
++}
+ 
+-	while (left < right) {
+-		const size_t pos = left + (right - left) / 2;
+-		if (i->current.group->uncompressed_sums[pos] <= target)
+-			left = pos + 1;
+-		else
+-			right = pos;
+-	}
+ 
+-	i->current.record = left;
++extern LZMA_API(lzma_index *)
++lzma_index_dup(const lzma_index *src, lzma_allocator *allocator)
++{
++	// Allocate the base structure (no initial Stream).
++	lzma_index *dest = index_init_plain(allocator);
++	if (dest == NULL)
++		return NULL;
+ 
+-#ifndef NDEBUG
+-	// The found Record must not be padding or have zero uncompressed size.
+-	assert(!i->current.group->paddings[i->current.record]);
++	// Copy the totals.
++	dest->uncompressed_size = src->uncompressed_size;
++	dest->total_size = src->total_size;
++	dest->record_count = src->record_count;
++	dest->index_list_size = src->index_list_size;
++
++	// Copy the Streams and the groups in them.
++	const index_stream *srcstream
++			= (const index_stream *)(src->streams.leftmost);
++	do {
++		index_stream *deststream = index_dup_stream(
++				srcstream, allocator);
++		if (deststream == NULL) {
++			lzma_index_end(dest, allocator);
++			return NULL;
++		}
+ 
+-	if (i->current.record == 0)
+-		assert(i->current.group->uncompressed_sums[0] > 0);
+-	else
+-		assert(i->current.group->uncompressed_sums[i->current.record]
+-				- i->current.group->uncompressed_sums[
+-					i->current.record - 1] > 0);
+-#endif
++		index_tree_append(&dest->streams, &deststream->node);
+ 
+-	set_info(i, info);
++		srcstream = index_tree_next(&srcstream->node);
++	} while (srcstream != NULL);
+ 
+-	return false;
++	return dest;
+ }
+ 
+ 
+-extern LZMA_API(lzma_ret)
+-lzma_index_cat(lzma_index *restrict dest, lzma_index *restrict src,
+-		lzma_allocator *allocator, lzma_vli padding)
+-{
+-	if (dest == NULL || src == NULL || dest == src
+-			|| padding > LZMA_VLI_MAX)
+-		return LZMA_PROG_ERROR;
+-
+-	// Check that the combined size of the Indexes stays within limits.
+-	{
+-		const lzma_vli dest_size = index_size_unpadded(
+-				dest->count, dest->index_list_size);
+-		const lzma_vli src_size = index_size_unpadded(
+-				src->count, src->index_list_size);
+-		if (vli_ceil4(dest_size + src_size) > LZMA_BACKWARD_SIZE_MAX)
+-			return LZMA_DATA_ERROR;
+-	}
++/// Indexing for lzma_index_iter.internal[]
++enum {
++	ITER_INDEX,
++	ITER_STREAM,
++	ITER_GROUP,
++	ITER_RECORD,
++	ITER_METHOD,
++};
+ 
+-	// Check that the combined size of the "files" (combined total
+-	// encoded sizes) stays within limits.
+-	{
+-		const lzma_vli dest_size = lzma_index_file_size(dest);
+-		const lzma_vli src_size = lzma_index_file_size(src);
+-		if (dest_size + src_size > LZMA_VLI_MAX
+-				|| dest_size + src_size + padding
+-					> LZMA_VLI_MAX)
+-			return LZMA_DATA_ERROR;
+-	}
+ 
+-	// Add a padding Record to take into account the size of
+-	// Index + Stream Footer + Stream Padding + Stream Header.
+-	//
+-	// NOTE: This cannot overflow, because Index Size is always
+-	// far smaller than LZMA_VLI_MAX, and adding two VLIs
+-	// (Index Size and padding) doesn't overflow.
+-	padding += index_size(dest->count - dest->old.count,
+-				dest->index_list_size
+-					- dest->old.index_list_size)
+-			+ LZMA_STREAM_HEADER_SIZE * 2;
+-
+-	// While the above cannot overflow, but it may become an invalid VLI.
+-	if (padding > LZMA_VLI_MAX)
+-		return LZMA_DATA_ERROR;
++/// Values for lzma_index_iter.internal[ITER_METHOD].s
++enum {
++	ITER_METHOD_NORMAL,
++	ITER_METHOD_NEXT,
++	ITER_METHOD_LEFTMOST,
++};
+ 
+-	// Add the padding Record.
+-	{
+-		lzma_ret ret;
+ 
+-		// First update the info so we can validate it.
+-		dest->old.streams_size += padding;
++static void
++iter_set_info(lzma_index_iter *iter)
++{
++	const lzma_index *i = iter->internal[ITER_INDEX].p;
++	const index_stream *stream = iter->internal[ITER_STREAM].p;
++	const index_group *group = iter->internal[ITER_GROUP].p;
++	const size_t record = iter->internal[ITER_RECORD].s;
++
++	// lzma_index_iter.internal must not contain a pointer to the last
++	// group in the index, because that may be reallocated by
++	// lzma_index_cat().
++	if (group == NULL) {
++		// There are no groups.
++		assert(stream->groups.root == NULL);
++		iter->internal[ITER_METHOD].s = ITER_METHOD_LEFTMOST;
++
++	} else if (i->streams.rightmost != &stream->node
++			|| stream->groups.rightmost != &group->node) {
++		// The group is not not the last group in the index.
++		iter->internal[ITER_METHOD].s = ITER_METHOD_NORMAL;
++
++	} else if (stream->groups.leftmost != &group->node) {
++		// The group isn't the only group in the Stream, thus we
++		// know that it must have a parent group i.e. it's not
++		// the root node.
++		assert(stream->groups.root != &group->node);
++		assert(group->node.parent->right == &group->node);
++		iter->internal[ITER_METHOD].s = ITER_METHOD_NEXT;
++		iter->internal[ITER_GROUP].p = group->node.parent;
+ 
+-		if (dest->old.streams_size > LZMA_VLI_MAX
+-				|| lzma_index_file_size(dest) > LZMA_VLI_MAX)
+-			ret = LZMA_DATA_ERROR; // Would grow past the limits.
+-		else
+-			ret = index_append_real(dest, allocator,
+-					padding, 0, true);
+-
+-		// If something went wrong, undo the updated value and return
+-		// the error.
+-		if (ret != LZMA_OK) {
+-			dest->old.streams_size -= padding;
+-			return ret;
+-		}
++	} else {
++		// The Stream has only one group.
++		assert(stream->groups.root == &group->node);
++		assert(group->node.parent == NULL);
++		iter->internal[ITER_METHOD].s = ITER_METHOD_LEFTMOST;
++		iter->internal[ITER_GROUP].p = NULL;
+ 	}
+ 
+-	// Avoid wasting lots of memory if src->head has only a few records
+-	// that fit into dest->tail. That is, combine two groups if possible.
+-	//
+-	// NOTE: We know that dest->tail != NULL since we just appended
+-	// a padding Record. But we don't know about src->head.
+-	if (src->head != NULL && src->head->last + 1
+-			<= INDEX_GROUP_SIZE - dest->tail->last - 1) {
+-		// Copy the first Record.
+-		dest->tail->unpadded_sums[dest->tail->last + 1]
+-				= vli_ceil4(dest->tail->unpadded_sums[
+-					dest->tail->last])
+-				+ src->head->unpadded_sums[0];
+-
+-		dest->tail->uncompressed_sums[dest->tail->last + 1]
+-			= dest->tail->uncompressed_sums[dest->tail->last]
+-				+ src->head->uncompressed_sums[0];
+-
+-		dest->tail->paddings[dest->tail->last + 1]
+-				= src->head->paddings[0];
+-
+-		++dest->tail->last;
+-
+-		// Copy the rest.
+-		for (size_t i = 0; i < src->head->last; ++i) {
+-			dest->tail->unpadded_sums[dest->tail->last + 1]
+-				= vli_ceil4(dest->tail->unpadded_sums[
+-						dest->tail->last])
+-					+ src->head->unpadded_sums[i + 1]
+-					- src->head->unpadded_sums[i];
+-
+-			dest->tail->uncompressed_sums[dest->tail->last + 1]
+-				= dest->tail->uncompressed_sums[
+-						dest->tail->last]
+-					+ src->head->uncompressed_sums[i + 1]
+-					- src->head->uncompressed_sums[i];
+-
+-			dest->tail->paddings[dest->tail->last + 1]
+-				= src->head->paddings[i + 1];
+-
+-			++dest->tail->last;
+-		}
+-
+-		// Free the head group of *src. Don't bother updating prev
+-		// pointers since those won't be used for anything before
+-		// we deallocate the whole *src structure.
+-		lzma_index_group *tmp = src->head;
+-		src->head = src->head->next;
+-		lzma_free(tmp, allocator);
++	iter->stream.number = stream->number;
++	iter->stream.block_count = stream->record_count;
++	iter->stream.compressed_offset = stream->node.compressed_base;
++	iter->stream.uncompressed_offset = stream->node.uncompressed_base;
++
++	// iter->stream.flags will be NULL if the Stream Flags haven't been
++	// set with lzma_index_stream_flags().
++	iter->stream.flags = stream->stream_flags.version == UINT32_MAX
++			? NULL : &stream->stream_flags;
++	iter->stream.padding = stream->stream_padding;
++
++	if (stream->groups.rightmost == NULL) {
++		// Stream has no Blocks.
++		iter->stream.compressed_size = index_size(0, 0)
++				+ 2 * LZMA_STREAM_HEADER_SIZE;
++		iter->stream.uncompressed_size = 0;
++	} else {
++		const index_group *g = (const index_group *)(
++				stream->groups.rightmost);
++
++		// Stream Header + Stream Footer + Index + Blocks
++		iter->stream.compressed_size = 2 * LZMA_STREAM_HEADER_SIZE
++				+ index_size(stream->record_count,
++					stream->index_list_size)
++				+ vli_ceil4(g->records[g->last].unpadded_sum);
++		iter->stream.uncompressed_size
++				= g->records[g->last].uncompressed_sum;
+ 	}
+ 
+-	// If there are groups left in *src, join them as is. Note that if we
+-	// are combining already combined Indexes, src->head can be non-NULL
+-	// even if we just combined the old src->head to dest->tail.
+-	if (src->head != NULL) {
+-		src->head->prev = dest->tail;
+-		dest->tail->next = src->head;
+-		dest->tail = src->tail;
++	if (group != NULL) {
++		iter->block.number_in_stream = group->number_base + record;
++		iter->block.number_in_file = iter->block.number_in_stream
++				+ stream->block_number_base;
++
++		iter->block.compressed_stream_offset
++				= record == 0 ? group->node.compressed_base
++				: vli_ceil4(group->records[
++					record - 1].unpadded_sum);
++		iter->block.uncompressed_stream_offset
++				= record == 0 ? group->node.uncompressed_base
++				: group->records[record - 1].uncompressed_sum;
++
++		iter->block.uncompressed_size
++				= group->records[record].uncompressed_sum
++				- iter->block.uncompressed_stream_offset;
++		iter->block.unpadded_size
++				= group->records[record].unpadded_sum
++				- iter->block.compressed_stream_offset;
++		iter->block.total_size = vli_ceil4(iter->block.unpadded_size);
++
++		iter->block.compressed_stream_offset
++				+= LZMA_STREAM_HEADER_SIZE;
++
++		iter->block.compressed_file_offset
++				= iter->block.compressed_stream_offset
++				+ iter->stream.compressed_offset;
++		iter->block.uncompressed_file_offset
++				= iter->block.uncompressed_stream_offset
++				+ iter->stream.uncompressed_offset;
+ 	}
+ 
+-	// Update information about earlier Indexes. Only the last Index
+-	// from *src won't be counted in dest->old. The last Index is left
+-	// open and can be even appended with lzma_index_append().
+-	dest->old.count = dest->count + src->old.count;
+-	dest->old.index_list_size
+-			= dest->index_list_size + src->old.index_list_size;
+-	dest->old.streams_size += src->old.streams_size;
++	return;
++}
+ 
+-	// Update overall information.
+-	dest->total_size += src->total_size;
+-	dest->uncompressed_size += src->uncompressed_size;
+-	dest->count += src->count;
+-	dest->index_list_size += src->index_list_size;
+ 
+-	// *src has nothing left but the base structure.
+-	lzma_free(src, allocator);
++extern LZMA_API(void)
++lzma_index_iter_init(lzma_index_iter *iter, const lzma_index *i)
++{
++	iter->internal[ITER_INDEX].p = i;
++	lzma_index_iter_rewind(iter);
++	return;
++}
+ 
+-	return LZMA_OK;
++
++extern LZMA_API(void)
++lzma_index_iter_rewind(lzma_index_iter *iter)
++{
++	iter->internal[ITER_STREAM].p = NULL;
++	iter->internal[ITER_GROUP].p = NULL;
++	iter->internal[ITER_RECORD].s = 0;
++	iter->internal[ITER_METHOD].s = ITER_METHOD_NORMAL;
++	return;
+ }
+ 
+ 
+-extern LZMA_API(lzma_index *)
+-lzma_index_dup(const lzma_index *src, lzma_allocator *allocator)
++extern LZMA_API(lzma_bool)
++lzma_index_iter_next(lzma_index_iter *iter, lzma_index_iter_mode mode)
+ {
+-	lzma_index *dest = lzma_alloc(sizeof(lzma_index), allocator);
+-	if (dest == NULL)
+-		return NULL;
++	// Catch unsupported mode values.
++	if ((unsigned int)(mode) > LZMA_INDEX_ITER_NONEMPTY_BLOCK)
++		return true;
+ 
+-	// Copy the base structure except the pointers.
+-	*dest = *src;
+-	dest->head = NULL;
+-	dest->tail = NULL;
+-	dest->current.group = NULL;
+-
+-	// Copy the Records.
+-	const lzma_index_group *src_group = src->head;
+-	while (src_group != NULL) {
+-		// Allocate a new group.
+-		lzma_index_group *dest_group = lzma_alloc(
+-				sizeof(lzma_index_group), allocator);
+-		if (dest_group == NULL) {
+-			lzma_index_end(dest, allocator);
+-			return NULL;
+-		}
++	const lzma_index *i = iter->internal[ITER_INDEX].p;
++	const index_stream *stream = iter->internal[ITER_STREAM].p;
++	const index_group *group = NULL;
++	size_t record = iter->internal[ITER_RECORD].s;
++
++	// If we are being asked for the next Stream, leave group to NULL
++	// so that the rest of the this function thinks that this Stream
++	// has no groups and will thus go to the next Stream.
++	if (mode != LZMA_INDEX_ITER_STREAM) {
++		// Get the pointer to the current group. See iter_set_inf()
++		// for explanation.
++		switch (iter->internal[ITER_METHOD].s) {
++		case ITER_METHOD_NORMAL:
++			group = iter->internal[ITER_GROUP].p;
++			break;
+ 
+-		// Set the pointers.
+-		dest_group->prev = dest->tail;
+-		dest_group->next = NULL;
++		case ITER_METHOD_NEXT:
++			group = index_tree_next(iter->internal[ITER_GROUP].p);
++			break;
+ 
+-		if (dest->head == NULL)
+-			dest->head = dest_group;
+-		else
+-			dest->tail->next = dest_group;
++		case ITER_METHOD_LEFTMOST:
++			group = (const index_group *)(
++					stream->groups.leftmost);
++			break;
++		}
++	}
+ 
+-		dest->tail = dest_group;
++again:
++	if (stream == NULL) {
++		// We at the beginning of the lzma_index.
++		// Locate the first Stream.
++		stream = (const index_stream *)(i->streams.leftmost);
++		if (mode >= LZMA_INDEX_ITER_BLOCK) {
++			// Since we are being asked to return information
++			// about the first a Block, skip Streams that have
++			// no Blocks.
++			while (stream->groups.leftmost == NULL) {
++				stream = index_tree_next(&stream->node);
++				if (stream == NULL)
++					return true;
++			}
++		}
+ 
+-		dest_group->last = src_group->last;
++		// Start from the first Record in the Stream.
++		group = (const index_group *)(stream->groups.leftmost);
++		record = 0;
+ 
+-		// Copy the arrays so that we don't read uninitialized memory.
+-		const size_t count = src_group->last + 1;
+-		memcpy(dest_group->unpadded_sums, src_group->unpadded_sums,
+-				sizeof(lzma_vli) * count);
+-		memcpy(dest_group->uncompressed_sums,
+-				src_group->uncompressed_sums,
+-				sizeof(lzma_vli) * count);
+-		memcpy(dest_group->paddings, src_group->paddings,
+-				sizeof(bool) * count);
++	} else if (group != NULL && record < group->last) {
++		// The next Record is in the same group.
++		++record;
+ 
+-		// Copy also the read position.
+-		if (src_group == src->current.group)
+-			dest->current.group = dest->tail;
++	} else {
++		// This group has no more Records or this Stream has
++		// no Blocks at all.
++		record = 0;
++
++		// If group is not NULL, this Stream has at least one Block
++		// and thus at least one group. Find the next group.
++		if (group != NULL)
++			group = index_tree_next(&group->node);
++
++		if (group == NULL) {
++			// This Stream has no more Records. Find the next
++			// Stream. If we are being asked to return information
++			// about a Block, we skip empty Streams.
++			do {
++				stream = index_tree_next(&stream->node);
++				if (stream == NULL)
++					return true;
++			} while (mode >= LZMA_INDEX_ITER_BLOCK
++					&& stream->groups.leftmost == NULL);
++
++			group = (const index_group *)(
++					stream->groups.leftmost);
++		}
++	}
+ 
+-		src_group = src_group->next;
++	if (mode == LZMA_INDEX_ITER_NONEMPTY_BLOCK) {
++		// We need to look for the next Block again if this Block
++		// is empty.
++		if (record == 0) {
++			if (group->node.uncompressed_base
++					== group->records[0].uncompressed_sum)
++				goto again;
++		} else if (group->records[record - 1].uncompressed_sum
++				== group->records[record].uncompressed_sum) {
++			goto again;
++		}
+ 	}
+ 
+-	return dest;
++	iter->internal[ITER_STREAM].p = stream;
++	iter->internal[ITER_GROUP].p = group;
++	iter->internal[ITER_RECORD].s = record;
++
++	iter_set_info(iter);
++
++	return false;
+ }
+ 
+ 
+ extern LZMA_API(lzma_bool)
+-lzma_index_equal(const lzma_index *a, const lzma_index *b)
++lzma_index_iter_locate(lzma_index_iter *iter, lzma_vli target)
+ {
+-	// No point to compare more if the pointers are the same.
+-	if (a == b)
++	const lzma_index *i = iter->internal[ITER_INDEX].p;
++
++	// If the target is past the end of the file, return immediatelly.
++	if (i->uncompressed_size <= target)
+ 		return true;
+ 
+-	// Compare the basic properties.
+-	if (a->total_size != b->total_size
+-			|| a->uncompressed_size != b->uncompressed_size
+-			|| a->index_list_size != b->index_list_size
+-			|| a->count != b->count)
+-		return false;
+-
+-	// Compare the Records.
+-	const lzma_index_group *ag = a->head;
+-	const lzma_index_group *bg = b->head;
+-	while (ag != NULL && bg != NULL) {
+-		const size_t count = ag->last + 1;
+-		if (ag->last != bg->last
+-				|| memcmp(ag->unpadded_sums,
+-					bg->unpadded_sums,
+-					sizeof(lzma_vli) * count) != 0
+-				|| memcmp(ag->uncompressed_sums,
+-					bg->uncompressed_sums,
+-					sizeof(lzma_vli) * count) != 0
+-				|| memcmp(ag->paddings, bg->paddings,
+-					sizeof(bool) * count) != 0)
+-			return false;
+-
+-		ag = ag->next;
+-		bg = bg->next;
++	// Locate the Stream containing the target offset.
++	const index_stream *stream = index_tree_locate(&i->streams, target);
++	assert(stream != NULL);
++	target -= stream->node.uncompressed_base;
++
++	// Locate the group containing the target offset.
++	const index_group *group = index_tree_locate(&stream->groups, target);
++	assert(group != NULL);
++
++	// Use binary search to locate the exact Record. It is the first
++	// Record whose uncompressed_sum is greater than target.
++	// This is because we want the rightmost Record that fullfills the
++	// search criterion. It is possible that there are empty Blocks;
++	// we don't want to return them.
++	size_t left = 0;
++	size_t right = group->last;
++
++	while (left < right) {
++		const size_t pos = left + (right - left) / 2;
++		if (group->records[pos].uncompressed_sum <= target)
++			left = pos + 1;
++		else
++			right = pos;
+ 	}
+ 
+-	return ag == NULL && bg == NULL;
++	iter->internal[ITER_STREAM].p = stream;
++	iter->internal[ITER_GROUP].p = group;
++	iter->internal[ITER_RECORD].s = left;
++
++	iter_set_info(iter);
++
++	return false;
+ }
+diff --git a/src/liblzma/common/index.h b/src/liblzma/common/index.h
+index 9f177b1b..64e97247 100644
+--- a/src/liblzma/common/index.h
++++ b/src/liblzma/common/index.h
+@@ -28,6 +28,12 @@
+ extern uint32_t lzma_index_padding_size(const lzma_index *i);
+ 
+ 
++/// Set for how many Records to allocate memory the next time
++/// lzma_index_append() needs to allocate space for a new Record.
++/// This is used only by the Index decoder.
++extern void lzma_index_prealloc(lzma_index *i, lzma_vli records);
++
++
+ /// Round the variable-length integer to the next multiple of four.
+ static inline lzma_vli
+ vli_ceil4(lzma_vli vli)
+diff --git a/src/liblzma/common/index_decoder.c b/src/liblzma/common/index_decoder.c
+index 258bf023..a3ea791f 100644
+--- a/src/liblzma/common/index_decoder.c
++++ b/src/liblzma/common/index_decoder.c
+@@ -95,11 +95,15 @@ index_decode(lzma_coder *coder, lzma_allocator *allocator,
+ 	// Fall through
+ 
+ 	case SEQ_MEMUSAGE:
+-		if (lzma_index_memusage(coder->count) > coder->memlimit) {
++		if (lzma_index_memusage(1, coder->count) > coder->memlimit) {
+ 			ret = LZMA_MEMLIMIT_ERROR;
+ 			goto out;
+ 		}
+ 
++		// Tell the Index handling code how many Records this
++		// Index has to allow it to allocate memory more efficiently.
++		lzma_index_prealloc(coder->index, coder->count);
++
+ 		ret = LZMA_OK;
+ 		coder->sequence = coder->count == 0
+ 				? SEQ_PADDING_INIT : SEQ_UNPADDED;
+@@ -214,7 +218,7 @@ static lzma_ret
+ index_decoder_memconfig(lzma_coder *coder, uint64_t *memusage,
+ 		uint64_t *old_memlimit, uint64_t new_memlimit)
+ {
+-	*memusage = lzma_index_memusage(coder->count);
++	*memusage = lzma_index_memusage(1, coder->count);
+ 
+ 	if (new_memlimit != 0 && new_memlimit < *memusage)
+ 		return LZMA_MEMLIMIT_ERROR;
+@@ -238,7 +242,7 @@ index_decoder_reset(lzma_coder *coder, lzma_allocator *allocator,
+ 	*i = NULL;
+ 
+ 	// We always allocate a new lzma_index.
+-	coder->index = lzma_index_init(NULL, allocator);
++	coder->index = lzma_index_init(allocator);
+ 	if (coder->index == NULL)
+ 		return LZMA_MEM_ERROR;
+ 
+@@ -329,7 +333,7 @@ lzma_index_buffer_decode(
+ 		} else if (ret == LZMA_MEMLIMIT_ERROR) {
+ 			// Tell the caller how much memory would have
+ 			// been needed.
+-			*memlimit = lzma_index_memusage(coder.count);
++			*memlimit = lzma_index_memusage(1, coder.count);
+ 		}
+ 	}
+ 
+diff --git a/src/liblzma/common/index_encoder.c b/src/liblzma/common/index_encoder.c
+index e23963ce..21712d00 100644
+--- a/src/liblzma/common/index_encoder.c
++++ b/src/liblzma/common/index_encoder.c
+@@ -26,12 +26,11 @@ struct lzma_coder_s {
+ 		SEQ_CRC32,
+ 	} sequence;
+ 
+-	/// Index given to us to encode. Note that we modify it in sense that
+-	/// we read it, and read position is tracked in lzma_index structure.
+-	lzma_index *index;
++	/// Index being encoded
++	const lzma_index *index;
+ 
+-	/// The current Index Record being encoded
+-	lzma_index_record record;
++	/// Iterator for the Index being encoded
++	lzma_index_iter iter;
+ 
+ 	/// Position in integers
+ 	size_t pos;
+@@ -69,8 +68,8 @@ index_encode(lzma_coder *coder,
+ 		break;
+ 
+ 	case SEQ_COUNT: {
+-		const lzma_vli index_count = lzma_index_count(coder->index);
+-		ret = lzma_vli_encode(index_count, &coder->pos,
++		const lzma_vli count = lzma_index_block_count(coder->index);
++		ret = lzma_vli_encode(count, &coder->pos,
+ 				out, out_pos, out_size);
+ 		if (ret != LZMA_STREAM_END)
+ 			goto out;
+@@ -82,7 +81,8 @@ index_encode(lzma_coder *coder,
+ 	}
+ 
+ 	case SEQ_NEXT:
+-		if (lzma_index_read(coder->index, &coder->record)) {
++		if (lzma_index_iter_next(
++				&coder->iter, LZMA_INDEX_ITER_BLOCK)) {
+ 			// Get the size of the Index Padding field.
+ 			coder->pos = lzma_index_padding_size(coder->index);
+ 			assert(coder->pos <= 3);
+@@ -90,12 +90,6 @@ index_encode(lzma_coder *coder,
+ 			break;
+ 		}
+ 
+-		// Unpadded Size must be within valid limits.
+-		if (coder->record.unpadded_size < UNPADDED_SIZE_MIN
+-				|| coder->record.unpadded_size
+-					> UNPADDED_SIZE_MAX)
+-			return LZMA_PROG_ERROR;
+-
+ 		coder->sequence = SEQ_UNPADDED;
+ 
+ 	// Fall through
+@@ -103,8 +97,8 @@ index_encode(lzma_coder *coder,
+ 	case SEQ_UNPADDED:
+ 	case SEQ_UNCOMPRESSED: {
+ 		const lzma_vli size = coder->sequence == SEQ_UNPADDED
+-				? coder->record.unpadded_size
+-				: coder->record.uncompressed_size;
++				? coder->iter.block.unpadded_size
++				: coder->iter.block.uncompressed_size;
+ 
+ 		ret = lzma_vli_encode(size, &coder->pos,
+ 				out, out_pos, out_size);
+@@ -172,9 +166,9 @@ index_encoder_end(lzma_coder *coder, lzma_allocator *allocator)
+ 
+ 
+ static void
+-index_encoder_reset(lzma_coder *coder, lzma_index *i)
++index_encoder_reset(lzma_coder *coder, const lzma_index *i)
+ {
+-	lzma_index_rewind(i);
++	lzma_index_iter_init(&coder->iter, i);
+ 
+ 	coder->sequence = SEQ_INDICATOR;
+ 	coder->index = i;
+@@ -187,7 +181,7 @@ index_encoder_reset(lzma_coder *coder, lzma_index *i)
+ 
+ extern lzma_ret
+ lzma_index_encoder_init(lzma_next_coder *next, lzma_allocator *allocator,
+-		lzma_index *i)
++		const lzma_index *i)
+ {
+ 	lzma_next_coder_init(&lzma_index_encoder_init, next, allocator);
+ 
+@@ -210,7 +204,7 @@ lzma_index_encoder_init(lzma_next_coder *next, lzma_allocator *allocator,
+ 
+ 
+ extern LZMA_API(lzma_ret)
+-lzma_index_encoder(lzma_stream *strm, lzma_index *i)
++lzma_index_encoder(lzma_stream *strm, const lzma_index *i)
+ {
+ 	lzma_next_strm_init(lzma_index_encoder_init, strm, i);
+ 
+@@ -221,7 +215,7 @@ lzma_index_encoder(lzma_stream *strm, lzma_index *i)
+ 
+ 
+ extern LZMA_API(lzma_ret)
+-lzma_index_buffer_encode(lzma_index *i,
++lzma_index_buffer_encode(const lzma_index *i,
+ 		uint8_t *out, size_t *out_pos, size_t out_size)
+ {
+ 	// Validate the arugments.
+diff --git a/src/liblzma/common/index_encoder.h b/src/liblzma/common/index_encoder.h
+index c85d1c87..a13c94dc 100644
+--- a/src/liblzma/common/index_encoder.h
++++ b/src/liblzma/common/index_encoder.h
+@@ -17,7 +17,7 @@
+ 
+ 
+ extern lzma_ret lzma_index_encoder_init(lzma_next_coder *next,
+-		lzma_allocator *allocator, lzma_index *i);
++		lzma_allocator *allocator, const lzma_index *i);
+ 
+ 
+ #endif
+diff --git a/src/liblzma/common/stream_buffer_encoder.c b/src/liblzma/common/stream_buffer_encoder.c
+index dd94c22a..bbafaa6d 100644
+--- a/src/liblzma/common/stream_buffer_encoder.c
++++ b/src/liblzma/common/stream_buffer_encoder.c
+@@ -94,11 +94,11 @@ lzma_stream_buffer_encode(lzma_filter *filters, lzma_check check,
+ 	// Index
+ 	{
+ 		// Create an Index with one Record.
+-		lzma_index *i = lzma_index_init(NULL, NULL);
++		lzma_index *i = lzma_index_init(allocator);
+ 		if (i == NULL)
+ 			return LZMA_MEM_ERROR;
+ 
+-		lzma_ret ret = lzma_index_append(i, NULL,
++		lzma_ret ret = lzma_index_append(i, allocator,
+ 				lzma_block_unpadded_size(&block),
+ 				block.uncompressed_size);
+ 
+@@ -111,7 +111,7 @@ lzma_stream_buffer_encode(lzma_filter *filters, lzma_check check,
+ 			stream_flags.backward_size = lzma_index_size(i);
+ 		}
+ 
+-		lzma_index_end(i, NULL);
++		lzma_index_end(i, allocator);
+ 
+ 		if (ret != LZMA_OK)
+ 			return ret;
+diff --git a/src/liblzma/common/stream_encoder.c b/src/liblzma/common/stream_encoder.c
+index 705ec0eb..054e1145 100644
+--- a/src/liblzma/common/stream_encoder.c
++++ b/src/liblzma/common/stream_encoder.c
+@@ -292,7 +292,8 @@ lzma_stream_encoder_init(lzma_next_coder *next, lzma_allocator *allocator,
+ 	next->coder->filters[0].id = LZMA_VLI_UNKNOWN;
+ 
+ 	// Initialize the Index
+-	next->coder->index = lzma_index_init(next->coder->index, allocator);
++	lzma_index_end(next->coder->index, allocator);
++	next->coder->index = lzma_index_init(allocator);
+ 	if (next->coder->index == NULL)
+ 		return LZMA_MEM_ERROR;
+ 
+diff --git a/tests/test_index.c b/tests/test_index.c
+index 12fd76a8..07dd2911 100644
+--- a/tests/test_index.c
++++ b/tests/test_index.c
+@@ -21,7 +21,7 @@
+ static lzma_index *
+ create_empty(void)
+ {
+-	lzma_index *i = lzma_index_init(NULL, NULL);
++	lzma_index *i = lzma_index_init(NULL);
+ 	expect(i != NULL);
+ 	return i;
+ }
+@@ -30,7 +30,7 @@ create_empty(void)
+ static lzma_index *
+ create_small(void)
+ {
+-	lzma_index *i = lzma_index_init(NULL, NULL);
++	lzma_index *i = lzma_index_init(NULL);
+ 	expect(i != NULL);
+ 	expect(lzma_index_append(i, NULL, 101, 555) == LZMA_OK);
+ 	expect(lzma_index_append(i, NULL, 602, 777) == LZMA_OK);
+@@ -42,7 +42,7 @@ create_small(void)
+ static lzma_index *
+ create_big(void)
+ {
+-	lzma_index *i = lzma_index_init(NULL, NULL);
++	lzma_index *i = lzma_index_init(NULL);
+ 	expect(i != NULL);
+ 
+ 	lzma_vli total_size = 0;
+@@ -58,7 +58,7 @@ create_big(void)
+ 		uncompressed_size += n;
+ 	}
+ 
+-	expect(lzma_index_count(i) == BIG_COUNT);
++	expect(lzma_index_block_count(i) == BIG_COUNT);
+ 	expect(lzma_index_total_size(i) == total_size);
+ 	expect(lzma_index_uncompressed_size(i) == uncompressed_size);
+ 	expect(lzma_index_total_size(i) + lzma_index_size(i)
+@@ -69,6 +69,60 @@ create_big(void)
+ }
+ 
+ 
++static bool
++is_equal(const lzma_index *a, const lzma_index *b)
++{
++	// Compare only the Stream and Block sizes and offsets.
++	lzma_index_iter ra, rb;
++	lzma_index_iter_init(&ra, a);
++	lzma_index_iter_init(&rb, b);
++
++	while (true) {
++		bool reta = lzma_index_iter_next(&ra, LZMA_INDEX_ITER_ANY);
++		bool retb = lzma_index_iter_next(&rb, LZMA_INDEX_ITER_ANY);
++		if (reta)
++			return !(reta ^ retb);
++
++		if (ra.stream.number != rb.stream.number
++				|| ra.stream.block_count
++					!= rb.stream.block_count
++				|| ra.stream.compressed_offset
++					!= rb.stream.compressed_offset
++				|| ra.stream.uncompressed_offset
++					!= rb.stream.uncompressed_offset
++				|| ra.stream.compressed_size
++					!= rb.stream.compressed_size
++				|| ra.stream.uncompressed_size
++					!= rb.stream.uncompressed_size
++				|| ra.stream.padding
++					!= rb.stream.padding)
++			return false;
++
++		if (ra.stream.block_count == 0)
++			continue;
++
++		if (ra.block.number_in_file != rb.block.number_in_file
++				|| ra.block.compressed_file_offset
++					!= rb.block.compressed_file_offset
++				|| ra.block.uncompressed_file_offset
++					!= rb.block.uncompressed_file_offset
++				|| ra.block.number_in_stream
++					!= rb.block.number_in_stream
++				|| ra.block.compressed_stream_offset
++					!= rb.block.compressed_stream_offset
++				|| ra.block.uncompressed_stream_offset
++					!= rb.block.uncompressed_stream_offset
++				|| ra.block.uncompressed_size
++					!= rb.block.uncompressed_size
++				|| ra.block.unpadded_size
++					!= rb.block.unpadded_size
++				|| ra.block.total_size
++					!= rb.block.total_size)
++			return false;
++	}
++}
++
++
+ static void
+ test_equal(void)
+ {
+@@ -77,13 +131,13 @@ test_equal(void)
+ 	lzma_index *c = create_big();
+ 	expect(a && b && c);
+ 
+-	expect(lzma_index_equal(a, a));
+-	expect(lzma_index_equal(b, b));
+-	expect(lzma_index_equal(c, c));
++	expect(is_equal(a, a));
++	expect(is_equal(b, b));
++	expect(is_equal(c, c));
+ 
+-	expect(!lzma_index_equal(a, b));
+-	expect(!lzma_index_equal(a, c));
+-	expect(!lzma_index_equal(b, c));
++	expect(!is_equal(a, b));
++	expect(!is_equal(a, c));
++	expect(!is_equal(b, c));
+ 
+ 	lzma_index_end(a, NULL);
+ 	lzma_index_end(b, NULL);
+@@ -111,6 +165,7 @@ test_copy(const lzma_index *i)
+ {
+ 	lzma_index *d = lzma_index_dup(i, NULL);
+ 	expect(d != NULL);
++	expect(is_equal(i, d));
+ 	lzma_index_end(d, NULL);
+ }
+ 
+@@ -118,7 +173,8 @@ test_copy(const lzma_index *i)
+ static void
+ test_read(lzma_index *i)
+ {
+-	lzma_index_record record;
++	lzma_index_iter r;
++	lzma_index_iter_init(&r, i);
+ 
+ 	// Try twice so we see that rewinding works.
+ 	for (size_t j = 0; j < 2; ++j) {
+@@ -128,25 +184,26 @@ test_read(lzma_index *i)
+ 		lzma_vli uncompressed_offset = 0;
+ 		uint32_t count = 0;
+ 
+-		while (!lzma_index_read(i, &record)) {
++		while (!lzma_index_iter_next(&r, LZMA_INDEX_ITER_BLOCK)) {
+ 			++count;
+ 
+-			total_size += record.total_size;
+-			uncompressed_size += record.uncompressed_size;
++			total_size += r.block.total_size;
++			uncompressed_size += r.block.uncompressed_size;
+ 
+-			expect(record.stream_offset == stream_offset);
+-			expect(record.uncompressed_offset
++			expect(r.block.compressed_file_offset
++					== stream_offset);
++			expect(r.block.uncompressed_file_offset
+ 					== uncompressed_offset);
+ 
+-			stream_offset += record.total_size;
+-			uncompressed_offset += record.uncompressed_size;
++			stream_offset += r.block.total_size;
++			uncompressed_offset += r.block.uncompressed_size;
+ 		}
+ 
+ 		expect(lzma_index_total_size(i) == total_size);
+ 		expect(lzma_index_uncompressed_size(i) == uncompressed_size);
+-		expect(lzma_index_count(i) == count);
++		expect(lzma_index_block_count(i) == count);
+ 
+-		lzma_index_rewind(i);
++		lzma_index_iter_rewind(&r);
+ 	}
+ }
+ 
+@@ -171,7 +228,7 @@ test_code(lzma_index *i)
+ 	expect(d == NULL);
+ 	succeed(decoder_loop(&strm, buf, index_size));
+ 
+-	expect(lzma_index_equal(i, d));
++	expect(is_equal(i, d));
+ 
+ 	lzma_index_end(d, NULL);
+ 	lzma_end(&strm);
+@@ -179,11 +236,11 @@ test_code(lzma_index *i)
+ 	// Decode with hashing
+ 	lzma_index_hash *h = lzma_index_hash_init(NULL, NULL);
+ 	expect(h != NULL);
+-	lzma_index_rewind(i);
+-	lzma_index_record r;
+-	while (!lzma_index_read(i, &r))
+-		expect(lzma_index_hash_append(h, r.unpadded_size,
+-				r.uncompressed_size) == LZMA_OK);
++	lzma_index_iter r;
++	lzma_index_iter_init(&r, i);
++	while (!lzma_index_iter_next(&r, LZMA_INDEX_ITER_BLOCK))
++		expect(lzma_index_hash_append(h, r.block.unpadded_size,
++				r.block.uncompressed_size) == LZMA_OK);
+ 	size_t pos = 0;
+ 	while (pos < index_size - 1)
+ 		expect(lzma_index_hash_decode(h, buf, &pos, pos + 1)
+@@ -213,7 +270,7 @@ test_code(lzma_index *i)
+ 	succeed(lzma_index_buffer_decode(&d, &memlimit, NULL, buf, &buf_pos,
+ 			index_size + 1));
+ 	expect(buf_pos == index_size + 1);
+-	expect(lzma_index_equal(i, d));
++	expect(is_equal(i, d));
+ 
+ 	lzma_index_end(d, NULL);
+ 
+@@ -234,71 +291,99 @@ static void
+ test_cat(void)
+ {
+ 	lzma_index *a, *b, *c;
+-	lzma_index_record r;
++	lzma_index_iter r;
+ 
+ 	// Empty Indexes
+ 	a = create_empty();
+ 	b = create_empty();
+-	expect(lzma_index_cat(a, b, NULL, 0) == LZMA_OK);
+-	expect(lzma_index_count(a) == 0);
++	expect(lzma_index_cat(a, b, NULL) == LZMA_OK);
++	expect(lzma_index_block_count(a) == 0);
+ 	expect(lzma_index_stream_size(a) == 2 * LZMA_STREAM_HEADER_SIZE + 8);
+ 	expect(lzma_index_file_size(a)
+ 			== 2 * (2 * LZMA_STREAM_HEADER_SIZE + 8));
+-	expect(lzma_index_read(a, &r));
++	lzma_index_iter_init(&r, a);
++	expect(lzma_index_iter_next(&r, LZMA_INDEX_ITER_BLOCK));
+ 
+ 	b = create_empty();
+-	expect(lzma_index_cat(a, b, NULL, 0) == LZMA_OK);
+-	expect(lzma_index_count(a) == 0);
++	expect(lzma_index_cat(a, b, NULL) == LZMA_OK);
++	expect(lzma_index_block_count(a) == 0);
+ 	expect(lzma_index_stream_size(a) == 2 * LZMA_STREAM_HEADER_SIZE + 8);
+ 	expect(lzma_index_file_size(a)
+ 			== 3 * (2 * LZMA_STREAM_HEADER_SIZE + 8));
+ 
+ 	b = create_empty();
+ 	c = create_empty();
+-	expect(lzma_index_cat(b, c, NULL, 4) == LZMA_OK);
+-	expect(lzma_index_count(b) == 0);
++	expect(lzma_index_stream_padding(b, 4) == LZMA_OK);
++	expect(lzma_index_cat(b, c, NULL) == LZMA_OK);
++	expect(lzma_index_block_count(b) == 0);
+ 	expect(lzma_index_stream_size(b) == 2 * LZMA_STREAM_HEADER_SIZE + 8);
+ 	expect(lzma_index_file_size(b)
+ 			== 2 * (2 * LZMA_STREAM_HEADER_SIZE + 8) + 4);
+ 
+-	expect(lzma_index_cat(a, b, NULL, 8) == LZMA_OK);
+-	expect(lzma_index_count(a) == 0);
++	expect(lzma_index_stream_padding(a, 8) == LZMA_OK);
++	expect(lzma_index_cat(a, b, NULL) == LZMA_OK);
++	expect(lzma_index_block_count(a) == 0);
+ 	expect(lzma_index_stream_size(a) == 2 * LZMA_STREAM_HEADER_SIZE + 8);
+ 	expect(lzma_index_file_size(a)
+ 			== 5 * (2 * LZMA_STREAM_HEADER_SIZE + 8) + 4 + 8);
+ 
+-	expect(lzma_index_read(a, &r));
+-	lzma_index_rewind(a);
+-	expect(lzma_index_read(a, &r));
++	expect(lzma_index_iter_next(&r, LZMA_INDEX_ITER_BLOCK));
++	lzma_index_iter_rewind(&r);
++	expect(lzma_index_iter_next(&r, LZMA_INDEX_ITER_BLOCK));
+ 	lzma_index_end(a, NULL);
+ 
+ 	// Small Indexes
+ 	a = create_small();
+ 	lzma_vli stream_size = lzma_index_stream_size(a);
++	lzma_index_iter_init(&r, a);
++	for (int i = SMALL_COUNT; i >= 0; --i)
++		expect(!lzma_index_iter_next(&r, LZMA_INDEX_ITER_BLOCK)
++				^ (i == 0));
++
+ 	b = create_small();
+-	expect(lzma_index_cat(a, b, NULL, 4) == LZMA_OK);
++	expect(lzma_index_stream_padding(a, 4) == LZMA_OK);
++	expect(lzma_index_cat(a, b, NULL) == LZMA_OK);
+ 	expect(lzma_index_file_size(a) == stream_size * 2 + 4);
+ 	expect(lzma_index_stream_size(a) > stream_size);
+ 	expect(lzma_index_stream_size(a) < stream_size * 2);
++	for (int i = SMALL_COUNT; i >= 0; --i)
++		expect(!lzma_index_iter_next(&r, LZMA_INDEX_ITER_BLOCK)
++				^ (i == 0));
++
++	lzma_index_iter_rewind(&r);
++	for (int i = SMALL_COUNT * 2; i >= 0; --i)
++		expect(!lzma_index_iter_next(&r, LZMA_INDEX_ITER_BLOCK)
++				^ (i == 0));
+ 
+ 	b = create_small();
+ 	c = create_small();
+-	expect(lzma_index_cat(b, c, NULL, 8) == LZMA_OK);
+-	expect(lzma_index_cat(a, b, NULL, 12) == LZMA_OK);
++	expect(lzma_index_stream_padding(b, 8) == LZMA_OK);
++	expect(lzma_index_cat(b, c, NULL) == LZMA_OK);
++	expect(lzma_index_stream_padding(a, 12) == LZMA_OK);
++	expect(lzma_index_cat(a, b, NULL) == LZMA_OK);
+ 	expect(lzma_index_file_size(a) == stream_size * 4 + 4 + 8 + 12);
+ 
+-	expect(lzma_index_count(a) == SMALL_COUNT * 4);
++	expect(lzma_index_block_count(a) == SMALL_COUNT * 4);
++	for (int i = SMALL_COUNT * 2; i >= 0; --i)
++		expect(!lzma_index_iter_next(&r, LZMA_INDEX_ITER_BLOCK)
++				^ (i == 0));
++
++	lzma_index_iter_rewind(&r);
+ 	for (int i = SMALL_COUNT * 4; i >= 0; --i)
+-		expect(!lzma_index_read(a, &r) ^ (i == 0));
++		expect(!lzma_index_iter_next(&r, LZMA_INDEX_ITER_BLOCK)
++				^ (i == 0));
+ 
+ 	lzma_index_end(a, NULL);
+ 
+ 	// Mix of empty and small
+ 	a = create_empty();
+ 	b = create_small();
+-	expect(lzma_index_cat(a, b, NULL, 4) == LZMA_OK);
++	expect(lzma_index_stream_padding(a, 4) == LZMA_OK);
++	expect(lzma_index_cat(a, b, NULL) == LZMA_OK);
++	lzma_index_iter_init(&r, a);
+ 	for (int i = SMALL_COUNT; i >= 0; --i)
+-		expect(!lzma_index_read(a, &r) ^ (i == 0));
++		expect(!lzma_index_iter_next(&r, LZMA_INDEX_ITER_BLOCK)
++				^ (i == 0));
+ 
+ 	lzma_index_end(a, NULL);
+ 
+@@ -306,19 +391,24 @@ test_cat(void)
+ 	a = create_big();
+ 	stream_size = lzma_index_stream_size(a);
+ 	b = create_big();
+-	expect(lzma_index_cat(a, b, NULL, 4) == LZMA_OK);
++	expect(lzma_index_stream_padding(a, 4) == LZMA_OK);
++	expect(lzma_index_cat(a, b, NULL) == LZMA_OK);
+ 	expect(lzma_index_file_size(a) == stream_size * 2 + 4);
+ 	expect(lzma_index_stream_size(a) > stream_size);
+ 	expect(lzma_index_stream_size(a) < stream_size * 2);
+ 
+ 	b = create_big();
+ 	c = create_big();
+-	expect(lzma_index_cat(b, c, NULL, 8) == LZMA_OK);
+-	expect(lzma_index_cat(a, b, NULL, 12) == LZMA_OK);
++	expect(lzma_index_stream_padding(b, 8) == LZMA_OK);
++	expect(lzma_index_cat(b, c, NULL) == LZMA_OK);
++	expect(lzma_index_stream_padding(a, 12) == LZMA_OK);
++	expect(lzma_index_cat(a, b, NULL) == LZMA_OK);
+ 	expect(lzma_index_file_size(a) == stream_size * 4 + 4 + 8 + 12);
+ 
++	lzma_index_iter_init(&r, a);
+ 	for (int i = BIG_COUNT * 4; i >= 0; --i)
+-		expect(!lzma_index_read(a, &r) ^ (i == 0));
++		expect(!lzma_index_iter_next(&r, LZMA_INDEX_ITER_BLOCK)
++				^ (i == 0));
+ 
+ 	lzma_index_end(a, NULL);
+ }
+@@ -327,102 +417,113 @@ test_cat(void)
+ static void
+ test_locate(void)
+ {
+-	lzma_index_record r;
+-	lzma_index *i = lzma_index_init(NULL, NULL);
++	lzma_index *i = lzma_index_init(NULL);
+ 	expect(i != NULL);
++	lzma_index_iter r;
++	lzma_index_iter_init(&r, i);
+ 
+ 	// Cannot locate anything from an empty Index.
+-	expect(lzma_index_locate(i, &r, 0));
+-	expect(lzma_index_locate(i, &r, 555));
++	expect(lzma_index_iter_locate(&r, 0));
++	expect(lzma_index_iter_locate(&r, 555));
+ 
+ 	// One empty Record: nothing is found since there's no uncompressed
+ 	// data.
+ 	expect(lzma_index_append(i, NULL, 16, 0) == LZMA_OK);
+-	expect(lzma_index_locate(i, &r, 0));
++	expect(lzma_index_iter_locate(&r, 0));
+ 
+ 	// Non-empty Record and we can find something.
+ 	expect(lzma_index_append(i, NULL, 32, 5) == LZMA_OK);
+-	expect(!lzma_index_locate(i, &r, 0));
+-	expect(r.total_size == 32);
+-	expect(r.uncompressed_size == 5);
+-	expect(r.stream_offset == LZMA_STREAM_HEADER_SIZE + 16);
+-	expect(r.uncompressed_offset == 0);
++	expect(!lzma_index_iter_locate(&r, 0));
++	expect(r.block.total_size == 32);
++	expect(r.block.uncompressed_size == 5);
++	expect(r.block.compressed_file_offset
++			== LZMA_STREAM_HEADER_SIZE + 16);
++	expect(r.block.uncompressed_file_offset == 0);
+ 
+ 	// Still cannot find anything past the end.
+-	expect(lzma_index_locate(i, &r, 5));
++	expect(lzma_index_iter_locate(&r, 5));
+ 
+ 	// Add the third Record.
+ 	expect(lzma_index_append(i, NULL, 40, 11) == LZMA_OK);
+ 
+-	expect(!lzma_index_locate(i, &r, 0));
+-	expect(r.total_size == 32);
+-	expect(r.uncompressed_size == 5);
+-	expect(r.stream_offset == LZMA_STREAM_HEADER_SIZE + 16);
+-	expect(r.uncompressed_offset == 0);
+-
+-	expect(!lzma_index_read(i, &r));
+-	expect(r.total_size == 40);
+-	expect(r.uncompressed_size == 11);
+-	expect(r.stream_offset == LZMA_STREAM_HEADER_SIZE + 16 + 32);
+-	expect(r.uncompressed_offset == 5);
+-
+-	expect(!lzma_index_locate(i, &r, 2));
+-	expect(r.total_size == 32);
+-	expect(r.uncompressed_size == 5);
+-	expect(r.stream_offset == LZMA_STREAM_HEADER_SIZE + 16);
+-	expect(r.uncompressed_offset == 0);
+-
+-	expect(!lzma_index_locate(i, &r, 5));
+-	expect(r.total_size == 40);
+-	expect(r.uncompressed_size == 11);
+-	expect(r.stream_offset == LZMA_STREAM_HEADER_SIZE + 16 + 32);
+-	expect(r.uncompressed_offset == 5);
+-
+-	expect(!lzma_index_locate(i, &r, 5 + 11 - 1));
+-	expect(r.total_size == 40);
+-	expect(r.uncompressed_size == 11);
+-	expect(r.stream_offset == LZMA_STREAM_HEADER_SIZE + 16 + 32);
+-	expect(r.uncompressed_offset == 5);
+-
+-	expect(lzma_index_locate(i, &r, 5 + 11));
+-	expect(lzma_index_locate(i, &r, 5 + 15));
++	expect(!lzma_index_iter_locate(&r, 0));
++	expect(r.block.total_size == 32);
++	expect(r.block.uncompressed_size == 5);
++	expect(r.block.compressed_file_offset
++			== LZMA_STREAM_HEADER_SIZE + 16);
++	expect(r.block.uncompressed_file_offset == 0);
++
++	expect(!lzma_index_iter_next(&r, LZMA_INDEX_ITER_BLOCK));
++	expect(r.block.total_size == 40);
++	expect(r.block.uncompressed_size == 11);
++	expect(r.block.compressed_file_offset
++			== LZMA_STREAM_HEADER_SIZE + 16 + 32);
++	expect(r.block.uncompressed_file_offset == 5);
++
++	expect(!lzma_index_iter_locate(&r, 2));
++	expect(r.block.total_size == 32);
++	expect(r.block.uncompressed_size == 5);
++	expect(r.block.compressed_file_offset
++			== LZMA_STREAM_HEADER_SIZE + 16);
++	expect(r.block.uncompressed_file_offset == 0);
++
++	expect(!lzma_index_iter_locate(&r, 5));
++	expect(r.block.total_size == 40);
++	expect(r.block.uncompressed_size == 11);
++	expect(r.block.compressed_file_offset
++			== LZMA_STREAM_HEADER_SIZE + 16 + 32);
++	expect(r.block.uncompressed_file_offset == 5);
++
++	expect(!lzma_index_iter_locate(&r, 5 + 11 - 1));
++	expect(r.block.total_size == 40);
++	expect(r.block.uncompressed_size == 11);
++	expect(r.block.compressed_file_offset
++			== LZMA_STREAM_HEADER_SIZE + 16 + 32);
++	expect(r.block.uncompressed_file_offset == 5);
++
++	expect(lzma_index_iter_locate(&r, 5 + 11));
++	expect(lzma_index_iter_locate(&r, 5 + 15));
+ 
+ 	// Large Index
+-	i = lzma_index_init(i, NULL);
++	lzma_index_end(i, NULL);
++	i = lzma_index_init(NULL);
+ 	expect(i != NULL);
++	lzma_index_iter_init(&r, i);
+ 
+ 	for (size_t n = 4; n <= 4 * 5555; n += 4)
+ 		expect(lzma_index_append(i, NULL, n + 8, n) == LZMA_OK);
+ 
+-	expect(lzma_index_count(i) == 5555);
++	expect(lzma_index_block_count(i) == 5555);
+ 
+ 	// First Record
+-	expect(!lzma_index_locate(i, &r, 0));
+-	expect(r.total_size == 4 + 8);
+-	expect(r.uncompressed_size == 4);
+-	expect(r.stream_offset == LZMA_STREAM_HEADER_SIZE);
+-	expect(r.uncompressed_offset == 0);
+-
+-	expect(!lzma_index_locate(i, &r, 3));
+-	expect(r.total_size == 4 + 8);
+-	expect(r.uncompressed_size == 4);
+-	expect(r.stream_offset == LZMA_STREAM_HEADER_SIZE);
+-	expect(r.uncompressed_offset == 0);
++	expect(!lzma_index_iter_locate(&r, 0));
++	expect(r.block.total_size == 4 + 8);
++	expect(r.block.uncompressed_size == 4);
++	expect(r.block.compressed_file_offset == LZMA_STREAM_HEADER_SIZE);
++	expect(r.block.uncompressed_file_offset == 0);
++
++	expect(!lzma_index_iter_locate(&r, 3));
++	expect(r.block.total_size == 4 + 8);
++	expect(r.block.uncompressed_size == 4);
++	expect(r.block.compressed_file_offset == LZMA_STREAM_HEADER_SIZE);
++	expect(r.block.uncompressed_file_offset == 0);
+ 
+ 	// Second Record
+-	expect(!lzma_index_locate(i, &r, 4));
+-	expect(r.total_size == 2 * 4 + 8);
+-	expect(r.uncompressed_size == 2 * 4);
+-	expect(r.stream_offset == LZMA_STREAM_HEADER_SIZE + 4 + 8);
+-	expect(r.uncompressed_offset == 4);
++	expect(!lzma_index_iter_locate(&r, 4));
++	expect(r.block.total_size == 2 * 4 + 8);
++	expect(r.block.uncompressed_size == 2 * 4);
++	expect(r.block.compressed_file_offset
++			== LZMA_STREAM_HEADER_SIZE + 4 + 8);
++	expect(r.block.uncompressed_file_offset == 4);
+ 
+ 	// Last Record
+-	expect(!lzma_index_locate(i, &r, lzma_index_uncompressed_size(i) - 1));
+-	expect(r.total_size == 4 * 5555 + 8);
+-	expect(r.uncompressed_size == 4 * 5555);
+-	expect(r.stream_offset == lzma_index_total_size(i)
++	expect(!lzma_index_iter_locate(
++			&r, lzma_index_uncompressed_size(i) - 1));
++	expect(r.block.total_size == 4 * 5555 + 8);
++	expect(r.block.uncompressed_size == 4 * 5555);
++	expect(r.block.compressed_file_offset == lzma_index_total_size(i)
+ 			+ LZMA_STREAM_HEADER_SIZE - 4 * 5555 - 8);
+-	expect(r.uncompressed_offset
++	expect(r.block.uncompressed_file_offset
+ 			== lzma_index_uncompressed_size(i) - 4 * 5555);
+ 
+ 	// Allocation chunk boundaries. See INDEX_GROUP_SIZE in
+@@ -439,48 +540,50 @@ test_locate(void)
+ 	}
+ 
+ 	while (n < start + 2 * radius) {
+-		expect(!lzma_index_locate(i, &r, ubase + n * 4));
++		expect(!lzma_index_iter_locate(&r, ubase + n * 4));
+ 
+-		expect(r.stream_offset == tbase + n * 4 + 8
++		expect(r.block.compressed_file_offset == tbase + n * 4 + 8
+ 				+ LZMA_STREAM_HEADER_SIZE);
+-		expect(r.uncompressed_offset == ubase + n * 4);
++		expect(r.block.uncompressed_file_offset == ubase + n * 4);
+ 
+ 		tbase += n * 4 + 8;
+ 		ubase += n * 4;
+ 		++n;
+ 
+-		expect(r.total_size == n * 4 + 8);
+-		expect(r.uncompressed_size == n * 4);
++		expect(r.block.total_size == n * 4 + 8);
++		expect(r.block.uncompressed_size == n * 4);
+ 	}
+ 
+-	// Do it also backwards since lzma_index_locate() uses relative search.
++	// Do it also backwards.
+ 	while (n > start) {
+-		expect(!lzma_index_locate(i, &r, ubase + (n - 1) * 4));
++		expect(!lzma_index_iter_locate(&r, ubase + (n - 1) * 4));
+ 
+-		expect(r.total_size == n * 4 + 8);
+-		expect(r.uncompressed_size == n * 4);
++		expect(r.block.total_size == n * 4 + 8);
++		expect(r.block.uncompressed_size == n * 4);
+ 
+ 		--n;
+ 		tbase -= n * 4 + 8;
+ 		ubase -= n * 4;
+ 
+-		expect(r.stream_offset == tbase + n * 4 + 8
++		expect(r.block.compressed_file_offset == tbase + n * 4 + 8
+ 				+ LZMA_STREAM_HEADER_SIZE);
+-		expect(r.uncompressed_offset == ubase + n * 4);
++		expect(r.block.uncompressed_file_offset == ubase + n * 4);
+ 	}
+ 
+ 	// Test locating in concatend Index.
+-	i = lzma_index_init(i, NULL);
++	lzma_index_end(i, NULL);
++	i = lzma_index_init(NULL);
+ 	expect(i != NULL);
++	lzma_index_iter_init(&r, i);
+ 	for (n = 0; n < group_multiple; ++n)
+ 		expect(lzma_index_append(i, NULL, 8, 0) == LZMA_OK);
+ 	expect(lzma_index_append(i, NULL, 16, 1) == LZMA_OK);
+-	expect(!lzma_index_locate(i, &r, 0));
+-	expect(r.total_size == 16);
+-	expect(r.uncompressed_size == 1);
+-	expect(r.stream_offset
++	expect(!lzma_index_iter_locate(&r, 0));
++	expect(r.block.total_size == 16);
++	expect(r.block.uncompressed_size == 1);
++	expect(r.block.compressed_file_offset
+ 			== LZMA_STREAM_HEADER_SIZE + group_multiple * 8);
+-	expect(r.uncompressed_offset == 0);
++	expect(r.block.uncompressed_file_offset == 0);
+ 
+ 	lzma_index_end(i, NULL);
+ }

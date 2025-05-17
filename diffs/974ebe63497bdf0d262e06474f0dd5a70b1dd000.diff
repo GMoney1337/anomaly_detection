@@ -1,0 +1,863 @@
+diff --git a/src/liblzma/lzma/fastpos.h b/src/liblzma/lzma/fastpos.h
+index 4aea2318..a3feea58 100644
+--- a/src/liblzma/lzma/fastpos.h
++++ b/src/liblzma/lzma/fastpos.h
+@@ -14,15 +14,15 @@
+ #ifndef LZMA_FASTPOS_H
+ #define LZMA_FASTPOS_H
+ 
+-// LZMA encodes match distances (positions) by storing the highest two
+-// bits using a six-bit value [0, 63], and then the missing lower bits.
+-// Dictionary size is also stored using this encoding in the new .lzma
++// LZMA encodes match distances by storing the highest two bits using
++// a six-bit value [0, 63], and then the missing lower bits.
++// Dictionary size is also stored using this encoding in the .xz
+ // file format header.
+ //
+ // fastpos.h provides a way to quickly find out the correct six-bit
+ // values. The following table gives some examples of this encoding:
+ //
+-//      pos   return
++//     dist   return
+ //       0       0
+ //       1       1
+ //       2       2
+@@ -48,10 +48,10 @@
+ // Provided functions or macros
+ // ----------------------------
+ //
+-// get_pos_slot(pos) is the basic version. get_pos_slot_2(pos)
+-// assumes that pos >= FULL_DISTANCES, thus the result is at least
+-// FULL_DISTANCES_BITS * 2. Using get_pos_slot(pos) instead of
+-// get_pos_slot_2(pos) would give the same result, but get_pos_slot_2(pos)
++// get_dist_slot(dist) is the basic version. get_dist_slot_2(dist)
++// assumes that dist >= FULL_DISTANCES, thus the result is at least
++// FULL_DISTANCES_BITS * 2. Using get_dist_slot(dist) instead of
++// get_dist_slot_2(dist) would give the same result, but get_dist_slot_2(dist)
+ // should be tiny bit faster due to the assumption being made.
+ //
+ //
+@@ -76,13 +76,14 @@
+ // slightly faster, but sometimes it is a lot slower.
+ 
+ #ifdef HAVE_SMALL
+-#	define get_pos_slot(pos) ((pos) <= 4 ? (pos) : get_pos_slot_2(pos))
++#	define get_dist_slot(dist) \
++		((dist) <= 4 ? (dist) : get_dist_slot_2(dist))
+ 
+ static inline uint32_t
+-get_pos_slot_2(uint32_t pos)
++get_dist_slot_2(uint32_t dist)
+ {
+-	const uint32_t i = bsr32(pos);
+-	return (i + i) + ((pos >> (i - 1)) & 1);
++	const uint32_t i = bsr32(dist);
++	return (i + i) + ((dist >> (i - 1)) & 1);
+ }
+ 
+ 
+@@ -99,39 +100,39 @@ extern const uint8_t lzma_fastpos[1 << FASTPOS_BITS];
+ #define fastpos_limit(extra, n) \
+ 	(UINT32_C(1) << (FASTPOS_BITS + fastpos_shift(extra, n)))
+ 
+-#define fastpos_result(pos, extra, n) \
+-	lzma_fastpos[(pos) >> fastpos_shift(extra, n)] \
++#define fastpos_result(dist, extra, n) \
++	lzma_fastpos[(dist) >> fastpos_shift(extra, n)] \
+ 			+ 2 * fastpos_shift(extra, n)
+ 
+ 
+ static inline uint32_t
+-get_pos_slot(uint32_t pos)
++get_dist_slot(uint32_t dist)
+ {
+ 	// If it is small enough, we can pick the result directly from
+ 	// the precalculated table.
+-	if (pos < fastpos_limit(0, 0))
+-		return lzma_fastpos[pos];
++	if (dist < fastpos_limit(0, 0))
++		return lzma_fastpos[dist];
+ 
+-	if (pos < fastpos_limit(0, 1))
+-		return fastpos_result(pos, 0, 1);
++	if (dist < fastpos_limit(0, 1))
++		return fastpos_result(dist, 0, 1);
+ 
+-	return fastpos_result(pos, 0, 2);
++	return fastpos_result(dist, 0, 2);
+ }
+ 
+ 
+ #ifdef FULL_DISTANCES_BITS
+ static inline uint32_t
+-get_pos_slot_2(uint32_t pos)
++get_dist_slot_2(uint32_t dist)
+ {
+-	assert(pos >= FULL_DISTANCES);
++	assert(dist >= FULL_DISTANCES);
+ 
+-	if (pos < fastpos_limit(FULL_DISTANCES_BITS - 1, 0))
+-		return fastpos_result(pos, FULL_DISTANCES_BITS - 1, 0);
++	if (dist < fastpos_limit(FULL_DISTANCES_BITS - 1, 0))
++		return fastpos_result(dist, FULL_DISTANCES_BITS - 1, 0);
+ 
+-	if (pos < fastpos_limit(FULL_DISTANCES_BITS - 1, 1))
+-		return fastpos_result(pos, FULL_DISTANCES_BITS - 1, 1);
++	if (dist < fastpos_limit(FULL_DISTANCES_BITS - 1, 1))
++		return fastpos_result(dist, FULL_DISTANCES_BITS - 1, 1);
+ 
+-	return fastpos_result(pos, FULL_DISTANCES_BITS - 1, 2);
++	return fastpos_result(dist, FULL_DISTANCES_BITS - 1, 2);
+ }
+ #endif
+ 
+diff --git a/src/liblzma/lzma/lzma2_encoder.c b/src/liblzma/lzma/lzma2_encoder.c
+index b48e0d68..e734bc53 100644
+--- a/src/liblzma/lzma/lzma2_encoder.c
++++ b/src/liblzma/lzma/lzma2_encoder.c
+@@ -387,7 +387,7 @@ lzma_lzma2_props_encode(const void *options, uint8_t *out)
+ 	if (d == UINT32_MAX)
+ 		out[0] = 40;
+ 	else
+-		out[0] = get_pos_slot(d + 1) - 24;
++		out[0] = get_dist_slot(d + 1) - 24;
+ 
+ 	return LZMA_OK;
+ }
+diff --git a/src/liblzma/lzma/lzma_common.h b/src/liblzma/lzma/lzma_common.h
+index e31e285f..09efd387 100644
+--- a/src/liblzma/lzma/lzma_common.h
++++ b/src/liblzma/lzma/lzma_common.h
+@@ -171,53 +171,54 @@ literal_init(probability (*probs)[LITERAL_CODER_SIZE],
+ // Match distance //
+ ////////////////////
+ 
+-// Different set of probabilities is used for match distances that have very
++// Different sets of probabilities are used for match distances that have very
+ // short match length: Lengths of 2, 3, and 4 bytes have a separate set of
+ // probabilities for each length. The matches with longer length use a shared
+ // set of probabilities.
+-#define LEN_TO_POS_STATES 4
++#define DIST_STATES 4
+ 
+ // Macro to get the index of the appropriate probability array.
+-#define get_len_to_pos_state(len) \
+-	((len) < LEN_TO_POS_STATES + MATCH_LEN_MIN \
++#define get_dist_state(len) \
++	((len) < DIST_STATES + MATCH_LEN_MIN \
+ 		? (len) - MATCH_LEN_MIN \
+-		: LEN_TO_POS_STATES - 1)
++		: DIST_STATES - 1)
+ 
+-// The highest two bits of a match distance (pos slot) are encoded using six
+-// bits. See fastpos.h for more explanation.
+-#define POS_SLOT_BITS 6
+-#define POS_SLOTS (1 << POS_SLOT_BITS)
++// The highest two bits of a match distance (distance slot) are encoded
++// using six bits. See fastpos.h for more explanation.
++#define DIST_SLOT_BITS 6
++#define DIST_SLOTS (1 << DIST_SLOT_BITS)
+ 
+ // Match distances up to 127 are fully encoded using probabilities. Since
+-// the highest two bits (pos slot) are always encoded using six bits, the
+-// distances 0-3 don't need any additional bits to encode, since the pos
+-// slot itself is the same as the actual distance. START_POS_MODEL_INDEX
+-// indicates the first pos slot where at least one additional bit is needed.
+-#define START_POS_MODEL_INDEX 4
++// the highest two bits (distance slot) are always encoded using six bits,
++// the distances 0-3 don't need any additional bits to encode, since the
++// distance slot itself is the same as the actual distance. DIST_MODEL_START
++// indicates the first distance slot where at least one additional bit is
++// needed.
++#define DIST_MODEL_START 4
+ 
+ // Match distances greater than 127 are encoded in three pieces:
+-//   - pos slot: the highest two bits
++//   - distance slot: the highest two bits
+ //   - direct bits: 2-26 bits below the highest two bits
+ //   - alignment bits: four lowest bits
+ //
+ // Direct bits don't use any probabilities.
+ //
+-// The pos slot value of 14 is for distances 128-191 (see the table in
++// The distance slot value of 14 is for distances 128-191 (see the table in
+ // fastpos.h to understand why).
+-#define END_POS_MODEL_INDEX 14
++#define DIST_MODEL_END 14
+ 
+-// Pos slots that indicate a distance <= 127.
+-#define FULL_DISTANCES_BITS (END_POS_MODEL_INDEX / 2)
++// Distance slots that indicate a distance <= 127.
++#define FULL_DISTANCES_BITS (DIST_MODEL_END / 2)
+ #define FULL_DISTANCES (1 << FULL_DISTANCES_BITS)
+ 
+ // For match distances greater than 127, only the highest two bits and the
+ // lowest four bits (alignment) is encoded using probabilities.
+ #define ALIGN_BITS 4
+-#define ALIGN_TABLE_SIZE (1 << ALIGN_BITS)
+-#define ALIGN_MASK (ALIGN_TABLE_SIZE - 1)
++#define ALIGN_SIZE (1 << ALIGN_BITS)
++#define ALIGN_MASK (ALIGN_SIZE - 1)
+ 
+ // LZMA remembers the four most recent match distances. Reusing these distances
+ // tends to take less space than re-encoding the actual distance value.
+-#define REP_DISTANCES 4
++#define REPS 4
+ 
+ #endif
+diff --git a/src/liblzma/lzma/lzma_decoder.c b/src/liblzma/lzma/lzma_decoder.c
+index 9979bb42..d61b7dee 100644
+--- a/src/liblzma/lzma/lzma_decoder.c
++++ b/src/liblzma/lzma/lzma_decoder.c
+@@ -193,15 +193,15 @@ struct lzma_coder_s {
+ 	/// Probability tree for the highest two bits of the match distance.
+ 	/// There is a separate probability tree for match lengths of
+ 	/// 2 (i.e. MATCH_LEN_MIN), 3, 4, and [5, 273].
+-	probability pos_slot[LEN_TO_POS_STATES][POS_SLOTS];
++	probability dist_slot[DIST_STATES][DIST_SLOTS];
+ 
+ 	/// Probability trees for additional bits for match distance when the
+ 	/// distance is in the range [4, 127].
+-	probability pos_special[FULL_DISTANCES - END_POS_MODEL_INDEX];
++	probability pos_special[FULL_DISTANCES - DIST_MODEL_END];
+ 
+ 	/// Probability tree for the lowest four bits of a match distance
+ 	/// that is equal to or greater than 128.
+-	probability pos_align[ALIGN_TABLE_SIZE];
++	probability pos_align[ALIGN_SIZE];
+ 
+ 	/// Length of a normal match
+ 	lzma_length_decoder match_len_decoder;
+@@ -245,8 +245,8 @@ struct lzma_coder_s {
+ 		SEQ_LITERAL_WRITE,
+ 		SEQ_IS_REP,
+ 		seq_len(SEQ_MATCH_LEN),
+-		seq_6(SEQ_POS_SLOT),
+-		SEQ_POS_MODEL,
++		seq_6(SEQ_DIST_SLOT),
++		SEQ_DIST_MODEL,
+ 		SEQ_DIRECT,
+ 		seq_4(SEQ_ALIGN),
+ 		SEQ_EOPM,
+@@ -502,28 +502,28 @@ lzma_decode(lzma_coder *restrict coder, lzma_dict *restrict dictptr,
+ 
+ 			// Prepare to decode the highest two bits of the
+ 			// match distance.
+-			probs = coder->pos_slot[get_len_to_pos_state(len)];
++			probs = coder->dist_slot[get_dist_state(len)];
+ 			symbol = 1;
+ 
+ #ifdef HAVE_SMALL
+-	case SEQ_POS_SLOT:
++	case SEQ_DIST_SLOT:
+ 			do {
+-				rc_bit(probs[symbol], , , SEQ_POS_SLOT);
+-			} while (symbol < POS_SLOTS);
++				rc_bit(probs[symbol], , , SEQ_DIST_SLOT);
++			} while (symbol < DIST_SLOTS);
+ #else
+-			rc_bit_case(probs[symbol], , , SEQ_POS_SLOT0);
+-			rc_bit_case(probs[symbol], , , SEQ_POS_SLOT1);
+-			rc_bit_case(probs[symbol], , , SEQ_POS_SLOT2);
+-			rc_bit_case(probs[symbol], , , SEQ_POS_SLOT3);
+-			rc_bit_case(probs[symbol], , , SEQ_POS_SLOT4);
+-			rc_bit_case(probs[symbol], , , SEQ_POS_SLOT5);
++			rc_bit_case(probs[symbol], , , SEQ_DIST_SLOT0);
++			rc_bit_case(probs[symbol], , , SEQ_DIST_SLOT1);
++			rc_bit_case(probs[symbol], , , SEQ_DIST_SLOT2);
++			rc_bit_case(probs[symbol], , , SEQ_DIST_SLOT3);
++			rc_bit_case(probs[symbol], , , SEQ_DIST_SLOT4);
++			rc_bit_case(probs[symbol], , , SEQ_DIST_SLOT5);
+ #endif
+ 			// Get rid of the highest bit that was needed for
+ 			// indexing of the probability array.
+-			symbol -= POS_SLOTS;
++			symbol -= DIST_SLOTS;
+ 			assert(symbol <= 63);
+ 
+-			if (symbol < START_POS_MODEL_INDEX) {
++			if (symbol < DIST_MODEL_START) {
+ 				// Match distances [0, 3] have only two bits.
+ 				rep0 = symbol;
+ 			} else {
+@@ -533,7 +533,7 @@ lzma_decode(lzma_coder *restrict coder, lzma_dict *restrict dictptr,
+ 				assert(limit >= 1 && limit <= 30);
+ 				rep0 = 2 + (symbol & 1);
+ 
+-				if (symbol < END_POS_MODEL_INDEX) {
++				if (symbol < DIST_MODEL_END) {
+ 					// Prepare to decode the low bits for
+ 					// a distance of [4, 127].
+ 					assert(limit <= 5);
+@@ -553,12 +553,12 @@ lzma_decode(lzma_coder *restrict coder, lzma_dict *restrict dictptr,
+ 							- symbol - 1;
+ 					symbol = 1;
+ 					offset = 0;
+-	case SEQ_POS_MODEL:
++	case SEQ_DIST_MODEL:
+ #ifdef HAVE_SMALL
+ 					do {
+ 						rc_bit(probs[symbol], ,
+ 							rep0 += 1 << offset,
+-							SEQ_POS_MODEL);
++							SEQ_DIST_MODEL);
+ 					} while (++offset < limit);
+ #else
+ 					switch (limit) {
+@@ -566,25 +566,25 @@ lzma_decode(lzma_coder *restrict coder, lzma_dict *restrict dictptr,
+ 						assert(offset == 0);
+ 						rc_bit(probs[symbol], ,
+ 							rep0 += 1,
+-							SEQ_POS_MODEL);
++							SEQ_DIST_MODEL);
+ 						++offset;
+ 						--limit;
+ 					case 4:
+ 						rc_bit(probs[symbol], ,
+ 							rep0 += 1 << offset,
+-							SEQ_POS_MODEL);
++							SEQ_DIST_MODEL);
+ 						++offset;
+ 						--limit;
+ 					case 3:
+ 						rc_bit(probs[symbol], ,
+ 							rep0 += 1 << offset,
+-							SEQ_POS_MODEL);
++							SEQ_DIST_MODEL);
+ 						++offset;
+ 						--limit;
+ 					case 2:
+ 						rc_bit(probs[symbol], ,
+ 							rep0 += 1 << offset,
+-							SEQ_POS_MODEL);
++							SEQ_DIST_MODEL);
+ 						++offset;
+ 						--limit;
+ 					case 1:
+@@ -596,7 +596,7 @@ lzma_decode(lzma_coder *restrict coder, lzma_dict *restrict dictptr,
+ 						// "symbol".
+ 						rc_bit_last(probs[symbol], ,
+ 							rep0 += 1 << offset,
+-							SEQ_POS_MODEL);
++							SEQ_DIST_MODEL);
+ 					}
+ #endif
+ 				} else {
+@@ -637,7 +637,7 @@ lzma_decode(lzma_coder *restrict coder, lzma_dict *restrict dictptr,
+ 					rc_bit(coder->pos_align[symbol], ,
+ 							rep0 += 4, SEQ_ALIGN2);
+ 	case SEQ_ALIGN3:
+-					// Like in SEQ_POS_MODEL, we don't
++					// Like in SEQ_DIST_MODEL, we don't
+ 					// need "symbol" for anything else
+ 					// than indexing the probability array.
+ 					rc_bit_last(coder->pos_align[symbol], ,
+@@ -891,10 +891,10 @@ lzma_decoder_reset(lzma_coder *coder, const void *opt)
+ 		bit_reset(coder->is_rep2[i]);
+ 	}
+ 
+-	for (uint32_t i = 0; i < LEN_TO_POS_STATES; ++i)
+-		bittree_reset(coder->pos_slot[i], POS_SLOT_BITS);
++	for (uint32_t i = 0; i < DIST_STATES; ++i)
++		bittree_reset(coder->dist_slot[i], DIST_SLOT_BITS);
+ 
+-	for (uint32_t i = 0; i < FULL_DISTANCES - END_POS_MODEL_INDEX; ++i)
++	for (uint32_t i = 0; i < FULL_DISTANCES - DIST_MODEL_END; ++i)
+ 		bit_reset(coder->pos_special[i]);
+ 
+ 	bittree_reset(coder->pos_align, ALIGN_BITS);
+diff --git a/src/liblzma/lzma/lzma_encoder.c b/src/liblzma/lzma/lzma_encoder.c
+index 0b9ee9e1..0f91653c 100644
+--- a/src/liblzma/lzma/lzma_encoder.c
++++ b/src/liblzma/lzma/lzma_encoder.c
+@@ -148,28 +148,28 @@ match(lzma_coder *coder, const uint32_t pos_state,
+ 	length(&coder->rc, &coder->match_len_encoder, pos_state, len,
+ 			coder->fast_mode);
+ 
+-	const uint32_t pos_slot = get_pos_slot(distance);
+-	const uint32_t len_to_pos_state = get_len_to_pos_state(len);
+-	rc_bittree(&coder->rc, coder->pos_slot[len_to_pos_state],
+-			POS_SLOT_BITS, pos_slot);
+-
+-	if (pos_slot >= START_POS_MODEL_INDEX) {
+-		const uint32_t footer_bits = (pos_slot >> 1) - 1;
+-		const uint32_t base = (2 | (pos_slot & 1)) << footer_bits;
+-		const uint32_t pos_reduced = distance - base;
+-
+-		if (pos_slot < END_POS_MODEL_INDEX) {
+-			// Careful here: base - pos_slot - 1 can be -1, but
++	const uint32_t dist_slot = get_dist_slot(distance);
++	const uint32_t dist_state = get_dist_state(len);
++	rc_bittree(&coder->rc, coder->dist_slot[dist_state],
++			DIST_SLOT_BITS, dist_slot);
++
++	if (dist_slot >= DIST_MODEL_START) {
++		const uint32_t footer_bits = (dist_slot >> 1) - 1;
++		const uint32_t base = (2 | (dist_slot & 1)) << footer_bits;
++		const uint32_t dist_reduced = distance - base;
++
++		if (dist_slot < DIST_MODEL_END) {
++			// Careful here: base - dist_slot - 1 can be -1, but
+ 			// rc_bittree_reverse starts at probs[1], not probs[0].
+ 			rc_bittree_reverse(&coder->rc,
+-				coder->pos_special + base - pos_slot - 1,
+-				footer_bits, pos_reduced);
++				coder->dist_special + base - dist_slot - 1,
++				footer_bits, dist_reduced);
+ 		} else {
+-			rc_direct(&coder->rc, pos_reduced >> ALIGN_BITS,
++			rc_direct(&coder->rc, dist_reduced >> ALIGN_BITS,
+ 					footer_bits - ALIGN_BITS);
+ 			rc_bittree_reverse(
+-					&coder->rc, coder->pos_align,
+-					ALIGN_BITS, pos_reduced & ALIGN_MASK);
++					&coder->rc, coder->dist_align,
++					ALIGN_BITS, dist_reduced & ALIGN_MASK);
+ 			++coder->align_price_count;
+ 		}
+ 	}
+@@ -247,7 +247,7 @@ encode_symbol(lzma_coder *coder, lzma_mf *mf,
+ 		rc_bit(&coder->rc,
+ 			&coder->is_match[coder->state][pos_state], 1);
+ 
+-		if (back < REP_DISTANCES) {
++		if (back < REPS) {
+ 			// It's a repeated match i.e. the same distance
+ 			// has been used earlier.
+ 			rc_bit(&coder->rc, &coder->is_rep[coder->state], 1);
+@@ -255,7 +255,7 @@ encode_symbol(lzma_coder *coder, lzma_mf *mf,
+ 		} else {
+ 			// Normal match
+ 			rc_bit(&coder->rc, &coder->is_rep[coder->state], 0);
+-			match(coder, pos_state, back - REP_DISTANCES, len);
++			match(coder, pos_state, back - REPS, len);
+ 		}
+ 	}
+ 
+@@ -353,9 +353,9 @@ lzma_lzma_encode(lzma_coder *restrict coder, lzma_mf *restrict mf,
+ 
+ 		// Get optimal match (repeat position and length).
+ 		// Value ranges for pos:
+-		//   - [0, REP_DISTANCES): repeated match
+-		//   - [REP_DISTANCES, UINT32_MAX):
+-		//     match at (pos - REP_DISTANCES)
++		//   - [0, REPS): repeated match
++		//   - [REPS, UINT32_MAX):
++		//     match at (pos - REPS)
+ 		//   - UINT32_MAX: not a match but a literal
+ 		// Value ranges for len:
+ 		//   - [MATCH_LEN_MIN, MATCH_LEN_MAX]
+@@ -487,7 +487,7 @@ lzma_lzma_encoder_reset(lzma_coder *coder, const lzma_options_lzma *options)
+ 
+ 	// State
+ 	coder->state = STATE_LIT_LIT;
+-	for (size_t i = 0; i < REP_DISTANCES; ++i)
++	for (size_t i = 0; i < REPS; ++i)
+ 		coder->reps[i] = 0;
+ 
+ 	literal_init(coder->literal, options->lc, options->lp);
+@@ -505,14 +505,14 @@ lzma_lzma_encoder_reset(lzma_coder *coder, const lzma_options_lzma *options)
+ 		bit_reset(coder->is_rep2[i]);
+ 	}
+ 
+-	for (size_t i = 0; i < FULL_DISTANCES - END_POS_MODEL_INDEX; ++i)
+-		bit_reset(coder->pos_special[i]);
++	for (size_t i = 0; i < FULL_DISTANCES - DIST_MODEL_END; ++i)
++		bit_reset(coder->dist_special[i]);
+ 
+ 	// Bit tree encoders
+-	for (size_t i = 0; i < LEN_TO_POS_STATES; ++i)
+-		bittree_reset(coder->pos_slot[i], POS_SLOT_BITS);
++	for (size_t i = 0; i < DIST_STATES; ++i)
++		bittree_reset(coder->dist_slot[i], DIST_SLOT_BITS);
+ 
+-	bittree_reset(coder->pos_align, ALIGN_BITS);
++	bittree_reset(coder->dist_align, ALIGN_BITS);
+ 
+ 	// Length encoders
+ 	length_encoder_reset(&coder->match_len_encoder,
+diff --git a/src/liblzma/lzma/lzma_encoder_optimum_fast.c b/src/liblzma/lzma/lzma_encoder_optimum_fast.c
+index f835f693..92bbdf79 100644
+--- a/src/liblzma/lzma/lzma_encoder_optimum_fast.c
++++ b/src/liblzma/lzma/lzma_encoder_optimum_fast.c
+@@ -46,7 +46,7 @@ lzma_lzma_optimum_fast(lzma_coder *restrict coder, lzma_mf *restrict mf,
+ 	uint32_t rep_len = 0;
+ 	uint32_t rep_index = 0;
+ 
+-	for (uint32_t i = 0; i < REP_DISTANCES; ++i) {
++	for (uint32_t i = 0; i < REPS; ++i) {
+ 		// Pointer to the beginning of the match candidate
+ 		const uint8_t *const buf_back = buf - coder->reps[i] - 1;
+ 
+@@ -79,8 +79,7 @@ lzma_lzma_optimum_fast(lzma_coder *restrict coder, lzma_mf *restrict mf,
+ 	// We didn't find a long enough repeated match. Encode it as a normal
+ 	// match if the match length is at least nice_len.
+ 	if (len_main >= nice_len) {
+-		*back_res = coder->matches[matches_count - 1].dist
+-				+ REP_DISTANCES;
++		*back_res = coder->matches[matches_count - 1].dist + REPS;
+ 		*len_res = len_main;
+ 		mf_skip(mf, len_main - 1);
+ 		return;
+@@ -155,7 +154,7 @@ lzma_lzma_optimum_fast(lzma_coder *restrict coder, lzma_mf *restrict mf,
+ 
+ 	const uint32_t limit = len_main - 1;
+ 
+-	for (uint32_t i = 0; i < REP_DISTANCES; ++i) {
++	for (uint32_t i = 0; i < REPS; ++i) {
+ 		const uint8_t *const buf_back = buf - coder->reps[i] - 1;
+ 
+ 		if (not_equal_16(buf, buf_back))
+@@ -172,7 +171,7 @@ lzma_lzma_optimum_fast(lzma_coder *restrict coder, lzma_mf *restrict mf,
+ 		}
+ 	}
+ 
+-	*back_res = back_main + REP_DISTANCES;
++	*back_res = back_main + REPS;
+ 	*len_res = len_main;
+ 	mf_skip(mf, len_main - 2);
+ 	return;
+diff --git a/src/liblzma/lzma/lzma_encoder_optimum_normal.c b/src/liblzma/lzma/lzma_encoder_optimum_normal.c
+index 7e856493..0dd5f73d 100644
+--- a/src/liblzma/lzma/lzma_encoder_optimum_normal.c
++++ b/src/liblzma/lzma/lzma_encoder_optimum_normal.c
+@@ -108,18 +108,18 @@ get_rep_price(const lzma_coder *const coder, const uint32_t rep_index,
+ 
+ 
+ static inline uint32_t
+-get_pos_len_price(const lzma_coder *const coder, const uint32_t pos,
++get_dist_len_price(const lzma_coder *const coder, const uint32_t dist,
+ 		const uint32_t len, const uint32_t pos_state)
+ {
+-	const uint32_t len_to_pos_state = get_len_to_pos_state(len);
++	const uint32_t dist_state = get_dist_state(len);
+ 	uint32_t price;
+ 
+-	if (pos < FULL_DISTANCES) {
+-		price = coder->distances_prices[len_to_pos_state][pos];
++	if (dist < FULL_DISTANCES) {
++		price = coder->dist_prices[dist_state][dist];
+ 	} else {
+-		const uint32_t pos_slot = get_pos_slot_2(pos);
+-		price = coder->pos_slot_prices[len_to_pos_state][pos_slot]
+-				+ coder->align_prices[pos & ALIGN_MASK];
++		const uint32_t dist_slot = get_dist_slot_2(dist);
++		price = coder->dist_slot_prices[dist_state][dist_slot]
++				+ coder->align_prices[dist & ALIGN_MASK];
+ 	}
+ 
+ 	price += get_len_price(&coder->match_len_encoder, len, pos_state);
+@@ -129,55 +129,53 @@ get_pos_len_price(const lzma_coder *const coder, const uint32_t pos,
+ 
+ 
+ static void
+-fill_distances_prices(lzma_coder *coder)
++fill_dist_prices(lzma_coder *coder)
+ {
+-	for (uint32_t len_to_pos_state = 0;
+-			len_to_pos_state < LEN_TO_POS_STATES;
+-			++len_to_pos_state) {
++	for (uint32_t dist_state = 0; dist_state < DIST_STATES; ++dist_state) {
+ 
+-		uint32_t *const pos_slot_prices
+-				= coder->pos_slot_prices[len_to_pos_state];
++		uint32_t *const dist_slot_prices
++				= coder->dist_slot_prices[dist_state];
+ 
+-		// Price to encode the pos_slot.
+-		for (uint32_t pos_slot = 0;
+-				pos_slot < coder->dist_table_size; ++pos_slot)
+-			pos_slot_prices[pos_slot] = rc_bittree_price(
+-					coder->pos_slot[len_to_pos_state],
+-					POS_SLOT_BITS, pos_slot);
++		// Price to encode the dist_slot.
++		for (uint32_t dist_slot = 0;
++				dist_slot < coder->dist_table_size; ++dist_slot)
++			dist_slot_prices[dist_slot] = rc_bittree_price(
++					coder->dist_slot[dist_state],
++					DIST_SLOT_BITS, dist_slot);
+ 
+ 		// For matches with distance >= FULL_DISTANCES, add the price
+ 		// of the direct bits part of the match distance. (Align bits
+ 		// are handled by fill_align_prices()).
+-		for (uint32_t pos_slot = END_POS_MODEL_INDEX;
+-				pos_slot < coder->dist_table_size; ++pos_slot)
+-			pos_slot_prices[pos_slot] += rc_direct_price(
+-					((pos_slot >> 1) - 1) - ALIGN_BITS);
++		for (uint32_t dist_slot = DIST_MODEL_END;
++				dist_slot < coder->dist_table_size;
++				++dist_slot)
++			dist_slot_prices[dist_slot] += rc_direct_price(
++					((dist_slot >> 1) - 1) - ALIGN_BITS);
+ 
+ 		// Distances in the range [0, 3] are fully encoded with
+-		// pos_slot, so they are used for coder->distances_prices
++		// dist_slot, so they are used for coder->dist_prices
+ 		// as is.
+-		for (uint32_t i = 0; i < START_POS_MODEL_INDEX; ++i)
+-			coder->distances_prices[len_to_pos_state][i]
+-					= pos_slot_prices[i];
++		for (uint32_t i = 0; i < DIST_MODEL_START; ++i)
++			coder->dist_prices[dist_state][i]
++					= dist_slot_prices[i];
+ 	}
+ 
+-	// Distances in the range [4, 127] depend on pos_slot and pos_special.
+-	// We do this in a loop separate from the above loop to avoid
+-	// redundant calls to get_pos_slot().
+-	for (uint32_t i = START_POS_MODEL_INDEX; i < FULL_DISTANCES; ++i) {
+-		const uint32_t pos_slot = get_pos_slot(i);
+-		const uint32_t footer_bits = ((pos_slot >> 1) - 1);
+-		const uint32_t base = (2 | (pos_slot & 1)) << footer_bits;
++	// Distances in the range [4, 127] depend on dist_slot and
++	// dist_special. We do this in a loop separate from the above
++	// loop to avoid redundant calls to get_dist_slot().
++	for (uint32_t i = DIST_MODEL_START; i < FULL_DISTANCES; ++i) {
++		const uint32_t dist_slot = get_dist_slot(i);
++		const uint32_t footer_bits = ((dist_slot >> 1) - 1);
++		const uint32_t base = (2 | (dist_slot & 1)) << footer_bits;
+ 		const uint32_t price = rc_bittree_reverse_price(
+-				coder->pos_special + base - pos_slot - 1,
++				coder->dist_special + base - dist_slot - 1,
+ 				footer_bits, i - base);
+ 
+-		for (uint32_t len_to_pos_state = 0;
+-				len_to_pos_state < LEN_TO_POS_STATES;
+-				++len_to_pos_state)
+-			coder->distances_prices[len_to_pos_state][i]
+-					= price + coder->pos_slot_prices[
+-						len_to_pos_state][pos_slot];
++		for (uint32_t dist_state = 0; dist_state < DIST_STATES;
++				++dist_state)
++			coder->dist_prices[dist_state][i]
++					= price + coder->dist_slot_prices[
++						dist_state][dist_slot];
+ 	}
+ 
+ 	coder->match_price_count = 0;
+@@ -188,9 +186,9 @@ fill_distances_prices(lzma_coder *coder)
+ static void
+ fill_align_prices(lzma_coder *coder)
+ {
+-	for (uint32_t i = 0; i < ALIGN_TABLE_SIZE; ++i)
++	for (uint32_t i = 0; i < ALIGN_SIZE; ++i)
+ 		coder->align_prices[i] = rc_bittree_reverse_price(
+-				coder->pos_align, ALIGN_BITS, i);
++				coder->dist_align, ALIGN_BITS, i);
+ 
+ 	coder->align_price_count = 0;
+ 	return;
+@@ -296,10 +294,10 @@ helper1(lzma_coder *restrict coder, lzma_mf *restrict mf,
+ 
+ 	const uint8_t *const buf = mf_ptr(mf) - 1;
+ 
+-	uint32_t rep_lens[REP_DISTANCES];
++	uint32_t rep_lens[REPS];
+ 	uint32_t rep_max_index = 0;
+ 
+-	for (uint32_t i = 0; i < REP_DISTANCES; ++i) {
++	for (uint32_t i = 0; i < REPS; ++i) {
+ 		const uint8_t *const buf_back = buf - coder->reps[i] - 1;
+ 
+ 		if (not_equal_16(buf, buf_back)) {
+@@ -326,8 +324,7 @@ helper1(lzma_coder *restrict coder, lzma_mf *restrict mf,
+ 
+ 
+ 	if (len_main >= nice_len) {
+-		*back_res = coder->matches[matches_count - 1].dist
+-				+ REP_DISTANCES;
++		*back_res = coder->matches[matches_count - 1].dist + REPS;
+ 		*len_res = len_main;
+ 		mf_skip(mf, len_main - 1);
+ 		return UINT32_MAX;
+@@ -381,7 +378,7 @@ helper1(lzma_coder *restrict coder, lzma_mf *restrict mf,
+ 
+ 	coder->opts[1].pos_prev = 0;
+ 
+-	for (uint32_t i = 0; i < REP_DISTANCES; ++i)
++	for (uint32_t i = 0; i < REPS; ++i)
+ 		coder->opts[0].backs[i] = coder->reps[i];
+ 
+ 	uint32_t len = len_end;
+@@ -390,7 +387,7 @@ helper1(lzma_coder *restrict coder, lzma_mf *restrict mf,
+ 	} while (--len >= 2);
+ 
+ 
+-	for (uint32_t i = 0; i < REP_DISTANCES; ++i) {
++	for (uint32_t i = 0; i < REPS; ++i) {
+ 		uint32_t rep_len = rep_lens[i];
+ 		if (rep_len < 2)
+ 			continue;
+@@ -426,14 +423,13 @@ helper1(lzma_coder *restrict coder, lzma_mf *restrict mf,
+ 		for(; ; ++len) {
+ 			const uint32_t dist = coder->matches[i].dist;
+ 			const uint32_t cur_and_len_price = normal_match_price
+-					+ get_pos_len_price(coder,
++					+ get_dist_len_price(coder,
+ 						dist, len, pos_state);
+ 
+ 			if (cur_and_len_price < coder->opts[len].price) {
+ 				coder->opts[len].price = cur_and_len_price;
+ 				coder->opts[len].pos_prev = 0;
+-				coder->opts[len].back_prev
+-						= dist + REP_DISTANCES;
++				coder->opts[len].back_prev = dist + REPS;
+ 				coder->opts[len].prev_1_is_literal = false;
+ 			}
+ 
+@@ -463,7 +459,7 @@ helper2(lzma_coder *coder, uint32_t *reps, const uint8_t *buf,
+ 		if (coder->opts[cur].prev_2) {
+ 			state = coder->opts[coder->opts[cur].pos_prev_2].state;
+ 
+-			if (coder->opts[cur].back_prev_2 < REP_DISTANCES)
++			if (coder->opts[cur].back_prev_2 < REPS)
+ 				update_long_rep(state);
+ 			else
+ 				update_match(state);
+@@ -492,33 +488,33 @@ helper2(lzma_coder *coder, uint32_t *reps, const uint8_t *buf,
+ 			update_long_rep(state);
+ 		} else {
+ 			pos = coder->opts[cur].back_prev;
+-			if (pos < REP_DISTANCES)
++			if (pos < REPS)
+ 				update_long_rep(state);
+ 			else
+ 				update_match(state);
+ 		}
+ 
+-		if (pos < REP_DISTANCES) {
++		if (pos < REPS) {
+ 			reps[0] = coder->opts[pos_prev].backs[pos];
+ 
+ 			uint32_t i;
+ 			for (i = 1; i <= pos; ++i)
+ 				reps[i] = coder->opts[pos_prev].backs[i - 1];
+ 
+-			for (; i < REP_DISTANCES; ++i)
++			for (; i < REPS; ++i)
+ 				reps[i] = coder->opts[pos_prev].backs[i];
+ 
+ 		} else {
+-			reps[0] = pos - REP_DISTANCES;
++			reps[0] = pos - REPS;
+ 
+-			for (uint32_t i = 1; i < REP_DISTANCES; ++i)
++			for (uint32_t i = 1; i < REPS; ++i)
+ 				reps[i] = coder->opts[pos_prev].backs[i - 1];
+ 		}
+ 	}
+ 
+ 	coder->opts[cur].state = state;
+ 
+-	for (uint32_t i = 0; i < REP_DISTANCES; ++i)
++	for (uint32_t i = 0; i < REPS; ++i)
+ 		coder->opts[cur].backs[i] = reps[i];
+ 
+ 	const uint32_t cur_price = coder->opts[cur].price;
+@@ -611,7 +607,7 @@ helper2(lzma_coder *coder, uint32_t *reps, const uint8_t *buf,
+ 
+ 	uint32_t start_len = 2; // speed optimization
+ 
+-	for (uint32_t rep_index = 0; rep_index < REP_DISTANCES; ++rep_index) {
++	for (uint32_t rep_index = 0; rep_index < REPS; ++rep_index) {
+ 		const uint8_t *const buf_back = buf - reps[rep_index] - 1;
+ 		if (not_equal_16(buf, buf_back))
+ 			continue;
+@@ -728,14 +724,14 @@ helper2(lzma_coder *coder, uint32_t *reps, const uint8_t *buf,
+ 		for (uint32_t len_test = start_len; ; ++len_test) {
+ 			const uint32_t cur_back = coder->matches[i].dist;
+ 			uint32_t cur_and_len_price = normal_match_price
+-					+ get_pos_len_price(coder,
++					+ get_dist_len_price(coder,
+ 						cur_back, len_test, pos_state);
+ 
+ 			if (cur_and_len_price < coder->opts[cur + len_test].price) {
+ 				coder->opts[cur + len_test].price = cur_and_len_price;
+ 				coder->opts[cur + len_test].pos_prev = cur;
+ 				coder->opts[cur + len_test].back_prev
+-						= cur_back + REP_DISTANCES;
++						= cur_back + REPS;
+ 				coder->opts[cur + len_test].prev_1_is_literal = false;
+ 			}
+ 
+@@ -795,7 +791,7 @@ helper2(lzma_coder *coder, uint32_t *reps, const uint8_t *buf,
+ 						coder->opts[offset].prev_2 = true;
+ 						coder->opts[offset].pos_prev_2 = cur;
+ 						coder->opts[offset].back_prev_2
+-								= cur_back + REP_DISTANCES;
++								= cur_back + REPS;
+ 					}
+ 					//}
+ 				}
+@@ -831,9 +827,9 @@ lzma_lzma_optimum_normal(lzma_coder *restrict coder, lzma_mf *restrict mf,
+ 	// In liblzma they were moved into this single place.
+ 	if (mf->read_ahead == 0) {
+ 		if (coder->match_price_count >= (1 << 7))
+-			fill_distances_prices(coder);
++			fill_dist_prices(coder);
+ 
+-		if (coder->align_price_count >= ALIGN_TABLE_SIZE)
++		if (coder->align_price_count >= ALIGN_SIZE)
+ 			fill_align_prices(coder);
+ 	}
+ 
+@@ -845,7 +841,7 @@ lzma_lzma_optimum_normal(lzma_coder *restrict coder, lzma_mf *restrict mf,
+ 	if (len_end == UINT32_MAX)
+ 		return;
+ 
+-	uint32_t reps[REP_DISTANCES];
++	uint32_t reps[REPS];
+ 	memcpy(reps, coder->reps, sizeof(reps));
+ 
+ 	uint32_t cur;
+diff --git a/src/liblzma/lzma/lzma_encoder_private.h b/src/liblzma/lzma/lzma_encoder_private.h
+index 68474523..2f62d6cb 100644
+--- a/src/liblzma/lzma/lzma_encoder_private.h
++++ b/src/liblzma/lzma/lzma_encoder_private.h
+@@ -64,7 +64,7 @@ typedef struct {
+ 	uint32_t pos_prev;  // pos_next;
+ 	uint32_t back_prev;
+ 
+-	uint32_t backs[REP_DISTANCES];
++	uint32_t backs[REPS];
+ 
+ } lzma_optimal;
+ 
+@@ -77,7 +77,7 @@ struct lzma_coder_s {
+ 	lzma_lzma_state state;
+ 
+ 	/// The four most recent match distances
+-	uint32_t reps[REP_DISTANCES];
++	uint32_t reps[REPS];
+ 
+ 	/// Array of match candidates
+ 	lzma_match matches[MATCH_LEN_MAX + 1];
+@@ -112,9 +112,9 @@ struct lzma_coder_s {
+ 	probability is_rep1[STATES];
+ 	probability is_rep2[STATES];
+ 	probability is_rep0_long[STATES][POS_STATES_MAX];
+-	probability pos_slot[LEN_TO_POS_STATES][POS_SLOTS];
+-	probability pos_special[FULL_DISTANCES - END_POS_MODEL_INDEX];
+-	probability pos_align[ALIGN_TABLE_SIZE];
++	probability dist_slot[DIST_STATES][DIST_SLOTS];
++	probability dist_special[FULL_DISTANCES - DIST_MODEL_END];
++	probability dist_align[ALIGN_SIZE];
+ 
+ 	// These are the same as in lzma_decoder.c except that the encoders
+ 	// include also price tables.
+@@ -122,12 +122,12 @@ struct lzma_coder_s {
+ 	lzma_length_encoder rep_len_encoder;
+ 
+ 	// Price tables
+-	uint32_t pos_slot_prices[LEN_TO_POS_STATES][POS_SLOTS];
+-	uint32_t distances_prices[LEN_TO_POS_STATES][FULL_DISTANCES];
++	uint32_t dist_slot_prices[DIST_STATES][DIST_SLOTS];
++	uint32_t dist_prices[DIST_STATES][FULL_DISTANCES];
+ 	uint32_t dist_table_size;
+ 	uint32_t match_price_count;
+ 
+-	uint32_t align_prices[ALIGN_TABLE_SIZE];
++	uint32_t align_prices[ALIGN_SIZE];
+ 	uint32_t align_price_count;
+ 
+ 	// Optimal

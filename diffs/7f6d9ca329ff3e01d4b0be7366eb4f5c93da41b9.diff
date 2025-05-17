@@ -1,0 +1,18 @@
+diff --git a/doxygen/footer.html b/doxygen/footer.html
+index 2c687c56..38d6ea0f 100644
+--- a/doxygen/footer.html
++++ b/doxygen/footer.html
+@@ -3,9 +3,11 @@
+ <p style="text-align: right;padding-right: 12px;">
+ 	XZ logo &copy; 2023 by Jia Tan is licensed under
+ 	<a href="COPYING.CC-BY-SA-4.0"
+-	   target="_blank"
+-	   rel="license noopener noreferrer"
++	   rel="license"
+ 	   style="display:inline-block;">
+ 		CC BY-SA 4.0
+ 	</a>
+ </p>
++
++</body>
++</html>

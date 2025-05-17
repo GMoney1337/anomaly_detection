@@ -1,0 +1,2046 @@
+diff --git a/THANKS b/THANKS
+index f3a01baa..c9df15bc 100644
+--- a/THANKS
++++ b/THANKS
+@@ -16,6 +16,7 @@ has been important. :-) In alphabetical order:
+   - Robert Elz
+   - Mike Frysinger
+   - Peter Ivanov
++  - Jouk Jansen
+   - Per Øyvind Karlsen
+   - Thomas Klausner
+   - Richard Koch
+diff --git a/configure.ac b/configure.ac
+index 555f5f7c..c576d224 100644
+--- a/configure.ac
++++ b/configure.ac
+@@ -485,12 +485,7 @@ AC_CHECK_HEADERS([fcntl.h limits.h sys/time.h],
+ 	[AC_MSG_ERROR([Required header file(s) are missing.])])
+ 
+ # If any of these headers are missing, things should still work correctly:
+-AC_CHECK_HEADERS([sys/param.h sys/sysctl.h byteswap.h],
+-	[], [], [
+-#ifdef HAVE_SYS_PARAM_H
+-#	include <sys/param.h>
+-#endif
+-])
++AC_CHECK_HEADERS([byteswap.h])
+ 
+ # Even if we have byteswap.h, we may lack the specific macros/functions.
+ if test x$ac_cv_header_byteswap_h = xyes ; then
+@@ -558,8 +553,9 @@ gl_GETOPT
+ # Find the best function to set timestamps.
+ AC_CHECK_FUNCS([futimens futimes futimesat utimes utime], [break])
+ 
+-lc_PHYSMEM
+-lc_CPUCORES
++TUKLIB_PROGNAME
++TUKLIB_PHYSMEM
++TUKLIB_CPUCORES
+ 
+ 
+ ###############################################################################
+diff --git a/m4/lc_physmem.m4 b/m4/lc_physmem.m4
+deleted file mode 100644
+index 5d9581e1..00000000
+--- a/m4/lc_physmem.m4
++++ /dev/null
+@@ -1,84 +0,0 @@
+-dnl ###########################################################################
+-dnl
+-dnl lc_PHYSMEM - Check how to find out the amount of physical memory
+-dnl
+-dnl - sysconf() gives all the needed info on GNU+Linux and Solaris.
+-dnl - BSDs use sysctl().
+-dnl - sysinfo() works on Linux/dietlibc and probably on other Linux systems
+-dnl   whose libc may lack sysconf().
+-dnl
+-dnl ###########################################################################
+-dnl
+-dnl Author: Lasse Collin
+-dnl
+-dnl This file has been put into the public domain.
+-dnl You can do whatever you want with this file.
+-dnl
+-dnl ###########################################################################
+-AC_DEFUN([lc_PHYSMEM], [
+-AC_MSG_CHECKING([how to detect the amount of physical memory])
+-AC_COMPILE_IFELSE([AC_LANG_SOURCE([[
+-#include <unistd.h>
+-int
+-main(void)
+-{
+-	long i;
+-	i = sysconf(_SC_PAGESIZE);
+-	i = sysconf(_SC_PHYS_PAGES);
+-	return 0;
+-}
+-]])], [
+-	AC_DEFINE([HAVE_PHYSMEM_SYSCONF], [1],
+-		[Define to 1 if the amount of physical memory can be detected
+-		with sysconf(_SC_PAGESIZE) and sysconf(_SC_PHYS_PAGES).])
+-	AC_MSG_RESULT([sysconf])
+-], [
+-AC_COMPILE_IFELSE([AC_LANG_SOURCE([[
+-#include <sys/types.h>
+-#ifdef HAVE_SYS_PARAM_H
+-#	include <sys/param.h>
+-#endif
+-#include <sys/sysctl.h>
+-int
+-main(void)
+-{
+-	int name[2] = { CTL_HW, HW_PHYSMEM };
+-	unsigned long mem;
+-	size_t mem_ptr_size = sizeof(mem);
+-	sysctl(name, 2, &mem, &mem_ptr_size, NULL, 0);
+-	return 0;
+-}
+-]])], [
+-	AC_DEFINE([HAVE_PHYSMEM_SYSCTL], [1],
+-		[Define to 1 if the amount of physical memory can be detected
+-		with sysctl().])
+-	AC_MSG_RESULT([sysctl])
+-], [
+-dnl sysinfo() is Linux-specific. Some non-Linux systems have
+-dnl incompatible sysinfo() so we must check $host_os.
+-case $host_os in
+-	linux*)
+-		AC_COMPILE_IFELSE([AC_LANG_SOURCE([[
+-#include <sys/sysinfo.h>
+-int
+-main(void)
+-{
+-	struct sysinfo si;
+-	sysinfo(&si);
+-	return 0;
+-}
+-		]])], [
+-			AC_DEFINE([HAVE_PHYSMEM_SYSINFO], [1],
+-				[Define to 1 if the amount of physical memory
+-				can be detected with Linux sysinfo().])
+-			AC_MSG_RESULT([sysinfo])
+-		], [
+-			AC_MSG_RESULT([unknown])
+-		])
+-		;;
+-	*)
+-		AC_MSG_RESULT([unknown])
+-		;;
+-esac
+-])])
+-])dnl lc_PHYSMEM
+diff --git a/m4/tuklib_common.m4 b/m4/tuklib_common.m4
+new file mode 100644
+index 00000000..d942a25f
+--- /dev/null
++++ b/m4/tuklib_common.m4
+@@ -0,0 +1,22 @@
++#
++# SYNOPSIS
++#
++#   TUKLIB_COMMON
++#
++# DESCRIPTION
++#
++#   Common checks for tuklib.
++#
++# COPYING
++#
++#   Author: Lasse Collin
++#
++#   This file has been put into the public domain.
++#   You can do whatever you want with this file.
++#
++
++AC_DEFUN_ONCE([TUKLIB_COMMON], [
++AC_REQUIRE([AC_CANONICAL_HOST])
++AC_REQUIRE([AC_PROG_CC_C99])
++AC_REQUIRE([AC_USE_SYSTEM_EXTENSIONS])
++])dnl
+diff --git a/m4/lc_cpucores.m4 b/m4/tuklib_cpucores.m4
+similarity index 50%
+rename from m4/lc_cpucores.m4
+rename to m4/tuklib_cpucores.m4
+index 52f7c985..9058d445 100644
+--- a/m4/lc_cpucores.m4
++++ b/m4/tuklib_cpucores.m4
+@@ -1,36 +1,35 @@
+-dnl ###########################################################################
+-dnl
+-dnl lc_CPUCORES - Check how to find out the number of online CPU cores
+-dnl
+-dnl Check how to find out the number of available CPU cores in the system.
+-dnl sysconf(_SC_NPROCESSORS_ONLN) works on most systems, except that BSDs
+-dnl use sysctl().
+-dnl
+-dnl ###########################################################################
+-dnl
+-dnl Author: Lasse Collin
+-dnl
+-dnl This file has been put into the public domain.
+-dnl You can do whatever you want with this file.
+-dnl
+-dnl ###########################################################################
+-AC_DEFUN([lc_CPUCORES], [
++#
++# SYNOPSIS
++#
++#   TUKLIB_CPUCORES
++#
++# DESCRIPTION
++#
++#   Check how to find out the number of available CPU cores in the system.
++#   This information is used by tuklib_cpucores.c.
++#
++#   Currently this supports sysctl() (BSDs, OS/2) and sysconf() (GNU/Linux,
++#   Solaris, Cygwin).
++#
++# COPYING
++#
++#   Author: Lasse Collin
++#
++#   This file has been put into the public domain.
++#   You can do whatever you want with this file.
++#
++
++AC_DEFUN_ONCE([TUKLIB_CPUCORES], [
++AC_REQUIRE([TUKLIB_COMMON])
++
++# sys/param.h might be needed by sys/sysctl.h.
++AC_CHECK_HEADERS([sys/param.h])
++
+ AC_MSG_CHECKING([how to detect the number of available CPU cores])
+-AC_COMPILE_IFELSE([AC_LANG_SOURCE([[
+-#include <unistd.h>
+-int
+-main(void)
+-{
+-	long i;
+-	i = sysconf(_SC_NPROCESSORS_ONLN);
+-	return 0;
+-}
+-]])], [
+-	AC_DEFINE([HAVE_CPUCORES_SYSCONF], [1],
+-		[Define to 1 if the number of available CPU cores can be
+-		detected with sysconf(_SC_NPROCESSORS_ONLN).])
+-	AC_MSG_RESULT([sysconf])
+-], [
++
++# Look for sysctl() solution first, because on OS/2, both sysconf()
++# and sysctl() pass the tests in this file, but only sysctl()
++# actually works.
+ AC_COMPILE_IFELSE([AC_LANG_SOURCE([[
+ #include <sys/types.h>
+ #ifdef HAVE_SYS_PARAM_H
+@@ -47,11 +46,27 @@ main(void)
+ 	return 0;
+ }
+ ]])], [
+-	AC_DEFINE([HAVE_CPUCORES_SYSCTL], [1],
++	AC_DEFINE([TUKLIB_CPUCORES_SYSCTL], [1],
+ 		[Define to 1 if the number of available CPU cores can be
+ 		detected with sysctl().])
+ 	AC_MSG_RESULT([sysctl])
+ ], [
++
++AC_COMPILE_IFELSE([AC_LANG_SOURCE([[
++#include <unistd.h>
++int
++main(void)
++{
++	long i;
++	i = sysconf(_SC_NPROCESSORS_ONLN);
++	return 0;
++}
++]])], [
++	AC_DEFINE([TUKLIB_CPUCORES_SYSCONF], [1],
++		[Define to 1 if the number of available CPU cores can be
++		detected with sysconf(_SC_NPROCESSORS_ONLN).])
++	AC_MSG_RESULT([sysconf])
++], [
+ 	AC_MSG_RESULT([unknown])
+ ])])
+-])dnl lc_CPUCORES
++])dnl
+diff --git a/m4/tuklib_physmem.m4 b/m4/tuklib_physmem.m4
+new file mode 100644
+index 00000000..91e3dc56
+--- /dev/null
++++ b/m4/tuklib_physmem.m4
+@@ -0,0 +1,119 @@
++#
++# SYNOPSIS
++#
++#   TUKLIB_PHYSMEM
++#
++# DESCRIPTION
++#
++#   Check how to get the amount of physical memory.
++#   This information is used in tuklib_physmem.c.
++#
++#   Supported methods:
++#
++#     - Windows (including Cygwin), OS/2, DJGPP (DOS), and OpenVMS have
++#       operating-system specific functions.
++#
++#     - sysconf() works on GNU/Linux and Solaris, and possibly on
++#       some BSDs.
++#
++#     - BSDs use sysctl().
++#
++#     - sysinfo() works on Linux/dietlibc and probably on other Linux
++#       systems whose libc may lack sysconf().
++#
++# COPYING
++#
++#   Author: Lasse Collin
++#
++#   This file has been put into the public domain.
++#   You can do whatever you want with this file.
++#
++
++AC_DEFUN_ONCE([TUKLIB_PHYSMEM], [
++AC_REQUIRE([TUKLIB_COMMON])
++
++# sys/param.h might be needed by sys/sysctl.h.
++AC_CHECK_HEADERS([sys/param.h])
++
++AC_MSG_CHECKING([how to detect the amount of physical memory])
++
++# Maybe checking $host_os would be enough but this matches what
++# tuklib_physmem.c does.
++AC_COMPILE_IFELSE([AC_LANG_SOURCE([[
++#if defined(_WIN32) || defined(__CYGWIN__) || defined(__OS2__) \
++		|| defined(__DJGPP__) || defined(__VMS)
++int main(void) { return 0; }
++#else
++#error
++#endif
++]])], [
++	AC_MSG_RESULT([special])
++], [
++
++AC_COMPILE_IFELSE([AC_LANG_SOURCE([[
++#include <unistd.h>
++int
++main(void)
++{
++	long i;
++	i = sysconf(_SC_PAGESIZE);
++	i = sysconf(_SC_PHYS_PAGES);
++	return 0;
++}
++]])], [
++	AC_DEFINE([TUKLIB_PHYSMEM_SYSCONF], [1],
++		[Define to 1 if the amount of physical memory can be detected
++		with sysconf(_SC_PAGESIZE) and sysconf(_SC_PHYS_PAGES).])
++	AC_MSG_RESULT([sysconf])
++], [
++
++AC_COMPILE_IFELSE([AC_LANG_SOURCE([[
++#include <sys/types.h>
++#ifdef HAVE_SYS_PARAM_H
++#	include <sys/param.h>
++#endif
++#include <sys/sysctl.h>
++int
++main(void)
++{
++	int name[2] = { CTL_HW, HW_PHYSMEM };
++	unsigned long mem;
++	size_t mem_ptr_size = sizeof(mem);
++	sysctl(name, 2, &mem, &mem_ptr_size, NULL, 0);
++	return 0;
++}
++]])], [
++	AC_DEFINE([TUKLIB_PHYSMEM_SYSCTL], [1],
++		[Define to 1 if the amount of physical memory can be detected
++		with sysctl().])
++	AC_MSG_RESULT([sysctl])
++], [
++
++# This version of sysinfo() is Linux-specific. Some non-Linux systems have
++# different sysinfo() so we must check $host_os.
++case $host_os in
++	linux*)
++		AC_COMPILE_IFELSE([AC_LANG_SOURCE([[
++#include <sys/sysinfo.h>
++int
++main(void)
++{
++	struct sysinfo si;
++	sysinfo(&si);
++	return 0;
++}
++		]])], [
++			AC_DEFINE([TUKLIB_PHYSMEM_SYSINFO], [1],
++				[Define to 1 if the amount of physical memory
++				can be detected with Linux sysinfo().])
++			AC_MSG_RESULT([sysinfo])
++		], [
++			AC_MSG_RESULT([unknown])
++		])
++		;;
++	*)
++		AC_MSG_RESULT([unknown])
++		;;
++esac
++])])])
++])dnl
+diff --git a/m4/tuklib_progname.m4 b/m4/tuklib_progname.m4
+new file mode 100644
+index 00000000..f3e158bd
+--- /dev/null
++++ b/m4/tuklib_progname.m4
+@@ -0,0 +1,25 @@
++#
++# SYNOPSIS
++#
++#   TUKLIB_PROGNAME
++#
++# DESCRIPTION
++#
++#   Put argv[0] into a global variable progname. On DOS-like systems,
++#   modify it so that it looks nice (no full path or .exe suffix).
++#
++#   This .m4 file is needed allow this module to use glibc's
++#   program_invocation_name.
++#
++# COPYING
++#
++#   Author: Lasse Collin
++#
++#   This file has been put into the public domain.
++#   You can do whatever you want with this file.
++#
++
++AC_DEFUN_ONCE([TUKLIB_PROGNAME], [
++AC_REQUIRE([TUKLIB_COMMON])
++AC_CHECK_DECLS([program_invocation_name], [], [], [#include <errno.h>])
++])dnl
+diff --git a/src/common/sysdefs.h b/src/common/sysdefs.h
+index fbc9176a..aa8ddcc2 100644
+--- a/src/common/sysdefs.h
++++ b/src/common/sysdefs.h
+@@ -147,10 +147,6 @@ typedef unsigned char _Bool;
+ // Macros //
+ ////////////
+ 
+-#if defined(_WIN32) || defined(__MSDOS__) || defined(__OS2__)
+-#	define DOSLIKE 1
+-#endif
+-
+ #undef memzero
+ #define memzero(s, n) memset(s, 0, n)
+ 
+diff --git a/src/common/tuklib_common.h b/src/common/tuklib_common.h
+new file mode 100644
+index 00000000..d2642f8b
+--- /dev/null
++++ b/src/common/tuklib_common.h
+@@ -0,0 +1,67 @@
++///////////////////////////////////////////////////////////////////////////////
++//
++/// \file       tuklib_common.h
++/// \brief      Common definitions for tuklib modules
++//
++//  Author:     Lasse Collin
++//
++//  This file has been put into the public domain.
++//  You can do whatever you want with this file.
++//
++///////////////////////////////////////////////////////////////////////////////
++
++#ifndef TUKLIB_COMMON_H
++#define TUKLIB_COMMON_H
++
++// The config file may be replaced by a package-specific file.
++// It should include at least stddef.h, inttypes.h, and limits.h.
++#include "tuklib_config.h"
++
++// TUKLIB_SYMBOL_PREFIX is prefixed to all symbols exported by
++// the tuklib modules. If you use a tuklib module in a library,
++// you should use TUKLIB_SYMBOL_PREFIX to make sure that there
++// are no symbol conflicts in case someone links your library
++// into application that also uses the same tuklib module.
++#ifndef TUKLIB_SYMBOL_PREFIX
++#	define TUKLIB_SYMBOL_PREFIX
++#endif
++
++#define TUKLIB_CAT_X(a, b) a ## b
++#define TUKLIB_CAT(a, b) TUKLIB_CAT_X(a, b)
++
++#ifndef TUKLIB_SYMBOL
++#	define TUKLIB_SYMBOL(sym) TUKLIB_CAT(TUKLIB_SYMBOL_PREFIX, sym)
++#endif
++
++#ifndef TUKLIB_DECLS_BEGIN
++#	ifdef __cplusplus
++#		define TUKLIB_DECLS_BEGIN extern "C" {
++#	else
++#		define TUKLIB_DECLS_BEGIN
++#	endif
++#endif
++
++#ifndef TUKLIB_DECLS_END
++#	ifdef __cplusplus
++#		define TUKLIB_DECLS_END }
++#	else
++#		define TUKLIB_DECLS_END
++#	endif
++#endif
++
++#define TUKLIB_GNUC_REQ(major, minor) \
++	(defined(__GNUC__) && defined(__GNUC_MINOR__) \
++		&& ((__GNUC__ == (major) && __GNUC_MINOR__ >= (minor)) \
++			|| __GNUC__ > (major)))
++
++#if TUKLIB_GNUC_REQ(2, 5)
++#	define tuklib_attr_noreturn __attribute__((__noreturn__))
++#else
++#	define tuklib_attr_noreturn
++#endif
++
++#if defined(_WIN32) || defined(__OS2__) || defined(__MSDOS__)
++#	define TUKLIB_DOSLIKE 1
++#endif
++
++#endif
+diff --git a/src/common/tuklib_config.h b/src/common/tuklib_config.h
+new file mode 100644
+index 00000000..3fe21451
+--- /dev/null
++++ b/src/common/tuklib_config.h
+@@ -0,0 +1 @@
++#include "sysdefs.h"
+diff --git a/src/common/cpucores.h b/src/common/tuklib_cpucores.c
+similarity index 62%
+rename from src/common/cpucores.h
+rename to src/common/tuklib_cpucores.c
+index 370c3cec..0a8081ff 100644
+--- a/src/common/cpucores.h
++++ b/src/common/tuklib_cpucores.c
+@@ -1,7 +1,7 @@
+ ///////////////////////////////////////////////////////////////////////////////
+ //
+-/// \file       cpucores.h
+-/// \brief      Get the number of online CPU cores
++/// \file       tuklib_cpucores.c
++/// \brief      Get the number of CPU cores online
+ //
+ //  Author:     Lasse Collin
+ //
+@@ -10,42 +10,37 @@
+ //
+ ///////////////////////////////////////////////////////////////////////////////
+ 
+-#ifndef CPUCORES_H
+-#define CPUCORES_H
++#include "tuklib_cpucores.h"
+ 
+-#if defined(HAVE_CPUCORES_SYSCONF)
+-#	include <unistd.h>
+-
+-#elif defined(HAVE_CPUCORES_SYSCTL)
++#if defined(TUKLIB_CPUCORES_SYSCTL)
+ #	ifdef HAVE_SYS_PARAM_H
+ #		include <sys/param.h>
+ #	endif
+-#	ifdef HAVE_SYS_SYSCTL_H
+-#		include <sys/sysctl.h>
+-#	endif
++#	include <sys/sysctl.h>
++
++#elif defined(TUKLIB_CPUCORES_SYSCONF)
++#	include <unistd.h>
+ #endif
+ 
+ 
+-static inline uint32_t
+-cpucores(void)
++extern uint32_t
++tuklib_cpucores(void)
+ {
+ 	uint32_t ret = 0;
+ 
+-#if defined(HAVE_CPUCORES_SYSCONF)
+-	const long cpus = sysconf(_SC_NPROCESSORS_ONLN);
+-	if (cpus > 0)
+-		ret = (uint32_t)(cpus);
+-
+-#elif defined(HAVE_CPUCORES_SYSCTL)
++#if defined(TUKLIB_CPUCORES_SYSCTL)
+ 	int name[2] = { CTL_HW, HW_NCPU };
+ 	int cpus;
+ 	size_t cpus_size = sizeof(cpus);
+ 	if (sysctl(name, 2, &cpus, &cpus_size, NULL, 0) != -1
+ 			&& cpus_size == sizeof(cpus) && cpus > 0)
+-		ret = (uint32_t)(cpus);
++		ret = (uint32_t)cpus;
++
++#elif defined(TUKLIB_CPUCORES_SYSCONF)
++	const long cpus = sysconf(_SC_NPROCESSORS_ONLN);
++	if (cpus > 0)
++		ret = (uint32_t)cpus;
+ #endif
+ 
+ 	return ret;
+ }
+-
+-#endif
+diff --git a/src/common/tuklib_cpucores.h b/src/common/tuklib_cpucores.h
+new file mode 100644
+index 00000000..be1ce1c1
+--- /dev/null
++++ b/src/common/tuklib_cpucores.h
+@@ -0,0 +1,23 @@
++///////////////////////////////////////////////////////////////////////////////
++//
++/// \file       tuklib_cpucores.h
++/// \brief      Get the number of CPU cores online
++//
++//  Author:     Lasse Collin
++//
++//  This file has been put into the public domain.
++//  You can do whatever you want with this file.
++//
++///////////////////////////////////////////////////////////////////////////////
++
++#ifndef TUKLIB_CPUCORES_H
++#define TUKLIB_CPUCORES_H
++
++#include "tuklib_common.h"
++TUKLIB_DECLS_BEGIN
++
++#define tuklib_cpucores TUKLIB_SYMBOL(tuklib_cpucores)
++extern uint32_t tuklib_cpucores(void);
++
++TUKLIB_DECLS_END
++#endif
+diff --git a/src/common/tuklib_exit.c b/src/common/tuklib_exit.c
+new file mode 100644
+index 00000000..c393be64
+--- /dev/null
++++ b/src/common/tuklib_exit.c
+@@ -0,0 +1,57 @@
++///////////////////////////////////////////////////////////////////////////////
++//
++/// \file       tuklib_exit.c
++/// \brief      Close stdout and stderr, and exit
++//
++//  Author:     Lasse Collin
++//
++//  This file has been put into the public domain.
++//  You can do whatever you want with this file.
++//
++///////////////////////////////////////////////////////////////////////////////
++
++#include "tuklib_common.h"
++
++#include <stdlib.h>
++#include <stdio.h>
++
++#include "tuklib_gettext.h"
++#include "tuklib_progname.h"
++#include "tuklib_exit.h"
++
++
++extern void
++tuklib_exit(int status, int err_status, int show_error)
++{
++	if (status != err_status) {
++		// Close stdout. If something goes wrong,
++		// print an error message to stderr.
++		const int ferror_err = ferror(stdout);
++		const int fclose_err = fclose(stdout);
++		if (ferror_err || fclose_err) {
++			status = err_status;
++
++			// If it was fclose() that failed, we have the reason
++			// in errno. If only ferror() indicated an error,
++			// we have no idea what the reason was.
++			if (show_error)
++				fprintf(stderr, "%s: %s: %s\n", progname,
++						_("Writing to standard "
++							"output failed"),
++						fclose_err ? strerror(errno)
++							: _("Unknown error"));
++		}
++	}
++
++	if (status != err_status) {
++		// Close stderr. If something goes wrong, there's
++		// nothing where we could print an error message.
++		// Just set the exit status.
++		const int ferror_err = ferror(stderr);
++		const int fclose_err = fclose(stderr);
++		if (fclose_err || ferror_err)
++			status = err_status;
++	}
++
++	exit(status);
++}
+diff --git a/src/common/tuklib_exit.h b/src/common/tuklib_exit.h
+new file mode 100644
+index 00000000..b11776f0
+--- /dev/null
++++ b/src/common/tuklib_exit.h
+@@ -0,0 +1,25 @@
++///////////////////////////////////////////////////////////////////////////////
++//
++/// \file       tuklib_exit.h
++/// \brief      Close stdout and stderr, and exit
++/// \note       Requires tuklib_progname and tuklib_gettext modules
++//
++//  Author:     Lasse Collin
++//
++//  This file has been put into the public domain.
++//  You can do whatever you want with this file.
++//
++///////////////////////////////////////////////////////////////////////////////
++
++#ifndef TUKLIB_EXIT_H
++#define TUKLIB_EXIT_H
++
++#include "tuklib_common.h"
++TUKLIB_DECLS_BEGIN
++
++#define tuklib_exit TUKLIB_SYMBOL(tuklib_exit)
++extern void tuklib_exit(int status, int err_status, int show_error)
++		tuklib_attr_noreturn;
++
++TUKLIB_DECLS_END
++#endif
+diff --git a/src/common/tuklib_gettext.h b/src/common/tuklib_gettext.h
+new file mode 100644
+index 00000000..24852134
+--- /dev/null
++++ b/src/common/tuklib_gettext.h
+@@ -0,0 +1,44 @@
++///////////////////////////////////////////////////////////////////////////////
++//
++/// \file       tuklib_gettext.h
++/// \brief      Wrapper for gettext and friends
++//
++//  Author:     Lasse Collin
++//
++//  This file has been put into the public domain.
++//  You can do whatever you want with this file.
++//
++///////////////////////////////////////////////////////////////////////////////
++
++#ifndef TUKLIB_GETTEXT_H
++#define TUKLIB_GETTEXT_H
++
++#include "tuklib_common.h"
++#include <locale.h>
++
++#ifndef TUKLIB_GETTEXT
++#	ifdef ENABLE_NLS
++#		define TUKLIB_GETTEXT 1
++#	else
++#		define TUKLIB_GETTEXT 0
++#	endif
++#endif
++
++#if TUKLIB_GETTEXT
++#	include <libintl.h>
++#	define tuklib_gettext_init(package, localedir) \
++		do { \
++			setlocale(LC_ALL, ""); \
++			bindtextdomain(package, localedir); \
++			textdomain(package); \
++		} while (0)
++#	define _(msgid) gettext(msgid)
++#	define N_(msgid1, msgid2, n) ngettext(msgid1, msgid2, n)
++#else
++#	define tuklib_gettext_init(package, localedir) \
++		setlocale(LC_ALL, "")
++#	define _(msgid) (msgid)
++#	define N_(msgid1, msgid2, n) ((n) == 1 ? (msgid1) : (msgid2))
++#endif
++
++#endif
+diff --git a/src/common/open_stdxxx.h b/src/common/tuklib_open_stdxxx.c
+similarity index 80%
+rename from src/common/open_stdxxx.h
+rename to src/common/tuklib_open_stdxxx.c
+index 22300851..70c8e73d 100644
+--- a/src/common/open_stdxxx.h
++++ b/src/common/tuklib_open_stdxxx.c
+@@ -1,6 +1,6 @@
+ ///////////////////////////////////////////////////////////////////////////////
+ //
+-/// \file       open_stdxxx.h
++/// \file       tuklib_open_stdxxx.c
+ /// \brief      Make sure that file descriptors 0, 1, and 2 are open
+ //
+ //  Author:     Lasse Collin
+@@ -10,17 +10,20 @@
+ //
+ ///////////////////////////////////////////////////////////////////////////////
+ 
+-#ifndef OPEN_STDXXX_H
+-#define OPEN_STDXXX_H
++#include "tuklib_open_stdxxx.h"
+ 
+-#include <stdlib.h>
+-#include <fcntl.h>
+-#include <unistd.h>
++#ifndef TUKLIB_DOSLIKE
++#	include <stdlib.h>
++#	include <errno.h>
++#	include <fcntl.h>
++#	include <unistd.h>
++#endif
+ 
+ 
+-static void
+-open_stdxxx(int status)
++extern void
++tuklib_open_stdxxx(int err_status)
+ {
++#ifndef TUKLIB_DOSLIKE
+ 	for (int i = 0; i <= 2; ++i) {
+ 		// We use fcntl() to check if the file descriptor is open.
+ 		if (fcntl(i, F_GETFD) == -1 && errno == EBADF) {
+@@ -38,12 +41,11 @@ open_stdxxx(int status)
+ 				// may very well be non-existent. This
+ 				// error should be extremely rare.
+ 				(void)close(fd);
+-				exit(status);
++				exit(err_status);
+ 			}
+ 		}
+ 	}
++#endif
+ 
+ 	return;
+ }
+-
+-#endif
+diff --git a/src/common/tuklib_open_stdxxx.h b/src/common/tuklib_open_stdxxx.h
+new file mode 100644
+index 00000000..b9116160
+--- /dev/null
++++ b/src/common/tuklib_open_stdxxx.h
+@@ -0,0 +1,23 @@
++///////////////////////////////////////////////////////////////////////////////
++//
++/// \file       tuklib_open_stdxxx.h
++/// \brief      Make sure that file descriptors 0, 1, and 2 are open
++//
++//  Author:     Lasse Collin
++//
++//  This file has been put into the public domain.
++//  You can do whatever you want with this file.
++//
++///////////////////////////////////////////////////////////////////////////////
++
++#ifndef TUKLIB_OPEN_STDXXX_H
++#define TUKLIB_OPEN_STDXXX_H
++
++#include "tuklib_common.h"
++TUKLIB_DECLS_BEGIN
++
++#define tuklib_open_stdxx TUKLIB_SYMBOL(tuklib_open_stdxxx)
++extern void tuklib_open_stdxxx(int err_status);
++
++TUKLIB_DECLS_END
++#endif
+diff --git a/src/common/physmem.h b/src/common/tuklib_physmem.c
+similarity index 74%
+rename from src/common/physmem.h
+rename to src/common/tuklib_physmem.c
+index 6ca6eafe..b2d21283 100644
+--- a/src/common/physmem.h
++++ b/src/common/tuklib_physmem.c
+@@ -1,6 +1,6 @@
+ ///////////////////////////////////////////////////////////////////////////////
+ //
+-/// \file       physmem.h
++/// \file       tuklib_physmem.c
+ /// \brief      Get the amount of physical memory
+ //
+ //  Author:     Lasse Collin
+@@ -10,12 +10,11 @@
+ //
+ ///////////////////////////////////////////////////////////////////////////////
+ 
+-#ifndef PHYSMEM_H
+-#define PHYSMEM_H
++#include "tuklib_physmem.h"
+ 
+-// Test for Windows first, because we want to use Windows-specific code
+-// on Cygwin, which also has memory information available via sysconf(), but
+-// on Cygwin 1.5 and older it gives wrong results (from our point of view).
++// We want to use Windows-specific code on Cygwin, which also has memory
++// information available via sysconf(), but on Cygwin 1.5 and older it
++// gives wrong results (from our point of view).
+ #if defined(_WIN32) || defined(__CYGWIN__)
+ #	ifndef _WIN32_WINNT
+ #		define _WIN32_WINNT 0x0500
+@@ -29,28 +28,28 @@
+ #elif defined(__DJGPP__)
+ #	include <dpmi.h>
+ 
+-#elif defined(HAVE_PHYSMEM_SYSCONF)
++#elif defined(__VMS)
++#	include <lib$routines.h>
++#	include <syidef.h>
++#	include <ssdef.h>
++
++#elif defined(TUKLIB_PHYSMEM_SYSCONF)
+ #	include <unistd.h>
+ 
+-#elif defined(HAVE_PHYSMEM_SYSCTL)
++#elif defined(TUKLIB_PHYSMEM_SYSCTL)
+ #	ifdef HAVE_SYS_PARAM_H
+ #		include <sys/param.h>
+ #	endif
+-#	ifdef HAVE_SYS_SYSCTL_H
+-#		include <sys/sysctl.h>
+-#	endif
++#	include <sys/sysctl.h>
+ 
+-#elif defined(HAVE_PHYSMEM_SYSINFO)
++// This sysinfo() is Linux-specific.
++#elif defined(TUKLIB_PHYSMEM_SYSINFO)
+ #	include <sys/sysinfo.h>
+ #endif
+ 
+ 
+-/// \brief      Get the amount of physical memory in bytes
+-///
+-/// \return     Amount of physical memory in bytes. On error, zero is
+-///             returned.
+-static inline uint64_t
+-physmem(void)
++extern uint64_t
++tuklib_physmem(void)
+ {
+ 	uint64_t ret = 0;
+ 
+@@ -93,11 +92,16 @@ physmem(void)
+ 	__dpmi_free_mem_info meminfo;
+ 	if (__dpmi_get_free_memory_information(&meminfo) == 0
+ 			&& meminfo.total_number_of_physical_pages
+-				!= (unsigned long)(-1))
+-		ret = (uint64_t)(meminfo.total_number_of_physical_pages)
+-				* 4096;
++				!= (unsigned long)-1)
++		ret = (uint64_t)meminfo.total_number_of_physical_pages * 4096;
++
++#elif defined(__VMS)
++	int vms_mem;
++	int val = SYI$_MEMSIZE;
++	if (LIB$GETSYI(&val, &vms_mem, 0, 0, 0, 0) == SS$_NORMAL)
++		ret = (uint64_t)vms_mem * 8192;
+ 
+-#elif defined(HAVE_PHYSMEM_SYSCONF)
++#elif defined(TUKLIB_PHYSMEM_SYSCONF)
+ 	const long pagesize = sysconf(_SC_PAGESIZE);
+ 	const long pages = sysconf(_SC_PHYS_PAGES);
+ 	if (pagesize != -1 || pages != -1)
+@@ -106,9 +110,9 @@ physmem(void)
+ 		// which may report exactly 4 GiB of RAM, and "long"
+ 		// being 32-bit will overflow. Casting to uint64_t
+ 		// hopefully avoids overflows in the near future.
+-		ret = (uint64_t)(pagesize) * (uint64_t)(pages);
++		ret = (uint64_t)pagesize * (uint64_t)pages;
+ 
+-#elif defined(HAVE_PHYSMEM_SYSCTL)
++#elif defined(TUKLIB_PHYSMEM_SYSCTL)
+ 	int name[2] = {
+ 		CTL_HW,
+ #ifdef HW_PHYSMEM64
+@@ -132,13 +136,11 @@ physmem(void)
+ 			ret = mem.u32;
+ 	}
+ 
+-#elif defined(HAVE_PHYSMEM_SYSINFO)
++#elif defined(TUKLIB_PHYSMEM_SYSINFO)
+ 	struct sysinfo si;
+ 	if (sysinfo(&si) == 0)
+-		ret = (uint64_t)(si.totalram) * si.mem_unit;
++		ret = (uint64_t)si.totalram * si.mem_unit;
+ #endif
+ 
+ 	return ret;
+ }
+-
+-#endif
+diff --git a/src/common/tuklib_physmem.h b/src/common/tuklib_physmem.h
+new file mode 100644
+index 00000000..09e2a513
+--- /dev/null
++++ b/src/common/tuklib_physmem.h
+@@ -0,0 +1,28 @@
++///////////////////////////////////////////////////////////////////////////////
++//
++/// \file       tuklib_physmem.h
++/// \brief      Get the amount of physical memory
++//
++//  Author:     Lasse Collin
++//
++//  This file has been put into the public domain.
++//  You can do whatever you want with this file.
++//
++///////////////////////////////////////////////////////////////////////////////
++
++#ifndef TUKLIB_PHYSMEM_H
++#define TUKLIB_PHYSMEM_H
++
++#include "tuklib_common.h"
++TUKLIB_DECLS_BEGIN
++
++#define tuklib_physmem TUKLIB_SYMBOL(tuklib_physmem)
++extern uint64_t tuklib_physmem(void);
++///<
++/// \brief      Get the amount of physical memory in bytes
++///
++/// \return     Amount of physical memory in bytes. On error, zero is
++///             returned.
++
++TUKLIB_DECLS_END
++#endif
+diff --git a/src/common/tuklib_progname.c b/src/common/tuklib_progname.c
+new file mode 100644
+index 00000000..12ac8ae1
+--- /dev/null
++++ b/src/common/tuklib_progname.c
+@@ -0,0 +1,50 @@
++///////////////////////////////////////////////////////////////////////////////
++//
++/// \file       tuklib_progname.c
++/// \brief      Program name to be displayd in messages
++//
++//  Author:     Lasse Collin
++//
++//  This file has been put into the public domain.
++//  You can do whatever you want with this file.
++//
++///////////////////////////////////////////////////////////////////////////////
++
++#include "tuklib_progname.h"
++#include <string.h>
++
++
++#if !HAVE_DECL_PROGRAM_INVOCATION_NAME
++char *progname = NULL;
++#endif
++
++
++extern void
++tuklib_progname_init(char **argv)
++{
++#ifdef TUKLIB_DOSLIKE
++	// On these systems, argv[0] always has the full path and .exe
++	// suffix even if the user just types the plain program name.
++	// We modify argv[0] to make it nicer to read.
++
++	// Strip the leading path.
++	char *p = argv[0] + strlen(argv[0]);
++	while (argv[0] < p && p[-1] != '/' && p[-1] != '\\')
++		--p;
++
++	argv[0] = p;
++
++	// Strip the .exe suffix.
++	p = strrchr(p, '.');
++	if (p != NULL)
++		*p = '\0';
++
++	// Make it lowercase.
++	for (p = argv[0]; *p != '\0'; ++p)
++		if (*p >= 'A' && *p <= 'Z')
++			*p = *p - 'A' + 'a';
++#endif
++
++	progname = argv[0];
++	return;
++}
+diff --git a/src/common/tuklib_progname.h b/src/common/tuklib_progname.h
+new file mode 100644
+index 00000000..579daa34
+--- /dev/null
++++ b/src/common/tuklib_progname.h
+@@ -0,0 +1,32 @@
++///////////////////////////////////////////////////////////////////////////////
++//
++/// \file       tuklib_progname.h
++/// \brief      Program name to be displayd in messages
++//
++//  Author:     Lasse Collin
++//
++//  This file has been put into the public domain.
++//  You can do whatever you want with this file.
++//
++///////////////////////////////////////////////////////////////////////////////
++
++#ifndef TUKLIB_PROGNAME_H
++#define TUKLIB_PROGNAME_H
++
++#include "tuklib_common.h"
++#include <errno.h>
++
++TUKLIB_DECLS_BEGIN
++
++#if HAVE_DECL_PROGRAM_INVOCATION_NAME
++#	define progname program_invocation_name
++#else
++#	define progname TUKLIB_SYMBOL(tuklib_progname)
++	extern char *progname;
++#endif
++
++#define tuklib_progname_init TUKLIB_SYMBOL(tuklib_progname_init)
++extern void tuklib_progname_init(char **argv);
++
++TUKLIB_DECLS_END
++#endif
+diff --git a/src/lzmainfo/Makefile.am b/src/lzmainfo/Makefile.am
+index 22295eea..cbc7e5c7 100644
+--- a/src/lzmainfo/Makefile.am
++++ b/src/lzmainfo/Makefile.am
+@@ -7,7 +7,10 @@
+ 
+ bin_PROGRAMS = lzmainfo
+ 
+-lzmainfo_SOURCES = lzmainfo.c
++lzmainfo_SOURCES = \
++	lzmainfo.c \
++	$(top_srcdir)/src/common/tuklib_progname.c \
++	$(top_srcdir)/src/common/tuklib_exit.c
+ 
+ lzmainfo_CPPFLAGS = \
+ 	-DLOCALEDIR=\"$(localedir)\" \
+diff --git a/src/lzmainfo/lzmainfo.c b/src/lzmainfo/lzmainfo.c
+index d9ae311a..006a6b0f 100644
+--- a/src/lzmainfo/lzmainfo.c
++++ b/src/lzmainfo/lzmainfo.c
+@@ -23,39 +23,9 @@
+ 
+ #include "lzma.h"
+ #include "getopt.h"
+-
+-
+-/// Name of the program from argv[0]
+-static const char *argv0;
+-
+-
+-/// Close stdout unless we are already going to exit with EXIT_FAILURE.
+-/// If closing stdout fails, set exit status to EXIT_FAILURE and print
+-/// an error message to stderr. We don't care about closing stderr,
+-/// because we don't print anything to stderr unless we are going to
+-/// use EXIT_FAILURE anyway.
+-static void lzma_attribute((noreturn))
+-my_exit(int status)
+-{
+-	if (status != EXIT_FAILURE) {
+-		const int ferror_err = ferror(stdout);
+-		const int fclose_err = fclose(stdout);
+-
+-		if (ferror_err || fclose_err) {
+-			// If it was fclose() that failed, we have the reason
+-			// in errno. If only ferror() indicated an error,
+-			// we have no idea what the reason was.
+-			fprintf(stderr, "%s: %s: %s\n", argv0,
+-					_("Writing to standard output "
+-						"failed"),
+-					fclose_err ? strerror(errno)
+-						: _("Unknown error"));
+-			status = EXIT_FAILURE;
+-		}
+-	}
+-
+-	exit(status);
+-}
++#include "tuklib_gettext.h"
++#include "tuklib_progname.h"
++#include "tuklib_exit.h"
+ 
+ 
+ static void lzma_attribute((noreturn))
+@@ -63,7 +33,7 @@ help(void)
+ {
+ 	printf(
+ _("Usage: %s [--help] [--version] [FILE]...\n"
+-"Show information stored in the .lzma file header"), argv0);
++"Show information stored in the .lzma file header"), progname);
+ 
+ 	printf(_(
+ "\nWith no FILE, or when FILE is -, read standard input.\n"));
+@@ -73,7 +43,7 @@ _("Usage: %s [--help] [--version] [FILE]...\n"
+ 			PACKAGE_BUGREPORT);
+ 	printf(_("%s home page: <%s>\n"), PACKAGE_NAME, PACKAGE_HOMEPAGE);
+ 
+-	my_exit(EXIT_SUCCESS);
++	tuklib_exit(EXIT_SUCCESS, EXIT_FAILURE, true);
+ }
+ 
+ 
+@@ -81,7 +51,7 @@ static void lzma_attribute((noreturn))
+ version(void)
+ {
+ 	puts("lzmainfo (" PACKAGE_NAME ") " PACKAGE_VERSION);
+-	my_exit(EXIT_SUCCESS);
++	tuklib_exit(EXIT_SUCCESS, EXIT_FAILURE, true);
+ }
+ 
+ 
+@@ -135,7 +105,7 @@ lzmainfo(const char *name, FILE *f)
+ 	uint8_t buf[13];
+ 	const size_t size = fread(buf, 1, sizeof(buf), f);
+ 	if (size != 13) {
+-		fprintf(stderr, "%s: %s: %s\n", argv0, name,
++		fprintf(stderr, "%s: %s: %s\n", progname, name,
+ 				ferror(f) ? strerror(errno)
+ 				: _("File is too small to be a .lzma file"));
+ 		return true;
+@@ -149,16 +119,17 @@ lzmainfo(const char *name, FILE *f)
+ 		break;
+ 
+ 	case LZMA_OPTIONS_ERROR:
+-		fprintf(stderr, "%s: %s: %s\n", argv0, name,
++		fprintf(stderr, "%s: %s: %s\n", progname, name,
+ 				_("Not a .lzma file"));
+ 		return true;
+ 
+ 	case LZMA_MEM_ERROR:
+-		fprintf(stderr, "%s: %s\n", argv0, strerror(ENOMEM));
++		fprintf(stderr, "%s: %s\n", progname, strerror(ENOMEM));
+ 		exit(EXIT_FAILURE);
+ 
+ 	default:
+-		fprintf(stderr, "%s: %s\n", argv0, _("Internal error (bug)"));
++		fprintf(stderr, "%s: %s\n", progname,
++				_("Internal error (bug)"));
+ 		exit(EXIT_FAILURE);
+ 	}
+ 
+@@ -202,16 +173,19 @@ lzmainfo(const char *name, FILE *f)
+ extern int
+ main(int argc, char **argv)
+ {
+-	int ret = EXIT_SUCCESS;
+-	argv0 = argv[0];
++	tuklib_progname_init(argv);
++	tuklib_gettext_init(PACKAGE, LOCALEDIR);
+ 
+ 	parse_args(argc, argv);
+ 
++	int ret = EXIT_SUCCESS;
++
+ 	// We print empty lines around the output only when reading from
+ 	// files specified on the command line. This is due to how
+ 	// LZMA Utils did it.
+ 	if (optind == argc) {
+-		lzmainfo("(stdin)", stdin);
++		if (lzmainfo("(stdin)", stdin))
++			ret = EXIT_FAILURE;
+ 	} else {
+ 		printf("\n");
+ 
+@@ -224,7 +198,8 @@ main(int argc, char **argv)
+ 				if (f == NULL) {
+ 					ret = EXIT_FAILURE;
+ 					fprintf(stderr, "%s: %s: %s\n",
+-							argv0, argv[optind],
++							progname,
++							argv[optind],
+ 							strerror(errno));
+ 					continue;
+ 				}
+@@ -238,5 +213,5 @@ main(int argc, char **argv)
+ 		} while (++optind < argc);
+ 	}
+ 
+-	my_exit(ret);
++	tuklib_exit(ret, EXIT_FAILURE, true);
+ }
+diff --git a/src/xz/Makefile.am b/src/xz/Makefile.am
+index 9f4b4668..cc617053 100644
+--- a/src/xz/Makefile.am
++++ b/src/xz/Makefile.am
+@@ -28,7 +28,12 @@ xz_SOURCES = \
+ 	suffix.c \
+ 	suffix.h \
+ 	util.c \
+-	util.h
++	util.h \
++	$(top_srcdir)/src/common/tuklib_open_stdxxx.c \
++	$(top_srcdir)/src/common/tuklib_progname.c \
++	$(top_srcdir)/src/common/tuklib_exit.c \
++	$(top_srcdir)/src/common/tuklib_physmem.c \
++	$(top_srcdir)/src/common/tuklib_cpucores.c
+ 
+ if COND_W32
+ xz_SOURCES += xz_w32res.rc
+diff --git a/src/xz/args.c b/src/xz/args.c
+index b50e28b7..b35a5b63 100644
+--- a/src/xz/args.c
++++ b/src/xz/args.c
+@@ -351,7 +351,7 @@ parse_real(args_info *args, int argc, char **argv)
+ 
+ 		default:
+ 			message_try_help();
+-			my_exit(E_ERROR);
++			tuklib_exit(E_ERROR, E_ERROR, false);
+ 		}
+ 	}
+ 
+@@ -449,18 +449,12 @@ args_parse(args_info *args, int argc, char **argv)
+ 
+ 	// Check how we were called.
+ 	{
+-#ifdef DOSLIKE
+-		// We adjusted argv[0] in the beginning of main() so we don't
+-		// need to do anything here.
+-		const char *name = argv[0];
+-#else
+ 		// Remove the leading path name, if any.
+ 		const char *name = strrchr(argv[0], '/');
+ 		if (name == NULL)
+ 			name = argv[0];
+ 		else
+ 			++name;
+-#endif
+ 
+ 		// NOTE: It's possible that name[0] is now '\0' if argv[0]
+ 		// is weird, but it doesn't matter here.
+diff --git a/src/xz/file_io.c b/src/xz/file_io.c
+index 4c52da56..a7863d27 100644
+--- a/src/xz/file_io.c
++++ b/src/xz/file_io.c
+@@ -14,8 +14,10 @@
+ 
+ #include <fcntl.h>
+ 
+-#ifdef DOSLIKE
++#ifdef TUKLIB_DOSLIKE
+ #	include <io.h>
++#else
++static bool warn_fchown;
+ #endif
+ 
+ #if defined(HAVE_FUTIMES) || defined(HAVE_FUTIMESAT) || defined(HAVE_UTIMES)
+@@ -24,6 +26,8 @@
+ #	include <utime.h>
+ #endif
+ 
++#include "tuklib_open_stdxxx.h"
++
+ #ifndef O_BINARY
+ #	define O_BINARY 0
+ #endif
+@@ -32,22 +36,17 @@
+ #	define O_NOCTTY 0
+ #endif
+ 
+-#ifndef DOSLIKE
+-#	include "open_stdxxx.h"
+-static bool warn_fchown;
+-#endif
+-
+ 
+ extern void
+ io_init(void)
+ {
+-#ifndef DOSLIKE
+ 	// Make sure that stdin, stdout, and and stderr are connected to
+ 	// a valid file descriptor. Exit immediatelly with exit code ERROR
+ 	// if we cannot make the file descriptors valid. Maybe we should
+ 	// print an error message, but our stderr could be screwed anyway.
+-	open_stdxxx(E_ERROR);
++	tuklib_open_stdxxx(E_ERROR);
+ 
++#ifndef TUKLIB_DOSLIKE
+ 	// If fchown() fails setting the owner, we warn about it only if
+ 	// we are root.
+ 	warn_fchown = geteuid() == 0;
+@@ -64,7 +63,7 @@ io_init(void)
+ }
+ 
+ 
+-/// \brief      Unlinks a file
++/// \brief      Unlink a file
+ ///
+ /// This tries to verify that the file being unlinked really is the file that
+ /// we want to unlink by verifying device and inode numbers. There's still
+@@ -73,9 +72,9 @@ io_init(void)
+ static void
+ io_unlink(const char *name, const struct stat *known_st)
+ {
+-#ifdef DOSLIKE
+-	// On Windows, st_ino is meaningless, so don't bother testing it.
+-	// Just silence a compiler warning.
++#if defined(TUKLIB_DOSLIKE) || defined(__VMS)
++	// On DOS-like systems, st_ino is meaningless, so don't bother
++	// testing it. Just silence a compiler warning.
+ 	(void)known_st;
+ #else
+ 	struct stat new_st;
+@@ -105,7 +104,7 @@ static void
+ io_copy_attrs(const file_pair *pair)
+ {
+ 	// Skip chown and chmod on Windows.
+-#ifndef DOSLIKE
++#ifndef TUKLIB_DOSLIKE
+ 	// This function is more tricky than you may think at first.
+ 	// Blindly copying permissions may permit users to access the
+ 	// destination file who didn't have permission to access the
+@@ -240,7 +239,7 @@ io_open_src(file_pair *pair)
+ 	// There's nothing to open when reading from stdin.
+ 	if (pair->src_name == stdin_filename) {
+ 		pair->src_fd = STDIN_FILENO;
+-#ifdef DOSLIKE
++#ifdef TUKLIB_DOSLIKE
+ 		setmode(STDIN_FILENO, O_BINARY);
+ #endif
+ 		return false;
+@@ -253,7 +252,7 @@ io_open_src(file_pair *pair)
+ 	// Flags for open()
+ 	int flags = O_RDONLY | O_BINARY | O_NOCTTY;
+ 
+-#ifndef DOSLIKE
++#ifndef TUKLIB_DOSLIKE
+ 	// If we accept only regular files, we need to be careful to avoid
+ 	// problems with special files like devices and FIFOs. O_NONBLOCK
+ 	// prevents blocking when opening such files. When we want to accept
+@@ -266,7 +265,7 @@ io_open_src(file_pair *pair)
+ #if defined(O_NOFOLLOW)
+ 	if (reg_files_only)
+ 		flags |= O_NOFOLLOW;
+-#elif !defined(DOSLIKE)
++#elif !defined(TUKLIB_DOSLIKE)
+ 	// Some POSIX-like systems lack O_NOFOLLOW (it's not required
+ 	// by POSIX). Check for symlinks with a separate lstat() on
+ 	// these systems.
+@@ -370,7 +369,7 @@ io_open_src(file_pair *pair)
+ 		return true;
+ 	}
+ 
+-#ifndef DOSLIKE
++#ifndef TUKLIB_DOSLIKE
+ 	// Drop O_NONBLOCK, which is used only when we are accepting only
+ 	// regular files. After the open() call, we want things to block
+ 	// instead of giving EAGAIN.
+@@ -405,7 +404,7 @@ io_open_src(file_pair *pair)
+ 		}
+ 
+ 		// These are meaningless on Windows.
+-#ifndef DOSLIKE
++#ifndef TUKLIB_DOSLIKE
+ 		if (pair->src_st.st_mode & (S_ISUID | S_ISGID)) {
+ 			// gzip rejects setuid and setgid files even
+ 			// when --force was used. bzip2 doesn't check
+@@ -457,7 +456,7 @@ static void
+ io_close_src(file_pair *pair, bool success)
+ {
+ 	if (pair->src_fd != STDIN_FILENO && pair->src_fd != -1) {
+-#ifdef DOSLIKE
++#ifdef TUKLIB_DOSLIKE
+ 		(void)close(pair->src_fd);
+ #endif
+ 
+@@ -471,7 +470,7 @@ io_close_src(file_pair *pair, bool success)
+ 		if (success && !opt_keep_original)
+ 			io_unlink(pair->src_name, &pair->src_st);
+ 
+-#ifndef DOSLIKE
++#ifndef TUKLIB_DOSLIKE
+ 		(void)close(pair->src_fd);
+ #endif
+ 	}
+@@ -487,7 +486,7 @@ io_open_dest(file_pair *pair)
+ 		// We don't modify or free() this.
+ 		pair->dest_name = (char *)"(stdout)";
+ 		pair->dest_fd = STDOUT_FILENO;
+-#ifdef DOSLIKE
++#ifdef TUKLIB_DOSLIKE
+ 		setmode(STDOUT_FILENO, O_BINARY);
+ #endif
+ 		return false;
+@@ -531,7 +530,9 @@ io_open_dest(file_pair *pair)
+ 	// If this really fails... well, we have a safe fallback.
+ 	if (fstat(pair->dest_fd, &pair->dest_st)) {
+ 		pair->dest_st.st_dev = 0;
++#ifndef __VMS
+ 		pair->dest_st.st_ino = 0;
++#endif
+ 	}
+ 
+ 	return false;
+diff --git a/src/xz/hardware.c b/src/xz/hardware.c
+index 72dc2cb1..cb094abd 100644
+--- a/src/xz/hardware.c
++++ b/src/xz/hardware.c
+@@ -11,8 +11,8 @@
+ ///////////////////////////////////////////////////////////////////////////////
+ 
+ #include "private.h"
+-#include "physmem.h"
+-#include "cpucores.h"
++#include "tuklib_physmem.h"
++#include "tuklib_cpucores.h"
+ 
+ 
+ /// Maximum number of free *coder* threads. This can be set with
+@@ -28,7 +28,7 @@ hardware_threadlimit_set(uint32_t new_threadlimit)
+ {
+ 	if (new_threadlimit == 0) {
+ 		// The default is the number of available CPU cores.
+-		threadlimit = cpucores();
++		threadlimit = tuklib_cpucores();
+ 		if (threadlimit == 0)
+ 			threadlimit = 1;
+ 	} else {
+@@ -66,7 +66,7 @@ hardware_memlimit_set_percentage(uint32_t percentage)
+ 	assert(percentage > 0);
+ 	assert(percentage <= 100);
+ 
+-	uint64_t mem = physmem();
++	uint64_t mem = tuklib_physmem();
+ 
+ 	// If we cannot determine the amount of RAM, assume 32 MiB. Maybe
+ 	// even that is too much on some systems. But on most systems it's
+diff --git a/src/xz/main.c b/src/xz/main.c
+index 4121f8d4..3295bba3 100644
+--- a/src/xz/main.c
++++ b/src/xz/main.c
+@@ -42,47 +42,6 @@ set_exit_no_warn(void)
+ }
+ 
+ 
+-extern void
+-my_exit(enum exit_status_type status)
+-{
+-	// Close stdout. If something goes wrong, print an error message
+-	// to stderr.
+-	{
+-		const int ferror_err = ferror(stdout);
+-		const int fclose_err = fclose(stdout);
+-		if (ferror_err || fclose_err) {
+-			// If it was fclose() that failed, we have the reason
+-			// in errno. If only ferror() indicated an error,
+-			// we have no idea what the reason was.
+-			message(V_ERROR, "%s: %s", _("Writing to standard "
+-						"output failed"),
+-					fclose_err ? strerror(errno)
+-						: _("Unknown error"));
+-			status = E_ERROR;
+-		}
+-	}
+-
+-	// Close stderr. If something goes wrong, there's nothing where we
+-	// could print an error message. Just set the exit status.
+-	{
+-		const int ferror_err = ferror(stderr);
+-		const int fclose_err = fclose(stderr);
+-		if (fclose_err || ferror_err)
+-			status = E_ERROR;
+-	}
+-
+-	// Suppress the exit status indicating a warning if --no-warn
+-	// was specified.
+-	if (status == E_WARNING && no_warn)
+-		status = E_SUCCESS;
+-
+-	// If we have got a signal, raise it to kill the program.
+-	// Otherwise we just call exit().
+-	signals_exit();
+-	exit(status);
+-}
+-
+-
+ static const char *
+ read_name(const args_info *args)
+ {
+@@ -170,45 +129,18 @@ read_name(const args_info *args)
+ int
+ main(int argc, char **argv)
+ {
+-	// Initialize the file I/O as the very first step. This makes sure
+-	// that stdin, stdout, and stderr are something valid.
+-	io_init();
++	// Set up the progname variable.
++	tuklib_progname_init(argv);
+ 
+-#ifdef DOSLIKE
+-	// Adjust argv[0] to make it look nicer in messages, and also to
+-	// help the code in args.c.
+-	{
+-		// Strip the leading path.
+-		char *p = argv[0] + strlen(argv[0]);
+-		while (argv[0] < p && p[-1] != '/' && p[-1] != '\\')
+-			--p;
+-
+-		argv[0] = p;
+-
+-		// Strip the .exe suffix.
+-		p = strrchr(p, '.');
+-		if (p != NULL)
+-			*p = '\0';
+-
+-		// Make it lowercase.
+-		for (p = argv[0]; *p != '\0'; ++p)
+-			if (*p >= 'A' && *p <= 'Z')
+-				*p = *p - 'A' + 'a';
+-	}
+-#endif
+-
+-	// Set up the locale.
+-	setlocale(LC_ALL, "");
++	// Initialize the file I/O. This makes sure that
++	// stdin, stdout, and stderr are something valid.
++	io_init();
+ 
+-#ifdef ENABLE_NLS
+-	// Set up the message translations too.
+-	bindtextdomain(PACKAGE, LOCALEDIR);
+-	textdomain(PACKAGE);
+-#endif
++	// Set up the locale and message translations.
++	tuklib_gettext_init(PACKAGE, LOCALEDIR);
+ 
+-	// Set the program invocation name used in various messages, and
+-	// do other message handling related initializations.
+-	message_init(argv[0]);
++	// Initialize handling of error/warning/other messages.
++	message_init();
+ 
+ 	// Set hardware-dependent default values. These can be overriden
+ 	// on the command line, thus this must be done before parse_args().
+@@ -235,7 +167,7 @@ main(int argc, char **argv)
+ 				&& strcmp(args.arg_names[0], "-") == 0)) {
+ 			if (is_tty_stdout()) {
+ 				message_try_help();
+-				my_exit(E_ERROR);
++				tuklib_exit(E_ERROR, E_ERROR, false);
+ 			}
+ 		}
+ 	}
+@@ -308,5 +240,15 @@ main(int argc, char **argv)
+ 			(void)fclose(args.files_file);
+ 	}
+ 
+-	my_exit(exit_status);
++	// If we have got a signal, raise it to kill the program instead
++	// of calling tuklib_exit().
++	signals_exit();
++
++	// Suppress the exit status indicating a warning if --no-warn
++	// was specified.
++	if (exit_status == E_WARNING && no_warn)
++		exit_status = E_SUCCESS;
++
++	tuklib_exit(exit_status, E_ERROR,
++			message_verbosity_get() != V_SILENT);
+ }
+diff --git a/src/xz/main.h b/src/xz/main.h
+index 8fd92393..5622cebb 100644
+--- a/src/xz/main.h
++++ b/src/xz/main.h
+@@ -28,10 +28,3 @@ extern void set_exit_status(enum exit_status_type new_status);
+ /// but nothing worth an error has occurred. This is called when --no-warn
+ /// is specified.
+ extern void set_exit_no_warn(void);
+-
+-
+-/// Exits the program using the given status. This takes care of closing
+-/// stdin, stdout, and stderr and catches possible errors. If we had got
+-/// a signal, this function will raise it so that to the parent process it
+-/// appears that we were killed by the signal sent by the user.
+-extern void my_exit(enum exit_status_type status) lzma_attribute((noreturn));
+diff --git a/src/xz/message.c b/src/xz/message.c
+index 0a01bc45..991fa7d4 100644
+--- a/src/xz/message.c
++++ b/src/xz/message.c
+@@ -19,9 +19,6 @@
+ #include <stdarg.h>
+ 
+ 
+-/// Name of the program which is prefixed to the error messages.
+-static const char *argv0;
+-
+ /// Number of the current file
+ static unsigned int files_pos = 0;
+ 
+@@ -138,11 +135,8 @@ my_snprintf(char **pos, size_t *left, const char *fmt, ...)
+ 
+ 
+ extern void
+-message_init(const char *given_argv0)
++message_init(void)
+ {
+-	// Name of the program
+-	argv0 = given_argv0;
+-
+ 	// If --verbose is used, we use a progress indicator if and only
+ 	// if stderr is a terminal. If stderr is not a terminal, we print
+ 	// verbose information only after finishing the file. As a special
+@@ -226,6 +220,13 @@ message_verbosity_decrease(void)
+ }
+ 
+ 
++extern enum message_verbosity
++message_verbosity_get(void)
++{
++	return verbosity;
++}
++
++
+ extern void
+ message_set_files(unsigned int files)
+ {
+@@ -774,7 +775,7 @@ vmessage(enum message_verbosity v, const char *fmt, va_list ap)
+ 
+ 		progress_flush(false);
+ 
+-		fprintf(stderr, "%s: ", argv0);
++		fprintf(stderr, "%s: ", progname);
+ 		vfprintf(stderr, fmt, ap);
+ 		fputc('\n', stderr);
+ 
+@@ -830,7 +831,7 @@ message_fatal(const char *fmt, ...)
+ 	vmessage(V_ERROR, fmt, ap);
+ 	va_end(ap);
+ 
+-	my_exit(E_ERROR);
++	tuklib_exit(E_ERROR, E_ERROR, false);
+ }
+ 
+ 
+@@ -894,7 +895,7 @@ message_filters(enum message_verbosity v, const lzma_filter *filters)
+ 	if (v > verbosity)
+ 		return;
+ 
+-	fprintf(stderr, _("%s: Filter chain:"), argv0);
++	fprintf(stderr, _("%s: Filter chain:"), progname);
+ 
+ 	for (size_t i = 0; filters[i].id != LZMA_VLI_UNKNOWN; ++i) {
+ 		fprintf(stderr, " --");
+@@ -1005,7 +1006,8 @@ message_try_help(void)
+ {
+ 	// Print this with V_WARNING instead of V_ERROR to prevent it from
+ 	// showing up when --quiet has been specified.
+-	message(V_WARNING, _("Try `%s --help' for more information."), argv0);
++	message(V_WARNING, _("Try `%s --help' for more information."),
++			progname);
+ 	return;
+ }
+ 
+@@ -1017,7 +1019,7 @@ message_version(void)
+ 	// line tool version, so print both.
+ 	printf("xz (" PACKAGE_NAME ") " LZMA_VERSION_STRING "\n");
+ 	printf("liblzma %s\n", lzma_version_string());
+-	my_exit(E_SUCCESS);
++	tuklib_exit(E_SUCCESS, E_ERROR, verbosity != V_SILENT);
+ }
+ 
+ 
+@@ -1026,7 +1028,7 @@ message_help(bool long_help)
+ {
+ 	printf(_("Usage: %s [OPTION]... [FILE]...\n"
+ 			"Compress or decompress FILEs in the .xz format.\n\n"),
+-			argv0);
++			progname);
+ 
+ 	puts(_("Mandatory arguments to long options are mandatory for "
+ 			"short options too.\n"));
+@@ -1168,5 +1170,5 @@ message_help(bool long_help)
+ 			PACKAGE_BUGREPORT);
+ 	printf(_("%s home page: <%s>\n"), PACKAGE_NAME, PACKAGE_HOMEPAGE);
+ 
+-	my_exit(E_SUCCESS);
++	tuklib_exit(E_SUCCESS, E_ERROR, verbosity != V_SILENT);
+ }
+diff --git a/src/xz/message.h b/src/xz/message.h
+index 16e38b75..2b1ab919 100644
+--- a/src/xz/message.h
++++ b/src/xz/message.h
+@@ -22,12 +22,9 @@ enum message_verbosity {
+ 
+ /// \brief      Initializes the message functions
+ ///
+-/// \param      argv0       Name of the program i.e. argv[0] from main()
+-/// \param      verbosity   Verbosity level
+-///
+ /// If an error occurs, this function doesn't return.
+ ///
+-extern void message_init(const char *argv0);
++extern void message_init(void);
+ 
+ 
+ /// Increase verbosity level by one step unless it was at maximum.
+@@ -36,6 +33,9 @@ extern void message_verbosity_increase(void);
+ /// Decrease verbosity level by one step unless it was at minimum.
+ extern void message_verbosity_decrease(void);
+ 
++/// Get the current verbosity level.
++extern enum message_verbosity message_verbosity_get(void);
++
+ 
+ /// Set the total number of files to be processed (stdin is counted as a file
+ /// here). The default is one.
+diff --git a/src/xz/private.h b/src/xz/private.h
+index 6141b88c..8d9ce978 100644
+--- a/src/xz/private.h
++++ b/src/xz/private.h
+@@ -22,14 +22,9 @@
+ #include <stdio.h>
+ #include <unistd.h>
+ 
+-#ifdef ENABLE_NLS
+-#	include <libintl.h>
+-#	define _(msgid) gettext(msgid)
+-#	define N_(msgid1, msgid2, n) ngettext(msgid1, msgid2, n)
+-#else
+-#	define _(msgid) (msgid)
+-#	define N_(msgid1, msgid2, n) ((n) == 1 ? (msgid1) : (msgid2))
+-#endif
++#include "tuklib_gettext.h"
++#include "tuklib_progname.h"
++#include "tuklib_exit.h"
+ 
+ #ifndef STDIN_FILENO
+ #	define STDIN_FILENO (fileno(stdin))
+diff --git a/src/xz/signals.c b/src/xz/signals.c
+index c9acab26..ab60488f 100644
+--- a/src/xz/signals.c
++++ b/src/xz/signals.c
+@@ -95,6 +95,7 @@ signals_init(void)
+ }
+ 
+ 
++#ifndef __VMS
+ extern void
+ signals_block(void)
+ {
+@@ -121,6 +122,7 @@ signals_unblock(void)
+ 
+ 	return;
+ }
++#endif
+ 
+ 
+ extern void
+diff --git a/src/xz/signals.h b/src/xz/signals.h
+index 48945b22..7603d803 100644
+--- a/src/xz/signals.h
++++ b/src/xz/signals.h
+@@ -21,8 +21,10 @@ extern volatile sig_atomic_t user_abort;
+ extern void signals_init(void);
+ 
+ 
+-#ifndef _WIN32
+-
++#if defined(_WIN32) || defined(__VMS)
++#	define signals_block() do { } while (0)
++#	define signals_unblock() do { } while (0)
++#else
+ /// Block the signals which don't have SA_RESTART and which would just set
+ /// user_abort to true. This is handy when we don't want to handle EINTR
+ /// and don't want SA_RESTART either.
+@@ -30,15 +32,12 @@ extern void signals_block(void);
+ 
+ /// Unblock the signals blocked by signals_block().
+ extern void signals_unblock(void);
++#endif
+ 
++#ifdef _WIN32
++#	define signals_exit() do { } while (0)
++#else
+ /// If user has sent us a signal earlier to terminate the process,
+ /// re-raise that signal to actually terminate the process.
+ extern void signals_exit(void);
+-
+-#else
+-
+-#define signals_block() do { } while (0)
+-#define signals_unblock() do { } while (0)
+-#define signals_exit() do { } while (0)
+-
+ #endif
+diff --git a/src/xz/suffix.c b/src/xz/suffix.c
+index f9052832..f2a2da27 100644
+--- a/src/xz/suffix.c
++++ b/src/xz/suffix.c
+@@ -13,7 +13,7 @@
+ #include "private.h"
+ 
+ // For case-insensitive filename suffix on case-insensitive systems
+-#ifdef DOSLIKE
++#if defined(TUKLIB_DOSLIKE) || defined(__VMS)
+ #	define strcmp strcasecmp
+ #endif
+ 
+diff --git a/src/xzdec/Makefile.am b/src/xzdec/Makefile.am
+index aaa5b5f6..9a1b4342 100644
+--- a/src/xzdec/Makefile.am
++++ b/src/xzdec/Makefile.am
+@@ -14,13 +14,18 @@
+ 
+ bin_PROGRAMS = xzdec lzmadec
+ 
+-xzdec_SOURCES = xzdec.c
++xzdec_SOURCES = \
++	xzdec.c \
++	$(top_srcdir)/src/common/tuklib_progname.c \
++	$(top_srcdir)/src/common/tuklib_exit.c \
++	$(top_srcdir)/src/common/tuklib_physmem.c
+ 
+ if COND_W32
+ xzdec_SOURCES += xzdec_w32res.rc
+ endif
+ 
+ xzdec_CPPFLAGS = \
++	-DTUKLIB_GETTEXT=0 \
+ 	-I$(top_srcdir)/src/common \
+ 	-I$(top_srcdir)/src/liblzma/api \
+ 	-I$(top_builddir)/lib \
+@@ -35,7 +40,11 @@ endif
+ xzdec_LDADD += $(LTLIBINTL)
+ 
+ 
+-lzmadec_SOURCES = xzdec.c
++lzmadec_SOURCES = \
++	xzdec.c \
++	$(top_srcdir)/src/common/tuklib_progname.c \
++	$(top_srcdir)/src/common/tuklib_exit.c \
++	$(top_srcdir)/src/common/tuklib_physmem.c
+ 
+ if COND_W32
+ lzmadec_SOURCES += lzmadec_w32res.rc
+diff --git a/src/xzdec/xzdec.c b/src/xzdec/xzdec.c
+index bf26bd67..18bdb04e 100644
+--- a/src/xzdec/xzdec.c
++++ b/src/xzdec/xzdec.c
+@@ -18,14 +18,16 @@
+ #include <stdio.h>
+ #include <unistd.h>
+ 
+-#ifdef DOSLIKE
++#include "getopt.h"
++#include "tuklib_progname.h"
++#include "tuklib_exit.h"
++#include "tuklib_physmem.h"
++
++#ifdef TUKLIB_DOSLIKE
+ #	include <fcntl.h>
+ #	include <io.h>
+ #endif
+ 
+-#include "getopt.h"
+-#include "physmem.h"
+-
+ 
+ #ifdef LZMADEC
+ #	define TOOL_FORMAT "lzma"
+@@ -41,9 +43,6 @@ static uint64_t memlimit;
+ /// --quiet has been given at least twice.
+ static unsigned int display_errors = 2;
+ 
+-/// Program name to be shown in error messages
+-static const char *argv0;
+-
+ 
+ static void lzma_attribute((format(printf, 1, 2)))
+ my_errorf(const char *fmt, ...)
+@@ -52,7 +51,7 @@ my_errorf(const char *fmt, ...)
+ 	va_start(ap, fmt);
+ 
+ 	if (display_errors) {
+-		fprintf(stderr, "%s: ", argv0);
++		fprintf(stderr, "%s: ", progname);
+ 		vfprintf(stderr, fmt, ap);
+ 		fprintf(stderr, "\n");
+ 	}
+@@ -62,29 +61,6 @@ my_errorf(const char *fmt, ...)
+ }
+ 
+ 
+-static void lzma_attribute((noreturn))
+-my_exit(void)
+-{
+-	int status = EXIT_SUCCESS;
+-
+-	// Close stdout. We don't care about stderr, because we write to it
+-	// only when an error has already occurred.
+-	const int ferror_err = ferror(stdout);
+-	const int fclose_err = fclose(stdout);
+-
+-	if (ferror_err || fclose_err) {
+-		// If it was fclose() that failed, we have the reason
+-		// in errno. If only ferror() indicated an error,
+-		// we have no idea what the reason was.
+-		my_errorf("Writing to standard output failed: %s", fclose_err
+-				? strerror(errno) : "Unknown error");
+-		status = EXIT_FAILURE;
+-	}
+-
+-	exit(status);
+-}
+-
+-
+ static void lzma_attribute((noreturn))
+ help(void)
+ {
+@@ -108,8 +84,8 @@ help(void)
+ "\n"
+ "Report bugs to <" PACKAGE_BUGREPORT "> (in English or Finnish).\n"
+ PACKAGE_NAME " home page: <" PACKAGE_HOMEPAGE ">\n",
+-		argv0, memlimit / (1024 * 1024));
+-	my_exit();
++		progname, memlimit / (1024 * 1024));
++	tuklib_exit(EXIT_SUCCESS, EXIT_FAILURE, display_errors);
+ }
+ 
+ 
+@@ -119,7 +95,7 @@ version(void)
+ 	printf(TOOL_FORMAT "dec (" PACKAGE_NAME ") " LZMA_VERSION_STRING "\n"
+ 			"liblzma %s\n", lzma_version_string());
+ 
+-	my_exit();
++	tuklib_exit(EXIT_SUCCESS, EXIT_FAILURE, display_errors);
+ }
+ 
+ 
+@@ -128,7 +104,7 @@ version(void)
+ static void
+ memlimit_set_percentage(uint32_t percentage)
+ {
+-	uint64_t mem = physmem();
++	uint64_t mem = tuklib_physmem();
+ 
+ 	// If we cannot determine the amount of RAM, assume 32 MiB.
+ 	if (mem == 0)
+@@ -441,9 +417,8 @@ uncompress(lzma_stream *strm, FILE *file, const char *filename)
+ int
+ main(int argc, char **argv)
+ {
+-	// Set the argv0 global so that we can print the command name in
+-	// error and help messages.
+-	argv0 = argv[0];
++	// Initialize progname which we will be used in error messages.
++	tuklib_progname_init(argv);
+ 
+ 	// Set the default memory usage limit. This is needed before parsing
+ 	// the command line arguments.
+@@ -458,7 +433,7 @@ main(int argc, char **argv)
+ 	lzma_stream strm = LZMA_STREAM_INIT;
+ 
+ 	// Some systems require setting stdin and stdout to binary mode.
+-#ifdef DOSLIKE
++#ifdef TUKLIB_DOSLIKE
+ 	setmode(fileno(stdin), O_BINARY);
+ 	setmode(fileno(stdout), O_BINARY);
+ #endif
+@@ -492,5 +467,5 @@ main(int argc, char **argv)
+ 	lzma_end(&strm);
+ #endif
+ 
+-	my_exit();
++	tuklib_exit(EXIT_SUCCESS, EXIT_FAILURE, display_errors);
+ }

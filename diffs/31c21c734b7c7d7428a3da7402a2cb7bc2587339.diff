@@ -1,0 +1,19 @@
+diff --git a/src/liblzma/lz/lz_encoder_mf.c b/src/liblzma/lz/lz_encoder_mf.c
+index f20316f0..1fdc2d79 100644
+--- a/src/liblzma/lz/lz_encoder_mf.c
++++ b/src/liblzma/lz/lz_encoder_mf.c
+@@ -220,10 +220,11 @@ move_pending(lzma_mf *mf)
+ /// of matches found.
+ #define call_find(func, len_best) \
+ do { \
+-	matches_count = func(len_limit, pos, cur, cur_match, mf->depth, \
+-				mf->son, mf->cyclic_pos, mf->cyclic_size, \
++	matches_count = (uint32_t)(func(len_limit, pos, cur, cur_match, \
++				mf->depth, mf->son, \
++				mf->cyclic_pos, mf->cyclic_size, \
+ 				matches + matches_count, len_best) \
+-			- matches; \
++			- matches); \
+ 	move_pos(mf); \
+ 	return matches_count; \
+ } while (0)

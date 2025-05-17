@@ -1,0 +1,314 @@
+diff --git a/src/liblzma/api/lzma/stream_flags.h b/src/liblzma/api/lzma/stream_flags.h
+index 80c5f00f..bb080ac7 100644
+--- a/src/liblzma/api/lzma/stream_flags.h
++++ b/src/liblzma/api/lzma/stream_flags.h
+@@ -35,9 +35,38 @@
+  * Options for encoding and decoding Stream Header and Stream Footer
+  */
+ typedef struct {
++	/**
++	 * \brief       Stream Flags format version
++	 *
++	 * To prevent API and ABI breakages if new features are needed in
++	 * Stream Header or Stream Footer, a version number is used to
++	 * indicate which fields in this structure are in use. For now,
++	 * version must always be zero. With non-zero version, the
++	 * lzma_stream_header_encode() and lzma_stream_footer_encode()
++	 * will return LZMA_HEADER_ERROR.
++	 *
++	 * lzma_stream_header_decode() and lzma_stream_footer_decode()
++	 * will always set this to the lowest value that supports all the
++	 * features indicated by the Stream Flags field. The application
++	 * must check that the version number set by the decoding functions
++	 * is supported by the application. Otherwise it is possible that
++	 * the application will decode the Stream incorrectly.
++	 */
++	uint32_t version;
++
+ 	/**
+ 	 * Backward Size must be a multiple of four bytes. In this Stream
+ 	 * format version Backward Size is the size of the Index field.
++	 *
++	 * Backward Size isn't actually part of the Stream Flags field, but
++	 * it is convenient to include in this structure anyway. Backward
++	 * Size is present only in the Stream Footer. There is no need to
++	 * initialize backward_size when encoding Stream Header.
++	 *
++	 * lzma_stream_header_decode() always sets backward_size to
++	 * LZMA_VLI_VALUE_UNKNOWN so that it is convenient to use
++	 * lzma_stream_flags_compare() when both Stream Header and Stream
++	 * Footer have been decoded.
+ 	 */
+ 	lzma_vli backward_size;
+ #	define LZMA_BACKWARD_SIZE_MIN 4
+@@ -48,6 +77,34 @@ typedef struct {
+ 	 */
+ 	lzma_check check;
+ 
++	/**
++	 * Reserved space to allow possible future extensions without
++	 * breaking the ABI. You should not touch these, because the
++	 * names of these variables may change.
++	 *
++	 * (We will never be able to use all of these since Stream Flags
++	 * is just two bytes plus Backward Size of four bytes. But it's
++	 * nice to have the proper types when they are needed.)
++	 */
++	lzma_reserved_enum reserved_enum1;
++	lzma_reserved_enum reserved_enum2;
++	lzma_reserved_enum reserved_enum3;
++	lzma_reserved_enum reserved_enum4;
++	lzma_reserved_enum reserved_enum5;
++	lzma_reserved_enum reserved_enum6;
++	lzma_bool reserved_bool1;
++	lzma_bool reserved_bool2;
++	lzma_bool reserved_bool3;
++	lzma_bool reserved_bool4;
++	lzma_bool reserved_bool5;
++	lzma_bool reserved_bool6;
++	lzma_bool reserved_bool7;
++	lzma_bool reserved_bool8;
++	uint32_t reserved_int1;
++	uint32_t reserved_int2;
++	uint32_t reserved_int3;
++	uint32_t reserved_int4;
++
+ } lzma_stream_flags;
+ 
+ 
+@@ -61,6 +118,8 @@ typedef struct {
+  *                          need to be initialized.
+  *
+  * \return      - LZMA_OK: Encoding was successful.
++ *              - LZMA_HEADER_ERROR: options->version is not supported by
++ *                this liblzma version.
+  *              - LZMA_PROG_ERROR: Invalid options.
+  */
+ extern lzma_ret lzma_stream_header_encode(
+@@ -76,6 +135,8 @@ extern lzma_ret lzma_stream_header_encode(
+  * \param       options     Stream Footer options to be encoded.
+  *
+  * \return      - LZMA_OK: Encoding was successful.
++ *              - LZMA_HEADER_ERROR: options->version is not supported by
++ *                this liblzma version.
+  *              - LZMA_PROG_ERROR: Invalid options.
+  */
+ extern lzma_ret lzma_stream_footer_encode(
+@@ -92,7 +153,7 @@ extern lzma_ret lzma_stream_footer_encode(
+  *
+  * options->index_size is always set to LZMA_VLI_VALUE_UNKNOWN. This is to
+  * help comparing Stream Flags from Stream Header and Stream Footer with
+- * lzma_stream_flags_equal().
++ * lzma_stream_flags_compare().
+  *
+  * \return      - LZMA_OK: Decoding was successful.
+  *              - LZMA_FORMAT_ERROR: Magic bytes don't match, thus the given
+@@ -121,6 +182,13 @@ extern lzma_ret lzma_stream_header_decode(
+  *                is corrupt.
+  *              - LZMA_HEADER_ERROR: Unsupported options are present
+  *                in the footer.
++ *
++ * \note        If Stream Header was already decoded successfully, but
++ *              decoding Stream Footer returns LZMA_FORMAT_ERROR, the
++ *              application should probably report some other error message
++ *              than "unsupported file format", since the file more likely is
++ *              corrupt (possibly truncated). Stream decoder in liblzma uses
++ *              LZMA_DATA_ERROR in this situation.
+  */
+ extern lzma_ret lzma_stream_footer_decode(
+ 		lzma_stream_flags *options, const uint8_t *in)
+@@ -130,10 +198,18 @@ extern lzma_ret lzma_stream_footer_decode(
+ /**
+  * \brief       Compare two lzma_stream_flags structures
+  *
+- * index_size values are compared only if both are not LZMA_VLI_VALUE_UNKNOWN.
++ * backward_size values are compared only if both are not
++ * LZMA_VLI_VALUE_UNKNOWN.
+  *
+- * \return      true if both structures are considered equal; false otherwise.
++ * \return      - LZMA_OK: Both are equal. If either had backward_size set
++ *                to LZMA_VLI_VALUE_UNKNOWN, backward_size values were not
++ *                compared or validated.
++ *              - LZMA_DATA_ERROR: The structures differ.
++ *              - LZMA_HEADER_ERROR: version in either structure is greater
++ *                than the maximum supported version (currently zero).
++ *              - LZMA_PROG_ERROR: Invalid value, e.g. invalid check or
++ *                backward_size.
+  */
+-extern lzma_bool lzma_stream_flags_equal(
++extern lzma_ret lzma_stream_flags_compare(
+ 		const lzma_stream_flags *a, const lzma_stream_flags *b)
+ 		lzma_attr_pure;
+diff --git a/src/liblzma/common/stream_decoder.c b/src/liblzma/common/stream_decoder.c
+index 884c4e9d..5360d87c 100644
+--- a/src/liblzma/common/stream_decoder.c
++++ b/src/liblzma/common/stream_decoder.c
+@@ -294,9 +294,8 @@ stream_decode(lzma_coder *coder, lzma_allocator *allocator,
+ 
+ 		// Compare that the Stream Flags fields are identical in
+ 		// both Stream Header and Stream Footer.
+-		if (!lzma_stream_flags_equal(&coder->stream_flags,
+-				&footer_flags))
+-			return LZMA_DATA_ERROR;
++		return_if_error(lzma_stream_flags_compare(
++				&coder->stream_flags, &footer_flags));
+ 
+ 		if (!coder->concatenated)
+ 			return LZMA_STREAM_END;
+diff --git a/src/liblzma/common/stream_encoder.c b/src/liblzma/common/stream_encoder.c
+index b21ee652..8748f52e 100644
+--- a/src/liblzma/common/stream_encoder.c
++++ b/src/liblzma/common/stream_encoder.c
+@@ -180,6 +180,7 @@ stream_encode(lzma_coder *coder, lzma_allocator *allocator,
+ 
+ 		// Encode the Stream Footer into coder->buffer.
+ 		const lzma_stream_flags stream_flags = {
++			.version = 0,
+ 			.backward_size = lzma_index_size(coder->index),
+ 			.check = coder->block_options.check,
+ 		};
+@@ -247,6 +248,7 @@ lzma_stream_encoder_init(lzma_next_coder *next, lzma_allocator *allocator,
+ 
+ 	// Encode the Stream Header
+ 	lzma_stream_flags stream_flags = {
++		.version = 0,
+ 		.check = check,
+ 	};
+ 	return_if_error(lzma_stream_header_encode(
+diff --git a/src/liblzma/common/stream_flags_common.c b/src/liblzma/common/stream_flags_common.c
+index c44b3ff2..aaa9fe02 100644
+--- a/src/liblzma/common/stream_flags_common.c
++++ b/src/liblzma/common/stream_flags_common.c
+@@ -24,17 +24,31 @@ const uint8_t lzma_header_magic[6] = { 0xFF, 0x4C, 0x5A, 0x4D, 0x41, 0x00 };
+ const uint8_t lzma_footer_magic[2] = { 0x59, 0x5A };
+ 
+ 
+-extern LZMA_API lzma_bool
+-lzma_stream_flags_equal(const lzma_stream_flags *a, const lzma_stream_flags *b)
++extern LZMA_API lzma_ret
++lzma_stream_flags_compare(
++		const lzma_stream_flags *a, const lzma_stream_flags *b)
+ {
++	// We can compare only version 0 structures.
++	if (a->version != 0 || b->version != 0)
++		return LZMA_HEADER_ERROR;
++
++	// Check type
++	if ((unsigned int)(a->check) > LZMA_CHECK_ID_MAX
++			|| (unsigned int)(b->check) > LZMA_CHECK_ID_MAX)
++		return LZMA_PROG_ERROR;
++
+ 	if (a->check != b->check)
+-		return false;
++		return LZMA_DATA_ERROR;
+ 
+ 	// Backward Sizes are compared only if they are known in both.
+ 	if (a->backward_size != LZMA_VLI_VALUE_UNKNOWN
+-			&& b->backward_size != LZMA_VLI_VALUE_UNKNOWN
+-			&& a->backward_size != b->backward_size)
+-		return false;
++			&& b->backward_size != LZMA_VLI_VALUE_UNKNOWN) {
++		if (!is_backward_size_valid(a) || !is_backward_size_valid(b))
++			return LZMA_PROG_ERROR;
++
++		if (a->backward_size != b->backward_size)
++			return LZMA_DATA_ERROR;
++	}
+ 
+-	return true;
++	return LZMA_OK;
+ }
+diff --git a/src/liblzma/common/stream_flags_common.h b/src/liblzma/common/stream_flags_common.h
+index 6e57857b..f422b02a 100644
+--- a/src/liblzma/common/stream_flags_common.h
++++ b/src/liblzma/common/stream_flags_common.h
+@@ -28,4 +28,13 @@
+ extern const uint8_t lzma_header_magic[6];
+ extern const uint8_t lzma_footer_magic[2];
+ 
++
++static inline bool
++is_backward_size_valid(const lzma_stream_flags *options)
++{
++	return options->backward_size >= LZMA_BACKWARD_SIZE_MIN
++			&& options->backward_size <= LZMA_BACKWARD_SIZE_MAX
++			&& (options->backward_size & 3) == 0;
++}
++
+ #endif
+diff --git a/src/liblzma/common/stream_flags_decoder.c b/src/liblzma/common/stream_flags_decoder.c
+index ccc1539d..a54ce813 100644
+--- a/src/liblzma/common/stream_flags_decoder.c
++++ b/src/liblzma/common/stream_flags_decoder.c
+@@ -27,6 +27,7 @@ stream_flags_decode(lzma_stream_flags *options, const uint8_t *in)
+ 	if (in[0] != 0x00 || (in[1] & 0xF0))
+ 		return true;
+ 
++	options->version = 0;
+ 	options->check = in[1] & 0x0F;
+ 
+ 	return false;
+@@ -53,7 +54,7 @@ lzma_stream_header_decode(lzma_stream_flags *options, const uint8_t *in)
+ 		return LZMA_HEADER_ERROR;
+ 
+ 	// Set Backward Size to indicate unknown value. That way
+-	// lzma_stream_flags_equal can be used to compare Stream Header
++	// lzma_stream_flags_compare() can be used to compare Stream Header
+ 	// and Stream Footer while keeping it useful also for comparing
+ 	// two Stream Footers.
+ 	options->backward_size = LZMA_VLI_VALUE_UNKNOWN;
+diff --git a/src/liblzma/common/stream_flags_encoder.c b/src/liblzma/common/stream_flags_encoder.c
+index 1d736a8a..88ed81e0 100644
+--- a/src/liblzma/common/stream_flags_encoder.c
++++ b/src/liblzma/common/stream_flags_encoder.c
+@@ -39,6 +39,9 @@ lzma_stream_header_encode(const lzma_stream_flags *options, uint8_t *out)
+ 	assert(sizeof(lzma_header_magic) + LZMA_STREAM_FLAGS_SIZE
+ 			+ 4 == LZMA_STREAM_HEADER_SIZE);
+ 
++	if (options->version != 0)
++		return LZMA_HEADER_ERROR;
++
+ 	// Magic
+ 	memcpy(out, lzma_header_magic, sizeof(lzma_header_magic));
+ 
+@@ -63,10 +66,11 @@ lzma_stream_footer_encode(const lzma_stream_flags *options, uint8_t *out)
+ 	assert(2 * 4 + LZMA_STREAM_FLAGS_SIZE + sizeof(lzma_footer_magic)
+ 			== LZMA_STREAM_HEADER_SIZE);
+ 
++	if (options->version != 0)
++		return LZMA_HEADER_ERROR;
++
+ 	// Backward Size
+-	if (options->backward_size < LZMA_BACKWARD_SIZE_MIN
+-			|| options->backward_size > LZMA_BACKWARD_SIZE_MAX
+-			|| (options->backward_size & 3))
++	if (!is_backward_size_valid(options))
+ 		return LZMA_PROG_ERROR;
+ 
+ 	integer_write_32(out + 4, options->backward_size / 4 - 1);
+diff --git a/tests/test_stream_flags.c b/tests/test_stream_flags.c
+index ead75501..abd0296d 100644
+--- a/tests/test_stream_flags.c
++++ b/tests/test_stream_flags.c
+@@ -28,7 +28,11 @@ static uint8_t buffer[LZMA_STREAM_HEADER_SIZE];
+ static bool
+ validate(void)
+ {
+-	return !lzma_stream_flags_equal(&known_flags, &decoded_flags);
++	// TODO: This could require the specific error type as an argument.
++	// We could also test that lzma_stream_flags_compare() gives
++	// the correct return values in different situations.
++	return lzma_stream_flags_compare(&known_flags, &decoded_flags)
++			!= LZMA_OK;
+ }
+ 
+ 
+@@ -44,7 +48,7 @@ test_header_decoder(lzma_ret expected_ret)
+ 		return false;
+ 
+ 	// Header doesn't have Backward Size, so make
+-	// lzma_stream_flags_equal() ignore it.
++	// lzma_stream_flags_compare() ignore it.
+ 	decoded_flags.backward_size = LZMA_VLI_VALUE_UNKNOWN;
+ 	return validate();
+ }

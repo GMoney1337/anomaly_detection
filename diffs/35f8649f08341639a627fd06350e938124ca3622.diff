@@ -1,0 +1,96 @@
+diff --git a/.github/workflows/ci.yml b/.github/workflows/ci.yml
+index b6a0a9ea..b673b88b 100644
+--- a/.github/workflows/ci.yml
++++ b/.github/workflows/ci.yml
+@@ -26,7 +26,7 @@ jobs:
+         build_system: [autotools, cmake]
+     runs-on: ${{ matrix.os }}
+     steps:
+-      - uses: actions/checkout@1d96c772d19495a3b5c517cd2bc0cb401ea0529f #v4.1.3
++      - uses: actions/checkout@v4.1.6
+ 
+       ########################
+       # Install Dependencies #
+@@ -156,7 +156,7 @@ jobs:
+         run: ./build-aux/ci_build.bash -b ${{ matrix.build_system }} -d small -p test -n small
+ 
+       # Attempt to upload the test logs as artifacts if any step has failed
+-      - uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808 #v4.3.3
++      - uses: actions/upload-artifact@v4.3.3
+         if: ${{ failure() }}
+         with:
+           name: ${{ matrix.os }} ${{ matrix.build_system }} Test Logs
+diff --git a/.github/workflows/freebsd.yml b/.github/workflows/freebsd.yml
+index 6fb7e60d..2eb7805f 100644
+--- a/.github/workflows/freebsd.yml
++++ b/.github/workflows/freebsd.yml
+@@ -14,7 +14,7 @@ jobs:
+     runs-on: ubuntu-latest
+     name: Test xz on FreeBSD
+     steps:
+-    - uses: actions/checkout@8ade135a41bc03ea155e62e844d188df1ea18608 #v4
++    - uses: actions/checkout@v4.1.6
+     - name: Test in FreeBSD
+       id: test
+       uses: vmactions/FreeBSD-vm@f8be330398166d1eb0601f01353839d4052367b2 #v1.0.7
+diff --git a/.github/workflows/netbsd.yml b/.github/workflows/netbsd.yml
+index 8a099d91..75f05186 100644
+--- a/.github/workflows/netbsd.yml
++++ b/.github/workflows/netbsd.yml
+@@ -14,7 +14,7 @@ jobs:
+     runs-on: ubuntu-latest
+     name: Test xz on NetBSD
+     steps:
+-    - uses: actions/checkout@8ade135a41bc03ea155e62e844d188df1ea18608 #v4
++    - uses: actions/checkout@v4.1.6
+     - name: Test in NetBSD
+       id: test
+       uses: vmactions/NetBSD-vm@da9ed4d7cd0fb64f330e2342ac5c77ba529b6a11 #v1.0.7
+diff --git a/.github/workflows/openbsd.yml b/.github/workflows/openbsd.yml
+index 0181f6a4..f0312530 100644
+--- a/.github/workflows/openbsd.yml
++++ b/.github/workflows/openbsd.yml
+@@ -14,7 +14,7 @@ jobs:
+     runs-on: ubuntu-latest
+     name: Test xz on OpenBSD
+     steps:
+-    - uses: actions/checkout@8ade135a41bc03ea155e62e844d188df1ea18608 #v4
++    - uses: actions/checkout@v4.1.6
+     - name: Test in OpenBSD
+       id: test
+       uses: vmactions/OpenBSD-vm@eaa3d3f695a5a52971c23958f6dd4cd3397f959d #v1.0.8
+diff --git a/.github/workflows/solaris.yml b/.github/workflows/solaris.yml
+index 9b2f3e7a..8c1d5165 100644
+--- a/.github/workflows/solaris.yml
++++ b/.github/workflows/solaris.yml
+@@ -14,7 +14,7 @@ jobs:
+     runs-on: ubuntu-latest
+     name: Test xz on Solaris
+     steps:
+-    - uses: actions/checkout@8ade135a41bc03ea155e62e844d188df1ea18608 #v4
++    - uses: actions/checkout@v4.1.6
+     - name: Test in Solaris
+       id: test
+       uses: vmactions/solaris-vm@548f790d1bc2b9342a76cbb47ddbb85875605559 #v1.0.2
+diff --git a/.github/workflows/windows-ci.yml b/.github/workflows/windows-ci.yml
+index b6970b12..0e0d3759 100644
+--- a/.github/workflows/windows-ci.yml
++++ b/.github/workflows/windows-ci.yml
+@@ -55,7 +55,7 @@ jobs:
+         # text file and will not match the output from xzgrep.
+         run: git config --global core.autocrlf false
+ 
+-      - uses: actions/checkout@1d96c772d19495a3b5c517cd2bc0cb401ea0529f #v4.1.3
++      - uses: actions/checkout@v4.1.6
+ 
+ 
+       ########################
+@@ -117,7 +117,7 @@ jobs:
+       ###############
+ 
+       # Upload the test logs as artifacts if any step has failed.
+-      - uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808 #v4.3.3
++      - uses: actions/upload-artifact@v4.3.3
+         if: ${{ failure() }}
+         with:
+           name: ${{ matrix.msys2_env }} ${{ matrix.build_system }} Test Logs

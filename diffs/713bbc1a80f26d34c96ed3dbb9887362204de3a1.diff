@@ -1,0 +1,22 @@
+diff --git a/src/common/tuklib_integer.h b/src/common/tuklib_integer.h
+index a7fda679..b1e84d5c 100644
+--- a/src/common/tuklib_integer.h
++++ b/src/common/tuklib_integer.h
+@@ -98,6 +98,17 @@
+ #endif
+ 
+ 
++////////////////////////////////
++// Compiler-specific features //
++////////////////////////////////
++
++// Newer Intel C compilers require immintrin.h for _bit_scan_reverse()
++// and such functions.
++#if defined(__INTEL_COMPILER) && (__INTEL_COMPILER >= 1500)
++#	include <immintrin.h>
++#endif
++
++
+ ///////////////////
+ // Byte swapping //
+ ///////////////////

@@ -1,0 +1,59 @@
+diff --git a/src/xz/args.c b/src/xz/args.c
+index 2af39098..6b388a1e 100644
+--- a/src/xz/args.c
++++ b/src/xz/args.c
+@@ -415,8 +415,6 @@ parse_real(args_info *args, int argc, char **argv)
+ #ifdef HAVE_LZIP_DECODER
+ 				{ "lzip",   FORMAT_LZIP },
+ #endif
+-				// { "gzip",   FORMAT_GZIP },
+-				// { "gz",     FORMAT_GZIP },
+ 				{ "raw",    FORMAT_RAW },
+ 			};
+ 
+diff --git a/src/xz/coder.h b/src/xz/coder.h
+index 2930df9a..9e69e576 100644
+--- a/src/xz/coder.h
++++ b/src/xz/coder.h
+@@ -26,7 +26,6 @@ enum format_type {
+ #ifdef HAVE_LZIP_DECODER
+ 	FORMAT_LZIP,
+ #endif
+-	// HEADER_GZIP,
+ 	FORMAT_RAW,
+ };
+ 
+diff --git a/src/xz/suffix.c b/src/xz/suffix.c
+index 55e4ee2f..6bb35d42 100644
+--- a/src/xz/suffix.c
++++ b/src/xz/suffix.c
+@@ -123,8 +123,6 @@ uncompressed_name(const char *src_name, const size_t src_len)
+ #ifdef HAVE_LZIP_DECODER
+ 		{ ".lz",    "" },
+ #endif
+-		// { ".gz",    "" },
+-		// { ".tgz",   ".tar" },
+ 	};
+ 
+ 	const char *new_suffix = "";
+@@ -220,12 +218,6 @@ compressed_name(const char *src_name, size_t src_len)
+ */
+ 			NULL
+ #endif
+-/*
+-		}, {
+-			".gz",
+-			".tgz",
+-			NULL
+-*/
+ 		}, {
+ 			// --format=raw requires specifying the suffix
+ 			// manually or using stdout.
+@@ -319,7 +311,6 @@ compressed_name(const char *src_name, size_t src_len)
+ /*
+ 				".tlz", // .tar.lz
+ */
+-				// ".tgz",
+ 			};
+ 			suffix = tar_suffixes[format];
+ 			suffix_len = 4;

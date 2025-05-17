@@ -1,0 +1,13 @@
+diff --git a/tests/test_index_hash.c b/tests/test_index_hash.c
+index a957891f..63188dcb 100644
+--- a/tests/test_index_hash.c
++++ b/tests/test_index_hash.c
+@@ -176,7 +176,7 @@ test_lzma_index_hash_decode(void)
+ 		500
+ 	};
+ 
+-	// Add two Records to a index_hash
++	// Add two Records to an index_hash
+ 	fill_index_hash(index_hash, unpadded_sizes, uncomp_sizes, 2);
+ 
+ 	const lzma_vli size_two_records = lzma_index_hash_size(index_hash);

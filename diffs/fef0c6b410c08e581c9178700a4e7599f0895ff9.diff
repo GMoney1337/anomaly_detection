@@ -1,0 +1,12 @@
+diff --git a/src/liblzma/common/Makefile.inc b/src/liblzma/common/Makefile.inc
+index dd5a8c88..76432767 100644
+--- a/src/liblzma/common/Makefile.inc
++++ b/src/liblzma/common/Makefile.inc
+@@ -24,6 +24,7 @@ if COND_MAIN_ENCODER
+ liblzma_la_SOURCES += \
+ 	common/alone_encoder.c \
+ 	common/block_buffer_encoder.c \
++	common/block_buffer_encoder.h \
+ 	common/block_encoder.c \
+ 	common/block_encoder.h \
+ 	common/block_header_encoder.c \

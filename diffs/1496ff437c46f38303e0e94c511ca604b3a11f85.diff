@@ -1,0 +1,4 @@
+diff --git a/doc/file-format.txt b/doc/xz-file-format.txt
+similarity index 100%
+rename from doc/file-format.txt
+rename to doc/xz-file-format.txt

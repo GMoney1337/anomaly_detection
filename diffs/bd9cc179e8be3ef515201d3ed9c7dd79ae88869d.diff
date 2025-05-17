@@ -1,0 +1,34 @@
+diff --git a/TODO b/TODO
+index 94486601..9cdb4190 100644
+--- a/TODO
++++ b/TODO
+@@ -32,10 +32,20 @@ Known bugs
+     time and calculated (de)compression speed won't make sense in the
+     progress indicator (xz --verbose).
+ 
++    If liblzma has created threads and fork() gets called, liblzma
++    code will break in the child process unless it calls exec() and
++    doesn't touch liblzma.
++
+ 
+ Missing features
+ ----------------
+ 
++    Support LZMA_FINISH in raw decoder to indicate end of LZMA1 and
++    other streams that don't have an end of payload marker.
++
++    Adjust dictionary size when the input file size is known.
++    Maybe do this only if an option is given.
++
+     xz doesn't support copying extended attributes, access control
+     lists etc. from source to target file.
+ 
+@@ -53,8 +63,6 @@ Missing features
+     It will be a separate library that supports uncompressed, .gz,
+     .bz2, .lzma, and .xz files.
+ 
+-    Check the first 0x00 byte of LZMA data.
+-
+     Support changing lzma_options_lzma.mode with lzma_filters_update().
+ 
+     Support LZMA_FULL_FLUSH for lzma_stream_decoder() to stop at

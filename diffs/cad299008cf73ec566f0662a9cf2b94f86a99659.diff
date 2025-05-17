@@ -1,0 +1,273 @@
+diff --git a/src/xz/args.c b/src/xz/args.c
+index 9238fb32..be293902 100644
+--- a/src/xz/args.c
++++ b/src/xz/args.c
+@@ -29,10 +29,11 @@ bool opt_ignore_check = false;
+ const char stdin_filename[] = "(stdin)";
+ 
+ 
+-/// Parse and set the memory usage limit for compression and/or decompression.
++/// Parse and set the memory usage limit for compression, decompression,
++/// and/or multithreaded decompression.
+ static void
+ parse_memlimit(const char *name, const char *name_percentage, char *str,
+-		bool set_compress, bool set_decompress)
++		bool set_compress, bool set_decompress, bool set_mtdec)
+ {
+ 	bool is_percentage = false;
+ 	uint64_t value;
+@@ -49,8 +50,8 @@ parse_memlimit(const char *name, const char *name_percentage, char *str,
+ 		value = str_to_uint64(name, str, 0, UINT64_MAX);
+ 	}
+ 
+-	hardware_memlimit_set(
+-			value, set_compress, set_decompress, is_percentage);
++	hardware_memlimit_set(value, set_compress, set_decompress, set_mtdec,
++			is_percentage);
+ 	return;
+ }
+ 
+@@ -138,6 +139,7 @@ parse_real(args_info *args, int argc, char **argv)
+ 		OPT_BLOCK_LIST,
+ 		OPT_MEM_COMPRESS,
+ 		OPT_MEM_DECOMPRESS,
++		OPT_MEM_MT_DECOMPRESS,
+ 		OPT_NO_ADJUST,
+ 		OPT_INFO_MEMORY,
+ 		OPT_ROBOT,
+@@ -176,6 +178,7 @@ parse_real(args_info *args, int argc, char **argv)
+ 		{ "block-list",  required_argument, NULL,  OPT_BLOCK_LIST },
+ 		{ "memlimit-compress",   required_argument, NULL, OPT_MEM_COMPRESS },
+ 		{ "memlimit-decompress", required_argument, NULL, OPT_MEM_DECOMPRESS },
++		{ "memlimit-mt-decompress", required_argument, NULL, OPT_MEM_MT_DECOMPRESS },
+ 		{ "memlimit",     required_argument, NULL,  'M' },
+ 		{ "memory",       required_argument, NULL,  'M' }, // Old alias
+ 		{ "no-adjust",    no_argument,       NULL,  OPT_NO_ADJUST },
+@@ -225,20 +228,27 @@ parse_real(args_info *args, int argc, char **argv)
+ 		case OPT_MEM_COMPRESS:
+ 			parse_memlimit("memlimit-compress",
+ 					"memlimit-compress%", optarg,
+-					true, false);
++					true, false, false);
+ 			break;
+ 
+ 		// --memlimit-decompress
+ 		case OPT_MEM_DECOMPRESS:
+ 			parse_memlimit("memlimit-decompress",
+ 					"memlimit-decompress%", optarg,
+-					false, true);
++					false, true, false);
++			break;
++
++		// --memlimit-mt-decompress
++		case OPT_MEM_MT_DECOMPRESS:
++			parse_memlimit("memlimit-mt-decompress",
++					"memlimit-mt-decompress%", optarg,
++					false, false, true);
+ 			break;
+ 
+ 		// --memlimit
+ 		case 'M':
+ 			parse_memlimit("memlimit", "memlimit%", optarg,
+-					true, true);
++					true, true, true);
+ 			break;
+ 
+ 		// --suffix
+diff --git a/src/xz/coder.c b/src/xz/coder.c
+index dc70f1cc..b5f7c392 100644
+--- a/src/xz/coder.c
++++ b/src/xz/coder.c
+@@ -524,32 +524,20 @@ coder_init(file_pair *pair)
+ 			mt_options.flags = flags;
+ 
+ 			mt_options.threads = hardware_threads_get();
+-
+-			// TODO: Support --memlimit-threading=LIMIT.
+ 			mt_options.memlimit_stop
+ 				= hardware_memlimit_get(MODE_DECOMPRESS);
++
++			// If single-threaded mode was requested, set the
++			// memlimit for threading to zero. This forces the
++			// decoder to use single-threaded mode which matches
++			// the behavior of lzma_stream_decoder().
++			//
++			// Otherwise use the limit for threaded decompression
++			// which has a sane default (users are still free to
++			// make it insanely high though).
+ 			mt_options.memlimit_threading
+-					= mt_options.memlimit_stop;
+-
+-			if (mt_options.threads == 1) {
+-				// Single-threaded mode was requested. Force
+-				// the decoder to use minimal memory, matching
+-				// the behavior of lzma_stream_decoder().
+-				mt_options.memlimit_threading = 0;
+-
+-			} else if (mt_options.memlimit_threading
+-					== UINT64_MAX) {
+-				// TODO: Support --memlimit-threading=LIMIT.
+-				//
+-				// If lzma_physmem() fails, it returns 0 and
+-				// we end up with a single thread.
+-				//
+-				// NOTE: It is assential that we never end up
+-				// with an effectively infinite value in
+-				// memlimit_threading!
+-				mt_options.memlimit_threading
+-						= lzma_physmem() / 4;
+-			}
++					= mt_options.threads == 1
++					? 0 : hardware_memlimit_mtdec_get();
+ 
+ 			ret = lzma_stream_decoder_mt(&strm, &mt_options);
+ #	else
+diff --git a/src/xz/hardware.c b/src/xz/hardware.c
+index 0ad8c658..d45d6ade 100644
+--- a/src/xz/hardware.c
++++ b/src/xz/hardware.c
+@@ -18,10 +18,26 @@
+ static uint32_t threads_max = 1;
+ 
+ /// Memory usage limit for compression
+-static uint64_t memlimit_compress;
++static uint64_t memlimit_compress = 0;
+ 
+ /// Memory usage limit for decompression
+-static uint64_t memlimit_decompress;
++static uint64_t memlimit_decompress = 0;
++
++/// Default memory usage for multithreaded modes:
++///
++///   - Default value for --memlimit-mt-decompress
++///
++/// This value is caluclated in hardware_init() and cannot be changed later.
++static uint64_t memlimit_mt_default;
++
++/// Memory usage limit for multithreaded decompression. This is a soft limit:
++/// if reducing the number of threads to one isn't enough to keep memory
++/// usage below this limit, then one thread is used and this limit is ignored.
++/// memlimit_decompress is still obeyed.
++///
++/// This can be set with --memlimit-mt-decompress. The default value for
++/// this is memlimit_mt_default.
++static uint64_t memlimit_mtdec;
+ 
+ /// Total amount of physical RAM
+ static uint64_t total_ram;
+@@ -60,7 +76,8 @@ hardware_threads_get(void)
+ 
+ extern void
+ hardware_memlimit_set(uint64_t new_memlimit,
+-		bool set_compress, bool set_decompress, bool is_percentage)
++		bool set_compress, bool set_decompress, bool set_mtdec,
++		bool is_percentage)
+ {
+ 	if (is_percentage) {
+ 		assert(new_memlimit > 0);
+@@ -110,6 +127,9 @@ hardware_memlimit_set(uint64_t new_memlimit,
+ 	if (set_decompress)
+ 		memlimit_decompress = new_memlimit;
+ 
++	if (set_mtdec)
++		memlimit_mtdec = new_memlimit;
++
+ 	return;
+ }
+ 
+@@ -132,6 +152,23 @@ hardware_memlimit_get(enum operation_mode mode)
+ }
+ 
+ 
++extern uint64_t
++hardware_memlimit_mtdec_get(void)
++{
++	uint64_t m = memlimit_mtdec != 0
++			? memlimit_mtdec
++			: memlimit_mt_default;
++
++	// Cap the value to memlimit_decompress if it has been specified.
++	// This is nice for --info-memory. It wouldn't be needed for liblzma
++	// since it does this anyway.
++	if (memlimit_decompress != 0 && m > memlimit_decompress)
++		m = memlimit_decompress;
++
++	return m;
++}
++
++
+ /// Helper for hardware_memlimit_show() to print one human-readable info line.
+ static void
+ memlimit_show(const char *str, size_t str_columns, uint64_t value)
+@@ -203,7 +240,20 @@ hardware_init(void)
+ 	if (total_ram == 0)
+ 		total_ram = (uint64_t)(ASSUME_RAM) * 1024 * 1024;
+ 
+-	// Set the defaults.
+-	hardware_memlimit_set(0, true, true, false);
++	// FIXME? There may be better methods to determine the default value.
++	// One Linux-specific suggestion is to use MemAvailable from
++	// /proc/meminfo as the starting point.
++	memlimit_mt_default = total_ram / 4;
++
++	// A too high value may cause 32-bit xz to run out of address space.
++	// Use a conservative maximum value here. A few typical address space
++	// sizes with Linux:
++	//   - x86-64 with 32-bit xz: 4 GiB
++	//   - x86: 3 GiB
++	//   - MIPS32: 2 GiB
++	const size_t mem_ceiling = SIZE_MAX / 3; // About 1365 GiB on 32-bit
++	if (memlimit_mt_default > mem_ceiling)
++		memlimit_mt_default = mem_ceiling;
++
+ 	return;
+ }
+diff --git a/src/xz/hardware.h b/src/xz/hardware.h
+index 4fae6181..cefd7d10 100644
+--- a/src/xz/hardware.h
++++ b/src/xz/hardware.h
+@@ -22,16 +22,21 @@ extern void hardware_threads_set(uint32_t threadlimit);
+ extern uint32_t hardware_threads_get(void);
+ 
+ 
+-/// Set the memory usage limit. There are separate limits for compression
+-/// and decompression (the latter includes also --list), one or both can
+-/// be set with a single call to this function. Zero indicates resetting
+-/// the limit back to the defaults. The limit can also be set as a percentage
+-/// of installed RAM; the percentage must be in the range [1, 100].
++/// Set the memory usage limit. There are separate limits for compression,
++/// decompression (also includes --list), and multithreaded decompression.
++/// Any combination of these can be set with a single call to this function.
++/// Zero indicates resetting the limit back to the defaults.
++/// The limit can also be set as a percentage of installed RAM; the
++/// percentage must be in the range [1, 100].
+ extern void hardware_memlimit_set(uint64_t new_memlimit,
+-		bool set_compress, bool set_decompress, bool is_percentage);
++		bool set_compress, bool set_decompress, bool set_mtdec,
++		bool is_percentage);
+ 
+ /// Get the current memory usage limit for compression or decompression.
+ extern uint64_t hardware_memlimit_get(enum operation_mode mode);
+ 
++/// Get the current memory usage limit for multithreaded decompression.
++extern uint64_t hardware_memlimit_mtdec_get(void);
++
+ /// Display the amount of RAM and memory usage limits and exit.
+ extern void hardware_memlimit_show(void) lzma_attribute((__noreturn__));
+diff --git a/src/xz/message.c b/src/xz/message.c
+index 00eb65b6..e626b5e8 100644
+--- a/src/xz/message.c
++++ b/src/xz/message.c
+@@ -1180,9 +1180,11 @@ message_help(bool long_help)
+ 		puts(_( // xgettext:no-c-format
+ "      --memlimit-compress=LIMIT\n"
+ "      --memlimit-decompress=LIMIT\n"
++"      --memlimit-mt-decompress=LIMIT\n"
+ "  -M, --memlimit=LIMIT\n"
+ "                      set memory usage limit for compression, decompression,\n"
+-"                      or both; LIMIT is in bytes, % of RAM, or 0 for defaults"));
++"                      threaded decompression, or all of these; LIMIT is in\n"
++"                      bytes, % of RAM, or 0 for defaults"));
+ 
+ 		puts(_(
+ "      --no-adjust     if compression settings exceed the memory usage limit,\n"

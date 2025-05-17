@@ -1,0 +1,12 @@
+diff --git a/THANKS b/THANKS
+index 2c14b22d..4a0594f3 100644
+--- a/THANKS
++++ b/THANKS
+@@ -65,6 +65,7 @@ has been important. :-) In alphabetical order:
+   - Xin Li
+   - Eric Lindblad
+   - Lorenzo De Liso
++  - H.J. Lu
+   - Bela Lubkin
+   - Gregory Margo
+   - Julien Marrec

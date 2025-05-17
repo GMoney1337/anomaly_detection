@@ -1,0 +1,12 @@
+diff --git a/THANKS b/THANKS
+index 47304946..3972b8a0 100644
+--- a/THANKS
++++ b/THANKS
+@@ -23,6 +23,7 @@ has been important. :-) In alphabetical order:
+   - Milo Casagrande
+   - Marek Černocký
+   - Tomer Chachamu
++  - Antoine Cœur
+   - Gabi Davar
+   - Chris Donawa
+   - Andrew Dudman

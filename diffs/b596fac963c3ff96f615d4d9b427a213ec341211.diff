@@ -1,0 +1,12 @@
+diff --git a/THANKS b/THANKS
+index e020e8cf..e45a4e86 100644
+--- a/THANKS
++++ b/THANKS
+@@ -12,6 +12,7 @@ In alphabetical order:
+   - Jean-loup Gailly
+   - Per Øyvind Karlsen
+   - Ville Koskinen
++  - Stephan Kulow
+   - Jim Meyering
+   - Igor Pavlov
+   - Mikko Pouru

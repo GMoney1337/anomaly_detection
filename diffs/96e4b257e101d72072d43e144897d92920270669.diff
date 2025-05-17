@@ -1,0 +1,1352 @@
+diff --git a/configure.ac b/configure.ac
+index ce63eeee..86eac38e 100644
+--- a/configure.ac
++++ b/configure.ac
+@@ -411,6 +411,12 @@ AC_SUBST([STATIC_LDFLAGS])
+ # Checks for programs.
+ ###############################################################################
+ 
++echo
++gl_POSIX_SHELL
++if test -z "$POSIX_SHELL" ; then
++	AC_MSG_ERROR([No POSIX conforming shell (sh) was found.])
++fi
++
+ echo
+ echo "Initializing Automake:"
+ 
+@@ -641,6 +647,10 @@ AM_CONDITIONAL([COND_GNULIB], test -n "$LIBOBJS")
+ # Add default AM_CFLAGS.
+ AC_SUBST([AM_CFLAGS])
+ 
++# This is needed for src/scripts.
++xz=`echo xz | sed "$program_transform_name"`
++AC_SUBST([xz])
++
+ AC_CONFIG_FILES([
+ 	Doxyfile
+ 	Makefile
+@@ -653,6 +663,10 @@ AC_CONFIG_FILES([
+ 	src/xz/Makefile
+ 	src/xzdec/Makefile
+ 	src/scripts/Makefile
++	src/scripts/xzdiff
++	src/scripts/xzgrep
++	src/scripts/xzmore
++	src/scripts/xzless
+ 	tests/Makefile
+ 	debug/Makefile
+ ])
+diff --git a/m4/posix-shell.m4 b/m4/posix-shell.m4
+new file mode 100644
+index 00000000..4c56193c
+--- /dev/null
++++ b/m4/posix-shell.m4
+@@ -0,0 +1,63 @@
++# Find a POSIX-conforming shell.
++
++# Copyright (C) 2007-2008 Free Software Foundation, Inc.
++
++# This file is free software; the Free Software Foundation
++# gives unlimited permission to copy and/or distribute it,
++# with or without modifications, as long as this notice is preserved.
++
++# Written by Paul Eggert.
++
++# If a POSIX-conforming shell can be found, set POSIX_SHELL and
++# PREFERABLY_POSIX_SHELL to it.  If not, set POSIX_SHELL to the
++# empty string and PREFERABLY_POSIX_SHELL to '/bin/sh'.
++
++AC_DEFUN([gl_POSIX_SHELL],
++[
++  AC_CACHE_CHECK([for a shell that conforms to POSIX], [gl_cv_posix_shell],
++    [gl_test_posix_shell_script='
++       func_return () {
++	 (exit [$]1)
++       }
++       func_success () {
++	 func_return 0
++       }
++       func_failure () {
++	 func_return 1
++       }
++       func_ret_success () {
++	 return 0
++       }
++       func_ret_failure () {
++	 return 1
++       }
++       subshell_umask_sanity () {
++	 (umask 22; (umask 0); test $(umask) -eq 22)
++       }
++       test "[$](echo foo)" = foo &&
++       func_success &&
++       ! func_failure &&
++       func_ret_success &&
++       ! func_ret_failure &&
++       (set x && func_ret_success y && test x = "[$]1") &&
++       subshell_umask_sanity
++     '
++     for gl_cv_posix_shell in \
++	 "$CONFIG_SHELL" "$SHELL" /bin/sh /bin/bash /bin/ksh /bin/sh5 no; do
++       case $gl_cv_posix_shell in
++         /*)
++	   "$gl_cv_posix_shell" -c "$gl_test_posix_shell_script" 2>/dev/null \
++	     && break;;
++       esac
++     done])
++
++  if test "$gl_cv_posix_shell" != no; then
++    POSIX_SHELL=$gl_cv_posix_shell
++    PREFERABLY_POSIX_SHELL=$POSIX_SHELL
++  else
++    POSIX_SHELL=
++    PREFERABLY_POSIX_SHELL=/bin/sh
++  fi
++  AC_SUBST([POSIX_SHELL])
++  AC_SUBST([PREFERABLY_POSIX_SHELL])
++])
+diff --git a/src/scripts/Makefile.am b/src/scripts/Makefile.am
+index 8ea5e2fa..8580ee5b 100644
+--- a/src/scripts/Makefile.am
++++ b/src/scripts/Makefile.am
+@@ -5,8 +5,8 @@
+ ## You can do whatever you want with this file.
+ ##
+ 
+-dist_bin_SCRIPTS = xzdiff xzgrep xzmore
+-dist_man_MANS = xzdiff.1 xzgrep.1 xzmore.1
++nodist_bin_SCRIPTS = xzdiff xzgrep xzmore xzless
++dist_man_MANS = xzdiff.1 xzgrep.1 xzmore.1 xzless.1
+ 
+ install-exec-hook:
+ 	cd $(DESTDIR)$(bindir) && \
+@@ -22,9 +22,9 @@ install-exec-hook:
+ 		rm -f $$link && \
+ 		$(LN_S) $$target $$link; \
+ 	done && \
+-	target=`echo xzmore | $(SED) '$(transform)'` && \
+-	for name in xzless lzmore lzless; do \
+-		link=`echo $$name | $(SED) '$(transform)'` && \
++	for name in xzmore xzless; do \
++		target=`echo $$name | $(SED) '$(transform)'` && \
++		link=`echo $$name | $(SED) 's/xz/lz/;$(transform)'` && \
+ 		rm -f $$link && \
+ 		$(LN_S) $$target $$link; \
+ 	done
+@@ -43,23 +43,23 @@ install-data-hook:
+ 		rm -f $$link.1 && \
+ 		$(LN_S) $$target.1 $$link.1; \
+ 	done && \
+-	target=`echo xzmore | $(SED) '$(transform)'` && \
+-	for name in xzless lzmore lzless; do \
+-		link=`echo $$name | $(SED) '$(transform)'` && \
++	for name in xzmore xzless; do \
++		target=`echo $$name | $(SED) '$(transform)'` && \
++		link=`echo $$name | $(SED) 's/xz/lz/;$(transform)'` && \
+ 		rm -f $$link.1 && \
+ 		$(LN_S) $$target.1 $$link.1; \
+ 	done
+ 
+ uninstall-hook:
+ 	cd $(DESTDIR)$(bindir) && \
+-	for name in xzcmp lzdiff lzcmp xzgrep xzegrep xzfgrep \
+-			lzgrep lzegrep lzfgrep xzless lzmore lzless; do \
++	for name in xzcmp lzdiff lzcmp xzegrep xzfgrep \
++			lzgrep lzegrep lzfgrep lzmore lzless; do \
+ 		link=`echo $$name | $(SED) '$(transform)'` && \
+ 		rm -f $$link; \
+ 	done
+ 	cd $(DESTDIR)$(mandir)/man1 && \
+-	for name in xzcmp lzdiff lzcmp xzgrep xzegrep xzfgrep \
+-			lzgrep lzegrep lzfgrep xzless lzmore lzless; do \
++	for name in xzcmp lzdiff lzcmp xzegrep xzfgrep \
++			lzgrep lzegrep lzfgrep lzmore lzless; do \
+ 		link=`echo $$name | $(SED) '$(transform)'` && \
+ 		rm -f $$link.1; \
+ 	done
+diff --git a/src/scripts/xzdiff b/src/scripts/xzdiff
+deleted file mode 100755
+index 50179bb9..00000000
+--- a/src/scripts/xzdiff
++++ /dev/null
+@@ -1,67 +0,0 @@
+-#!/bin/sh
+-# sh is buggy on RS/6000 AIX 3.2. Replace above line with #!/bin/ksh
+-
+-# xzcmp and xzdiff are used to invoke the cmp or the diff pro-
+-# gram  on compressed files.  All options specified are passed
+-# directly to cmp or diff.  If only 1 file is specified,  then
+-# the files compared  are file1 and an uncompressed file1.xz.
+-# If two files are specified, then they are  uncompressed  and
+-# fed  to  cmp  or  diff.  The exit status from cmp or diff is
+-# preserved.
+-
+-prog=`echo $0 | sed 's|.*/||'`
+-case "$prog" in
+-  *cmp) comp=${CMP-cmp}   ;;
+-  *)    comp=${DIFF-diff} ;;
+-esac
+-
+-OPTIONS=
+-FILES=
+-for ARG
+-do
+-    case "$ARG" in
+-    -*)	OPTIONS="$OPTIONS $ARG";;
+-     *)	if test -f "$ARG"; then
+-            FILES="$FILES $ARG"
+-        else
+-            echo "${prog}: $ARG not found or not a regular file"
+-	    exit 2
+-        fi ;;
+-    esac
+-done
+-if test -z "$FILES"; then
+-	echo "Usage: $prog [${comp}_options] file [file]"
+-	exit 2
+-fi
+-set $FILES
+-if test $# -eq 1; then
+-	FILE=`echo "$1" | sed 's/[-.][almtxz]*$//'`
+-	xz -dc "$1" | $comp $OPTIONS - "$FILE"
+-
+-elif test $# -eq 2; then
+-	case "$1" in
+-        *[-.]xz | *.txz | *[-.]lzma | *.tlz)
+-                case "$2" in
+-	        *[-.]xz | *.txz | *[-.]lzma | *.tlz)
+-			F=`echo "$2" | sed 's|.*/||;s|[-.][almtxz]*||'`
+-			TF=`/usr/bin/mktemp ${TMPDIR:-/tmp}/"$F".XXXXXXXXXX` || exit 1
+-			trap 'rm -f "$TF"; exit 2' EXIT HUP INT PIPE TERM
+-			xz -dc -- "$2" > "$TF" || exit
+-                        xz -dc -- "$1" | $comp $OPTIONS - "$TF"
+-                        STAT="$?"
+-			rm -f "$TF" || STAT=2
+-			trap EXIT HUP INT PIPE TERM
+-			exit $STAT;;
+-
+-                *)      xz -dc -- "$1" | $comp $OPTIONS - "$2";;
+-                esac;;
+-        *)      case "$2" in
+-	        *[-.]xz | *.txz | *[-.]lzma | *.tlz)
+-                        xz -dc -- "$2" | $comp $OPTIONS "$1" -;;
+-                *)      $comp $OPTIONS "$1" "$2";;
+-                esac;;
+-	esac
+-else
+-	echo "Usage: $prog [${comp}_options] file [file]"
+-	exit 2
+-fi
+diff --git a/src/scripts/xzdiff.1 b/src/scripts/xzdiff.1
+index 7d4f6060..252d1cd3 100644
+--- a/src/scripts/xzdiff.1
++++ b/src/scripts/xzdiff.1
+@@ -1,7 +1,14 @@
+-.\" Original file was take from gzip, thus this man page is under GNU GPLv2+.
+-.TH XZDIFF 1 "2009-04-13" "XZ Utils"
++.\"
++.\" Original zdiff.1 for gzip: Jean-loup Gailly
++.\"
++.\" Modifications for XZ Utils: Lasse Collin
++.\"                             Andrew Dudman
++.\"
++.\" License: GNU GPLv2+
++.\"
++.TH XZDIFF 1 "2009-07-05" "Tukaani" "XZ Utils"
+ .SH NAME
+-xzcmp, xzdiff, lzcmp, lzdiff \- compare .xz and .lzma compressed files
++xzcmp, xzdiff, lzcmp, lzdiff \- compare compressed files
+ .SH SYNOPSIS
+ .B xzcmp
+ .RI [ cmp_options "] " file1 " [" file2 ]
+@@ -18,41 +25,50 @@ xzcmp, xzdiff, lzcmp, lzdiff \- compare .xz and .lzma compressed files
+ .B  xzcmp
+ and
+ .B xdiff
+-are used to invoke the
++invoke
+ .BR cmp (1)
+-or the
++or
+ .BR diff (1)
+-program on compressed files.  All options specified are passed directly to
++on files compressed with
++.BR xz (1),
++.BR lzma (1),
++.BR gzip (1),
++or
++.BR bzip2 (1).
++All options specified are passed directly to
+ .B cmp
+ or
+-.BR diff "."
+-If only 1 file is specified, then the files compared are
++.BR diff .
++If only one file is specified, then the files compared are
+ .I file1
+-(which must have .xz or .lzma suffix) and
++(which must have a suffix of a supported compression format) and
+ .I file1
+-from which the .xz or .lzma suffix has been stripped.
++from which the compression format suffix has been stripped.
+ If two files are specified, then they are uncompressed if necessary and fed to
+-.B cmp
++.BR cmp (1)
+ or
+-.BR diff "."
++.BR diff (1).
+ The exit status from
+ .B cmp
+ or
+ .B diff
+ is preserved.
+-.SH AUTHORS
+-This manual page was ripped from
+-.BR zdiff (1)
+-shipped in gzip package.
++.PP
++The names
++.B lzcmp
++and
++.B lzdiff
++are provided for backward compatibility with LZMA Utils.
+ .SH "SEE ALSO"
+ .BR cmp (1),
+ .BR diff (1),
+-.BR xzmore(1),
+-.BR xzgrep(1),
+-.BR xz (1)
++.BR xz (1),
++.BR gzip (1),
++.BR bzip2 (1),
++.BR zdiff (1)
+ .SH BUGS
+ Messages from the
+-.B cmp
++.BR cmp (1)
+ or
+-.B diff
++.BR diff (1)
+ programs refer to temporary filenames instead of those specified.
+diff --git a/src/scripts/xzdiff.in b/src/scripts/xzdiff.in
+new file mode 100644
+index 00000000..3c09ad02
+--- /dev/null
++++ b/src/scripts/xzdiff.in
+@@ -0,0 +1,172 @@
++#!@POSIX_SHELL@
++
++# Copyright (C) 1998, 2002, 2006, 2007 Free Software Foundation
++# Copyright (C) 1993 Jean-loup Gailly
++
++# Modified for XZ Utils by Andrew Dudman and Lasse Collin.
++
++# This program is free software; you can redistribute it and/or modify
++# it under the terms of the GNU General Public License as published by
++# the Free Software Foundation; either version 2 of the License, or
++# (at your option) any later version.
++
++# This program is distributed in the hope that it will be useful,
++# but WITHOUT ANY WARRANTY; without even the implied warranty of
++# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++# GNU General Public License for more details.
++
++#SET_PATH - This line is a placeholder to ease patching this script.
++
++# Instead of unsetting XZ_OPT, just make sure that xz will use file format
++# autodetection. This way memory usage limit and thread limit can be
++# specified via XZ_OPT. With gzip and bzip2 it's OK to just unset the
++# environment variables.
++xz='@xz@ --format=auto'
++unset GZIP BZIP BZIP2
++
++case ${0##*/} in
++  *cmp*) prog=xzcmp; cmp=${CMP:-cmp};;
++  *)     prog=xzdiff; cmp=${DIFF:-diff};;
++esac
++
++version="$prog (@PACKAGE_NAME@) @VERSION@"
++
++usage="Usage: ${0##*/} [OPTION]... FILE1 [FILE2]
++Compare FILE1 to FILE2, using their uncompressed contents if they are
++compressed.  If FILE2 is omitted, then the files compared are FILE1 and
++FILE1 from which the compression format suffix has been stripped.
++
++Do comparisons like '$cmp' does.  OPTIONs are the same as for '$cmp'.
++
++Report bugs to <@PACKAGE_BUGREPORT@>."
++
++# sed script to escape all ' for the shell, and then (to handle trailing
++# newlines correctly) turn trailing X on last line into '.
++escape='
++  s/'\''/'\''\\'\'''\''/g
++  $s/X$/'\''/
++'
++
++while :; do
++  case $1 in
++    --h*) printf '%s\n' "$usage" || exit 2; exit;;
++    --v*) echo "$version" || exit 2; exit;;
++    --) shift; break;;
++    -*\'*) cmp="$cmp '"`printf '%sX\n' "$1" | sed "$escape"`;;
++    -?*) cmp="$cmp '$1'";;
++    *) break;;
++  esac
++  shift
++done
++cmp="$cmp --"
++
++for file; do
++  test "X$file" = X- || <"$file" || exit 2
++done
++
++xz1=$xz
++xz2=$xz
++xz_status=0
++exec 3>&1
++
++if test $# -eq 1; then
++  case $1 in
++    *[-.]xz | *[-.]lzma | *.t[lx]z)
++      ;;
++    *[-.]bz2 | *.tbz | *.tbz2)
++      xz1=$bzip2;;
++    *[-.][zZ] | *_z | *[-.]gz | *.t[ag]z)
++      xz1=$gzip;;
++    *)
++      echo >&2 "$0: $1: Unknown compressed file name suffix"
++      exit 2;;
++  esac
++  case $1 in
++    *[-.][zZ] | *_z | *[-.][gx]z | *[-.]bz2 | *[-.]lzma)
++      FILE=`expr "X$1" : 'X\(.*\)[-.][abglmxzZ2]*$'`
++    *.t[abglx]z)
++      FILE=`expr "X$1" : 'X\(.*[-.]t\)[abglx]z$'`ar
++    *.tbz2)
++      FILE=`expr "X$1" : 'X\(.*[-.]t\)bz2$'`ar
++  esac
++  xz_status=$(
++    exec 4>&1
++    ($xz1 -cd -- "$1" 4>&-; echo $? >&4) 3>&- | eval "$cmp" - '"$FILE"' >&3
++  )
++elif test $# -eq 2; then
++  case $1 in
++    *[-.]bz2 | *.tbz | *.tbz2) xz1=$bzip2;;
++    *[-.][zZ] | *_z | *[-.]gz | *.t[ag]z) xz1=$gzip;;
++  esac
++  case $2 in
++    *[-.]bz2 | *.tbz | *.tbz2) xz2=$bzip2;;
++    *[-.][zZ] | *_z | *[-.]gz | *.t[ag]z) xz2=$gzip;;
++  esac
++  case $1 in
++    *[-.][zZ] | *_z | *[-.][gx]z | *[-.]bz2 | *[-.]lzma | *.t[abglx]z | *.tbz2 | -)
++      case "$2" in
++        *[-.][zZ] | *_z | *[-.][gx]z | *[-.]bz2 | *[-.]lzma | *.t[abglx]z | *.tbz2 | -)
++          if test "$1$2" = --; then
++            xz_status=$(
++              exec 4>&1
++              ($xz1 -cdfq - 4>&-; echo $? >&4) 3>&- |
++                eval "$cmp" - - >&3
++            )
++          elif # Reject Solaris 8's buggy /bin/bash 2.03.
++              echo X | (echo X | eval "$cmp" /dev/fd/5 - >/dev/null 2>&1) 5<&0; then
++            xz_status=$(
++              exec 4>&1
++              ($xz1 -cdfq -- "$1" 4>&-; echo $? >&4) 3>&- |
++                ( ($xz2 -cdfq -- "$2" 4>&-; echo $? >&4) 3>&- 5<&- </dev/null |
++                eval "$cmp" /dev/fd/5 -) 5<&0
++            )
++            case $xz_status in
++              *[1-9]*) xz_status=1;;
++              *) xz_status=0;;
++            esac
++          else
++            F=`expr "/$2" : '.*/\(.*\)[-.][ablmtxz2]*$'` || F=$prog
++            tmp=
++            trap '
++              test -n "$tmp" && rm -f "$tmp"
++              (exit 2); exit 2
++            ' HUP INT PIPE TERM 0
++            tmp=`mktemp -t -- "$F.XXXXXX"` || exit 2
++            $xz2 -cdfq -- "$2" > "$tmp" || exit 2
++            xz_status=$(
++              exec 4>&1
++              ($xz1 -cdfq -- "$1" 4>&-; echo $? >&4) 3>&- |
++                eval "$cmp" - '"$tmp"' >&3
++            )
++            cmp_status=$?
++            rm -f "$tmp" || xz_status=$?
++            trap - HUP INT PIPE TERM 0
++            (exit $cmp_status)
++          fi;;
++      *)
++        xz_status=$(
++          exec 4>&1
++          ($xz1 -cdfq -- "$1" 4>&-; echo $? >&4) 3>&- |
++            eval "$cmp" - '"$2"' >&3
++        );;
++    esac;;
++  *)
++    case "$2" in
++      *[-.][zZ] | *_z | *[-.][gx]z | *[-.]bz2 | *[-.]lzma | *.t[abglx]z | *.tbz2 | -)
++        xz_status=$(
++          exec 4>&1
++          ($xz2 -cdfq -- "$2" 4>&-; echo $? >&4) 3>&- |
++            eval "$cmp" '"$1"' - >&3
++         );;
++      *)
++        eval "$cmp" '"$1"' '"$2"';;
++    esac;;
++  esac
++else
++  echo >&2 "$0: Invalid number of operands; try \`${0##*/} --help' for help"
++  exit 2
++fi
++
++cmp_status=$?
++test "$xz_status" -eq 0 || exit 2
++exit $cmp_status
+diff --git a/src/scripts/xzgrep b/src/scripts/xzgrep
+deleted file mode 100755
+index e359378b..00000000
+--- a/src/scripts/xzgrep
++++ /dev/null
+@@ -1,123 +0,0 @@
+-#!/bin/sh
+-
+-# xzgrep -- a wrapper around a grep program that decompresses files as needed
+-# Adapted to XZ Utils from gzip-1.3.3 + Red Hat's security patches
+-# Adapted from a version sent by Charles Levert <charles@comm.polymtl.ca>
+-# Copyright (C) 1998, 2001 Free Software Foundation
+-# Copyright (C) 1993 Jean-loup Gailly
+-
+-# This program is free software; you can redistribute it and/or modify
+-# it under the terms of the GNU General Public License as published by
+-# the Free Software Foundation; either version 2, or (at your option)
+-# any later version.
+-
+-# This program is distributed in the hope that it will be useful,
+-# but WITHOUT ANY WARRANTY; without even the implied warranty of
+-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+-# GNU General Public License for more details.
+-
+-# You should have received a copy of the GNU General Public License
+-# along with this program; if not, write to the Free Software
+-# Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA
+-# 02111-1307, USA.
+-
+-# Improve error handling, this is supported by bash but not all the other
+-# shells so we hide the possible error:
+-set -o pipefail > /dev/null 2> /dev/null
+-
+-prog=`echo "$0" | sed 's|.*/||'`
+-case "$prog" in
+-	*egrep)	grep=${EGREP-egrep}	;;
+-	*fgrep)	grep=${FGREP-fgrep}	;;
+-	*)	grep=${GREP-grep}	;;
+-esac
+-
+-pat=""
+-after_dash_dash=""
+-files_with_matches=0
+-files_without_matches=0
+-no_filename=0
+-with_filename=0
+-
+-while test $# -ne 0; do
+-  case "$after_dash_dash$1" in
+-  --d* | --rec*)	echo >&2 "$0: $1: option not supported"; exit 1;;
+-  --files-with-*)	files_with_matches=1;;
+-  --files-witho*)	files_without_matches=1;;
+-  --no-f*)	no_filename=1;;
+-  --wi*)	with_filename=1;;
+-  --*)	;;
+-  -*)
+-	case "$1" in
+-	-*[dr]*) echo >&2 "$0: $1: option not supported"; exit 1;;
+-	esac
+-	case "$1" in
+-	-*H*)	with_filename=1;;
+-	esac
+-	case "$1" in
+-	-*h*)	no_filename=1;;
+-	esac
+-	case "$1" in
+-	-*L*)	files_without_matches=1;;
+-	esac
+-	case "$1" in
+-	-*l*)	files_with_matches=1;;
+-	esac;;
+-  esac
+-  case "$after_dash_dash$1" in
+-  -[ef])   opt="$opt $1"; shift; pat="$1"
+-           if test "$grep" = grep; then  # grep is buggy with -e on SVR4
+-             grep=egrep
+-           fi;;
+-  -[ABCdm])opt="$opt $1 $2"; shift;;
+-  --)      opt="$opt $1"; after_dash_dash=1;;
+-  -*)	   opt="$opt $1";;
+-   *)      if test -z "$pat"; then
+-	     pat="$1"
+-	   else
+-	     break;
+-           fi;;
+-  esac
+-  shift
+-done
+-
+-if test -z "$pat"; then
+-  echo "grep through .xz and .lzma files"
+-  echo "usage: $prog [grep_options] pattern [files]"
+-  exit 1
+-fi
+-
+-if test $# -eq 0; then
+-  xz -dc | $grep $opt "$pat"
+-  exit $?
+-fi
+-
+-res=0
+-trap break SIGPIPE
+-for i do
+-  xz -dc -- "$i" |
+-    if test $files_with_matches -eq 1; then
+-      $grep $opt "$pat" > /dev/null && printf "%s\n" "$i"
+-    elif test $files_without_matches -eq 1; then
+-      $grep $opt "$pat" > /dev/null || printf "%s\n" "$i"
+-    elif test $with_filename -eq 0 && { test $# -eq 1 || test $no_filename -eq 1; }; then
+-      $grep $opt "$pat"
+-    else
+-      i=${i//\\/\\\\}
+-      i=${i//|/\\|}
+-      i=${i//&/\\&}
+-      i=`printf "%s" "$i" | tr '\n' ' '`
+-      if test $with_filename -eq 1; then
+-	sed_script="s|^[^:]*:|${i}:|"
+-      else
+-	sed_script="s|^|${i}:|"
+-      fi
+-      $grep $opt "$pat" | sed "$sed_script"
+-    fi
+-  r=$?
+-  test $res -lt $r && res=$r
+-  # SIGPIPE + 128
+-  test "$r" -eq 141 && exit $res
+-done
+-trap - SIGPIPE
+-exit $res
+diff --git a/src/scripts/xzgrep.1 b/src/scripts/xzgrep.1
+index d8647f2a..996d64ae 100644
+--- a/src/scripts/xzgrep.1
++++ b/src/scripts/xzgrep.1
+@@ -1,13 +1,20 @@
+-.\" Original file was take from gzip, thus this man page is under GNU GPLv2+.
+-.TH XZGREP 1 "2009-04-13" "XZ Utils"
++.\"
++.\" Original zgrep.1 for gzip: Jean-loup Gailly
++.\"                            Charles Levert <charles@comm.polymtl.ca>
++.\"
++.\" Modifications for XZ Utils: Lasse Collin
++.\"
++.\" License: GNU GPLv2+
++.\"
++.TH XZGREP 1 "2009-07-05" "Tukaani" "XZ Utils"
+ .SH NAME
+-xzgrep \- search .xz and .lzma compressed files for a regular expression
++xzgrep \- search compressed files for a regular expression
+ .SH SYNOPSIS
+ .B xzgrep
+ .RI [ grep_options ]
+ .RB  [ \-e ]
+ .I pattern
+-.IR filename ".\|.\|."
++.IR file ".\|.\|."
+ .br
+ .B xzegrep
+ .RB ...
+@@ -25,14 +32,28 @@ xzgrep \- search .xz and .lzma compressed files for a regular expression
+ .RB ...
+ .SH DESCRIPTION
+ .B  xzgrep
+-is used to invoke the
++invokes
+ .BR grep (1)
+-on .xz or .lzma compressed files. All options specified are passed directly to
+-.BR grep .
+-If no file is specified, then the standard input is decompressed
+-if necessary and fed to grep.
+-Otherwise the given files are uncompressed if necessary and fed to
+-.BR grep .
++on
++.I files
++which may be either uncompressed or compressed with
++.BR xz (1),
++.BR lzma (1),
++.BR gzip (1),
++or
++.BR bzip2 (1).
++All options specified are passed directly to
++.BR grep (1).
++.PP
++If no
++.I file
++is specified, then the standard input is decompressed if necessary and fed to
++.BR grep (1).
++When reading from standard input,
++.BR gzip (1)
++and
++.BR bzip2 (1)
++compressed files are not supported.
+ .PP
+ If
+ .B xzgrep
+@@ -41,37 +62,33 @@ is invoked as
+ or
+ .B xzfgrep
+ then
+-.B egrep
++.BR egrep (1)
+ or
+-.B fgrep
++.BR fgrep (1)
+ is used instead of
+-.B grep.
++.BR grep (1).
+ The same applies to names
+ .BR lzgrep ,
+ .BR lzegrep ,
+ and
+ .BR lzfgrep ,
+ which are provided for backward compatibility with LZMA Utils.
+-
+-If the GREP environment variable is set,
+-.B xzgrep
+-uses it as the
+-.B grep
+-program to be invoked. For example:
+-
+-    for sh:  GREP=fgrep  xzgrep string files
+-    for csh: (setenv GREP fgrep; xzgrep string files)
+-.SH AUTHORS
+-Original
+-.BR zgrep (1)
+-manual page by Charles Levert <charles@comm.polymtl.ca>.
+ .PP
+-Minor modifications for XZ Utils by Lasse Collin
+-<lasse.collin@tukaani.org>.
+-.SH "SEE ALSO"
++.SH ENVIRONMENT
++.TP
++.B GREP
++If the
++.B GREP
++environment variable is set,
++.B xzgrep
++uses it instead of
+ .BR grep (1),
+ .BR egrep (1),
+-.BR fgrep (1),
+-.BR xzdiff (1),
+-.BR xzmore (1),
+-.BR xz (1)
++or
++.BR fgrep (1).
++.SH "SEE ALSO"
++.BR grep (1),
++.BR xz (1),
++.BR gzip (1),
++.BR bzip2 (1),
++.BR zgrep (1)
+diff --git a/src/scripts/xzgrep.in b/src/scripts/xzgrep.in
+new file mode 100644
+index 00000000..9a9b393f
+--- /dev/null
++++ b/src/scripts/xzgrep.in
+@@ -0,0 +1,196 @@
++#!@POSIX_SHELL@
++
++# xzgrep -- a wrapper around a grep program that decompresses files as needed
++# Adapted from a version sent by Charles Levert <charles@comm.polymtl.ca>
++
++# Copyright (C) 1998, 2001, 2002, 2006, 2007 Free Software Foundation
++# Copyright (C) 1993 Jean-loup Gailly
++
++# Modified for XZ Utils by Andrew Dudman and Lasse Collin.
++
++# This program is free software; you can redistribute it and/or modify
++# it under the terms of the GNU General Public License as published by
++# the Free Software Foundation; either version 2 of the License, or
++# (at your option) any later version.
++
++# This program is distributed in the hope that it will be useful,
++# but WITHOUT ANY WARRANTY; without even the implied warranty of
++# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++# GNU General Public License for more details.
++
++#SET_PATH - This line is a placeholder to ease patching this script.
++
++# Instead of unsetting XZ_OPT, just make sure that xz will use file format
++# autodetection. This way memory usage limit and thread limit can be
++# specified via XZ_OPT. With gzip and bzip2 it's OK to just unset the
++# environment variables.
++xz='@xz@ --format=auto'
++unset GZIP BZIP BZIP2
++
++case ${0##/*} in
++  *egrep*) prog=xzegrep; grep=${GREP:-egrep};;
++  *fgrep*) prog=xzfgrep; grep=${GREP:-fgrep};;
++  *)       prog=xzgrep; grep=${GREP:-grep};;
++esac
++
++version="$prog (@PACKAGE_NAME@) @VERSION@"
++
++usage="Usage: ${0##/*} [OPTION]... [-e] PATTERN [FILE]...
++Look for instances of PATTERN in the input FILEs, using their
++uncompressed contents if they are compressed.
++
++OPTIONs are the same as for '$grep'.
++
++Report bugs to <@PACKAGE_BUGREPORT@>."
++
++# sed script to escape all ' for the shell, and then (to handle trailing
++# newlines correctly) turn trailing X on last line into '.
++escape='
++  s/'\''/'\''\\'\'''\''/g
++  $s/X$/'\''/
++'
++operands=
++have_pat=0
++files_with_matches=0
++files_without_matches=0
++no_filename=0
++with_filename=0
++
++while test $# -ne 0; do
++  option=$1
++  shift
++  optarg=
++
++  case $option in
++  (-[0123456789abcdhHiIKLlnoqrRsTuUvVwxyzZ]?*)
++    arg2=-\'$(expr "X${option}X" : 'X-.[0-9]*\(.*\)' | sed "$escape")
++    eval "set -- $arg2 "'${1+"$@"}'
++    option=$(expr "X$option" : 'X\(-.[0-9]*\)');;
++  (--binary-*=* | --[lm]a*=* | --reg*=*)
++    ;;
++  (-[ABCDefm] | --binary-* | --file | --[lm]a* | --reg*)
++    case ${1?"$option option requires an argument"} in
++    (*\'*)
++      optarg=" '"$(printf '%sX\n' "$1" | sed "$escape");;
++    (*)
++      optarg=" '$1'";;
++    esac
++    shift;;
++  (--)
++    break;;
++  (-?*)
++    ;;
++  (*)
++    case $option in
++    (*\'*)
++      operands="$operands '"$(printf '%sX\n' "$option" | sed "$escape");;
++    (*)
++      operands="$operands '$option'";;
++    esac
++    ${POSIXLY_CORRECT+break}
++    continue;;
++  esac
++
++  case $option in
++  (-[drRzZ] | --di* | --exc* | --inc* | --rec* | --nu*)
++    printf >&2 '%s: %s: Option not supported\n' "$0" "$option"
++    exit 2;;
++  (-[ef]* | --file | --file=* | --reg*)
++    have_pat=1;;
++  (--h | --he | --hel | --help)
++    echo "$usage" || exit 2
++    exit;;
++  (-H | --wi | --wit | --with | --with- | --with-f | --with-fi \
++  | --with-fil | --with-file | --with-filen | --with-filena | --with-filenam \
++  | --with-filename)
++    with_filename=1
++    continue;;
++  (-l | --files-with-*)
++    files_with_matches=1;;
++  (-L | --files-witho*)
++    files_without_matches=1;;
++  (--no-f*)
++    no_filename=1;;
++  (-V | --v | --ve | --ver | --vers | --versi | --versio | --version)
++    echo "$version" || exit 2
++    exit;;
++  esac
++
++  case $option in
++  (*\'?*)
++    option=\'$(expr "X${option}X" : 'X\(.*\)' | sed "$escape");;
++  (*)
++    option="'$option'";;
++  esac
++
++  grep="$grep $option$optarg"
++done
++
++eval "set -- $operands "'${1+"$@"}'
++
++if test $have_pat -eq 0; then
++  case ${1?"Missing pattern; try \`${0##*/} --help' for help"} in
++  (*\'*)
++    grep="$grep -- '"$(printf '%sX\n' "$1" | sed "$escape");;
++  (*)
++    grep="$grep -- '$1'";;
++  esac
++  shift
++fi
++
++if test $# -eq 0; then
++  set -- -
++fi
++
++exec 3>&1
++res=0
++
++for i; do
++  case $i in
++    *[-.][zZ] | *_z | *[-.]gz | *.t[ag]z) uncompress="gzip -cdfq";;
++    *[-.]bz2 | *[-.]tbz | *.tbz2) uncompress="bzip2 -cdfq";;
++    *) uncompress="$xz -cdfq";;
++  esac
++  # Fail if xz or grep (or sed) fails.
++  xz_status=$(
++    exec 5>&1
++    (eval "$uncompress" -- "$i" 5>&-; echo $? >&5) 3>&- |
++    if test $files_with_matches -eq 1; then
++      eval "$grep" -q && { printf '%s\n' "$i" || exit 2; }
++    elif test $files_without_matches -eq 1; then
++      eval "$grep" -q || {
++        r=$?
++        if test $r -eq 1; then
++          printf '%s\n' "$i" || r=2
++        fi
++        exit $r
++      }
++    elif test $with_filename -eq 0 &&
++         { test $# -eq 1 || test $no_filename -eq 1; }; then
++      eval "$grep"
++    else
++      case $i in
++      (*'
++'* | *'&'* | *'\'* | *'|'*)
++        i=$(printf '%s\n' "$i" |
++            sed '
++              $!N
++              $s/[&\|]/\\&/g
++              $s/\n/\\n/g
++            ');;
++      esac
++      sed_script="s|^|$i:|"
++
++      # Fail if grep or sed fails.
++      r=$(
++        exec 4>&1
++        (eval "$grep" 4>&-; echo $? >&4) 3>&- | sed "$sed_script" >&3 4>&-
++      ) || r=2
++      exit $r
++    fi >&3 5>&-
++  )
++  r=$?
++  test "$xz_status" -eq 0 || test "$xz_status" -eq 2 || r=2
++  test $res -lt $r && res=$r
++done
++exit $res
+diff --git a/src/scripts/xzless.1 b/src/scripts/xzless.1
+new file mode 100644
+index 00000000..4fe4bcba
+--- /dev/null
++++ b/src/scripts/xzless.1
+@@ -0,0 +1,66 @@
++.\"
++.\" Authors: Andrew Dudman
++.\"          Lasse Collin
++.\"
++.\" This file has been put into the public domain.
++.\" You can do whatever you want with this file.
++.\"
++.\" (Note that this file is not based on gzip's zless.1.)
++.\"
++.TH XZLESS 1 "2009-07-05" "Tukaani" "XZ Utils"
++.SH NAME
++xzless, lzless \- view xz or lzma compressed (text) files
++.SH SYNOPSIS
++.B xzless
++.RI [ file ...]
++.br
++.B lzless
++.RI [ file ...]
++.SH DESCRIPTION
++.B  xzless
++is a filter that displays pagefulls of uncompressed text from compressed
++file(s) to a terminal.  It works on files compressed with
++.BR xz (1)
++or
++.BR lzma (1).
++If no
++.I files
++are given,
++.B xzless
++reads from standard input.
++.PP
++.B xzless
++uses
++.BR less (1)
++as its only pager.  Unlike
++.BR xzmore ,
++the choice of pagers is not alterable by an environment variable.
++Commands are based on both
++.BR more (1)
++and
++.BR vi (1),
++and allow back and forth movement and searching.
++See the
++.BR less (1)
++manual for more information.
++.PP
++The command named
++.B lzless
++is provided for backward compatibility with LZMA Utils.
++.SH ENVIRONMENT
++.TP
++.B LESSMETACHARS
++A list of characters special to the shell.  Set by
++.B xzless
++unless it is already set in the environment.
++.TP
++.B LESSOPEN
++Set to a command line to invoke the
++.BR xz (1)
++decompressor for preprocessing the input files to
++.BR less (1).
++.SH "SEE ALSO"
++.BR less (1),
++.BR xz (1),
++.BR xzmore (1),
++.BR zless (1)
+diff --git a/src/scripts/xzless.in b/src/scripts/xzless.in
+new file mode 100644
+index 00000000..f4ee6184
+--- /dev/null
++++ b/src/scripts/xzless.in
+@@ -0,0 +1,51 @@
++#!@POSIX_SHELL@
++
++# Copyright (C) 1998, 2002, 2006, 2007 Free Software Foundation
++
++# Modified for XZ Utils by Andrew Dudman and Lasse Collin.
++
++# This program is free software; you can redistribute it and/or modify
++# it under the terms of the GNU General Public License as published by
++# the Free Software Foundation; either version 2 of the License, or
++# (at your option) any later version.
++
++# This program is distributed in the hope that it will be useful,
++# but WITHOUT ANY WARRANTY; without even the implied warranty of
++# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++# GNU General Public License for more details.
++
++#SET_PATH - This line is a placeholder to ease patching this script.
++
++# Instead of unsetting XZ_OPT, just make sure that xz will use file format
++# autodetection. This way memory usage limit and thread limit can be
++# specified via XZ_OPT.
++xz='@xz@ --format=auto'
++
++version='xzless (@PACKAGE_NAME@) @VERSION@'
++
++usage="Usage: ${0##*/} [OPTION]... [FILE]...
++Like 'less', but operate on the uncompressed contents of xz compressed FILEs.
++
++Options are the same as for 'less'.
++
++Report bugs to <@PACKAGE_BUGREPORT@>."
++
++case $1 in
++	--help)    echo "$usage" || exit 2; exit;;
++	--version) echo "$version" || exit 2; exit;;
++esac
++
++if test "${LESSMETACHARS+set}" != set; then
++	# Work around a bug in less 394 and earlier;
++	# it mishandles the metacharacters '$%=~'.
++	space=' '
++	tab='	'
++	nl='
++'
++	LESSMETACHARS="$space$tab$nl'"';*?"()<>[|&^`#\$%=~'
++fi
++
++LESSOPEN="|$xz -cdfq -- %s"
++export LESSMETACHARS LESSOPEN
++
++exec less "$@"
+diff --git a/src/scripts/xzmore b/src/scripts/xzmore
+deleted file mode 100755
+index 3ff3cbf7..00000000
+--- a/src/scripts/xzmore
++++ /dev/null
+@@ -1,74 +0,0 @@
+-#!/bin/sh
+-
+-# Copyright (C) 2001 Free Software Foundation
+-# Copyright (C) 1992, 1993 Jean-loup Gailly
+-# Adapted to XZ Utils from gzip-1.3.3 + Red Hat's security patches
+-
+-# This program is free software; you can redistribute it and/or modify
+-# it under the terms of the GNU General Public License as published by
+-# the Free Software Foundation; either version 2, or (at your option)
+-# any later version.
+-
+-# This program is distributed in the hope that it will be useful,
+-# but WITHOUT ANY WARRANTY; without even the implied warranty of
+-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+-# GNU General Public License for more details.
+-
+-# You should have received a copy of the GNU General Public License
+-# along with this program; if not, write to the Free Software
+-# Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA
+-# 02111-1307, USA.
+-
+-case "$0" in
+-  *less) PAGER=less ;;
+-esac
+-
+-if test "`echo -n a`" = "-n a"; then
+-  # looks like a SysV system:
+-  n1=''; n2='\c'
+-else
+-  n1='-n'; n2=''
+-fi
+-oldtty=`stty -g 2>/dev/null`
+-if stty -cbreak 2>/dev/null; then
+-  cb='cbreak'; ncb='-cbreak'
+-else
+-  # 'stty min 1' resets eof to ^a on both SunOS and SysV!
+-  cb='min 1 -icanon'; ncb='icanon eof ^d'
+-fi
+-if test $? -eq 0 -a -n "$oldtty"; then
+-   trap 'stty $oldtty 2>/dev/null; exit' 0 2 3 5 10 13 15
+-else
+-   trap 'stty $ncb echo 2>/dev/null; exit' 0 2 3 5 10 13 15
+-fi
+-
+-if test $# = 0; then
+-    if test -t 0; then
+-	echo usage: zmore files...
+-    else
+-	xz -dc | eval ${PAGER-more}
+-    fi
+-else
+-    FIRST=1
+-    for FILE
+-    do
+-	< "$FILE" || continue
+-	if test $FIRST -eq 0; then
+-		echo $n1 "--More--(Next file: $FILE)$n2"
+-		stty $cb -echo 2>/dev/null
+-		ANS=`dd bs=1 count=1 2>/dev/null`
+-		stty $ncb echo 2>/dev/null
+-		echo " "
+-		if test "$ANS" = 'e' -o "$ANS" = 'q'; then
+-			exit
+-		fi
+-	fi
+-	if test "$ANS" != 's'; then
+-		echo "------> $FILE <------"
+-		xz -dc -- "$FILE" | eval ${PAGER-more}
+-	fi
+-	if test -t; then
+-		FIRST=0
+-	fi
+-    done
+-fi
+diff --git a/src/scripts/xzmore.1 b/src/scripts/xzmore.1
+index dc76ac22..a94e8326 100644
+--- a/src/scripts/xzmore.1
++++ b/src/scripts/xzmore.1
+@@ -1,66 +1,54 @@
+-.\" Original file was take from gzip, thus this man page is under GNU GPLv2+.
+-.TH XZMORE 1 "2009-04-13" "XZ Utils"
++.\"
++.\" Original zdiff.1 for gzip: Jean-loup Gailly
++.\" Modifications for XZ Utils: Lasse Collin
++.\"
++.\" License: GNU GPLv2+
++.\"
++.TH XZMORE 1 "2009-07-05" "Tukaani" "XZ Utils"
+ .SH NAME
+-xzmore, xzless, lzmore, lzless \- view .xz or .lzma compressed (text) files
++xzmore, lzmore \- view xz or lzma compressed (text) files
+ .SH SYNOPSIS
+ .B xzmore
+ .RI [ "filename ..."  ]
+ .br
+-.B xzless
+-.RI [ "filename ..."  ]
+-.br
+ .B lzmore
+ .RI [ "filename ..."  ]
+-.br
+-.B lzless
+-.RI [ "filename ..."  ]
+ .SH DESCRIPTION
+ .B  xzmore
+-is a filter which allows examination of .xz or .lzma compressed text files
+-one screenful at a time on a soft-copy terminal.
++is a filter which allows examination of
++.BR xz (1)
++or
++.BR lzma (1)
++compressed text files one screenful at a time on a soft-copy terminal.
+ .PP
+ To use a pager other than the default
+ .B more,
+ set environment variable
+ .B PAGER
+-to the name of the desired program, such as
+-.BR less .
+-If
+-.B xzmore
+-is called as
+-.B xzless
+-then
+-.B less
+-is used as the
+-.BR PAGER .
+-The names
++to the name of the desired program.
++The name
+ .B lzmore
+-and
+-.B lzless
+-are provided for backward compatibility with LZMA Utils.
++is provided for backward compatibility with LZMA Utils.
+ .TP
+ .BR e " or " q
+ When the prompt --More--(Next file:
+ .IR file )
+-is printed, this command causes xzmore to exit.
++is printed, this command causes
++.B xzmore
++to exit.
+ .TP
+ .B s
+ When the prompt --More--(Next file:
+ .IR file )
+-is printed, this command causes zmore to skip the next file and continue.
++is printed, this command causes
++.B xzmore
++to skip the next file and continue.
+ .PP
+ For list of keyboard commands supported while actually viewing the
+ content of a file, refer to manual of the pager you use, usually
+-.BR more (1)
+-or
+-.BR less (1).
+-.SH AUTHORS
+-This manual page was ripped from
+-.BR zmore (1)
+-shipped in gzip package.
++.BR more (1).
+ .SH "SEE ALSO"
+ .BR more (1),
+-.BR zmore (1),
+-.BR xzdiff (1),
+-.BR xzgrep (1),
+-.BR xz (1)
++.BR xz (1),
++.BR xzless (1),
++.BR zmore (1)
+diff --git a/src/scripts/xzmore.in b/src/scripts/xzmore.in
+new file mode 100644
+index 00000000..940d6614
+--- /dev/null
++++ b/src/scripts/xzmore.in
+@@ -0,0 +1,78 @@
++#!@POSIX_SHELL@
++
++# Copyright (C) 2001, 2002, 2007 Free Software Foundation
++# Copyright (C) 1992, 1993 Jean-loup Gailly
++
++# Modified for XZ Utils by Andrew Dudman and Lasse Collin.
++
++# This program is free software; you can redistribute it and/or modify
++# it under the terms of the GNU General Public License as published by
++# the Free Software Foundation; either version 2 of the License, or
++# (at your option) any later version.
++
++# This program is distributed in the hope that it will be useful,
++# but WITHOUT ANY WARRANTY; without even the implied warranty of
++# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++# GNU General Public License for more details.
++
++#SET_PATH - This line is a placeholder to ease patching this script.
++
++# Instead of unsetting XZ_OPT, just make sure that xz will use file format
++# autodetection. This way memory usage limit and thread limit can be
++# specified via XZ_OPT.
++xz='@xz@ --format=auto'
++
++version='xzmore (@PACKAGE_NAME@) @VERSION@'
++
++usage="Usage: ${0##*/} [OPTION]... [FILE]...
++Like 'more', but operate on the uncompressed contents of xz compressed FILEs.
++
++Report bugs to <@PACKAGE_BUGREPORT@>."
++
++case $1 in
++	--help)    echo "$usage" || exit 2; exit;;
++	--version) echo "$version" || exit 2; exit;;
++esac
++
++oldtty=`stty -g 2>/dev/null`
++if stty -cbreak 2>/dev/null; then
++	cb='cbreak'; ncb='-cbreak'
++else
++	# 'stty min 1' resets eof to ^a on both SunOS and SysV!
++	cb='min 1 -icanon'; ncb='icanon eof ^d'
++fi
++if test $? -eq 0 && test -n "$oldtty"; then
++	trap 'stty $oldtty 2>/dev/null; exit' 0 2 3 5 10 13 15
++else
++	trap 'stty $ncb echo 2>/dev/null; exit' 0 2 3 5 10 13 15
++fi
++
++if test $# = 0; then
++	if test -t 0; then
++		echo "$usage"; exit 1
++	else
++		$xz -cdfq | eval "${PAGER:-more}"
++	fi
++else
++	FIRST=1
++	for FILE; do
++		< "$FILE" || continue
++		if test $FIRST -eq 0; then
++			printf "%s--More--(Next file: %s)" "" "$FILE"
++			stty $cb -echo 2>/dev/null
++			ANS=`dd bs=1 count=1 2>/dev/null`
++			stty $ncb echo 2>/dev/null
++			echo " "
++			case "$ANS" in
++				[eq]) exit;;
++			esac
++		fi
++		if test "$ANS" != 's'; then
++			echo "------> $FILE <------"
++			$xz -cdfq -- "$FILE" | eval "${PAGER:-more}"
++		fi
++		if test -t 1; then
++			FIRST=0
++		fi
++	done
++fi

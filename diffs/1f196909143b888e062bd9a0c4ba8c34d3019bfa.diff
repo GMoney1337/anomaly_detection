@@ -1,0 +1,112 @@
+diff --git a/src/liblzma/api/lzma/index.h b/src/liblzma/api/lzma/index.h
+index da9a622a..3490e4c6 100644
+--- a/src/liblzma/api/lzma/index.h
++++ b/src/liblzma/api/lzma/index.h
+@@ -317,12 +317,13 @@ extern LZMA_API(lzma_ret) lzma_index_encoder(lzma_stream *strm, lzma_index *i)
+  * \brief       Initialize .xz Index decoder
+  *
+  * \param       strm        Pointer to properly prepared lzma_stream
+- * \param       i           Pointer to a pointer that will be made to point
+- *                          to the final decoded Index once lzma_code() has
+- *                          returned LZMA_STREAM_END. That is,
+- *                          lzma_index_decoder() always takes care of
+- *                          allocating a new lzma_index structure, and *i
+- *                          doesn't need to be initialized by the caller.
++ * \param       i           The decoded Index will be made available via
++ *                          this pointer. Initially this function will
++ *                          set *i to NULL (the old value is ignored). If
++ *                          decoding succeeds (lzma_code() returns
++ *                          LZMA_STREAM_END), *i will be set to point
++ *                          to the decoded Index, which the application
++ *                          has to later free with lzma_index_end().
+  * \param       memlimit    How much memory the resulting Index is allowed
+  *                          to require.
+  *
+@@ -373,11 +374,11 @@ extern LZMA_API(lzma_ret) lzma_index_buffer_encode(lzma_index *i,
+ /**
+  * \brief       Single-call .xz Index decoder
+  *
+- * \param       i           Pointer to a pointer that will be made to point
+- *                          to the final decoded Index if decoding is
+- *                          successful. That is, lzma_index_buffer_decode()
+- *                          always takes care of allocating a new
+- *                          lzma_index structure, and *i doesn't need to be
++ * \param       i           If decoding succeeds, *i will point to the
++ *                          decoded Index, which the application has to
++ *                          later free with lzma_index_end(). If an error
++ *                          occurs, *i will be NULL. The old value of *i
++ *                          is always ignored and thus doesn't need to be
+  *                          initialized by the caller.
+  * \param       memlimit    Pointer to how much memory the resulting Index
+  *                          is allowed to require. The value pointed by
+diff --git a/src/liblzma/common/index_decoder.c b/src/liblzma/common/index_decoder.c
+index 51e9de38..258bf023 100644
+--- a/src/liblzma/common/index_decoder.c
++++ b/src/liblzma/common/index_decoder.c
+@@ -32,6 +32,10 @@ struct lzma_coder_s {
+ 	/// Target Index
+ 	lzma_index *index;
+ 
++	/// Pointer give by the application, which is set after
++	/// successful decoding.
++	lzma_index **index_ptr;
++
+ 	/// Number of Records left to decode.
+ 	lzma_vli count;
+ 
+@@ -174,6 +178,10 @@ index_decode(lzma_coder *coder, lzma_allocator *allocator,
+ 
+ 		} while (++coder->pos < 4);
+ 
++		// Decoding was successful, now we can let the application
++		// see the decoded Index.
++		*coder->index_ptr = coder->index;
++
+ 		// Make index NULL so we don't free it unintentionally.
+ 		coder->index = NULL;
+ 
+@@ -222,15 +230,21 @@ static lzma_ret
+ index_decoder_reset(lzma_coder *coder, lzma_allocator *allocator,
+ 		lzma_index **i, uint64_t memlimit)
+ {
++	// Remember the pointer given by the application. We will set it
++	// to point to the decoded Index only if decoding is successful.
++	// Before that, keep it NULL so that applications can always safely
++	// pass it to lzma_index_end() no matter did decoding succeed or not.
++	coder->index_ptr = i;
++	*i = NULL;
++
+ 	// We always allocate a new lzma_index.
+-	*i = lzma_index_init(NULL, allocator);
+-	if (*i == NULL)
++	coder->index = lzma_index_init(NULL, allocator);
++	if (coder->index == NULL)
+ 		return LZMA_MEM_ERROR;
+ 
+ 	// Initialize the rest.
+ 	coder->sequence = SEQ_INDICATOR;
+ 	coder->memlimit = memlimit;
+-	coder->index = *i;
+ 	coder->count = 0; // Needs to be initialized due to _memconfig().
+ 	coder->pos = 0;
+ 	coder->crc32 = 0;
+@@ -282,7 +296,8 @@ lzma_index_buffer_decode(
+ 		const uint8_t *in, size_t *in_pos, size_t in_size)
+ {
+ 	// Sanity checks
+-	if (i == NULL || in == NULL || in_pos == NULL || *in_pos > in_size)
++	if (i == NULL || memlimit == NULL
++			|| in == NULL || in_pos == NULL || *in_pos > in_size)
+ 		return LZMA_PROG_ERROR;
+ 
+ 	// Initialize the decoder.
+@@ -302,8 +317,7 @@ lzma_index_buffer_decode(
+ 	} else {
+ 		// Something went wrong, free the Index structure and restore
+ 		// the input position.
+-		lzma_index_end(*i, allocator);
+-		*i = NULL;
++		lzma_index_end(coder.index, allocator);
+ 		*in_pos = in_start;
+ 
+ 		if (ret == LZMA_OK) {

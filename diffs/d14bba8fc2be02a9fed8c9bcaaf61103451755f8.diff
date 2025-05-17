@@ -1,0 +1,15 @@
+diff --git a/src/xz/private.h b/src/xz/private.h
+index 57606cd6..8542427f 100644
+--- a/src/xz/private.h
++++ b/src/xz/private.h
+@@ -36,6 +36,10 @@
+ #	include <windows.h>
+ #endif
+ 
++#ifdef _MSC_VER
++#	define fileno _fileno
++#endif
++
+ #ifndef STDIN_FILENO
+ #	define STDIN_FILENO (fileno(stdin))
+ #endif

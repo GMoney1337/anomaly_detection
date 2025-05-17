@@ -1,0 +1,41 @@
+diff --git a/Makefile.am b/Makefile.am
+index d0548580..b41947e6 100644
+--- a/Makefile.am
++++ b/Makefile.am
+@@ -50,6 +50,7 @@ uninstall-local:
+ endif
+ 
+ EXTRA_DIST = \
++	po/xz.pot-header \
+ 	po4a \
+ 	extra \
+ 	doc/xz-logo.png \
+diff --git a/po/xz.pot-header b/po/xz.pot-header
+new file mode 100644
+index 00000000..56272e0b
+--- /dev/null
++++ b/po/xz.pot-header
+@@ -0,0 +1,7 @@
++# SPDX-License-Identifier: 0BSD
++#
++# SOME DESCRIPTIVE TITLE.
++# Copyright (C) The XZ Utils authors and contributors
++# This file is distributed under the BSD Zero Clause License.
++# FIRST AUTHOR <EMAIL@ADDRESS>, YEAR.
++#
+diff --git a/po4a/update-po b/po4a/update-po
+index 64675384..244951ec 100755
+--- a/po4a/update-po
++++ b/po4a/update-po
+@@ -41,3 +41,11 @@ po4a --force --verbose \
+ 	--package-version="$PACKAGE_VERSION" \
+ 	--copyright-holder="The XZ Utils authors and contributors" \
+ 	po4a.conf
++
++# Add the customized POT header which contains the SPDX license
++# identifier and spells out the license name instead of saying
++# "the same license as the XZ Utils package".
++mv xz-man.pot xz-man.pot.tmp
++cat ../po/xz.pot-header > xz-man.pot
++sed '1,/^#$/d' xz-man.pot.tmp >> xz-man.pot
++rm xz-man.pot.tmp

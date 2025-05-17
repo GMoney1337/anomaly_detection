@@ -1,0 +1,12 @@
+diff --git a/.github/workflows/netbsd.yml b/.github/workflows/netbsd.yml
+index dd8d386a..8a099d91 100644
+--- a/.github/workflows/netbsd.yml
++++ b/.github/workflows/netbsd.yml
+@@ -23,6 +23,7 @@ jobs:
+         prepare: |
+           /usr/sbin/pkg_add -v autoconf automake gmake gettext-tools gtar-base libtool-base m4 po4a
+         run: |
++          set -e
+           export LC_ALL=C LANG=C
+           uname -a
+           ./autogen.sh

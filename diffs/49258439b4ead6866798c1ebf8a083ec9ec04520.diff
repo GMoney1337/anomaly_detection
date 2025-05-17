@@ -1,0 +1,12 @@
+diff --git a/THANKS b/THANKS
+index cd40483f..428b5e3d 100644
+--- a/THANKS
++++ b/THANKS
+@@ -107,6 +107,7 @@ has been important. :-) In alphabetical order:
+   - James M Leddy
+   - Kelvin Lee
+   - Vincent Lefevre
++  - Daniel Leonard
+   - Hin-Tak Leung
+   - Andraž 'ruskie' Levstik
+   - Cary Lewis

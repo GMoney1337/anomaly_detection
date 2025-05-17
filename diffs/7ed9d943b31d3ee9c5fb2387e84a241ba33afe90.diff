@@ -1,0 +1,1333 @@
+diff --git a/configure.ac b/configure.ac
+index 6ebe54b5..257cb037 100644
+--- a/configure.ac
++++ b/configure.ac
+@@ -383,6 +383,21 @@ AC_MSG_RESULT([$enable_small])
+ AM_CONDITIONAL(COND_SMALL, test "x$enable_small" = xyes)
+ 
+ 
++#############
++# Threading #
++#############
++
++AC_MSG_CHECKING([if threading support is wanted])
++AC_ARG_ENABLE([threads], AC_HELP_STRING([--disable-threads],
++		[Disable threading support.
++		This makes some things thread-unsafe.]),
++	[], [enable_threads=yes])
++if test "x$enable_threads" != xyes && test "x$enable_threads" != xno; then
++	AC_MSG_ERROR([--enable-threads accepts only \`yes' or \`no'])
++fi
++# We use the actual result a little later.
++
++
+ ###############################################################################
+ # Checks for programs.
+ ###############################################################################
+@@ -402,10 +417,14 @@ AM_PROG_CC_C_O
+ AM_PROG_AS
+ AC_USE_SYSTEM_EXTENSIONS
+ 
+-echo
+-echo "Threading support:"
+-ACX_PTHREAD
+-CC="$PTHREAD_CC"
++if test "x$enable_threads" = xyes; then
++	echo
++	echo "Threading support:"
++	ACX_PTHREAD
++	LIBS="$LIBS $PTHREAD_LIBS"
++	CFLAGS="$PTHREAD_CFLAGS $CFLAGS"
++	CC="$PTHREAD_CC"
++fi
+ 
+ echo
+ echo "Initializing Libtool:"
+@@ -698,7 +717,7 @@ AC_CONFIG_FILES([
+ 	po/Makefile.in
+ 	lib/Makefile
+ 	src/Makefile
+-	src/liblzma/lzma.pc
++	src/liblzma/liblzma.pc
+ 	src/liblzma/Makefile
+ 	src/liblzma/api/Makefile
+ 	src/liblzma/common/Makefile
+diff --git a/src/common/mythread.h b/src/common/mythread.h
+new file mode 100644
+index 00000000..cd9ae89a
+--- /dev/null
++++ b/src/common/mythread.h
+@@ -0,0 +1,34 @@
++///////////////////////////////////////////////////////////////////////////////
++//
++/// \file       mythread.h
++/// \brief      Wrappers for threads
++//
++//  Author: Lasse Collin
++//  This file has been put into the public domain.
++//
++///////////////////////////////////////////////////////////////////////////////
++
++#include "sysdefs.h"
++
++
++#ifdef HAVE_PTHREAD
++#	include <pthread.h>
++
++#	define mythread_once(func) \
++	do { \
++		static pthread_once_t once_ = PTHREAD_ONCE_INIT; \
++		pthread_once(&once_, &func); \
++	} while (0)
++
++#else
++
++#	define mythread_once(func) \
++	do { \
++		static bool once_ = false; \
++		if (!once_) { \
++			func(); \
++			once_ = true; \
++		} \
++	} while (0)
++
++#endif
+diff --git a/src/liblzma/api/Makefile.am b/src/liblzma/api/Makefile.am
+index c69e7548..f5101f96 100644
+--- a/src/liblzma/api/Makefile.am
++++ b/src/liblzma/api/Makefile.am
+@@ -22,7 +22,6 @@ nobase_include_HEADERS = \
+ 	lzma/filter.h \
+ 	lzma/index.h \
+ 	lzma/index_hash.h \
+-	lzma/init.h \
+ 	lzma/lzma.h \
+ 	lzma/simple.h \
+ 	lzma/stream_flags.h \
+diff --git a/src/liblzma/api/lzma.h b/src/liblzma/api/lzma.h
+index d19687b7..ef7a1086 100644
+--- a/src/liblzma/api/lzma.h
++++ b/src/liblzma/api/lzma.h
+@@ -197,7 +197,6 @@ extern "C" {
+ 
+ /* Basic features */
+ #include "lzma/version.h"
+-#include "lzma/init.h"
+ #include "lzma/base.h"
+ #include "lzma/vli.h"
+ #include "lzma/check.h"
+diff --git a/src/liblzma/api/lzma/init.h b/src/liblzma/api/lzma/init.h
+deleted file mode 100644
+index 9195e752..00000000
+--- a/src/liblzma/api/lzma/init.h
++++ /dev/null
+@@ -1,85 +0,0 @@
+-/**
+- * \file        lzma/init.h
+- * \brief       Initializations
+- *
+- * \author      Copyright (C) 1999-2006 Igor Pavlov
+- * \author      Copyright (C) 2007 Lasse Collin
+- *
+- * This library is free software; you can redistribute it and/or
+- * modify it under the terms of the GNU Lesser General Public
+- * License as published by the Free Software Foundation; either
+- * version 2.1 of the License, or (at your option) any later version.
+- *
+- * This library is distributed in the hope that it will be useful,
+- * but WITHOUT ANY WARRANTY; without even the implied warranty of
+- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+- * Lesser General Public License for more details.
+- */
+-
+-#ifndef LZMA_H_INTERNAL
+-#	error Never include this file directly. Use <lzma.h> instead.
+-#endif
+-
+-
+-/**
+- * \brief       Initialize all internal static variables
+- *
+- * Depending on the build options, liblzma may have some internal static
+- * variables, that must be initialized before using any other part of
+- * the library (*). It is recommended to do these initializations in the very
+- * beginning of the application by calling appropriate initialization function.
+- *
+- * (*) There are some exceptions to this rule. FIXME
+- *
+- * The initialization functions are not necessarily thread-safe, thus the
+- * required initializations must be done before creating any threads. (The
+- * rest of the functions of liblzma are thread-safe.) Calling the
+- * initialization functions multiple times does no harm, although it
+- * still shouldn't be done when there are multiple threads running.
+- *
+- * lzma_init() initializes all internal static variables by calling
+- * lzma_init_encoder() and lzma_init_decoder().
+- *
+- * If you need only encoder, decoder, or neither-encoder-nor-decoder
+- * functions, you may use other initialization functions, which initialize
+- * only a subset of liblzma's internal static variables. Using those
+- * functions have the following advantages:
+- *  - When linking statically against liblzma, fewer useless functions will
+- *    get linked into the binary. E.g. if you need only the decoder functions,
+- *    using lzma_init_decoder() avoids linking bunch of encoder related code.
+- *  - There is less things to initialize, making the initialization
+- *    process slightly faster.
+- */
+-extern void lzma_init(void);
+-
+-
+-/**
+- * \brief       Initialize internal static variables needed by encoders
+- *
+- * If you need only the encoder functions, you may use this function to
+- * initialize only the things required by encoders.
+- *
+- * This function also calls lzma_init_check().
+- */
+-extern void lzma_init_encoder(void);
+-
+-
+-/**
+- * \brief       Initialize internal static variables needed by decoders
+- *
+- * If you need only the decoder functions, you may use this function to
+- * initialize only the things required by decoders.
+- *
+- * This function also calls lzma_init_check().
+- */
+-extern void lzma_init_decoder(void);
+-
+-
+-/**
+- * \brief       Initialize internal static variables needed by integrity checks
+- *
+- * Currently this initializes CRC32 and CRC64 lookup tables if precalculated
+- * tables haven't been built into the library. This function can be useful
+- * if the only thing you need from liblzma is the integrity check functions.
+- */
+-extern void lzma_init_check(void);
+diff --git a/src/liblzma/check/Makefile.am b/src/liblzma/check/Makefile.am
+index 182e0868..f323e6fe 100644
+--- a/src/liblzma/check/Makefile.am
++++ b/src/liblzma/check/Makefile.am
+@@ -13,46 +13,37 @@ noinst_LTLIBRARIES = libcheck.la
+ libcheck_la_SOURCES = \
+ 	check.c \
+ 	check.h \
+-	check_init.c \
+ 	crc_macros.h
+ libcheck_la_CPPFLAGS = \
+ 	-I@top_srcdir@/src/liblzma/api \
+ 	-I@top_srcdir@/src/liblzma/common
+ 
+ if COND_CHECK_CRC32
+-
++if COND_SMALL
++libcheck_la_SOURCES += crc32_small.c
++else
++libcheck_la_SOURCES += crc32_table.c crc32_table_le.h crc32_table_be.h
+ if COND_ASM_X86
+ libcheck_la_SOURCES += crc32_x86.S
+ else
+-libcheck_la_SOURCES += crc32.c
++libcheck_la_SOURCES += crc32_fast.c
+ endif
+-
+-if COND_SMALL
+-libcheck_la_SOURCES += crc32_init.c
+-else
+-libcheck_la_SOURCES += crc32_table.c crc32_table_le.h crc32_table_be.h
+ endif
+-
+ endif
+ 
+-
+ if COND_CHECK_CRC64
+-
++if COND_SMALL
++libcheck_la_SOURCES += crc64_small.c
++else
++libcheck_la_SOURCES += crc64_table.c crc64_table_le.h crc64_table_be.h
+ if COND_ASM_X86
+ libcheck_la_SOURCES += crc64_x86.S
+ else
+-libcheck_la_SOURCES += crc64.c
++libcheck_la_SOURCES += crc64_fast.c
+ endif
+-
+-if COND_SMALL
+-libcheck_la_SOURCES += crc64_init.c
+-else
+-libcheck_la_SOURCES += crc64_table.c crc64_table_le.h crc64_table_be.h
+ endif
+-
+ endif
+ 
+-
+ if COND_CHECK_SHA256
+ libcheck_la_SOURCES += sha256.c
+ # Hide bogus warning to allow usage of -Werror. If more issues like this
+diff --git a/src/liblzma/check/check.c b/src/liblzma/check/check.c
+index ed64fe5c..699647ed 100644
+--- a/src/liblzma/check/check.c
++++ b/src/liblzma/check/check.c
+@@ -1,7 +1,7 @@
+ ///////////////////////////////////////////////////////////////////////////////
+ //
+ /// \file       check.c
+-/// \brief      Check sizes
++/// \brief      Single API to access different integrity checks
+ //
+ //  This code has been put into the public domain.
+ //
+@@ -17,7 +17,7 @@
+ extern LZMA_API lzma_bool
+ lzma_check_is_supported(lzma_check type)
+ {
+-	if ((unsigned)(type) > LZMA_CHECK_ID_MAX)
++	if ((unsigned int)(type) > LZMA_CHECK_ID_MAX)
+ 		return false;
+ 
+ 	static const lzma_bool available_checks[LZMA_CHECK_ID_MAX + 1] = {
+@@ -57,14 +57,14 @@ lzma_check_is_supported(lzma_check type)
+ 		false,  // Reserved
+ 	};
+ 
+-	return available_checks[(unsigned)(type)];
++	return available_checks[(unsigned int)(type)];
+ }
+ 
+ 
+ extern LZMA_API uint32_t
+ lzma_check_size(lzma_check type)
+ {
+-	if ((unsigned)(type) > LZMA_CHECK_ID_MAX)
++	if ((unsigned int)(type) > LZMA_CHECK_ID_MAX)
+ 		return UINT32_MAX;
+ 
+ 	// See file-format.txt section 2.1.1.2.
+@@ -77,7 +77,7 @@ lzma_check_size(lzma_check type)
+ 		64, 64, 64
+ 	};
+ 
+-	return check_sizes[(unsigned)(type)];
++	return check_sizes[(unsigned int)(type)];
+ }
+ 
+ 
+diff --git a/src/liblzma/check/check.h b/src/liblzma/check/check.h
+index 8f387799..73c6391d 100644
+--- a/src/liblzma/check/check.h
++++ b/src/liblzma/check/check.h
+@@ -57,46 +57,39 @@ typedef struct {
+ } lzma_check_state;
+ 
+ 
++/// lzma_crc32_table[0] is needed by LZ encoder so we need to keep
++/// the array two-dimensional.
+ #ifdef HAVE_SMALL
+-extern uint32_t lzma_crc32_table[8][256];
+-extern uint64_t lzma_crc64_table[4][256];
++extern uint32_t lzma_crc32_table[1][256];
+ #else
+ extern const uint32_t lzma_crc32_table[8][256];
+ extern const uint64_t lzma_crc64_table[4][256];
+ #endif
+ 
+ 
+-/// \brief      Initializes *check depending on type
++/// \brief      Initialize *check depending on type
+ ///
+ /// \return     LZMA_OK on success. LZMA_UNSUPPORTED_CHECK if the type is not
+ ///             supported by the current version or build of liblzma.
+ ///             LZMA_PROG_ERROR if type > LZMA_CHECK_ID_MAX.
+-///
+ extern void lzma_check_init(lzma_check_state *check, lzma_check type);
+ 
+-
+-/// \brief      Updates *check
+-///
++/// Update the check state
+ extern void lzma_check_update(lzma_check_state *check, lzma_check type,
+ 		const uint8_t *buf, size_t size);
+ 
+-
+-/// \brief      Finishes *check
+-///
++/// Finish the check calculation and store the result to check->buffer.u8.
+ extern void lzma_check_finish(lzma_check_state *check, lzma_check type);
+ 
+ 
+-extern void lzma_crc32_init(void);
+-
+-
+-extern void lzma_crc64_init(void);
+-
+-
++/// Prepare SHA-256 state for new input.
+ extern void lzma_sha256_init(lzma_check_state *check);
+ 
++/// Update the SHA-256 hash state
+ extern void lzma_sha256_update(
+ 		const uint8_t *buf, size_t size, lzma_check_state *check);
+ 
++/// Finish the SHA-256 calculation and store the result to check->buffer.u8.
+ extern void lzma_sha256_finish(lzma_check_state *check);
+ 
+ #endif
+diff --git a/src/liblzma/check/check_init.c b/src/liblzma/check/check_init.c
+deleted file mode 100644
+index 1b2cfe02..00000000
+--- a/src/liblzma/check/check_init.c
++++ /dev/null
+@@ -1,37 +0,0 @@
+-///////////////////////////////////////////////////////////////////////////////
+-//
+-/// \file       check_init.c
+-/// \brief      Static initializations for integrity checks
+-//
+-//  This code has been put into the public domain.
+-//
+-//  This library is distributed in the hope that it will be useful,
+-//  but WITHOUT ANY WARRANTY; without even the implied warranty of
+-//  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+-//
+-///////////////////////////////////////////////////////////////////////////////
+-
+-#include "check.h"
+-
+-
+-extern LZMA_API void
+-lzma_init_check(void)
+-{
+-#ifdef HAVE_SMALL
+-	static bool already_initialized = false;
+-	if (already_initialized)
+-		return;
+-
+-#	ifdef HAVE_CHECK_CRC32
+-	lzma_crc32_init();
+-#	endif
+-
+-#	ifdef HAVE_CHECK_CRC64
+-	lzma_crc64_init();
+-#	endif
+-
+-	already_initialized = true;
+-#endif
+-
+-	return;
+-}
+diff --git a/src/liblzma/check/crc32.c b/src/liblzma/check/crc32_fast.c
+similarity index 100%
+rename from src/liblzma/check/crc32.c
+rename to src/liblzma/check/crc32_fast.c
+diff --git a/src/liblzma/check/crc32_init.c b/src/liblzma/check/crc32_init.c
+deleted file mode 100644
+index 8b596091..00000000
+--- a/src/liblzma/check/crc32_init.c
++++ /dev/null
+@@ -1,55 +0,0 @@
+-///////////////////////////////////////////////////////////////////////////////
+-//
+-/// \file       crc32_init.c
+-/// \brief      CRC32 table initialization
+-//
+-//  This code is based on various public domain sources.
+-//  This code has been put into the public domain.
+-//
+-//  This library is distributed in the hope that it will be useful,
+-//  but WITHOUT ANY WARRANTY; without even the implied warranty of
+-//  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+-//
+-///////////////////////////////////////////////////////////////////////////////
+-
+-#ifdef HAVE_CONFIG_H
+-#	include "check.h"
+-#endif
+-
+-#ifdef WORDS_BIGENDIAN
+-#	include "../../common/bswap.h"
+-#endif
+-
+-
+-uint32_t lzma_crc32_table[8][256];
+-
+-
+-extern void
+-lzma_crc32_init(void)
+-{
+-	static const uint32_t poly32 = UINT32_C(0xEDB88320);
+-
+-	for (size_t s = 0; s < 8; ++s) {
+-		for (size_t b = 0; b < 256; ++b) {
+-			uint32_t r = s == 0 ? b : lzma_crc32_table[s - 1][b];
+-
+-			for (size_t i = 0; i < 8; ++i) {
+-				if (r & 1)
+-					r = (r >> 1) ^ poly32;
+-				else
+-					r >>= 1;
+-			}
+-
+-			lzma_crc32_table[s][b] = r;
+-		}
+-	}
+-
+-#ifdef WORDS_BIGENDIAN
+-	for (size_t s = 0; s < 8; ++s)
+-		for (size_t b = 0; b < 256; ++b)
+-			lzma_crc32_table[s][b]
+-					= bswap_32(lzma_crc32_table[s][b]);
+-#endif
+-
+-	return;
+-}
+diff --git a/src/liblzma/check/crc32_small.c b/src/liblzma/check/crc32_small.c
+new file mode 100644
+index 00000000..db26f8d4
+--- /dev/null
++++ b/src/liblzma/check/crc32_small.c
+@@ -0,0 +1,54 @@
++///////////////////////////////////////////////////////////////////////////////
++//
++/// \file       crc32_small.c
++/// \brief      CRC32 calculation (size-optimized)
++//
++//  This code has been put into the public domain.
++//
++//  This library is distributed in the hope that it will be useful,
++//  but WITHOUT ANY WARRANTY; without even the implied warranty of
++//  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
++//
++///////////////////////////////////////////////////////////////////////////////
++
++#include "check.h"
++
++
++uint32_t lzma_crc32_table[1][256];
++
++
++static void
++crc32_init(void)
++{
++	static const uint32_t poly32 = UINT32_C(0xEDB88320);
++
++	for (size_t b = 0; b < 256; ++b) {
++		uint32_t r = b;
++		for (size_t i = 0; i < 8; ++i) {
++			if (r & 1)
++				r = (r >> 1) ^ poly32;
++			else
++				r >>= 1;
++		}
++
++		lzma_crc32_table[0][b] = r;
++	}
++
++	return;
++}
++
++
++extern LZMA_API uint32_t
++lzma_crc32(const uint8_t *buf, size_t size, uint32_t crc)
++{
++	mythread_once(crc32_init);
++
++	crc = ~crc;
++
++	while (size != 0) {
++		crc = lzma_crc32_table[0][*buf++ ^ (crc & 0xFF)] ^ (crc >> 8);
++		--size;
++	}
++
++	return ~crc;
++}
+diff --git a/src/liblzma/check/crc32_tablegen.c b/src/liblzma/check/crc32_tablegen.c
+index f793d594..d0c41caa 100644
+--- a/src/liblzma/check/crc32_tablegen.c
++++ b/src/liblzma/check/crc32_tablegen.c
+@@ -1,7 +1,7 @@
+ ///////////////////////////////////////////////////////////////////////////////
+ //
+ /// \file       crc32_tablegen.c
+-/// \brief      Generates CRC32 crc32_table.c
++/// \brief      Generate crc32_table_le.h and crc32_table_be.h
+ ///
+ /// Compiling: gcc -std=c99 -o crc32_tablegen crc32_tablegen.c
+ /// Add -DWORDS_BIGENDIAN to generate big endian table.
+@@ -14,18 +14,50 @@
+ //
+ ///////////////////////////////////////////////////////////////////////////////
+ 
+-#include <sys/types.h>
+ #include <inttypes.h>
+ #include <stdio.h>
+ 
+-#include "crc32_init.c"
++#ifdef WORDS_BIGENDIAN
++#	include "../../common/bswap.h"
++#endif
+ 
+ 
+-int
+-main()
++static uint32_t crc32_table[8][256];
++
++
++static void
++init_crc32_table(void)
+ {
+-	lzma_crc32_init();
++	static const uint32_t poly32 = UINT32_C(0xEDB88320);
++
++	for (size_t s = 0; s < 8; ++s) {
++		for (size_t b = 0; b < 256; ++b) {
++			uint32_t r = s == 0 ? b : crc32_table[s - 1][b];
++
++			for (size_t i = 0; i < 8; ++i) {
++				if (r & 1)
++					r = (r >> 1) ^ poly32;
++				else
++					r >>= 1;
++			}
++
++			crc32_table[s][b] = r;
++		}
++	}
+ 
++#ifdef WORDS_BIGENDIAN
++	for (size_t s = 0; s < 8; ++s)
++		for (size_t b = 0; b < 256; ++b)
++			crc32_table[s][b] = bswap_32(crc32_table[s][b]);
++#endif
++
++	return;
++}
++
++
++static void
++print_crc32_table(void)
++{
+ 	printf("/* This file has been automatically generated by "
+ 			"crc32_tablegen.c. */\n\n"
+ 			"const uint32_t lzma_crc32_table[8][256] = {\n\t{");
+@@ -35,7 +67,7 @@ main()
+ 			if ((b % 4) == 0)
+ 				printf("\n\t\t");
+ 
+-			printf("0x%08" PRIX32, lzma_crc32_table[s][b]);
++			printf("0x%08" PRIX32, crc32_table[s][b]);
+ 
+ 			if (b != 255)
+ 				printf(", ");
+@@ -47,5 +79,14 @@ main()
+ 			printf("\n\t}, {");
+ 	}
+ 
++	return;
++}
++
++
++int
++main(void)
++{
++	init_crc32_table();
++	print_crc32_table();
+ 	return 0;
+ }
+diff --git a/src/liblzma/check/crc64.c b/src/liblzma/check/crc64_fast.c
+similarity index 100%
+rename from src/liblzma/check/crc64.c
+rename to src/liblzma/check/crc64_fast.c
+diff --git a/src/liblzma/check/crc64_small.c b/src/liblzma/check/crc64_small.c
+new file mode 100644
+index 00000000..112bc032
+--- /dev/null
++++ b/src/liblzma/check/crc64_small.c
+@@ -0,0 +1,54 @@
++///////////////////////////////////////////////////////////////////////////////
++//
++/// \file       crc64_small.c
++/// \brief      CRC64 calculation (size-optimized)
++//
++//  This code has been put into the public domain.
++//
++//  This library is distributed in the hope that it will be useful,
++//  but WITHOUT ANY WARRANTY; without even the implied warranty of
++//  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
++//
++///////////////////////////////////////////////////////////////////////////////
++
++#include "check.h"
++
++
++static uint64_t crc64_table[256];
++
++
++static void
++crc64_init(void)
++{
++	static const uint64_t poly64 = UINT64_C(0xC96C5795D7870F42);
++
++	for (size_t b = 0; b < 256; ++b) {
++		uint64_t r = b;
++		for (size_t i = 0; i < 8; ++i) {
++			if (r & 1)
++				r = (r >> 1) ^ poly64;
++			else
++				r >>= 1;
++		}
++
++		crc64_table[b] = r;
++	}
++
++	return;
++}
++
++
++extern LZMA_API uint64_t
++lzma_crc64(const uint8_t *buf, size_t size, uint64_t crc)
++{
++	mythread_once(crc64_init);
++
++	crc = ~crc;
++
++	while (size != 0) {
++		crc = crc64_table[*buf++ ^ (crc & 0xFF)] ^ (crc >> 8);
++		--size;
++	}
++
++	return ~crc;
++}
+diff --git a/src/liblzma/check/crc64_tablegen.c b/src/liblzma/check/crc64_tablegen.c
+index 78e39068..b20086f8 100644
+--- a/src/liblzma/check/crc64_tablegen.c
++++ b/src/liblzma/check/crc64_tablegen.c
+@@ -1,7 +1,7 @@
+ ///////////////////////////////////////////////////////////////////////////////
+ //
+ /// \file       crc64_tablegen.c
+-/// \brief      Generates CRC64 crc64_table.c
++/// \brief      Generate crc64_table_le.h and crc64_table_be.h
+ ///
+ /// Compiling: gcc -std=c99 -o crc64_tablegen crc64_tablegen.c
+ /// Add -DWORDS_BIGENDIAN to generate big endian table.
+@@ -14,18 +14,50 @@
+ //
+ ///////////////////////////////////////////////////////////////////////////////
+ 
+-#include <sys/types.h>
+ #include <inttypes.h>
+ #include <stdio.h>
+ 
+-#include "crc64_init.c"
++#ifdef WORDS_BIGENDIAN
++#	include "../../common/bswap.h"
++#endif
+ 
+ 
+-int
+-main()
++static uint64_t crc64_table[4][256];
++
++
++extern void
++init_crc64_table(void)
+ {
+-	lzma_crc64_init();
++	static const uint64_t poly64 = UINT64_C(0xC96C5795D7870F42);
++
++	for (size_t s = 0; s < 4; ++s) {
++		for (size_t b = 0; b < 256; ++b) {
++			uint64_t r = s == 0 ? b : crc64_table[s - 1][b];
++
++			for (size_t i = 0; i < 8; ++i) {
++				if (r & 1)
++					r = (r >> 1) ^ poly64;
++				else
++					r >>= 1;
++			}
++
++			crc64_table[s][b] = r;
++		}
++	}
+ 
++#ifdef WORDS_BIGENDIAN
++	for (size_t s = 0; s < 4; ++s)
++		for (size_t b = 0; b < 256; ++b)
++			crc64_table[s][b] = bswap_64(crc64_table[s][b]);
++#endif
++
++	return;
++}
++
++
++static void
++print_crc64_table(void)
++{
+ 	printf("/* This file has been automatically generated by "
+ 			"crc64_tablegen.c. */\n\n"
+ 			"const uint64_t lzma_crc64_table[4][256] = {\n\t{");
+@@ -36,7 +68,7 @@ main()
+ 				printf("\n\t\t");
+ 
+ 			printf("UINT64_C(0x%016" PRIX64 ")",
+-					lzma_crc64_table[s][b]);
++					crc64_table[s][b]);
+ 
+ 			if (b != 255)
+ 				printf(", ");
+@@ -48,5 +80,14 @@ main()
+ 			printf("\n\t}, {");
+ 	}
+ 
++	return;
++}
++
++
++int
++main(void)
++{
++	init_crc64_table();
++	print_crc64_table();
+ 	return 0;
+ }
+diff --git a/src/liblzma/common/Makefile.am b/src/liblzma/common/Makefile.am
+index 20f3f93b..f64abdf5 100644
+--- a/src/liblzma/common/Makefile.am
++++ b/src/liblzma/common/Makefile.am
+@@ -32,7 +32,6 @@ libcommon_la_SOURCES = \
+ 	filter_common.h \
+ 	index.c \
+ 	index.h \
+-	init.c \
+ 	stream_flags_common.c \
+ 	stream_flags_common.h \
+ 	vli_size.c
+@@ -49,7 +48,6 @@ libcommon_la_SOURCES += \
+ 	filter_flags_encoder.c \
+ 	index_encoder.c \
+ 	index_encoder.h \
+-	init_encoder.c \
+ 	stream_encoder.c \
+ 	stream_encoder.h \
+ 	stream_flags_encoder.c \
+@@ -69,7 +67,6 @@ libcommon_la_SOURCES += \
+ 	filter_flags_decoder.c \
+ 	index_decoder.c \
+ 	index_hash.c \
+-	init_decoder.c \
+ 	stream_decoder.c \
+ 	stream_decoder.h \
+ 	stream_flags_decoder.c \
+diff --git a/src/liblzma/common/common.h b/src/liblzma/common/common.h
+index ef8d0cbf..44117c9a 100644
+--- a/src/liblzma/common/common.h
++++ b/src/liblzma/common/common.h
+@@ -21,6 +21,7 @@
+ #define LZMA_COMMON_H
+ 
+ #include "../../common/sysdefs.h"
++#include "../../common/mythread.h"
+ #include "../../common/integer.h"
+ 
+ // Don't use ifdef...
+diff --git a/src/liblzma/common/init.c b/src/liblzma/common/init.c
+deleted file mode 100644
+index fb377f5a..00000000
+--- a/src/liblzma/common/init.c
++++ /dev/null
+@@ -1,39 +0,0 @@
+-///////////////////////////////////////////////////////////////////////////////
+-//
+-/// \file       init.c
+-/// \brief      Static internal initializations
+-///
+-/// The initializations have been splitted to so many small files to prevent
+-/// an application needing only decoder functions from statically linking
+-/// also the encoder functions.
+-//
+-//  Copyright (C) 2007 Lasse Collin
+-//
+-//  This library is free software; you can redistribute it and/or
+-//  modify it under the terms of the GNU Lesser General Public
+-//  License as published by the Free Software Foundation; either
+-//  version 2.1 of the License, or (at your option) any later version.
+-//
+-//  This library is distributed in the hope that it will be useful,
+-//  but WITHOUT ANY WARRANTY; without even the implied warranty of
+-//  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+-//  Lesser General Public License for more details.
+-//
+-///////////////////////////////////////////////////////////////////////////////
+-
+-#include "common.h"
+-
+-
+-extern LZMA_API void
+-lzma_init(void)
+-{
+-#ifdef HAVE_ENCODER
+-	lzma_init_encoder();
+-#endif
+-
+-#ifdef HAVE_DECODER
+-	lzma_init_decoder();
+-#endif
+-
+-	return;
+-}
+diff --git a/src/liblzma/common/init_decoder.c b/src/liblzma/common/init_decoder.c
+deleted file mode 100644
+index e319b2f8..00000000
+--- a/src/liblzma/common/init_decoder.c
++++ /dev/null
+@@ -1,31 +0,0 @@
+-///////////////////////////////////////////////////////////////////////////////
+-//
+-/// \file       init_decoder.c
+-/// \brief      Static internal initializations
+-//
+-//  Copyright (C) 2007 Lasse Collin
+-//
+-//  This library is free software; you can redistribute it and/or
+-//  modify it under the terms of the GNU Lesser General Public
+-//  License as published by the Free Software Foundation; either
+-//  version 2.1 of the License, or (at your option) any later version.
+-//
+-//  This library is distributed in the hope that it will be useful,
+-//  but WITHOUT ANY WARRANTY; without even the implied warranty of
+-//  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+-//  Lesser General Public License for more details.
+-//
+-///////////////////////////////////////////////////////////////////////////////
+-
+-#include "common.h"
+-
+-
+-extern LZMA_API void
+-lzma_init_decoder(void)
+-{
+-	// So far there's no decoder-specific stuff to initialize.
+-
+-	lzma_init_check();
+-
+-	return;
+-}
+diff --git a/src/liblzma/common/init_encoder.c b/src/liblzma/common/init_encoder.c
+deleted file mode 100644
+index 1130e6b8..00000000
+--- a/src/liblzma/common/init_encoder.c
++++ /dev/null
+@@ -1,40 +0,0 @@
+-///////////////////////////////////////////////////////////////////////////////
+-//
+-/// \file       init_encoder.c
+-/// \brief      Static internal initializations
+-//
+-//  Copyright (C) 2007 Lasse Collin
+-//
+-//  This library is free software; you can redistribute it and/or
+-//  modify it under the terms of the GNU Lesser General Public
+-//  License as published by the Free Software Foundation; either
+-//  version 2.1 of the License, or (at your option) any later version.
+-//
+-//  This library is distributed in the hope that it will be useful,
+-//  but WITHOUT ANY WARRANTY; without even the implied warranty of
+-//  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+-//  Lesser General Public License for more details.
+-//
+-///////////////////////////////////////////////////////////////////////////////
+-
+-#include "common.h"
+-#include "range_encoder.h"
+-#include "lzma_encoder.h"
+-
+-
+-extern LZMA_API void
+-lzma_init_encoder(void)
+-{
+-	static bool already_initialized = false;
+-	if (already_initialized)
+-		return;
+-
+-	lzma_init_check();
+-
+-#if defined(HAVE_SMALL) && defined(HAVE_ENCODER_LZMA1)
+-	lzma_rc_init();
+-#endif
+-
+-	already_initialized = true;
+-	return;
+-}
+diff --git a/src/liblzma/lzma.pc.in b/src/liblzma/liblzma.pc.in
+similarity index 57%
+rename from src/liblzma/lzma.pc.in
+rename to src/liblzma/liblzma.pc.in
+index 5bf9bb10..e192352f 100644
+--- a/src/liblzma/lzma.pc.in
++++ b/src/liblzma/liblzma.pc.in
+@@ -4,8 +4,9 @@ libdir=@libdir@
+ includedir=@includedir@
+ 
+ Name: liblzma
+-Description: LZMA compression library
+-URL: http://tukaani.org/lzma/
++Description: General purporse data compression library
++URL: http://tukaani.org/xz/
+ Version: @PACKAGE_VERSION@
+ Cflags: -I${includedir}
+ Libs: -L${libdir} -llzma
++Libs.private: @PTHREAD_CFLAGS@ @PTHREAD_LIBS@
+diff --git a/src/liblzma/lz/lz_encoder.c b/src/liblzma/lz/lz_encoder.c
+index d598f71a..7bd6d03e 100644
+--- a/src/liblzma/lz/lz_encoder.c
++++ b/src/liblzma/lz/lz_encoder.c
+@@ -472,6 +472,12 @@ lzma_lz_encoder_init(lzma_next_coder *next, lzma_allocator *allocator,
+ 			lzma_allocator *allocator, const void *options,
+ 			lzma_lz_options *lz_options))
+ {
++#ifdef HAVE_SMALL
++	// We need that the CRC32 table has been initialized.
++	// This is enough to do it.
++	lzma_crc32(NULL, 0, 0);
++#endif
++
+ 	// Allocate and initialize the base data structure.
+ 	if (next->coder == NULL) {
+ 		next->coder = lzma_alloc(sizeof(lzma_coder), allocator);
+diff --git a/src/liblzma/rangecoder/Makefile.am b/src/liblzma/rangecoder/Makefile.am
+index b2e62d4a..a202e34e 100644
+--- a/src/liblzma/rangecoder/Makefile.am
++++ b/src/liblzma/rangecoder/Makefile.am
+@@ -24,12 +24,8 @@ librangecoder_la_CPPFLAGS = \
+ if COND_ENCODER_LZMA1
+ librangecoder_la_SOURCES += \
+ 	range_encoder.h \
+-	price.h
+-if COND_SMALL
+-librangecoder_la_SOURCES += price_table_init.c
+-else
+-librangecoder_la_SOURCES += price_table.c
+-endif
++	price.h \
++	price_table.c
+ endif
+ 
+ if COND_DECODER_LZMA1
+diff --git a/src/liblzma/rangecoder/price.h b/src/liblzma/rangecoder/price.h
+index 001f753d..e336885c 100644
+--- a/src/liblzma/rangecoder/price.h
++++ b/src/liblzma/rangecoder/price.h
+@@ -28,20 +28,8 @@
+ #define RC_INFINITY_PRICE (UINT32_C(1) << 30)
+ 
+ 
+-#if !defined(LZMA_RANGE_ENCODER_H) || defined(HAVE_SMALL)
+-/// Probability prices used by *_get_price() macros. This is initialized
+-/// by lzma_rc_init() and is not modified later.
+-extern uint32_t lzma_rc_prices[RC_PRICE_TABLE_SIZE];
+-
+-/// Initializes lzma_rc_prices[]. This needs to be called only once.
+-extern void lzma_rc_init(void);
+-
+-#else
+-// Not building a size optimized version, so we use a precomputed
+-// constant table.
+-extern const uint32_t lzma_rc_prices[RC_PRICE_TABLE_SIZE];
+-
+-#endif
++/// Lookup table for the inline functions defined in this file.
++extern const uint8_t lzma_rc_prices[RC_PRICE_TABLE_SIZE];
+ 
+ 
+ static inline uint32_t
+diff --git a/src/liblzma/rangecoder/price_table.c b/src/liblzma/rangecoder/price_table.c
+index 539206b1..ac64bf62 100644
+--- a/src/liblzma/rangecoder/price_table.c
++++ b/src/liblzma/rangecoder/price_table.c
+@@ -2,7 +2,7 @@
+ 
+ #include "range_encoder.h"
+ 
+-const uint32_t lzma_rc_prices[RC_PRICE_TABLE_SIZE] = {
++const uint8_t lzma_rc_prices[RC_PRICE_TABLE_SIZE] = {
+ 	 128, 103,  91,  84,  78,  73,  69,  66,
+ 	  63,  61,  58,  56,  54,  52,  51,  49,
+ 	  48,  46,  45,  44,  43,  42,  41,  40,
+diff --git a/src/liblzma/rangecoder/price_table_init.c b/src/liblzma/rangecoder/price_table_init.c
+deleted file mode 100644
+index 9c7d799b..00000000
+--- a/src/liblzma/rangecoder/price_table_init.c
++++ /dev/null
+@@ -1,55 +0,0 @@
+-///////////////////////////////////////////////////////////////////////////////
+-//
+-/// \file       price_table_init.c
+-/// \brief      Static initializations for the range encoder's prices array
+-//
+-//  Copyright (C) 1999-2006 Igor Pavlov
+-//  Copyright (C) 2007 Lasse Collin
+-//
+-//  This library is free software; you can redistribute it and/or
+-//  modify it under the terms of the GNU Lesser General Public
+-//  License as published by the Free Software Foundation; either
+-//  version 2.1 of the License, or (at your option) any later version.
+-//
+-//  This library is distributed in the hope that it will be useful,
+-//  but WITHOUT ANY WARRANTY; without even the implied warranty of
+-//  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+-//  Lesser General Public License for more details.
+-//
+-///////////////////////////////////////////////////////////////////////////////
+-
+-#ifdef HAVE_CONFIG_H
+-#	include "range_encoder.h"
+-#endif
+-
+-
+-uint32_t lzma_rc_prices[RC_PRICE_TABLE_SIZE];
+-
+-
+-extern void
+-lzma_rc_init(void)
+-{
+-	for (uint32_t i = (UINT32_C(1) << RC_MOVE_REDUCING_BITS) / 2;
+-			i < RC_BIT_MODEL_TOTAL;
+-			i += (UINT32_C(1) << RC_MOVE_REDUCING_BITS)) {
+-		const uint32_t cycles_bits = RC_BIT_PRICE_SHIFT_BITS;
+-		uint32_t w = i;
+-		uint32_t bit_count = 0;
+-
+-		for (uint32_t j = 0; j < cycles_bits; ++j) {
+-			w *= w;
+-			bit_count <<= 1;
+-
+-			while (w >= (UINT32_C(1) << 16)) {
+-				w >>= 1;
+-				++bit_count;
+-			}
+-		}
+-
+-		lzma_rc_prices[i >> RC_MOVE_REDUCING_BITS]
+-				= (RC_BIT_MODEL_TOTAL_BITS << cycles_bits)
+-				- 15 - bit_count;
+-	}
+-
+-	return;
+-}
+diff --git a/src/liblzma/rangecoder/price_tablegen.c b/src/liblzma/rangecoder/price_tablegen.c
+index 68513635..4895ac76 100644
+--- a/src/liblzma/rangecoder/price_tablegen.c
++++ b/src/liblzma/rangecoder/price_tablegen.c
+@@ -19,23 +19,51 @@
+ //
+ ///////////////////////////////////////////////////////////////////////////////
+ 
+-#include <stddef.h>
+ #include <inttypes.h>
+ #include <stdio.h>
+ #include "range_common.h"
+ #include "price.h"
+-#include "price_table_init.c"
+ 
+ 
+-int
+-main(void)
++static uint32_t rc_prices[RC_PRICE_TABLE_SIZE];
++
++
++static void
++init_price_table(void)
+ {
+-	lzma_rc_init();
++	for (uint32_t i = (UINT32_C(1) << RC_MOVE_REDUCING_BITS) / 2;
++			i < RC_BIT_MODEL_TOTAL;
++			i += (UINT32_C(1) << RC_MOVE_REDUCING_BITS)) {
++		const uint32_t cycles_bits = RC_BIT_PRICE_SHIFT_BITS;
++		uint32_t w = i;
++		uint32_t bit_count = 0;
++
++		for (uint32_t j = 0; j < cycles_bits; ++j) {
++			w *= w;
++			bit_count <<= 1;
++
++			while (w >= (UINT32_C(1) << 16)) {
++				w >>= 1;
++				++bit_count;
++			}
++		}
++
++		rc_prices[i >> RC_MOVE_REDUCING_BITS]
++				= (RC_BIT_MODEL_TOTAL_BITS << cycles_bits)
++				- 15 - bit_count;
++	}
++
++	return;
++}
++
+ 
++static void
++print_price_table(void)
++{
+ 	printf("/* This file has been automatically generated by "
+ 			"price_tablegen.c. */\n\n"
+ 			"#include \"range_encoder.h\"\n\n"
+-			"const uint32_t lzma_rc_prices["
++			"const uint8_t lzma_rc_prices["
+ 			"RC_PRICE_TABLE_SIZE] = {");
+ 
+ 	const size_t array_size = sizeof(lzma_rc_prices)
+@@ -44,7 +72,7 @@ main(void)
+ 		if (i % 8 == 0)
+ 			printf("\n\t");
+ 
+-		printf("%4" PRIu32, lzma_rc_prices[i]);
++		printf("%4" PRIu32, rc_prices[i]);
+ 
+ 		if (i != array_size - 1)
+ 			printf(",");
+@@ -52,5 +80,14 @@ main(void)
+ 
+ 	printf("\n};\n");
+ 
++	return;
++}
++
++
++int
++main(void)
++{
++	init_price_table();
++	print_price_table();
+ 	return 0;
+ }
+diff --git a/src/xz/Makefile.am b/src/xz/Makefile.am
+index 16e55461..b8477c03 100644
+--- a/src/xz/Makefile.am
++++ b/src/xz/Makefile.am
+@@ -42,16 +42,13 @@ xz_CPPFLAGS = \
+ 	-I@top_builddir@/lib \
+ 	-I@top_srcdir@/lib
+ 
+-xz_CFLAGS = @PTHREAD_CFLAGS@
+-
+ ## Always link the command line tool statically against liblzma. It is
+ ## faster on x86, because no need for PIC. We also have one dependency less,
+ ## which allows users to more freely copy the xz binary to other boxes.
+ xz_LDFLAGS = -static
+ xz_LDADD = \
+ 	@top_builddir@/src/liblzma/liblzma.la \
+-	@LTLIBINTL@ \
+-	@PTHREAD_LIBS@
++	@LTLIBINTL@
+ 
+ if COND_GNULIB
+ xz_LDADD += @top_builddir@/lib/libgnu.a
+diff --git a/src/xz/main.c b/src/xz/main.c
+index 4e24b98d..23a2de1f 100644
+--- a/src/xz/main.c
++++ b/src/xz/main.c
+@@ -284,9 +284,6 @@ main(int argc, char **argv)
+ 	// print an error message, but our stderr could be screwed anyway.
+ 	open_stdxxx(E_ERROR);
+ 
+-	// This has to be done before calling any liblzma functions.
+-	lzma_init();
+-
+ 	// Set up the locale.
+ 	setlocale(LC_ALL, "");
+ 
+diff --git a/src/xzdec/xzdec.c b/src/xzdec/xzdec.c
+index 1660cddd..a8d05859 100644
+--- a/src/xzdec/xzdec.c
++++ b/src/xzdec/xzdec.c
+@@ -401,9 +401,6 @@ main(int argc, char **argv)
+ 	// Parse the command line options.
+ 	parse_options(argc, argv);
+ 
+-	// Initialize liblzma internals.
+-	lzma_init_decoder();
+-
+ 	// The same lzma_stream is used for all files that we decode. This way
+ 	// we don't need to reallocate memory for every file if they use same
+ 	// compression settings.
+diff --git a/tests/test_block_header.c b/tests/test_block_header.c
+index 5c0f8b9a..2fb22a5a 100644
+--- a/tests/test_block_header.c
++++ b/tests/test_block_header.c
+@@ -237,7 +237,6 @@ test3(void)
+ int
+ main(void)
+ {
+-	lzma_init();
+ 	succeed(lzma_lzma_preset(&opt_lzma, 1));
+ 
+ 	test1();
+diff --git a/tests/test_check.c b/tests/test_check.c
+index 40715c6a..cb6b8ec1 100644
+--- a/tests/test_check.c
++++ b/tests/test_check.c
+@@ -81,8 +81,6 @@ test_crc64(void)
+ int
+ main(void)
+ {
+-	lzma_init_check();
+-
+ 	bool error = false;
+ 
+ 	error |= test_crc32();
+diff --git a/tests/test_filter_flags.c b/tests/test_filter_flags.c
+index 490864f8..dd4f56ac 100644
+--- a/tests/test_filter_flags.c
++++ b/tests/test_filter_flags.c
+@@ -269,8 +269,6 @@ test_lzma(void)
+ int
+ main(void)
+ {
+-	lzma_init();
+-
+ #if defined(HAVE_ENCODER_SUBBLOCK) && defined(HAVE_DECODER_SUBBLOCK)
+ 	test_subblock();
+ #endif
+diff --git a/tests/test_index.c b/tests/test_index.c
+index 46e1d871..8a2cb266 100644
+--- a/tests/test_index.c
++++ b/tests/test_index.c
+@@ -489,8 +489,6 @@ test_corrupt(void)
+ int
+ main(void)
+ {
+-	lzma_init();
+-
+ 	test_equal();
+ 
+ 	test_overflow();
+diff --git a/tests/test_stream_flags.c b/tests/test_stream_flags.c
+index 2ff216db..a82a20b5 100644
+--- a/tests/test_stream_flags.c
++++ b/tests/test_stream_flags.c
+@@ -171,8 +171,6 @@ test_decode_invalid(void)
+ int
+ main(void)
+ {
+-	lzma_init();
+-
+ 	// Valid headers
+ 	known_flags.backward_size = 1024;
+ 	for (lzma_check check = LZMA_CHECK_NONE;
+diff --git a/tests/tests.h b/tests/tests.h
+index 49994727..7b7b3d40 100644
+--- a/tests/tests.h
++++ b/tests/tests.h
+@@ -38,7 +38,7 @@
+ static inline const char *
+ lzma_ret_sym(lzma_ret ret)
+ {
+-	if ((unsigned)(ret) > LZMA_PROG_ERROR)
++	if ((unsigned int)(ret) > LZMA_PROG_ERROR)
+ 		return "UNKNOWN_ERROR";
+ 
+ 	static const char *msgs[] = {

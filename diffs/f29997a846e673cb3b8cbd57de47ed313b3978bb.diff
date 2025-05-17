@@ -1,0 +1,12 @@
+diff --git a/po/cs.po b/po/cs.po
+index a8da9c10..a953fd38 100644
+--- a/po/cs.po
++++ b/po/cs.po
+@@ -350,7 +350,6 @@ msgstr ""
+ "kodérem"
+ 
+ #: src/xz/message.c:1101
+-#, c-format
+ msgid ""
+ "  -M, --memory=NUM    use roughly NUM bytes of memory at maximum; 0 "
+ "indicates\n"

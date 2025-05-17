@@ -1,0 +1,12 @@
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+index 284f78cd..9baa314e 100644
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -1040,7 +1040,6 @@ if(NOT HAVE_GETOPT_LONG)
+         lib/getopt-pfx-ext.h
+         "${CMAKE_CURRENT_BINARY_DIR}/lib/getopt.h"
+     )
+-
+ endif()
+ 
+ 

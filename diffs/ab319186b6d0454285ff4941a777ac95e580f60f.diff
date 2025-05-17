@@ -1,0 +1,12 @@
+diff --git a/THANKS b/THANKS
+index c86b3db8..8f71b12f 100644
+--- a/THANKS
++++ b/THANKS
+@@ -57,6 +57,7 @@ has been important. :-) In alphabetical order:
+   - Michael Fox
+   - Andres Freund
+   - Mike Frysinger
++  - Collin Funk
+   - Daniel Richard G.
+   - Tomasz Gajc
+   - Bjarni Ingi Gislason

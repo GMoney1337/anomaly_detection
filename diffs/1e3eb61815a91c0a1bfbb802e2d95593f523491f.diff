@@ -1,0 +1,13 @@
+diff --git a/.gitignore b/.gitignore
+index ca5f024e..62b1d5c7 100644
+--- a/.gitignore
++++ b/.gitignore
+@@ -43,6 +43,8 @@ build-aux/test-driver
+ /src/scripts/xzless
+ /src/scripts/xzmore
+ 
++/tests/*.log
++/tests/*.trs
+ /tests/compress_generated_abc
+ /tests/compress_generated_random
+ /tests/compress_generated_text

@@ -1,0 +1,78 @@
+diff --git a/windows/vs2013/liblzma.vcxproj b/windows/vs2013/liblzma.vcxproj
+index 2c8e399b..0e9b8b16 100644
+--- a/windows/vs2013/liblzma.vcxproj
++++ b/windows/vs2013/liblzma.vcxproj
+@@ -244,6 +244,8 @@
+     <ClCompile Include="..\..\src\liblzma\common\index_encoder.c" />
+     <ClCompile Include="..\..\src\liblzma\common\index_hash.c" />
+     <ClCompile Include="..\..\src\liblzma\common\lzip_decoder.c" />
++    <ClCompile Include="..\..\src\liblzma\common\microlzma_decoder.c" />
++    <ClCompile Include="..\..\src\liblzma\common\microlzma_encoder.c" />
+     <ClCompile Include="..\..\src\liblzma\common\outqueue.c" />
+     <ClCompile Include="..\..\src\liblzma\common\stream_buffer_decoder.c" />
+     <ClCompile Include="..\..\src\liblzma\common\stream_buffer_encoder.c" />
+diff --git a/windows/vs2013/liblzma_dll.vcxproj b/windows/vs2013/liblzma_dll.vcxproj
+index 4dede9f0..c2c34988 100644
+--- a/windows/vs2013/liblzma_dll.vcxproj
++++ b/windows/vs2013/liblzma_dll.vcxproj
+@@ -276,6 +276,8 @@
+     <ClCompile Include="..\..\src\liblzma\common\index_encoder.c" />
+     <ClCompile Include="..\..\src\liblzma\common\index_hash.c" />
+     <ClCompile Include="..\..\src\liblzma\common\lzip_decoder.c" />
++    <ClCompile Include="..\..\src\liblzma\common\microlzma_decoder.c" />
++    <ClCompile Include="..\..\src\liblzma\common\microlzma_encoder.c" />
+     <ClCompile Include="..\..\src\liblzma\common\outqueue.c" />
+     <ClCompile Include="..\..\src\liblzma\common\stream_buffer_decoder.c" />
+     <ClCompile Include="..\..\src\liblzma\common\stream_buffer_encoder.c" />
+diff --git a/windows/vs2017/liblzma.vcxproj b/windows/vs2017/liblzma.vcxproj
+index f00fd21f..f9241a2d 100644
+--- a/windows/vs2017/liblzma.vcxproj
++++ b/windows/vs2017/liblzma.vcxproj
+@@ -244,6 +244,8 @@
+     <ClCompile Include="..\..\src\liblzma\common\index_encoder.c" />
+     <ClCompile Include="..\..\src\liblzma\common\index_hash.c" />
+     <ClCompile Include="..\..\src\liblzma\common\lzip_decoder.c" />
++    <ClCompile Include="..\..\src\liblzma\common\microlzma_decoder.c" />
++    <ClCompile Include="..\..\src\liblzma\common\microlzma_encoder.c" />
+     <ClCompile Include="..\..\src\liblzma\common\outqueue.c" />
+     <ClCompile Include="..\..\src\liblzma\common\stream_buffer_decoder.c" />
+     <ClCompile Include="..\..\src\liblzma\common\stream_buffer_encoder.c" />
+diff --git a/windows/vs2017/liblzma_dll.vcxproj b/windows/vs2017/liblzma_dll.vcxproj
+index 66f4279b..7818b2cf 100644
+--- a/windows/vs2017/liblzma_dll.vcxproj
++++ b/windows/vs2017/liblzma_dll.vcxproj
+@@ -276,6 +276,8 @@
+     <ClCompile Include="..\..\src\liblzma\common\index_encoder.c" />
+     <ClCompile Include="..\..\src\liblzma\common\index_hash.c" />
+     <ClCompile Include="..\..\src\liblzma\common\lzip_decoder.c" />
++    <ClCompile Include="..\..\src\liblzma\common\microlzma_decoder.c" />
++    <ClCompile Include="..\..\src\liblzma\common\microlzma_encoder.c" />
+     <ClCompile Include="..\..\src\liblzma\common\outqueue.c" />
+     <ClCompile Include="..\..\src\liblzma\common\stream_buffer_decoder.c" />
+     <ClCompile Include="..\..\src\liblzma\common\stream_buffer_encoder.c" />
+diff --git a/windows/vs2019/liblzma.vcxproj b/windows/vs2019/liblzma.vcxproj
+index cc021470..defb2e73 100644
+--- a/windows/vs2019/liblzma.vcxproj
++++ b/windows/vs2019/liblzma.vcxproj
+@@ -245,6 +245,8 @@
+     <ClCompile Include="..\..\src\liblzma\common\index_encoder.c" />
+     <ClCompile Include="..\..\src\liblzma\common\index_hash.c" />
+     <ClCompile Include="..\..\src\liblzma\common\lzip_decoder.c" />
++    <ClCompile Include="..\..\src\liblzma\common\microlzma_decoder.c" />
++    <ClCompile Include="..\..\src\liblzma\common\microlzma_encoder.c" />
+     <ClCompile Include="..\..\src\liblzma\common\outqueue.c" />
+     <ClCompile Include="..\..\src\liblzma\common\stream_buffer_decoder.c" />
+     <ClCompile Include="..\..\src\liblzma\common\stream_buffer_encoder.c" />
+diff --git a/windows/vs2019/liblzma_dll.vcxproj b/windows/vs2019/liblzma_dll.vcxproj
+index 7c3a351a..8aa221b7 100644
+--- a/windows/vs2019/liblzma_dll.vcxproj
++++ b/windows/vs2019/liblzma_dll.vcxproj
+@@ -277,6 +277,8 @@
+     <ClCompile Include="..\..\src\liblzma\common\index_encoder.c" />
+     <ClCompile Include="..\..\src\liblzma\common\index_hash.c" />
+     <ClCompile Include="..\..\src\liblzma\common\lzip_decoder.c" />
++    <ClCompile Include="..\..\src\liblzma\common\microlzma_decoder.c" />
++    <ClCompile Include="..\..\src\liblzma\common\microlzma_encoder.c" />
+     <ClCompile Include="..\..\src\liblzma\common\outqueue.c" />
+     <ClCompile Include="..\..\src\liblzma\common\stream_buffer_decoder.c" />
+     <ClCompile Include="..\..\src\liblzma\common\stream_buffer_encoder.c" />

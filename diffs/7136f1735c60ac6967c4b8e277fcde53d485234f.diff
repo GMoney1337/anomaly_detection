@@ -1,0 +1,467 @@
+diff --git a/src/common/tuklib_integer.h b/src/common/tuklib_integer.h
+index e0f5dbee..6f44a7a0 100644
+--- a/src/common/tuklib_integer.h
++++ b/src/common/tuklib_integer.h
+@@ -7,8 +7,8 @@
+ /// operations.
+ ///
+ /// Native endian inline functions (XX = 16, 32, or 64):
+-///   - Unaligned native endian reads: unaligned_readXXne(ptr)
+-///   - Unaligned native endian writes: unaligned_writeXXne(ptr, num)
++///   - Unaligned native endian reads: readXXne(ptr)
++///   - Unaligned native endian writes: writeXXne(ptr, num)
+ ///   - Aligned native endian reads: aligned_readXXne(ptr)
+ ///   - Aligned native endian writes: aligned_writeXXne(ptr, num)
+ ///
+@@ -17,10 +17,10 @@
+ ///   - Byte swapping: bswapXX(num)
+ ///   - Byte order conversions to/from native (byteswaps if Y isn't
+ ///     the native endianness): convXXYe(num)
++///   - Unaligned reads (16/32-bit only): readXXYe(ptr)
++///   - Unaligned writes (16/32-bit only): writeXXYe(ptr, num)
+ ///   - Aligned reads: aligned_readXXYe(ptr)
+ ///   - Aligned writes: aligned_writeXXYe(ptr, num)
+-///   - Unaligned reads (16/32-bit only): unaligned_readXXYe(ptr)
+-///   - Unaligned writes (16/32-bit only): unaligned_writeXXYe(ptr, num)
+ ///
+ /// Since the above can macros, the arguments should have no side effects
+ /// because they may be evaluated more than once.
+@@ -205,7 +205,7 @@
+ // Hopefully this is flexible enough in practice.
+ 
+ static inline uint16_t
+-unaligned_read16ne(const uint8_t *buf)
++read16ne(const uint8_t *buf)
+ {
+ #if defined(TUKLIB_FAST_UNALIGNED_ACCESS) \
+ 		&& defined(TUKLIB_USE_UNSAFE_TYPE_PUNNING)
+@@ -219,7 +219,7 @@ unaligned_read16ne(const uint8_t *buf)
+ 
+ 
+ static inline uint32_t
+-unaligned_read32ne(const uint8_t *buf)
++read32ne(const uint8_t *buf)
+ {
+ #if defined(TUKLIB_FAST_UNALIGNED_ACCESS) \
+ 		&& defined(TUKLIB_USE_UNSAFE_TYPE_PUNNING)
+@@ -233,7 +233,7 @@ unaligned_read32ne(const uint8_t *buf)
+ 
+ 
+ static inline uint64_t
+-unaligned_read64ne(const uint8_t *buf)
++read64ne(const uint8_t *buf)
+ {
+ #if defined(TUKLIB_FAST_UNALIGNED_ACCESS) \
+ 		&& defined(TUKLIB_USE_UNSAFE_TYPE_PUNNING)
+@@ -247,7 +247,7 @@ unaligned_read64ne(const uint8_t *buf)
+ 
+ 
+ static inline void
+-unaligned_write16ne(uint8_t *buf, uint16_t num)
++write16ne(uint8_t *buf, uint16_t num)
+ {
+ #if defined(TUKLIB_FAST_UNALIGNED_ACCESS) \
+ 		&& defined(TUKLIB_USE_UNSAFE_TYPE_PUNNING)
+@@ -260,7 +260,7 @@ unaligned_write16ne(uint8_t *buf, uint16_t num)
+ 
+ 
+ static inline void
+-unaligned_write32ne(uint8_t *buf, uint32_t num)
++write32ne(uint8_t *buf, uint32_t num)
+ {
+ #if defined(TUKLIB_FAST_UNALIGNED_ACCESS) \
+ 		&& defined(TUKLIB_USE_UNSAFE_TYPE_PUNNING)
+@@ -273,7 +273,7 @@ unaligned_write32ne(uint8_t *buf, uint32_t num)
+ 
+ 
+ static inline void
+-unaligned_write64ne(uint8_t *buf, uint64_t num)
++write64ne(uint8_t *buf, uint64_t num)
+ {
+ #if defined(TUKLIB_FAST_UNALIGNED_ACCESS) \
+ 		&& defined(TUKLIB_USE_UNSAFE_TYPE_PUNNING)
+@@ -286,10 +286,10 @@ unaligned_write64ne(uint8_t *buf, uint64_t num)
+ 
+ 
+ static inline uint16_t
+-unaligned_read16be(const uint8_t *buf)
++read16be(const uint8_t *buf)
+ {
+ #if defined(WORDS_BIGENDIAN) || defined(TUKLIB_FAST_UNALIGNED_ACCESS)
+-	uint16_t num = unaligned_read16ne(buf);
++	uint16_t num = read16ne(buf);
+ 	return conv16be(num);
+ #else
+ 	uint16_t num = ((uint16_t)buf[0] << 8) | (uint16_t)buf[1];
+@@ -299,10 +299,10 @@ unaligned_read16be(const uint8_t *buf)
+ 
+ 
+ static inline uint16_t
+-unaligned_read16le(const uint8_t *buf)
++read16le(const uint8_t *buf)
+ {
+ #if !defined(WORDS_BIGENDIAN) || defined(TUKLIB_FAST_UNALIGNED_ACCESS)
+-	uint16_t num = unaligned_read16ne(buf);
++	uint16_t num = read16ne(buf);
+ 	return conv16le(num);
+ #else
+ 	uint16_t num = ((uint16_t)buf[0]) | ((uint16_t)buf[1] << 8);
+@@ -312,10 +312,10 @@ unaligned_read16le(const uint8_t *buf)
+ 
+ 
+ static inline uint32_t
+-unaligned_read32be(const uint8_t *buf)
++read32be(const uint8_t *buf)
+ {
+ #if defined(WORDS_BIGENDIAN) || defined(TUKLIB_FAST_UNALIGNED_ACCESS)
+-	uint32_t num = unaligned_read32ne(buf);
++	uint32_t num = read32ne(buf);
+ 	return conv32be(num);
+ #else
+ 	uint32_t num = (uint32_t)buf[0] << 24;
+@@ -328,10 +328,10 @@ unaligned_read32be(const uint8_t *buf)
+ 
+ 
+ static inline uint32_t
+-unaligned_read32le(const uint8_t *buf)
++read32le(const uint8_t *buf)
+ {
+ #if !defined(WORDS_BIGENDIAN) || defined(TUKLIB_FAST_UNALIGNED_ACCESS)
+-	uint32_t num = unaligned_read32ne(buf);
++	uint32_t num = read32ne(buf);
+ 	return conv32le(num);
+ #else
+ 	uint32_t num = (uint32_t)buf[0];
+@@ -348,23 +348,19 @@ unaligned_read32le(const uint8_t *buf)
+ // byte swapping macros. The actual write is done in an inline function
+ // to make type checking of the buf pointer possible.
+ #if defined(WORDS_BIGENDIAN) || defined(TUKLIB_FAST_UNALIGNED_ACCESS)
+-#	define unaligned_write16be(buf, num) \
+-			unaligned_write16ne(buf, conv16be(num))
+-#	define unaligned_write32be(buf, num) \
+-			unaligned_write32ne(buf, conv32be(num))
++#	define write16be(buf, num) write16ne(buf, conv16be(num))
++#	define write32be(buf, num) write32ne(buf, conv32be(num))
+ #endif
+ 
+ #if !defined(WORDS_BIGENDIAN) || defined(TUKLIB_FAST_UNALIGNED_ACCESS)
+-#	define unaligned_write16le(buf, num) \
+-			unaligned_write16ne(buf, conv16le(num))
+-#	define unaligned_write32le(buf, num) \
+-			unaligned_write32ne(buf, conv32le(num))
++#	define write16le(buf, num) write16ne(buf, conv16le(num))
++#	define write32le(buf, num) write32ne(buf, conv32le(num))
+ #endif
+ 
+ 
+-#ifndef unaligned_write16be
++#ifndef write16be
+ static inline void
+-unaligned_write16be(uint8_t *buf, uint16_t num)
++write16be(uint8_t *buf, uint16_t num)
+ {
+ 	buf[0] = (uint8_t)(num >> 8);
+ 	buf[1] = (uint8_t)num;
+@@ -373,9 +369,9 @@ unaligned_write16be(uint8_t *buf, uint16_t num)
+ #endif
+ 
+ 
+-#ifndef unaligned_write16le
++#ifndef write16le
+ static inline void
+-unaligned_write16le(uint8_t *buf, uint16_t num)
++write16le(uint8_t *buf, uint16_t num)
+ {
+ 	buf[0] = (uint8_t)num;
+ 	buf[1] = (uint8_t)(num >> 8);
+@@ -384,9 +380,9 @@ unaligned_write16le(uint8_t *buf, uint16_t num)
+ #endif
+ 
+ 
+-#ifndef unaligned_write32be
++#ifndef write32be
+ static inline void
+-unaligned_write32be(uint8_t *buf, uint32_t num)
++write32be(uint8_t *buf, uint32_t num)
+ {
+ 	buf[0] = (uint8_t)(num >> 24);
+ 	buf[1] = (uint8_t)(num >> 16);
+@@ -397,9 +393,9 @@ unaligned_write32be(uint8_t *buf, uint32_t num)
+ #endif
+ 
+ 
+-#ifndef unaligned_write32le
++#ifndef write32le
+ static inline void
+-unaligned_write32le(uint8_t *buf, uint32_t num)
++write32le(uint8_t *buf, uint32_t num)
+ {
+ 	buf[0] = (uint8_t)num;
+ 	buf[1] = (uint8_t)(num >> 8);
+diff --git a/src/liblzma/common/alone_encoder.c b/src/liblzma/common/alone_encoder.c
+index c4560d58..96c1db70 100644
+--- a/src/liblzma/common/alone_encoder.c
++++ b/src/liblzma/common/alone_encoder.c
+@@ -121,7 +121,7 @@ alone_encoder_init(lzma_next_coder *next, const lzma_allocator *allocator,
+ 	if (d != UINT32_MAX)
+ 		++d;
+ 
+-	unaligned_write32le(coder->header + 1, d);
++	write32le(coder->header + 1, d);
+ 
+ 	// - Uncompressed size (always unknown and using EOPM)
+ 	memset(coder->header + 1 + 4, 0xFF, 8);
+diff --git a/src/liblzma/common/block_header_decoder.c b/src/liblzma/common/block_header_decoder.c
+index 39d4886e..24588c56 100644
+--- a/src/liblzma/common/block_header_decoder.c
++++ b/src/liblzma/common/block_header_decoder.c
+@@ -67,7 +67,7 @@ lzma_block_header_decode(lzma_block *block,
+ 	const size_t in_size = block->header_size - 4;
+ 
+ 	// Verify CRC32
+-	if (lzma_crc32(in, in_size, 0) != unaligned_read32le(in + in_size)) {
++	if (lzma_crc32(in, in_size, 0) != read32le(in + in_size)) {
+ #ifndef FUZZING_BUILD_MODE_UNSAFE_FOR_PRODUCTION
+ 		return LZMA_DATA_ERROR;
+ #endif
+diff --git a/src/liblzma/common/block_header_encoder.c b/src/liblzma/common/block_header_encoder.c
+index 5c5f5424..160425d2 100644
+--- a/src/liblzma/common/block_header_encoder.c
++++ b/src/liblzma/common/block_header_encoder.c
+@@ -126,7 +126,7 @@ lzma_block_header_encode(const lzma_block *block, uint8_t *out)
+ 	memzero(out + out_pos, out_size - out_pos);
+ 
+ 	// CRC32
+-	unaligned_write32le(out + out_size, lzma_crc32(out, out_size, 0));
++	write32le(out + out_size, lzma_crc32(out, out_size, 0));
+ 
+ 	return LZMA_OK;
+ }
+diff --git a/src/liblzma/common/memcmplen.h b/src/liblzma/common/memcmplen.h
+index 25debf6a..dcfd8d6f 100644
+--- a/src/liblzma/common/memcmplen.h
++++ b/src/liblzma/common/memcmplen.h
+@@ -61,8 +61,7 @@ lzma_memcmplen(const uint8_t *buf1, const uint8_t *buf2,
+ 	// to __builtin_clzll().
+ #define LZMA_MEMCMPLEN_EXTRA 8
+ 	while (len < limit) {
+-		const uint64_t x = unaligned_read64ne(buf1 + len)
+-				- unaligned_read64ne(buf2 + len);
++		const uint64_t x = read64ne(buf1 + len) - read64ne(buf2 + len);
+ 		if (x != 0) {
+ #	if defined(_M_X64) // MSVC or Intel C compiler on Windows
+ 			unsigned long tmp;
+@@ -112,8 +111,7 @@ lzma_memcmplen(const uint8_t *buf1, const uint8_t *buf2,
+ 	// Generic 32-bit little endian method
+ #	define LZMA_MEMCMPLEN_EXTRA 4
+ 	while (len < limit) {
+-		uint32_t x = unaligned_read32ne(buf1 + len)
+-				- unaligned_read32ne(buf2 + len);
++		uint32_t x = read32ne(buf1 + len) - read32ne(buf2 + len);
+ 		if (x != 0) {
+ 			if ((x & 0xFFFF) == 0) {
+ 				len += 2;
+@@ -135,8 +133,7 @@ lzma_memcmplen(const uint8_t *buf1, const uint8_t *buf2,
+ 	// Generic 32-bit big endian method
+ #	define LZMA_MEMCMPLEN_EXTRA 4
+ 	while (len < limit) {
+-		uint32_t x = unaligned_read32ne(buf1 + len)
+-				^ unaligned_read32ne(buf2 + len);
++		uint32_t x = read32ne(buf1 + len) ^ read32ne(buf2 + len);
+ 		if (x != 0) {
+ 			if ((x & 0xFFFF0000) == 0) {
+ 				len += 2;
+diff --git a/src/liblzma/common/stream_flags_decoder.c b/src/liblzma/common/stream_flags_decoder.c
+index 84f9467f..b8d263ba 100644
+--- a/src/liblzma/common/stream_flags_decoder.c
++++ b/src/liblzma/common/stream_flags_decoder.c
+@@ -38,7 +38,7 @@ lzma_stream_header_decode(lzma_stream_flags *options, const uint8_t *in)
+ 	// and unsupported files.
+ 	const uint32_t crc = lzma_crc32(in + sizeof(lzma_header_magic),
+ 			LZMA_STREAM_FLAGS_SIZE, 0);
+-	if (crc != unaligned_read32le(in + sizeof(lzma_header_magic)
++	if (crc != read32le(in + sizeof(lzma_header_magic)
+ 			+ LZMA_STREAM_FLAGS_SIZE)) {
+ #ifndef FUZZING_BUILD_MODE_UNSAFE_FOR_PRODUCTION
+ 		return LZMA_DATA_ERROR;
+@@ -70,7 +70,7 @@ lzma_stream_footer_decode(lzma_stream_flags *options, const uint8_t *in)
+ 	// CRC32
+ 	const uint32_t crc = lzma_crc32(in + sizeof(uint32_t),
+ 			sizeof(uint32_t) + LZMA_STREAM_FLAGS_SIZE, 0);
+-	if (crc != unaligned_read32le(in)) {
++	if (crc != read32le(in)) {
+ #ifndef FUZZING_BUILD_MODE_UNSAFE_FOR_PRODUCTION
+ 		return LZMA_DATA_ERROR;
+ #endif
+@@ -81,7 +81,7 @@ lzma_stream_footer_decode(lzma_stream_flags *options, const uint8_t *in)
+ 		return LZMA_OPTIONS_ERROR;
+ 
+ 	// Backward Size
+-	options->backward_size = unaligned_read32le(in + sizeof(uint32_t));
++	options->backward_size = read32le(in + sizeof(uint32_t));
+ 	options->backward_size = (options->backward_size + 1) * 4;
+ 
+ 	return LZMA_OK;
+diff --git a/src/liblzma/common/stream_flags_encoder.c b/src/liblzma/common/stream_flags_encoder.c
+index 4e717159..b98ab17c 100644
+--- a/src/liblzma/common/stream_flags_encoder.c
++++ b/src/liblzma/common/stream_flags_encoder.c
+@@ -46,8 +46,8 @@ lzma_stream_header_encode(const lzma_stream_flags *options, uint8_t *out)
+ 	const uint32_t crc = lzma_crc32(out + sizeof(lzma_header_magic),
+ 			LZMA_STREAM_FLAGS_SIZE, 0);
+ 
+-	unaligned_write32le(out + sizeof(lzma_header_magic)
+-			+ LZMA_STREAM_FLAGS_SIZE, crc);
++	write32le(out + sizeof(lzma_header_magic) + LZMA_STREAM_FLAGS_SIZE,
++			crc);
+ 
+ 	return LZMA_OK;
+ }
+@@ -66,7 +66,7 @@ lzma_stream_footer_encode(const lzma_stream_flags *options, uint8_t *out)
+ 	if (!is_backward_size_valid(options))
+ 		return LZMA_PROG_ERROR;
+ 
+-	unaligned_write32le(out + 4, options->backward_size / 4 - 1);
++	write32le(out + 4, options->backward_size / 4 - 1);
+ 
+ 	// Stream Flags
+ 	if (stream_flags_encode(options, out + 2 * 4))
+@@ -76,7 +76,7 @@ lzma_stream_footer_encode(const lzma_stream_flags *options, uint8_t *out)
+ 	const uint32_t crc = lzma_crc32(
+ 			out + 4, 4 + LZMA_STREAM_FLAGS_SIZE, 0);
+ 
+-	unaligned_write32le(out, crc);
++	write32le(out, crc);
+ 
+ 	// Magic
+ 	memcpy(out + 2 * 4 + LZMA_STREAM_FLAGS_SIZE,
+diff --git a/src/liblzma/lz/lz_encoder_hash.h b/src/liblzma/lz/lz_encoder_hash.h
+index f238f9d9..fb15c581 100644
+--- a/src/liblzma/lz/lz_encoder_hash.h
++++ b/src/liblzma/lz/lz_encoder_hash.h
+@@ -39,7 +39,7 @@
+ // Endianness doesn't matter in hash_2_calc() (no effect on the output).
+ #ifdef TUKLIB_FAST_UNALIGNED_ACCESS
+ #	define hash_2_calc() \
+-		const uint32_t hash_value = unaligned_read16ne(cur)
++		const uint32_t hash_value = read16ne(cur)
+ #else
+ #	define hash_2_calc() \
+ 		const uint32_t hash_value \
+diff --git a/src/liblzma/lzma/lzma_decoder.c b/src/liblzma/lzma/lzma_decoder.c
+index 9af500f0..e605a0a9 100644
+--- a/src/liblzma/lzma/lzma_decoder.c
++++ b/src/liblzma/lzma/lzma_decoder.c
+@@ -1049,7 +1049,7 @@ lzma_lzma_props_decode(void **options, const lzma_allocator *allocator,
+ 	// All dictionary sizes are accepted, including zero. LZ decoder
+ 	// will automatically use a dictionary at least a few KiB even if
+ 	// a smaller dictionary is requested.
+-	opt->dict_size = unaligned_read32le(props + 1);
++	opt->dict_size = read32le(props + 1);
+ 
+ 	opt->preset_dict = NULL;
+ 	opt->preset_dict_size = 0;
+diff --git a/src/liblzma/lzma/lzma_encoder.c b/src/liblzma/lzma/lzma_encoder.c
+index ba9ce698..07d2b87b 100644
+--- a/src/liblzma/lzma/lzma_encoder.c
++++ b/src/liblzma/lzma/lzma_encoder.c
+@@ -663,7 +663,7 @@ lzma_lzma_props_encode(const void *options, uint8_t *out)
+ 	if (lzma_lzma_lclppb_encode(opt, out))
+ 		return LZMA_PROG_ERROR;
+ 
+-	unaligned_write32le(out + 1, opt->dict_size);
++	write32le(out + 1, opt->dict_size);
+ 
+ 	return LZMA_OK;
+ }
+diff --git a/src/liblzma/lzma/lzma_encoder_private.h b/src/liblzma/lzma/lzma_encoder_private.h
+index e3d79429..2e34aace 100644
+--- a/src/liblzma/lzma/lzma_encoder_private.h
++++ b/src/liblzma/lzma/lzma_encoder_private.h
+@@ -25,8 +25,7 @@
+ // MATCH_LEN_MIN bytes. Unaligned access gives tiny gain so there's no
+ // reason to not use it when it is supported.
+ #ifdef TUKLIB_FAST_UNALIGNED_ACCESS
+-#	define not_equal_16(a, b) \
+-		(unaligned_read16ne(a) != unaligned_read16ne(b))
++#	define not_equal_16(a, b) (read16ne(a) != read16ne(b))
+ #else
+ #	define not_equal_16(a, b) \
+ 		((a)[0] != (b)[0] || (a)[1] != (b)[1])
+diff --git a/src/liblzma/simple/simple_decoder.c b/src/liblzma/simple/simple_decoder.c
+index 1d864f2b..dc4d2415 100644
+--- a/src/liblzma/simple/simple_decoder.c
++++ b/src/liblzma/simple/simple_decoder.c
+@@ -28,7 +28,7 @@ lzma_simple_props_decode(void **options, const lzma_allocator *allocator,
+ 	if (opt == NULL)
+ 		return LZMA_MEM_ERROR;
+ 
+-	opt->start_offset = unaligned_read32le(props);
++	opt->start_offset = read32le(props);
+ 
+ 	// Don't leave an options structure allocated if start_offset is zero.
+ 	if (opt->start_offset == 0)
+diff --git a/src/liblzma/simple/simple_encoder.c b/src/liblzma/simple/simple_encoder.c
+index 8aa463be..d2cc03e5 100644
+--- a/src/liblzma/simple/simple_encoder.c
++++ b/src/liblzma/simple/simple_encoder.c
+@@ -32,7 +32,7 @@ lzma_simple_props_encode(const void *options, uint8_t *out)
+ 	if (opt == NULL || opt->start_offset == 0)
+ 		return LZMA_OK;
+ 
+-	unaligned_write32le(out, opt->start_offset);
++	write32le(out, opt->start_offset);
+ 
+ 	return LZMA_OK;
+ }
+diff --git a/tests/test_block_header.c b/tests/test_block_header.c
+index 7cd38985..373a8077 100644
+--- a/tests/test_block_header.c
++++ b/tests/test_block_header.c
+@@ -212,7 +212,7 @@ test3(void)
+ 	// Unsupported filter
+ 	// NOTE: This may need updating when new IDs become supported.
+ 	buf[2] ^= 0x1F;
+-	unaligned_write32le(buf + known_options.header_size - 4,
++	write32le(buf + known_options.header_size - 4,
+ 			lzma_crc32(buf, known_options.header_size - 4, 0));
+ 	expect(lzma_block_header_decode(&decoded_options, NULL, buf)
+ 			== LZMA_OPTIONS_ERROR);
+@@ -220,7 +220,7 @@ test3(void)
+ 
+ 	// Non-nul Padding
+ 	buf[known_options.header_size - 4 - 1] ^= 1;
+-	unaligned_write32le(buf + known_options.header_size - 4,
++	write32le(buf + known_options.header_size - 4,
+ 			lzma_crc32(buf, known_options.header_size - 4, 0));
+ 	expect(lzma_block_header_decode(&decoded_options, NULL, buf)
+ 			== LZMA_OPTIONS_ERROR);
+diff --git a/tests/test_stream_flags.c b/tests/test_stream_flags.c
+index b40d035b..39304cd4 100644
+--- a/tests/test_stream_flags.c
++++ b/tests/test_stream_flags.c
+@@ -133,13 +133,13 @@ test_decode_invalid(void)
+ 
+ 	// Test 2a (valid CRC32)
+ 	uint32_t crc = lzma_crc32(buffer + 6, 2, 0);
+-	unaligned_write32le(buffer + 8, crc);
++	write32le(buffer + 8, crc);
+ 	succeed(test_header_decoder(LZMA_OK));
+ 
+ 	// Test 2b (invalid Stream Flags with valid CRC32)
+ 	buffer[6] ^= 0x20;
+ 	crc = lzma_crc32(buffer + 6, 2, 0);
+-	unaligned_write32le(buffer + 8, crc);
++	write32le(buffer + 8, crc);
+ 	succeed(test_header_decoder(LZMA_OPTIONS_ERROR));
+ 
+ 	// Test 3 (invalid CRC32)
+@@ -151,7 +151,7 @@ test_decode_invalid(void)
+ 	expect(lzma_stream_footer_encode(&known_flags, buffer) == LZMA_OK);
+ 	buffer[9] ^= 0x40;
+ 	crc = lzma_crc32(buffer + 4, 6, 0);
+-	unaligned_write32le(buffer, crc);
++	write32le(buffer, crc);
+ 	succeed(test_footer_decoder(LZMA_OPTIONS_ERROR));
+ 
+ 	// Test 5 (invalid Magic Bytes)

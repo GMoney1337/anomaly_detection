@@ -1,0 +1,264 @@
+diff --git a/src/liblzma/api/lzma/bcj.h b/src/liblzma/api/lzma/bcj.h
+index 7f6611fe..35c0477b 100644
+--- a/src/liblzma/api/lzma/bcj.h
++++ b/src/liblzma/api/lzma/bcj.h
+@@ -96,3 +96,102 @@ typedef struct {
+ 	uint32_t start_offset;
+ 
+ } lzma_options_bcj;
++
++
++#ifdef LZMA_UNSTABLE
++/**
++ * \brief       Raw ARM64 BCJ encoder
++ *
++ * This is for special use cases only.
++ *
++ * \param       start_offset  The lowest 32 bits of the offset in the
++ *                            executable being filtered. For the ARM64
++ *                            filter, this must be a multiple of four.
++ *                            For the very best results, this should also
++ *                            be in sync with 4096-byte page boundaries
++ *                            in the executable due to how ARM64's ADRP
++ *                            instruction works.
++ * \param       buf           Buffer to be filtered in place
++ * \param       size          Size of the buffer
++ *
++ * \return      Number of bytes that were processed in `buf`. This is at most
++ *              `size`. With the ARM64 filter, the return value is always
++ *              a multiple of 4, and at most 3 bytes are left unfiltered.
++ *
++ * \since       5.7.1alpha
++ */
++extern LZMA_API(size_t) lzma_bcj_arm64_encode(
++		uint32_t start_offset, uint8_t *buf, size_t size) lzma_nothrow;
++
++/**
++ * \brief       Raw ARM64 BCJ decoder
++ *
++ * See lzma_bcj_arm64_encode().
++ *
++ * \since       5.7.1alpha
++ */
++extern LZMA_API(size_t) lzma_bcj_arm64_decode(
++		uint32_t start_offset, uint8_t *buf, size_t size) lzma_nothrow;
++
++
++/**
++ * \brief       Raw RISC-V BCJ encoder
++ *
++ * This is for special use cases only.
++ *
++ * \param       start_offset  The lowest 32 bits of the offset in the
++ *                            executable being filtered. For the RISC-V
++ *                            filter, this must be a multiple of 2.
++ * \param       buf           Buffer to be filtered in place
++ * \param       size          Size of the buffer
++ *
++ * \return      Number of bytes that were processed in `buf`. This is at most
++ *              `size`. With the RISC-V filter, the return value is always
++ *              a multiple of 2, and at most 7 bytes are left unfiltered.
++ *
++ * \since       5.7.1alpha
++ */
++extern LZMA_API(size_t) lzma_bcj_riscv_encode(
++		uint32_t start_offset, uint8_t *buf, size_t size) lzma_nothrow;
++
++/**
++ * \brief       Raw RISC-V BCJ decoder
++ *
++ * See lzma_bcj_riscv_encode().
++ *
++ * \since       5.7.1alpha
++ */
++extern LZMA_API(size_t) lzma_bcj_riscv_decode(
++		uint32_t start_offset, uint8_t *buf, size_t size) lzma_nothrow;
++
++
++/**
++ * \brief       Raw x86 BCJ encoder
++ *
++ * This is for special use cases only.
++ *
++ * \param       start_offset  The lowest 32 bits of the offset in the
++ *                            executable being filtered. For the x86
++ *                            filter, all values are valid.
++ * \param       buf           Buffer to be filtered in place
++ * \param       size          Size of the buffer
++ *
++ * \return      Number of bytes that were processed in `buf`. This is at most
++ *              `size`. For the x86 filter, the return value is always
++ *              a multiple of 1, and at most 4 bytes are left unfiltered.
++ *
++ * \since       5.7.1alpha
++ */
++extern LZMA_API(size_t) lzma_bcj_x86_encode(
++		uint32_t start_offset, uint8_t *buf, size_t size) lzma_nothrow;
++
++/**
++ * \brief       Raw x86 BCJ decoder
++ *
++ * See lzma_bcj_x86_encode().
++ *
++ * \since       5.7.1alpha
++ */
++extern LZMA_API(size_t) lzma_bcj_x86_decode(
++		uint32_t start_offset, uint8_t *buf, size_t size) lzma_nothrow;
++#endif
+diff --git a/src/liblzma/common/common.h b/src/liblzma/common/common.h
+index 20af32f6..fd8f8c8b 100644
+--- a/src/liblzma/common/common.h
++++ b/src/liblzma/common/common.h
+@@ -42,6 +42,8 @@
+ 
+ #define LZMA_API(type) LZMA_API_EXPORT type LZMA_API_CALL
+ 
++#define LZMA_UNSTABLE
++
+ #include "lzma.h"
+ 
+ // This is for detecting modern GCC and Clang attributes
+diff --git a/src/liblzma/liblzma_generic.map b/src/liblzma/liblzma_generic.map
+index f74c1548..6bdc2446 100644
+--- a/src/liblzma/liblzma_generic.map
++++ b/src/liblzma/liblzma_generic.map
+@@ -126,3 +126,13 @@ XZ_5.6.0 {
+ global:
+ 	lzma_mt_block_size;
+ } XZ_5.4;
++
++XZ_5.7.0alpha {
++global:
++	lzma_bcj_arm64_encode;
++	lzma_bcj_arm64_decode;
++	lzma_bcj_riscv_encode;
++	lzma_bcj_riscv_decode;
++	lzma_bcj_x86_encode;
++	lzma_bcj_x86_decode;
++} XZ_5.6.0;
+diff --git a/src/liblzma/liblzma_linux.map b/src/liblzma/liblzma_linux.map
+index 7e4b25e1..8743ee36 100644
+--- a/src/liblzma/liblzma_linux.map
++++ b/src/liblzma/liblzma_linux.map
+@@ -141,3 +141,13 @@ XZ_5.6.0 {
+ global:
+ 	lzma_mt_block_size;
+ } XZ_5.4;
++
++XZ_5.7.0alpha {
++global:
++	lzma_bcj_arm64_encode;
++	lzma_bcj_arm64_decode;
++	lzma_bcj_riscv_encode;
++	lzma_bcj_riscv_decode;
++	lzma_bcj_x86_encode;
++	lzma_bcj_x86_decode;
++} XZ_5.6.0;
+diff --git a/src/liblzma/simple/arm64.c b/src/liblzma/simple/arm64.c
+index bc5d3c32..2ec10d93 100644
+--- a/src/liblzma/simple/arm64.c
++++ b/src/liblzma/simple/arm64.c
+@@ -124,6 +124,15 @@ lzma_simple_arm64_encoder_init(lzma_next_coder *next,
+ {
+ 	return arm64_coder_init(next, allocator, filters, true);
+ }
++
++
++extern LZMA_API(size_t)
++lzma_bcj_arm64_encode(uint32_t start_offset, uint8_t *buf, size_t size)
++{
++	// start_offset must be a multiple of four.
++	start_offset &= ~UINT32_C(3);
++	return arm64_code(NULL, start_offset, true, buf, size);
++}
+ #endif
+ 
+ 
+@@ -135,4 +144,13 @@ lzma_simple_arm64_decoder_init(lzma_next_coder *next,
+ {
+ 	return arm64_coder_init(next, allocator, filters, false);
+ }
++
++
++extern LZMA_API(size_t)
++lzma_bcj_arm64_decode(uint32_t start_offset, uint8_t *buf, size_t size)
++{
++	// start_offset must be a multiple of four.
++	start_offset &= ~UINT32_C(3);
++	return arm64_code(NULL, start_offset, false, buf, size);
++}
+ #endif
+diff --git a/src/liblzma/simple/riscv.c b/src/liblzma/simple/riscv.c
+index b18df8b6..bc97ebdb 100644
+--- a/src/liblzma/simple/riscv.c
++++ b/src/liblzma/simple/riscv.c
+@@ -617,6 +617,15 @@ lzma_simple_riscv_encoder_init(lzma_next_coder *next,
+ 	return lzma_simple_coder_init(next, allocator, filters,
+ 			&riscv_encode, 0, 8, 2, true);
+ }
++
++
++extern LZMA_API(size_t)
++lzma_bcj_riscv_encode(uint32_t start_offset, uint8_t *buf, size_t size)
++{
++	// start_offset must be a multiple of two.
++	start_offset &= ~UINT32_C(1);
++	return riscv_encode(NULL, start_offset, true, buf, size);
++}
+ #endif
+ 
+ 
+@@ -752,4 +761,13 @@ lzma_simple_riscv_decoder_init(lzma_next_coder *next,
+ 	return lzma_simple_coder_init(next, allocator, filters,
+ 			&riscv_decode, 0, 8, 2, false);
+ }
++
++
++extern LZMA_API(size_t)
++lzma_bcj_riscv_decode(uint32_t start_offset, uint8_t *buf, size_t size)
++{
++	// start_offset must be a multiple of two.
++	start_offset &= ~UINT32_C(1);
++	return riscv_decode(NULL, start_offset, false, buf, size);
++}
+ #endif
+diff --git a/src/liblzma/simple/x86.c b/src/liblzma/simple/x86.c
+index f216231f..dffa7863 100644
+--- a/src/liblzma/simple/x86.c
++++ b/src/liblzma/simple/x86.c
+@@ -143,6 +143,18 @@ lzma_simple_x86_encoder_init(lzma_next_coder *next,
+ {
+ 	return x86_coder_init(next, allocator, filters, true);
+ }
++
++
++extern LZMA_API(size_t)
++lzma_bcj_x86_encode(uint32_t start_offset, uint8_t *buf, size_t size)
++{
++	lzma_simple_x86 simple = {
++		.prev_mask = 0,
++		.prev_pos = (uint32_t)(-5),
++	};
++
++	return x86_code(&simple, start_offset, true, buf, size);
++}
+ #endif
+ 
+ 
+@@ -154,4 +166,16 @@ lzma_simple_x86_decoder_init(lzma_next_coder *next,
+ {
+ 	return x86_coder_init(next, allocator, filters, false);
+ }
++
++
++extern LZMA_API(size_t)
++lzma_bcj_x86_decode(uint32_t start_offset, uint8_t *buf, size_t size)
++{
++	lzma_simple_x86 simple = {
++		.prev_mask = 0,
++		.prev_pos = (uint32_t)(-5),
++	};
++
++	return x86_code(&simple, start_offset, false, buf, size);
++}
+ #endif

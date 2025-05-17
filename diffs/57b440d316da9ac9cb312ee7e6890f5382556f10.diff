@@ -1,0 +1,27 @@
+diff --git a/.github/workflows/netbsd.yml b/.github/workflows/netbsd.yml
+index 44ef2699..dd8d386a 100644
+--- a/.github/workflows/netbsd.yml
++++ b/.github/workflows/netbsd.yml
+@@ -21,7 +21,7 @@ jobs:
+       with:
+         usesh: true
+         prepare: |
+-          /usr/sbin/pkg_add -v autoconf automake gmake gettext-tools gtar-base libtool-base m4
++          /usr/sbin/pkg_add -v autoconf automake gmake gettext-tools gtar-base libtool-base m4 po4a
+         run: |
+           export LC_ALL=C LANG=C
+           uname -a
+diff --git a/.github/workflows/openbsd.yml b/.github/workflows/openbsd.yml
+index d02f8ab0..400cf8fa 100644
+--- a/.github/workflows/openbsd.yml
++++ b/.github/workflows/openbsd.yml
+@@ -27,7 +27,8 @@ jobs:
+           export AUTOCONF_VERSION=2.71
+           export AUTOMAKE_VERSION=1.16
+           uname -a
+-          ./autogen.sh
++          # OpenBSD ports lack po4a
++          ./autogen.sh --no-po4a
+           ./configure --enable-werror
+           make
+           make check VERBOSE=1

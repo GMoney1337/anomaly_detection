@@ -1,0 +1,14 @@
+diff --git a/src/xz/coder.h b/src/xz/coder.h
+index 9e69e576..b4f43a2b 100644
+--- a/src/xz/coder.h
++++ b/src/xz/coder.h
+@@ -66,7 +66,8 @@ extern void coder_set_extreme(void);
+ /// Add a filter to the custom filter chain
+ extern void coder_add_filter(lzma_vli id, void *options);
+ 
+-///
++/// Set and partially validate compression settings. This can also be used
++/// in decompression or test mode with the raw format.
+ extern void coder_set_compression_settings(void);
+ 
+ /// Compress or decompress the given file

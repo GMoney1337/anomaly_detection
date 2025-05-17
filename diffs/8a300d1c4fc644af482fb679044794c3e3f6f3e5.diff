@@ -1,0 +1,12 @@
+diff --git a/THANKS b/THANKS
+index a6a7a672..cd40483f 100644
+--- a/THANKS
++++ b/THANKS
+@@ -33,6 +33,7 @@ has been important. :-) In alphabetical order:
+   - Cristiano Ceglia
+   - Marek Černocký
+   - Tomer Chachamu
++  - Aziz Chaudhry
+   - Vitaly Chikunov
+   - Antoine Cœur
+   - Elijah Almeida Coimbra

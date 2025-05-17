@@ -1,0 +1,183 @@
+diff --git a/src/liblzma/common/block_decoder.c b/src/liblzma/common/block_decoder.c
+index 7898fdf6..e1b5dc96 100644
+--- a/src/liblzma/common/block_decoder.c
++++ b/src/liblzma/common/block_decoder.c
+@@ -296,8 +296,8 @@ block_decoder_end(lzma_coder *coder, lzma_allocator *allocator)
+ }
+ 
+ 
+-extern lzma_ret
+-lzma_block_decoder_init(lzma_next_coder *next, lzma_allocator *allocator,
++static lzma_ret
++block_decoder_init(lzma_next_coder *next, lzma_allocator *allocator,
+ 		lzma_options_block *options)
+ {
+ 	// This is pretty similar to lzma_block_encoder_init().
+@@ -313,27 +313,12 @@ lzma_block_decoder_init(lzma_next_coder *next, lzma_allocator *allocator,
+ 		next->coder->next = LZMA_NEXT_CODER_INIT;
+ 	}
+ 
+-	if (!lzma_vli_is_valid(options->total_size)
+-			|| !lzma_vli_is_valid(options->compressed_size)
+-			|| !lzma_vli_is_valid(options->uncompressed_size)
+-			|| !lzma_vli_is_valid(options->total_size)
+-			|| !lzma_vli_is_valid(options->total_limit)
+-			|| !lzma_vli_is_valid(options->uncompressed_limit)
+-			|| (options->uncompressed_size
+-					!= LZMA_VLI_VALUE_UNKNOWN
+-				&& options->uncompressed_size
+-					> options->uncompressed_limit)
+-			|| (options->total_size != LZMA_VLI_VALUE_UNKNOWN
+-				&& options->total_size
+-					> options->total_limit)
+-			|| (!options->has_eopm && options->uncompressed_size
+-				== LZMA_VLI_VALUE_UNKNOWN)
+-			|| options->header_size > options->total_size
+-			|| (options->handle_padding
+-				&& (options->has_uncompressed_size_in_footer
+-					|| options->has_backward_size)))
++	if (validate_options_1(options))
+ 		return LZMA_PROG_ERROR;
+ 
++	if (validate_options_2(options))
++		return LZMA_DATA_ERROR;
++
+ 	return_if_error(lzma_check_init(&next->coder->check, options->check));
+ 
+ 	next->coder->sequence = SEQ_CODE;
+@@ -365,10 +350,18 @@ lzma_block_decoder_init(lzma_next_coder *next, lzma_allocator *allocator,
+ }
+ 
+ 
++extern lzma_ret
++lzma_block_decoder_init(lzma_next_coder *next, lzma_allocator *allocator,
++		lzma_options_block *options)
++{
++	lzma_next_coder_init(block_decoder_init, next, allocator, options);
++}
++
++
+ extern LZMA_API lzma_ret
+ lzma_block_decoder(lzma_stream *strm, lzma_options_block *options)
+ {
+-	lzma_next_strm_init(strm, lzma_block_decoder_init, options);
++	lzma_next_strm_init(strm, block_decoder_init, options);
+ 
+ 	strm->internal->supported_actions[LZMA_RUN] = true;
+ 	strm->internal->supported_actions[LZMA_SYNC_FLUSH] = true;
+diff --git a/src/liblzma/common/block_encoder.c b/src/liblzma/common/block_encoder.c
+index 4dc9f6bb..78185790 100644
+--- a/src/liblzma/common/block_encoder.c
++++ b/src/liblzma/common/block_encoder.c
+@@ -232,10 +232,8 @@ block_encode(lzma_coder *coder, lzma_allocator *allocator,
+ 
+ 	case SEQ_PADDING:
+ 		if (coder->options->handle_padding) {
+-			assert(!coder->options
+-					->has_uncompressed_size_in_footer);
+-			assert(!coder->options->has_backward_size);
+-			assert(coder->options->total_size != LZMA_VLI_VALUE_UNKNOWN);
++			assert(coder->options->total_size
++					!= LZMA_VLI_VALUE_UNKNOWN);
+ 
+ 			if (coder->total_size < coder->options->total_size) {
+ 				out[*out_pos] = 0x00;
+@@ -284,27 +282,9 @@ block_encoder_init(lzma_next_coder *next, lzma_allocator *allocator,
+ 		lzma_options_block *options)
+ {
+ 	// Validate some options.
+-	if (options == NULL
+-			|| !lzma_vli_is_valid(options->total_size)
+-			|| !lzma_vli_is_valid(options->compressed_size)
+-			|| !lzma_vli_is_valid(options->uncompressed_size)
+-			|| !lzma_vli_is_valid(options->total_size)
+-			|| !lzma_vli_is_valid(options->total_limit)
+-			|| !lzma_vli_is_valid(options->uncompressed_limit)
+-			|| (options->uncompressed_size
+-					!= LZMA_VLI_VALUE_UNKNOWN
+-				&& options->uncompressed_size
+-					> options->uncompressed_limit)
+-			|| (options->total_size != LZMA_VLI_VALUE_UNKNOWN
+-				&& options->total_size
+-					> options->total_limit)
+-			|| (!options->has_eopm && options->uncompressed_size
+-				== LZMA_VLI_VALUE_UNKNOWN)
+-			|| (options->handle_padding && (options->total_size
+-					== LZMA_VLI_VALUE_UNKNOWN
+-				|| options->has_uncompressed_size_in_footer
+-				|| options->has_backward_size))
+-			|| options->header_size > options->total_size)
++	if (validate_options_1(options) || validate_options_2(options)
++			|| (options->handle_padding && options->total_size
++				== LZMA_VLI_VALUE_UNKNOWN))
+ 		return LZMA_PROG_ERROR;
+ 
+ 	// Allocate and initialize *next->coder if needed.
+@@ -325,7 +305,7 @@ block_encoder_init(lzma_next_coder *next, lzma_allocator *allocator,
+ 	// Compressed Data is empty. That is, we don't call the encoder at all.
+ 	// We initialize it though; it allows detecting invalid options.
+ 	if (!options->has_eopm && options->uncompressed_size == 0) {
+-		// Also Compressed Size must also be zero if it has been
++		// Also Compressed Size must be zero if it has been
+ 		// given to us.
+ 		if (!is_size_valid(0, options->compressed_size))
+ 			return LZMA_PROG_ERROR;
+diff --git a/src/liblzma/common/block_private.h b/src/liblzma/common/block_private.h
+index 8e2db319..16d95b9f 100644
+--- a/src/liblzma/common/block_private.h
++++ b/src/liblzma/common/block_private.h
+@@ -43,4 +43,54 @@ is_size_valid(lzma_vli size, lzma_vli reference)
+ 	return reference == LZMA_VLI_VALUE_UNKNOWN || reference == size;
+ }
+ 
++
++/// If any of these tests fail, the caller has to return LZMA_PROG_ERROR.
++static inline bool
++validate_options_1(const lzma_options_block *options)
++{
++	return options == NULL
++			|| !lzma_vli_is_valid(options->compressed_size)
++			|| !lzma_vli_is_valid(options->uncompressed_size)
++			|| !lzma_vli_is_valid(options->total_size)
++			|| !lzma_vli_is_valid(options->total_limit)
++			|| !lzma_vli_is_valid(options->uncompressed_limit);
++}
++
++
++/// If any of these tests fail, the encoder has to return LZMA_PROG_ERROR
++/// because something is going horribly wrong if such values get passed
++/// to the encoder. In contrast, the decoder has to return LZMA_DATA_ERROR,
++/// since these tests failing indicate that something is wrong in the Stream.
++static inline bool
++validate_options_2(const lzma_options_block *options)
++{
++	if ((options->uncompressed_size != LZMA_VLI_VALUE_UNKNOWN
++				&& options->uncompressed_size
++					> options->uncompressed_limit)
++			|| (options->total_size != LZMA_VLI_VALUE_UNKNOWN
++				&& options->total_size
++					> options->total_limit)
++			|| (!options->has_eopm && options->uncompressed_size
++				== LZMA_VLI_VALUE_UNKNOWN)
++			|| options->header_size > options->total_size)
++		return true;
++
++	if (options->compressed_size != LZMA_VLI_VALUE_UNKNOWN) {
++		// Calculate a rough minimum possible valid Total Size of
++		// this Block, and check that total_size and total_limit
++		// are big enough. Note that the real minimum size can be
++		// bigger due to the Check, Uncompressed Size, Backwards
++		// Size, pr Padding being present. A rough check here is
++		// enough for us to catch the most obvious errors as early
++		// as possible.
++		const lzma_vli total_min = options->compressed_size
++				+ (lzma_vli)(options->header_size);
++		if (total_min > options->total_size
++				|| total_min > options->total_limit)
++			return true;
++	}
++
++	return false;
++}
++
+ #endif

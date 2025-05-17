@@ -1,0 +1,38 @@
+diff --git a/tests/Makefile.am b/tests/Makefile.am
+index 0469264a..03bf34c2 100644
+--- a/tests/Makefile.am
++++ b/tests/Makefile.am
+@@ -43,8 +43,11 @@ TESTS = \
+ 	test_block_header \
+ 	test_index \
+ 	test_files.sh \
+-	test_compress.sh \
+-	test_scripts.sh
++	test_compress.sh
++
++if COND_SCRIPTS
++TESTS += test_scripts.sh
++endif
+ 
+ clean-local:
+ 	-rm -f compress_generated_*
+diff --git a/windows/build.bash b/windows/build.bash
+index faec83b3..c5cf2b31 100644
+--- a/windows/build.bash
++++ b/windows/build.bash
+@@ -77,6 +77,7 @@ buildit()
+ 	./configure \
+ 		--prefix= \
+ 		--disable-nls \
++		--disable-scripts \
+ 		--disable-threads \
+ 		--disable-shared \
+ 		--enable-small \
+@@ -97,6 +98,7 @@ buildit()
+ 	./configure \
+ 		--prefix= \
+ 		--disable-nls \
++		--disable-scripts \
+ 		--disable-threads \
+ 		--build="$BUILD" \
+ 		CFLAGS="$CFLAGS -O2"

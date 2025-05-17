@@ -1,0 +1,114 @@
+diff --git a/src/liblzma/api/lzma/block.h b/src/liblzma/api/lzma/block.h
+index 7080301f..f556ce34 100644
+--- a/src/liblzma/api/lzma/block.h
++++ b/src/liblzma/api/lzma/block.h
+@@ -33,11 +33,11 @@ typedef struct {
+ 	 * \brief       Block format version
+ 	 *
+ 	 * To prevent API and ABI breakages when new features are needed,
+-	 * a version number is used to indicate which fields in this
++	 * a version number is used to indicate which members in this
+ 	 * structure are in use:
+ 	 *   - liblzma >= 5.0.0: version = 0 is supported.
+ 	 *   - liblzma >= 5.1.4beta: Support for version = 1 was added,
+-	 *     which adds the ignore_check field.
++	 *     which adds the ignore_check member.
+ 	 *
+ 	 * If version is greater than one, most Block related functions
+ 	 * will return LZMA_OPTIONS_ERROR (lzma_block_header_decode() works
+@@ -286,7 +286,7 @@ typedef struct {
+ 	/**
+ 	 * \brief       A flag to Block decoder to not verify the Check field
+ 	 *
+-	 * This field is supported by liblzma >= 5.1.4beta if .version >= 1.
++	 * This member is supported by liblzma >= 5.1.4beta if .version >= 1.
+ 	 *
+ 	 * If this is set to true, the integrity check won't be calculated
+ 	 * and verified. Unless you know what you are doing, you should
+diff --git a/src/liblzma/api/lzma/delta.h b/src/liblzma/api/lzma/delta.h
+index ad1aca90..3d7a7f02 100644
+--- a/src/liblzma/api/lzma/delta.h
++++ b/src/liblzma/api/lzma/delta.h
+@@ -60,12 +60,12 @@ typedef struct {
+ 	uint32_t dist;
+ 
+ 	/**
+-	 * \brief       Minimum value for the dist field in lzma_options_delta.
++	 * \brief       Minimum value for lzma_options_delta.dist.
+ 	 */
+ #	define LZMA_DELTA_DIST_MIN 1
+ 
+-	/** 
+-	 * \brief       Maximum value for the dist field in lzma_options_delta.
++	/**
++	 * \brief       Maximum value for lzma_options_delta.dist.
+ 	 */
+ #	define LZMA_DELTA_DIST_MAX 256
+ 
+diff --git a/src/liblzma/api/lzma/index.h b/src/liblzma/api/lzma/index.h
+index 73bad8c1..f7de84b5 100644
+--- a/src/liblzma/api/lzma/index.h
++++ b/src/liblzma/api/lzma/index.h
+@@ -235,7 +235,7 @@ typedef struct {
+ 		const void *reserved_ptr4;
+ 	} block;
+ 
+-	/** 
++	/**
+ 	 * \private     Internal struct.
+ 	 *
+ 	 * Internal data which is used to store the state of the iterator.
+@@ -243,13 +243,13 @@ typedef struct {
+ 	 * touch these in any way.
+ 	 */
+ 	union {
+-		/** \private     Internal field. */
++		/** \private     Internal member. */
+ 		const void *p;
+ 
+-		/** \private     Internal field. */
++		/** \private     Internal member. */
+ 		size_t s;
+ 
+-		/** \private     Internal field. */
++		/** \private     Internal member. */
+ 		lzma_vli v;
+ 	} internal[6];
+ } lzma_index_iter;
+@@ -505,7 +505,7 @@ extern LZMA_API(lzma_vli) lzma_index_size(const lzma_index *i)
+  * If multiple lzma_indexes have been combined, this works as if the Blocks
+  * were in a single Stream. This is useful if you are going to combine
+  * Blocks from multiple Streams into a single new Stream.
+- * 
++ *
+  * \param       i   Pointer to lzma_index structure
+  *
+  * \return      Size in bytes of the Stream (if all Blocks are combined
+diff --git a/src/liblzma/api/lzma/stream_flags.h b/src/liblzma/api/lzma/stream_flags.h
+index e259b085..253706e2 100644
+--- a/src/liblzma/api/lzma/stream_flags.h
++++ b/src/liblzma/api/lzma/stream_flags.h
+@@ -37,7 +37,7 @@ typedef struct {
+ 	 *
+ 	 * To prevent API and ABI breakages if new features are needed in
+ 	 * Stream Header or Stream Footer, a version number is used to
+-	 * indicate which fields in this structure are in use. For now,
++	 * indicate which members in this structure are in use. For now,
+ 	 * version must always be zero. With non-zero version, the
+ 	 * lzma_stream_header_encode() and lzma_stream_footer_encode()
+ 	 * will return LZMA_OPTIONS_ERROR.
+@@ -70,12 +70,12 @@ typedef struct {
+ 	lzma_vli backward_size;
+ 
+ 	/**
+-	 * \brief       Minimum size of the backward_size member
++	 * \brief       Minimum value for lzma_stream_flags.backward_size
+ 	 */
+ #	define LZMA_BACKWARD_SIZE_MIN 4
+ 
+ 	/**
+-	 * \brief       Maximum size of the backward_size member
++	 * \brief       Maximum value for lzma_stream_flags.backward_size
+ 	 */
+ #	define LZMA_BACKWARD_SIZE_MAX (LZMA_VLI_C(1) << 34)
+ 

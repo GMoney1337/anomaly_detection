@@ -1,0 +1,21 @@
+diff --git a/src/common/tuklib_mbstr_wrap.c b/src/common/tuklib_mbstr_wrap.c
+index 4cc559d2..8d906e00 100644
+--- a/src/common/tuklib_mbstr_wrap.c
++++ b/src/common/tuklib_mbstr_wrap.c
+@@ -254,7 +254,16 @@ tuklib_wrapf(FILE *stream, const struct tuklib_wrap_opt *opt,
+ 
+ #ifdef HAVE_VASPRINTF
+ 	va_start(ap, fmt);
++
++#ifdef __clang__
++#	pragma GCC diagnostic push
++#	pragma GCC diagnostic ignored "-Wformat-nonliteral"
++#endif
+ 	const int n = vasprintf(&buf, fmt, ap);
++#ifdef __clang__
++#	pragma GCC diagnostic pop
++#endif
++
+ 	va_end(ap);
+ 	if (n == -1)
+ 		return TUKLIB_WRAP_ERR_FORMAT;

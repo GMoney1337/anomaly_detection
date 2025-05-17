@@ -1,0 +1,96 @@
+diff --git a/src/liblzma/check/check.h b/src/liblzma/check/check.h
+index f0eb1172..16a56334 100644
+--- a/src/liblzma/check/check.h
++++ b/src/liblzma/check/check.h
+@@ -95,24 +95,6 @@ typedef struct {
+ } lzma_check_state;
+ 
+ 
+-/// lzma_crc32_table[0] is needed by LZ encoder so we need to keep
+-/// the array two-dimensional.
+-#ifdef HAVE_SMALL
+-lzma_attr_visibility_hidden
+-extern uint32_t lzma_crc32_table[1][256];
+-
+-extern void lzma_crc32_init(void);
+-
+-#else
+-
+-lzma_attr_visibility_hidden
+-extern const uint32_t lzma_crc32_table[8][256];
+-
+-lzma_attr_visibility_hidden
+-extern const uint64_t lzma_crc64_table[4][256];
+-#endif
+-
+-
+ /// \brief      Initialize *check depending on type
+ extern void lzma_check_init(lzma_check_state *check, lzma_check type);
+ 
+diff --git a/src/liblzma/check/crc32_small.c b/src/liblzma/check/crc32_small.c
+index 6a1bd661..4a62830c 100644
+--- a/src/liblzma/check/crc32_small.c
++++ b/src/liblzma/check/crc32_small.c
+@@ -10,8 +10,11 @@
+ ///////////////////////////////////////////////////////////////////////////////
+ 
+ #include "check.h"
++#include "crc_common.h"
+ 
+ 
++// The table is used by the LZ encoder too, thus it's not static like
++// in crc64_small.c.
+ uint32_t lzma_crc32_table[1][256];
+ 
+ 
+diff --git a/src/liblzma/check/crc_common.h b/src/liblzma/check/crc_common.h
+index 6a4a8d16..e55dd7c0 100644
+--- a/src/liblzma/check/crc_common.h
++++ b/src/liblzma/check/crc_common.h
+@@ -38,6 +38,24 @@
+ #endif
+ 
+ 
++/// lzma_crc32_table[0] is needed by LZ encoder so we need to keep
++/// the array two-dimensional.
++#ifdef HAVE_SMALL
++lzma_attr_visibility_hidden
++extern uint32_t lzma_crc32_table[1][256];
++
++extern void lzma_crc32_init(void);
++
++#else
++
++lzma_attr_visibility_hidden
++extern const uint32_t lzma_crc32_table[8][256];
++
++lzma_attr_visibility_hidden
++extern const uint64_t lzma_crc64_table[4][256];
++#endif
++
++
+ // Keep this in sync with changes to crc32_arm64.h
+ #if defined(_WIN32) || defined(HAVE_GETAUXVAL) \
+ 		|| defined(HAVE_ELF_AUX_INFO) \
+diff --git a/src/liblzma/lz/lz_encoder_hash.h b/src/liblzma/lz/lz_encoder_hash.h
+index 6020b183..6d4bf837 100644
+--- a/src/liblzma/lz/lz_encoder_hash.h
++++ b/src/liblzma/lz/lz_encoder_hash.h
+@@ -13,7 +13,8 @@
+ #ifndef LZMA_LZ_ENCODER_HASH_H
+ #define LZMA_LZ_ENCODER_HASH_H
+ 
+-// We need to know if CRC32_GENERIC is defined.
++// We need to know if CRC32_GENERIC is defined and we may need the declaration
++// of lzma_crc32_table[][].
+ #include "crc_common.h"
+ 
+ // If HAVE_SMALL is defined, then lzma_crc32_table[][] exists and
+@@ -28,7 +29,6 @@
+ // then lzma_crc32_table[][] doesn't exist.
+ #if defined(HAVE_SMALL) \
+ 		|| (defined(CRC32_GENERIC) && !defined(WORDS_BIGENDIAN))
+-#	include "check.h"
+ #	define hash_table lzma_crc32_table[0]
+ #else
+ 	// lz_encoder.c takes care of including the actual table.

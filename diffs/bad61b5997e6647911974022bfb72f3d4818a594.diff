@@ -1,0 +1,101 @@
+diff --git a/src/scripts/xzdiff.in b/src/scripts/xzdiff.in
+index 78d75c09..234d6c70 100644
+--- a/src/scripts/xzdiff.in
++++ b/src/scripts/xzdiff.in
+@@ -51,7 +51,7 @@ escape='
+ while :; do
+   case $1 in
+     --h*) printf '%s\n' "$usage" || exit 2; exit;;
+-    --v*) echo "$version" || exit 2; exit;;
++    --v*) printf '%s\n' "$version" || exit 2; exit;;
+     --) shift; break;;
+     -*\'*) cmp="$cmp '"`printf '%sX\n' "$1" | sed "$escape"`;;
+     -?*) cmp="$cmp '$1'";;
+@@ -83,7 +83,7 @@ if test $# -eq 1; then
+     *[-.]zst | *.tzst)
+       xz1='zstd -q';;
+     *)
+-      echo >&2 "$0: $1: Unknown compressed file name suffix"
++      printf '%s\n' "$0: $1: Unknown compressed file name suffix" >&2
+       exit 2;;
+   esac
+   case $1 in
+@@ -193,7 +193,7 @@ elif test $# -eq 2; then
+     esac;;
+   esac
+ else
+-  echo >&2 "$0: Invalid number of operands; try \`${0##*/} --help' for help"
++  printf '%s\n' "$0: Invalid number of operands; try \`${0##*/} --help' for help" >&2
+   exit 2
+ fi
+ 
+diff --git a/src/scripts/xzgrep.in b/src/scripts/xzgrep.in
+index c851c7ed..2cb9420c 100644
+--- a/src/scripts/xzgrep.in
++++ b/src/scripts/xzgrep.in
+@@ -116,7 +116,7 @@ while test $# -ne 0; do
+   (-[ef]* | --file | --file=* | --reg*)
+     have_pat=1;;
+   (--h | --he | --hel | --help)
+-    echo "$usage" || exit 2
++    printf '%s\n' "$usage" || exit 2
+     exit;;
+   (-H | --wi | --wit | --with | --with- | --with-f | --with-fi \
+   | --with-fil | --with-file | --with-filen | --with-filena | --with-filenam \
+@@ -132,7 +132,7 @@ while test $# -ne 0; do
+   (-h | --no-f*)
+     no_filename=1;;
+   (-V | --v | --ve | --ver | --vers | --versi | --versio | --version)
+-    echo "$version" || exit 2
++    printf '%s\n' "$version" || exit 2
+     exit;;
+   esac
+ 
+diff --git a/src/scripts/xzless.in b/src/scripts/xzless.in
+index 7215acec..0fc91763 100644
+--- a/src/scripts/xzless.in
++++ b/src/scripts/xzless.in
+@@ -33,8 +33,8 @@ Options are the same as for 'less'.
+ Report bugs to <@PACKAGE_BUGREPORT@>."
+ 
+ case $1 in
+-	--help)    echo "$usage" || exit 2; exit;;
+-	--version) echo "$version" || exit 2; exit;;
++	--help)    printf '%s\n' "$usage" || exit 2; exit;;
++	--version) printf '%s\n' "$version" || exit 2; exit;;
+ esac
+ 
+ if test "${LESSMETACHARS+set}" != set; then
+diff --git a/src/scripts/xzmore.in b/src/scripts/xzmore.in
+index ea832a30..6ba1344d 100644
+--- a/src/scripts/xzmore.in
++++ b/src/scripts/xzmore.in
+@@ -31,8 +31,8 @@ Like 'more', but operate on the uncompressed contents of xz compressed FILEs.
+ Report bugs to <@PACKAGE_BUGREPORT@>."
+ 
+ case $1 in
+-	--help)    echo "$usage" || exit 2; exit;;
+-	--version) echo "$version" || exit 2; exit;;
++	--help)    printf '%s\n' "$usage" || exit 2; exit;;
++	--version) printf '%s\n' "$version" || exit 2; exit;;
+ esac
+ 
+ oldtty=`stty -g 2>/dev/null`
+@@ -50,7 +50,7 @@ fi
+ 
+ if test $# = 0; then
+ 	if test -t 0; then
+-		echo "$usage"; exit 1
++		printf '%s\n' "$usage"; exit 1
+ 	else
+ 		$xz -cdfq | eval "${PAGER:-more}"
+ 	fi
+@@ -69,7 +69,7 @@ else
+ 			esac
+ 		fi
+ 		if test "$ANS" != 's'; then
+-			echo "------> $FILE <------"
++			printf '%s\n' "------> $FILE <------"
+ 			$xz -cdfq -- "$FILE" | eval "${PAGER:-more}"
+ 		fi
+ 		if test -t 1; then

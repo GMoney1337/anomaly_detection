@@ -1,0 +1,60 @@
+diff --git a/src/liblzma/check/crc32_fast.c b/src/liblzma/check/crc32_fast.c
+index 094fe196..832f6c08 100644
+--- a/src/liblzma/check/crc32_fast.c
++++ b/src/liblzma/check/crc32_fast.c
+@@ -29,7 +29,7 @@
+ ///////////////////
+ 
+ static uint32_t
+-crc32_generic(const uint8_t *buf, size_t size, uint32_t crc)
++lzma_crc32_generic(const uint8_t *buf, size_t size, uint32_t crc)
+ {
+ 	crc = ~crc;
+ 
+@@ -119,7 +119,7 @@ static crc32_func_type
+ crc32_resolve(void)
+ {
+ 	return is_arch_extension_supported()
+-			? &crc32_arch_optimized : &crc32_generic;
++			? &crc32_arch_optimized : &lzma_crc32_generic;
+ }
+ 
+ 
+@@ -178,6 +178,6 @@ lzma_crc32(const uint8_t *buf, size_t size, uint32_t crc)
+ 	return crc32_arch_optimized(buf, size, crc);
+ 
+ #else
+-	return crc32_generic(buf, size, crc);
++	return lzma_crc32_generic(buf, size, crc);
+ #endif
+ }
+diff --git a/src/liblzma/check/crc64_fast.c b/src/liblzma/check/crc64_fast.c
+index 275fcade..82389aa8 100644
+--- a/src/liblzma/check/crc64_fast.c
++++ b/src/liblzma/check/crc64_fast.c
+@@ -34,7 +34,7 @@
+ 
+ // See the comments in crc32_fast.c. They aren't duplicated here.
+ static uint64_t
+-crc64_generic(const uint8_t *buf, size_t size, uint64_t crc)
++lzma_crc64_generic(const uint8_t *buf, size_t size, uint64_t crc)
+ {
+ 	crc = ~crc;
+ 
+@@ -97,7 +97,7 @@ static crc64_func_type
+ crc64_resolve(void)
+ {
+ 	return is_arch_extension_supported()
+-			? &crc64_arch_optimized : &crc64_generic;
++			? &crc64_arch_optimized : &lzma_crc64_generic;
+ }
+ 
+ #ifdef HAVE_FUNC_ATTRIBUTE_CONSTRUCTOR
+@@ -154,6 +154,6 @@ lzma_crc64(const uint8_t *buf, size_t size, uint64_t crc)
+ 	return crc64_arch_optimized(buf, size, crc);
+ 
+ #else
+-	return crc64_generic(buf, size, crc);
++	return lzma_crc64_generic(buf, size, crc);
+ #endif
+ }

@@ -1,0 +1,187 @@
+diff --git a/src/liblzma/api/Makefile.am b/src/liblzma/api/Makefile.am
+index f5101f96..12953c41 100644
+--- a/src/liblzma/api/Makefile.am
++++ b/src/liblzma/api/Makefile.am
+@@ -15,6 +15,7 @@
+ nobase_include_HEADERS = \
+ 	lzma.h \
+ 	lzma/base.h \
++	lzma/bcj.h \
+ 	lzma/block.h \
+ 	lzma/check.h \
+ 	lzma/container.h \
+@@ -23,7 +24,6 @@ nobase_include_HEADERS = \
+ 	lzma/index.h \
+ 	lzma/index_hash.h \
+ 	lzma/lzma.h \
+-	lzma/simple.h \
+ 	lzma/stream_flags.h \
+ 	lzma/subblock.h \
+ 	lzma/version.h \
+diff --git a/src/liblzma/api/lzma.h b/src/liblzma/api/lzma.h
+index ef7a1086..dc90deb1 100644
+--- a/src/liblzma/api/lzma.h
++++ b/src/liblzma/api/lzma.h
+@@ -204,7 +204,7 @@ extern "C" {
+ /* Filters */
+ #include "lzma/filter.h"
+ #include "lzma/subblock.h"
+-#include "lzma/simple.h"
++#include "lzma/bcj.h"
+ #include "lzma/delta.h"
+ #include "lzma/lzma.h"
+ 
+diff --git a/src/liblzma/api/lzma/simple.h b/src/liblzma/api/lzma/bcj.h
+similarity index 83%
+rename from src/liblzma/api/lzma/simple.h
+rename to src/liblzma/api/lzma/bcj.h
+index 6969ffa9..33bd7da9 100644
+--- a/src/liblzma/api/lzma/simple.h
++++ b/src/liblzma/api/lzma/bcj.h
+@@ -1,6 +1,6 @@
+ /**
+- * \file        lzma/simple.h
+- * \brief       So called "simple" filters
++ * \file        lzma/bcj.h
++ * \brief       Branch/Call/Jump conversion filters
+  *
+  * \author      Copyright (C) 1999-2006 Igor Pavlov
+  * \author      Copyright (C) 2007 Lasse Collin
+@@ -25,7 +25,7 @@
+ 
+ #define LZMA_FILTER_X86         LZMA_VLI_C(0x04)
+ 	/**<
+-	 * BCJ (Branch, Call, Jump) filter for x86 binaries
++	 * Filter for x86 binaries
+ 	 */
+ 
+ #define LZMA_FILTER_POWERPC     LZMA_VLI_C(0x05)
+@@ -55,17 +55,17 @@
+ 
+ 
+ /**
+- * \brief       Options for so called "simple" filters
++ * \brief       Options for BCJ filters
+  *
+- * The simple filters never change the size of the data. Specifying options
+- * for them is optional: if pointer to options is NULL, default values are
+- * used. You probably never need to specify these options, so just set the
+- * options pointer to NULL and be happy.
++ * The BCJ filters never change the size of the data. Specifying options
++ * for them is optional: if pointer to options is NULL, default value is
++ * used. You probably never need to specify options to BCJ filters, so just
++ * set the options pointer to NULL and be happy.
+  *
+  * If options with non-default values have been specified when encoding,
+  * the same options must also be specified when decoding.
+  *
+- * \note        At the moment, none of the simple filters support
++ * \note        At the moment, none of the BCJ filters support
+  *              LZMA_SYNC_FLUSH. If LZMA_SYNC_FLUSH is specified,
+  *              LZMA_OPTIONS_ERROR will be returned. If there is need,
+  *              partial support for LZMA_SYNC_FLUSH can be added in future.
+@@ -76,7 +76,7 @@
+  */
+ typedef struct {
+ 	/**
+-	 * \brief       Start offset for branch conversions
++	 * \brief       Start offset for conversions
+ 	 *
+ 	 * This setting is useful only when the same filter is used
+ 	 * _separately_ for multiple sections of the same executable file,
+@@ -91,4 +91,4 @@ typedef struct {
+ 	 */
+ 	uint32_t start_offset;
+ 
+-} lzma_options_simple;
++} lzma_options_bcj;
+diff --git a/src/liblzma/simple/simple_coder.c b/src/liblzma/simple/simple_coder.c
+index c3141b8f..555fcce8 100644
+--- a/src/liblzma/simple/simple_coder.c
++++ b/src/liblzma/simple/simple_coder.c
+@@ -254,7 +254,7 @@ lzma_simple_coder_init(lzma_next_coder *next, lzma_allocator *allocator,
+ 	}
+ 
+ 	if (filters[0].options != NULL) {
+-		const lzma_options_simple *simple = filters[0].options;
++		const lzma_options_bcj *simple = filters[0].options;
+ 		next->coder->now_pos = simple->start_offset;
+ 	} else {
+ 		next->coder->now_pos = 0;
+diff --git a/src/liblzma/simple/simple_decoder.c b/src/liblzma/simple/simple_decoder.c
+index 30dc7c57..d7c17e2f 100644
+--- a/src/liblzma/simple/simple_decoder.c
++++ b/src/liblzma/simple/simple_decoder.c
+@@ -30,8 +30,8 @@ lzma_simple_props_decode(void **options, lzma_allocator *allocator,
+ 	if (props_size != 4)
+ 		return LZMA_OPTIONS_ERROR;
+ 
+-	lzma_options_simple *opt = lzma_alloc(
+-			sizeof(lzma_options_simple), allocator);
++	lzma_options_bcj *opt = lzma_alloc(
++			sizeof(lzma_options_bcj), allocator);
+ 	if (opt == NULL)
+ 		return LZMA_MEM_ERROR;
+ 
+diff --git a/src/liblzma/simple/simple_encoder.c b/src/liblzma/simple/simple_encoder.c
+index 15d888d9..fe2f98d6 100644
+--- a/src/liblzma/simple/simple_encoder.c
++++ b/src/liblzma/simple/simple_encoder.c
+@@ -23,7 +23,7 @@
+ extern lzma_ret
+ lzma_simple_props_size(uint32_t *size, const void *options)
+ {
+-	const lzma_options_simple *const opt = options;
++	const lzma_options_bcj *const opt = options;
+ 	*size = (opt == NULL || opt->start_offset == 0) ? 0 : 4;
+ 	return LZMA_OK;
+ }
+@@ -32,7 +32,7 @@ lzma_simple_props_size(uint32_t *size, const void *options)
+ extern lzma_ret
+ lzma_simple_props_encode(const void *options, uint8_t *out)
+ {
+-	const lzma_options_simple *const opt = options;
++	const lzma_options_bcj *const opt = options;
+ 
+ 	// The default start offset is zero, so we don't need to store any
+ 	// options unless the start offset is non-zero.
+diff --git a/tests/test_filter_flags.c b/tests/test_filter_flags.c
+index dd4f56ac..37bb5830 100644
+--- a/tests/test_filter_flags.c
++++ b/tests/test_filter_flags.c
+@@ -100,7 +100,7 @@ test_subblock(void)
+ 
+ #if defined(HAVE_ENCODER_X86) && defined(HAVE_DECODER_X86)
+ static void
+-test_simple(void)
++test_bcj(void)
+ {
+ 	// Test 1
+ 	known_flags.id = LZMA_FILTER_X86;
+@@ -111,7 +111,7 @@ test_simple(void)
+ 	expect(decoded_flags.options == NULL);
+ 
+ 	// Test 2
+-	lzma_options_simple options;
++	lzma_options_bcj options;
+ 	options.start_offset = 0;
+ 	known_flags.options = &options;
+ 	expect(!encode(2));
+@@ -125,7 +125,7 @@ test_simple(void)
+ 	expect(!decode(6));
+ 	expect(decoded_flags.options != NULL);
+ 
+-	lzma_options_simple *decoded = decoded_flags.options;
++	lzma_options_bcj *decoded = decoded_flags.options;
+ 	expect(decoded->start_offset == options.start_offset);
+ 
+ 	free(decoded);
+@@ -273,7 +273,7 @@ main(void)
+ 	test_subblock();
+ #endif
+ #if defined(HAVE_ENCODER_X86) && defined(HAVE_DECODER_X86)
+-	test_simple();
++	test_bcj();
+ #endif
+ #if defined(HAVE_ENCODER_DELTA) && defined(HAVE_DECODER_DELTA)
+ 	test_delta();

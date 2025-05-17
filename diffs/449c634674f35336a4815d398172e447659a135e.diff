@@ -1,0 +1,13 @@
+diff --git a/src/xz/Makefile.am b/src/xz/Makefile.am
+index c0bd05fd..a9b2f690 100644
+--- a/src/xz/Makefile.am
++++ b/src/xz/Makefile.am
+@@ -55,7 +55,7 @@ xzlinks = unxz xzcat lzma unlzma lzcat
+ 
+ install-exec-hook:
+ 	cd $(DESTDIR)$(bindir) && \
+-	target=`echo xz | $(SED) '$(transform)'` && \
++	target=`echo xz | $(SED) '$(transform)'`$(EXEEXT) && \
+ 	for name in $(xzlinks); do \
+ 		link=`echo $$name | $(SED) '$(transform)'` && \
+ 		rm -f $$link && \

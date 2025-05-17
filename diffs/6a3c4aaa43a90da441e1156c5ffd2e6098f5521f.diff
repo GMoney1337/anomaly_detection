@@ -1,0 +1,81 @@
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+index a50c8a6b..542df742 100644
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -160,6 +160,11 @@ if(OVERRIDE_O3_IN_C_FLAGS_RELEASE)
+                  PROPERTY VALUE "${CMAKE_C_FLAGS_RELEASE}")
+ endif()
+ 
++# Reject unsupported MSVC versions.
++if(MSVC AND MSVC_VERSION LESS 1900)
++    message(FATAL_ERROR "Visual Studio older than 2015 is not supported")
++endif()
++
+ # We need a compiler that supports enough C99 or newer (variable-length arrays
+ # aren't needed, those are optional in C11/C17). C11 is preferred since C11
+ # features may be optionally used if they are available.
+@@ -1700,7 +1705,7 @@ endif()
+ # xzdec and lzmadec
+ #############################################################################
+ 
+-if(HAVE_DECODERS AND (NOT MSVC OR MSVC_VERSION GREATER_EQUAL 1900))
++if(HAVE_DECODERS)
+     foreach(XZDEC xzdec lzmadec)
+         add_executable("${XZDEC}"
+             src/common/sysdefs.h
+@@ -1757,7 +1762,7 @@ endif()
+ # lzmainfo
+ #############################################################################
+ 
+-if(HAVE_DECODERS AND (NOT MSVC OR MSVC_VERSION GREATER_EQUAL 1900))
++if(HAVE_DECODERS)
+     add_executable(lzmainfo
+         src/common/sysdefs.h
+         src/common/tuklib_common.h
+diff --git a/src/common/sysdefs.h b/src/common/sysdefs.h
+index 2f974036..0d08fc9f 100644
+--- a/src/common/sysdefs.h
++++ b/src/common/sysdefs.h
+@@ -169,15 +169,11 @@ typedef unsigned char _Bool;
+ 
+ #include <string.h>
+ 
+-// Visual Studio 2013 update 2 supports only __inline, not inline.
+-// MSVC v19.0 / VS 2015 and newer support both.
++// MSVC v19.00 (VS 2015 version 14.0) and later should work.
+ //
+ // MSVC v19.27 (VS 2019 version 16.7) added support for restrict.
+ // Older ones support only __restrict.
+ #ifdef _MSC_VER
+-#	if _MSC_VER < 1900 && !defined(inline)
+-#		define inline __inline
+-#	endif
+ #	if _MSC_VER < 1927 && !defined(restrict)
+ #		define restrict __restrict
+ #	endif
+diff --git a/windows/INSTALL-MSVC.txt b/windows/INSTALL-MSVC.txt
+index ba483fb6..e92175b6 100644
+--- a/windows/INSTALL-MSVC.txt
++++ b/windows/INSTALL-MSVC.txt
+@@ -8,6 +8,8 @@ Introduction
+     liblzma got MSVC support in XZ Utils 5.2.0, and the xz, xzdec,
+     lzmadec, and lzmainfo command line tools in XZ Utils 5.6.0.
+ 
++    Visual Studio 2015 and later are supported.
++
+         NOTE: The *.exe files are linked against GNU getopt_long from
+         the "lib" directory. That code is under the GNU LGPLv2.1
+         and thus the matching source code must be provided when
+@@ -15,12 +17,6 @@ Introduction
+         the license requirements is to distribute the matching XZ Utils
+         source package alongside the *.exe files.
+ 
+-    MSVC 2013 update 2 and later have enough C99 support to build
+-    liblzma from XZ Utils 5.2.0 and later without modifications.
+-
+-    Visual Studio 2015 or later is required to build the command line
+-    tools.
+-
+ 
+ Building
+ --------

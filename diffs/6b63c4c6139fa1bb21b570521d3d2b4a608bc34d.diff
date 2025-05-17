@@ -1,0 +1,30 @@
+diff --git a/dos/config.h b/dos/config.h
+index cb535783..797f6330 100644
+--- a/dos/config.h
++++ b/dos/config.h
+@@ -143,7 +143,7 @@
+ #define PACKAGE_NAME "XZ Utils"
+ 
+ /* Define to the home page for this package. */
+-#define PACKAGE_URL "https://tukaani.org/xz/"
++#define PACKAGE_URL "https://xz.tukaani.org/xz-utils/"
+ 
+ /* The size of 'size_t', as computed by sizeof. */
+ #define SIZEOF_SIZE_T 4
+diff --git a/src/liblzma/api/lzma.h b/src/liblzma/api/lzma.h
+index de12f225..f6b9469a 100644
+--- a/src/liblzma/api/lzma.h
++++ b/src/liblzma/api/lzma.h
+@@ -8,9 +8,9 @@
+  * format and raw (no headers) streams are supported. Multiple compression
+  * algorithms (filters) are supported. Currently LZMA2 is the primary filter.
+  *
+- * liblzma is part of XZ Utils <https://tukaani.org/xz/>. XZ Utils includes
+- * a gzip-like command line tool named xz and some other tools. XZ Utils
+- * is developed and maintained by Lasse Collin and Jia Tan.
++ * liblzma is part of XZ Utils <https://xz.tukaani.org/xz-utils/>. XZ Utils
++ * includes a gzip-like command line tool named xz and some other tools.
++ * XZ Utils is developed and maintained by Lasse Collin and Jia Tan.
+  *
+  * Major parts of liblzma are based on Igor Pavlov's public domain LZMA SDK
+  * <https://7-zip.org/sdk.html>.

@@ -1,0 +1,12 @@
+diff --git a/THANKS b/THANKS
+index cad65242..03ec8e09 100644
+--- a/THANKS
++++ b/THANKS
+@@ -19,6 +19,7 @@ has been important. :-) In alphabetical order:
+   - Jakub Bogusz
+   - Adam Borowski
+   - Maarten Bosmans
++  - Benjamin Buch
+   - Trent W. Buck
+   - Kevin R. Bulgrien
+   - James Buren

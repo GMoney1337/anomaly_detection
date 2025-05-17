@@ -1,0 +1,39 @@
+diff --git a/windows/INSTALL-MSVC.txt b/windows/INSTALL-MSVC.txt
+index 7dd31685..17e1da18 100644
+--- a/windows/INSTALL-MSVC.txt
++++ b/windows/INSTALL-MSVC.txt
+@@ -30,6 +30,10 @@ Building
+     compiler switch to link to the CRT statically, so it will not
+     have any other DLL dependencies.
+ 
++    The VS2017 project files don't set <WindowsTargetPlatformVersion>.
++    This means that you may need to either install Windows SDK 8.1 or
++    you may need to set the target platform version before building.
++
+     Currently no test programs are built or run under MSVC.
+ 
+     MSVC gives a bunch of compiler warnings. Some warnings are specific
+diff --git a/windows/vs2017/liblzma.vcxproj b/windows/vs2017/liblzma.vcxproj
+index 8886f655..3fc81937 100644
+--- a/windows/vs2017/liblzma.vcxproj
++++ b/windows/vs2017/liblzma.vcxproj
+@@ -29,7 +29,6 @@
+   <PropertyGroup Label="Globals">
+     <ProjectGuid>{12728250-16EC-4DC6-94D7-E21DD88947F8}</ProjectGuid>
+     <Keyword>Win32Proj</Keyword>
+-    <WindowsTargetPlatformVersion>10.0.15063.0</WindowsTargetPlatformVersion>
+   </PropertyGroup>
+   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
+   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
+diff --git a/windows/vs2017/liblzma_dll.vcxproj b/windows/vs2017/liblzma_dll.vcxproj
+index 66caacd6..77960146 100644
+--- a/windows/vs2017/liblzma_dll.vcxproj
++++ b/windows/vs2017/liblzma_dll.vcxproj
+@@ -29,7 +29,6 @@
+   <PropertyGroup Label="Globals">
+     <ProjectGuid>{E0F247DB-EF12-4755-8DF9-F74BCD1348F7}</ProjectGuid>
+     <Keyword>Win32Proj</Keyword>
+-    <WindowsTargetPlatformVersion>10.0.15063.0</WindowsTargetPlatformVersion>
+   </PropertyGroup>
+   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
+   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">

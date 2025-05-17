@@ -1,0 +1,12 @@
+diff --git a/po/fr.po b/po/fr.po
+index 42cd19ed..4bd93148 100644
+--- a/po/fr.po
++++ b/po/fr.po
+@@ -670,6 +670,7 @@ msgid ""
+ "                      does not affect decompressor memory requirements"
+ msgstr ""
+ "  -e, --extreme       essayer d'améliorer la compression en utilisant davantage\n"
++"                      de temps processeur ;\n"
+ "                      n'affecte pas les besoins mémoire du décompresseur"
+ 
+ #: src/xz/message.c:1138

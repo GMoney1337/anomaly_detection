@@ -1,0 +1,50 @@
+diff --git a/src/liblzma/check/check.h b/src/liblzma/check/check.h
+index 3007d889..783627bd 100644
+--- a/src/liblzma/check/check.h
++++ b/src/liblzma/check/check.h
+@@ -108,10 +108,6 @@ extern const uint64_t lzma_crc64_table[4][256];
+ 
+ 
+ /// \brief      Initialize *check depending on type
+-///
+-/// \return     LZMA_OK on success. LZMA_UNSUPPORTED_CHECK if the type is not
+-///             supported by the current version or build of liblzma.
+-///             LZMA_PROG_ERROR if type > LZMA_CHECK_ID_MAX.
+ extern void lzma_check_init(lzma_check_state *check, lzma_check type);
+ 
+ /// Update the check state
+diff --git a/src/liblzma/lz/lz_encoder_mf.c b/src/liblzma/lz/lz_encoder_mf.c
+index d03657a7..f20316f0 100644
+--- a/src/liblzma/lz/lz_encoder_mf.c
++++ b/src/liblzma/lz/lz_encoder_mf.c
+@@ -242,8 +242,8 @@ do { \
+ /// \param      cur_match       Start position of the current match candidate
+ /// \param      depth           Maximum length of the hash chain
+ /// \param      son             lzma_mf.son (contains the hash chain)
+-/// \param      cyclic_pos
+-/// \param      cyclic_size
++/// \param      cyclic_pos      lzma_mf.cyclic_pos
++/// \param      cyclic_size     lzma_mf_cyclic_size
+ /// \param      matches         Array to hold the matches.
+ /// \param      len_best        The length of the longest match found so far.
+ static lzma_match *
+diff --git a/src/xz/options.c b/src/xz/options.c
+index b434b0cf..f4662131 100644
+--- a/src/xz/options.c
++++ b/src/xz/options.c
+@@ -49,13 +49,13 @@ typedef struct {
+ /// is called, which should update the given value to filter-specific
+ /// options structure.
+ ///
++/// This returns only if no errors occur.
++///
+ /// \param      str     String containing the options from the command line
+ /// \param      opts    Filter-specific option map
+ /// \param      set     Filter-specific function to update filter_options
+ /// \param      filter_options  Pointer to filter-specific options structure
+ ///
+-/// \return     Returns only if no errors occur.
+-///
+ static void
+ parse_options(const char *str, const option_map *opts,
+ 		void (*set)(void *filter_options,

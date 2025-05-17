@@ -1,0 +1,12 @@
+diff --git a/.github/workflows/ci.yml b/.github/workflows/ci.yml
+index 9aa4f9aa..ded9b68d 100644
+--- a/.github/workflows/ci.yml
++++ b/.github/workflows/ci.yml
+@@ -86,6 +86,7 @@ jobs:
+       - name: Test with -fsanitize=address,undefined
+         if: ${{ matrix.os == 'ubuntu-latest' && matrix.build_system == 'autotools' }}
+         run: |
++            export UBSAN_OPTIONS=print_stacktrace=1:halt_on_error=1
+             ./build-aux/ci_build.sh -b autotools -p test -f "-fsanitize=address,undefined" -d sandbox
+             cd ../xz_build && make distclean
+ 

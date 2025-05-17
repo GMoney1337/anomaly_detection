@@ -1,0 +1,26 @@
+diff --git a/.github/workflows/ci.yml b/.github/workflows/ci.yml
+index ee017363..01b8cdc6 100644
+--- a/.github/workflows/ci.yml
++++ b/.github/workflows/ci.yml
+@@ -18,6 +18,8 @@ on:
+   # Allows running workflow manually
+   workflow_dispatch:
+ 
++permissions: {}
++
+ jobs:
+   POSIX:
+     strategy:
+diff --git a/.github/workflows/msvc.yml b/.github/workflows/msvc.yml
+index 4621a9fd..c6b2fb7a 100644
+--- a/.github/workflows/msvc.yml
++++ b/.github/workflows/msvc.yml
+@@ -11,6 +11,8 @@ on:
+     branches: [ master ]
+   workflow_dispatch:
+ 
++permissions: {}
++
+ jobs:
+   MSVC:
+     strategy:

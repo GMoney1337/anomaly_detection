@@ -1,0 +1,42 @@
+diff --git a/tests/files/README b/tests/files/README
+index 4aca0b11..3c54e51e 100644
+--- a/tests/files/README
++++ b/tests/files/README
+@@ -73,6 +73,13 @@
+     uncompressed file is compress_prepared_bcj_sparc found from the tests
+     directory.
+ 
++    good-1-arm64-lzma2-1.xz uses the ARM64 filter and LZMA2. The
++    uncompressed data is constructed so that it tests integer
++    wrap around and sign extension.
++
++    good-1-arm64-lzma2-2.xz is like good-1-arm64-lzma2-1.xz but with
++    non-zero start offset. XZ Embedded doesn't support this file.
++
+     good-1-lzma2-1.xz has two LZMA2 chunks, of which the second sets
+     new properties.
+ 
+diff --git a/tests/files/good-1-arm64-lzma2-1.xz b/tests/files/good-1-arm64-lzma2-1.xz
+new file mode 100644
+index 00000000..78169f14
+Binary files /dev/null and b/tests/files/good-1-arm64-lzma2-1.xz differ
+diff --git a/tests/files/good-1-arm64-lzma2-2.xz b/tests/files/good-1-arm64-lzma2-2.xz
+new file mode 100644
+index 00000000..e0302fe9
+Binary files /dev/null and b/tests/files/good-1-arm64-lzma2-2.xz differ
+diff --git a/tests/test_files.sh b/tests/test_files.sh
+index ceb9197c..64d73081 100755
+--- a/tests/test_files.sh
++++ b/tests/test_files.sh
+@@ -75,6 +75,11 @@ do
+ 			have_feature DECODER_X86 "$I" || continue
+ 			;;
+ 	esac
++	case $I in
++		*/good-1-arm64-lzma2-*.xz)
++			have_feature DECODER_ARM64 "$I" || continue
++			;;
++	esac
+ 
+ 	if test -z "$XZ" || "$XZ" $NO_WARN -dc "$I" > /dev/null; then
+ 		:

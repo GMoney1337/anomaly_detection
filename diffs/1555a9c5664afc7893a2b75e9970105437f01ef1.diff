@@ -1,0 +1,25 @@
+diff --git a/src/xzdec/Makefile.am b/src/xzdec/Makefile.am
+index 2348e4e6..70746c0c 100644
+--- a/src/xzdec/Makefile.am
++++ b/src/xzdec/Makefile.am
+@@ -59,7 +59,14 @@ endif
+ if COND_LZMADEC
+ bin_PROGRAMS += lzmadec
+ 
+-# FIXME: If xzdec is disabled, this will create a dangling symlink.
++# Create the symlink lzmadec.1->xzdec.1 only if xzdec.1 was installed.
++# This is better than creating a dangling symlink, especially
++# because creating the link may fail due to the directory being missing.
++#
++# FIXME: The correct solution would be to install xzdec.1 as lzmadec.1
++# but I don't know what is the sane way to do it and since this is a bit
++# unusual situation anyway, it's not that important.
++if COND_XZDEC
+ install-data-hook:
+ 	cd $(DESTDIR)$(mandir)/man1 && \
+ 	target=`echo xzdec | sed '$(transform)'` && \
+@@ -72,3 +79,4 @@ uninstall-hook:
+ 	link=`echo lzmadec | sed '$(transform)'` && \
+ 	rm -f $$link.1
+ endif
++endif

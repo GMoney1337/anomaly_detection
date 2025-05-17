@@ -1,0 +1,127 @@
+diff --git a/src/liblzma/check/crc32_fast.c b/src/liblzma/check/crc32_fast.c
+index 16dbb746..f492cdff 100644
+--- a/src/liblzma/check/crc32_fast.c
++++ b/src/liblzma/check/crc32_fast.c
+@@ -164,27 +164,6 @@ extern LZMA_API(uint32_t)
+ lzma_crc32(const uint8_t *buf, size_t size, uint32_t crc)
+ {
+ #if defined(CRC32_GENERIC) && defined(CRC32_ARCH_OPTIMIZED)
+-	// On x86-64, if CLMUL is available, it is the best for non-tiny
+-	// inputs, being over twice as fast as the generic slice-by-four
+-	// version. However, for size <= 16 it's different. In the extreme
+-	// case of size == 1 the generic version can be five times faster.
+-	// At size >= 8 the CLMUL starts to become reasonable. It
+-	// varies depending on the alignment of buf too.
+-	//
+-	// The above doesn't include the overhead of mythread_once().
+-	// At least on x86-64 GNU/Linux, pthread_once() is very fast but
+-	// it still makes lzma_crc32(buf, 1, crc) 50-100 % slower. When
+-	// size reaches 12-16 bytes the overhead becomes negligible.
+-	//
+-	// So using the generic version for size <= 16 may give better
+-	// performance with tiny inputs but if such inputs happen rarely
+-	// it's not so obvious because then the lookup table of the
+-	// generic version may not be in the processor cache.
+-#ifdef CRC_USE_GENERIC_FOR_SMALL_INPUTS
+-	if (size <= 16)
+-		return crc32_generic(buf, size, crc);
+-#endif
+-
+ /*
+ #ifndef HAVE_FUNC_ATTRIBUTE_CONSTRUCTOR
+ 	// See crc32_dispatch(). This would be the alternative which uses
+diff --git a/src/liblzma/check/crc64_fast.c b/src/liblzma/check/crc64_fast.c
+index 0ce83fe4..43f3f3ad 100644
+--- a/src/liblzma/check/crc64_fast.c
++++ b/src/liblzma/check/crc64_fast.c
+@@ -134,11 +134,6 @@ extern LZMA_API(uint64_t)
+ lzma_crc64(const uint8_t *buf, size_t size, uint64_t crc)
+ {
+ #if defined(CRC64_GENERIC) && defined(CRC64_ARCH_OPTIMIZED)
+-
+-#ifdef CRC_USE_GENERIC_FOR_SMALL_INPUTS
+-	if (size <= 16)
+-		return crc64_generic(buf, size, crc);
+-#endif
+ 	return crc64_func(buf, size, crc);
+ 
+ #elif defined(CRC64_ARCH_OPTIMIZED)
+diff --git a/src/liblzma/check/crc_common.h b/src/liblzma/check/crc_common.h
+index cd1a10f9..7106646f 100644
+--- a/src/liblzma/check/crc_common.h
++++ b/src/liblzma/check/crc_common.h
+@@ -59,8 +59,6 @@
+ #undef CRC32_ARM64
+ #undef CRC64_ARM64_CLMUL
+ 
+-#undef CRC_USE_GENERIC_FOR_SMALL_INPUTS
+-
+ // ARM64 CRC32 instruction is only useful for CRC32. Currently, only
+ // little endian is supported since we were unable to test on a big
+ // endian machine.
+@@ -99,18 +97,6 @@
+ #		define CRC32_ARCH_OPTIMIZED 1
+ #		define CRC64_ARCH_OPTIMIZED 1
+ #		define CRC_X86_CLMUL 1
+-
+-/*
+-		// The generic code is much faster with 1-8-byte inputs and
+-		// has similar performance up to 16 bytes  at least in
+-		// microbenchmarks (it depends on input buffer alignment
+-		// too). If both versions are built, this #define will use
+-		// the generic version for inputs up to 16 bytes and CLMUL
+-		// for bigger inputs. It saves a little in code size since
+-		// the special cases for 0-16-byte inputs will be omitted
+-		// from the CLMUL code.
+-#		define CRC_USE_GENERIC_FOR_SMALL_INPUTS 1
+-*/
+ #	endif
+ #endif
+ 
+diff --git a/src/liblzma/check/crc_x86_clmul.h b/src/liblzma/check/crc_x86_clmul.h
+index 67b34745..90da2c06 100644
+--- a/src/liblzma/check/crc_x86_clmul.h
++++ b/src/liblzma/check/crc_x86_clmul.h
+@@ -130,7 +130,6 @@ crc_simd_body(const uint8_t *buf, const size_t size, __m128i *v0, __m128i *v1,
+ 
+ 	__m128i v2, v3;
+ 
+-#ifndef CRC_USE_GENERIC_FOR_SMALL_INPUTS
+ 	if (size <= 16) {
+ 		// Right-shift initial_crc by 1-16 bytes based on "size"
+ 		// and store the result in v1 (high bytes) and v0 (low bytes).
+@@ -173,9 +172,7 @@ crc_simd_body(const uint8_t *buf, const size_t size, __m128i *v0, __m128i *v1,
+ 
+ 		*v0 = _mm_xor_si128(*v0, v3);
+ 		*v1 = _mm_alignr_epi8(*v1, *v0, 8);
+-	} else
+-#endif
+-	{
++	} else {
+ 		// There is more than 16 bytes of input.
+ 		const __m128i data1 = _mm_load_si128(aligned_buf);
+ 		const __m128i *end = (const __m128i*)(
+@@ -245,11 +242,9 @@ crc_attr_target
+ static uint32_t
+ crc32_arch_optimized(const uint8_t *buf, size_t size, uint32_t crc)
+ {
+-#ifndef CRC_USE_GENERIC_FOR_SMALL_INPUTS
+ 	// The code assumes that there is at least one byte of input.
+ 	if (size == 0)
+ 		return crc;
+-#endif
+ 
+ 	// uint32_t poly = 0xedb88320;
+ 	const int64_t p = 0x1db710640; // p << 1
+@@ -334,11 +329,9 @@ crc_attr_target
+ static uint64_t
+ crc64_arch_optimized(const uint8_t *buf, size_t size, uint64_t crc)
+ {
+-#ifndef CRC_USE_GENERIC_FOR_SMALL_INPUTS
+ 	// The code assumes that there is at least one byte of input.
+ 	if (size == 0)
+ 		return crc;
+-#endif
+ 
+ 	// const uint64_t poly = 0xc96c5795d7870f42; // CRC polynomial
+ 	const uint64_t p  = 0x92d8af2baf0e1e85; // (poly << 1) | 1

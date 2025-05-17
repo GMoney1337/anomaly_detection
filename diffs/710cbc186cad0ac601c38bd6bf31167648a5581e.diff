@@ -1,0 +1,12 @@
+diff --git a/src/xz/file_io.c b/src/xz/file_io.c
+index 4a2c8392..9b89434f 100644
+--- a/src/xz/file_io.c
++++ b/src/xz/file_io.c
+@@ -226,6 +226,7 @@ io_sandbox_enter(int src_fd)
+ 			CAP_EVENT, CAP_FCNTL, CAP_LOOKUP, CAP_READ, CAP_SEEK)))
+ 		goto error;
+ 
++	// If not reading from stdin, remove all capabilities from it.
+ 	if (src_fd != STDIN_FILENO && cap_rights_limit(
+ 			STDIN_FILENO, cap_rights_clear(&rights)))
+ 		goto error;

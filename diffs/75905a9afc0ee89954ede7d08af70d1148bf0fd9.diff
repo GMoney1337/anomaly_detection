@@ -1,0 +1,1114 @@
+diff --git a/src/common/physmem.h b/src/common/physmem.h
+index 04a7ab4b..a0e72c8e 100644
+--- a/src/common/physmem.h
++++ b/src/common/physmem.h
+@@ -27,6 +27,13 @@
+ #	include <unistd.h>
+ #endif
+ 
++#ifdef _WIN32
++#	ifndef _WIN32_WINNT
++#		define _WIN32_WINNT 0x0500
++#	endif
++#	include <windows.h>
++#endif
++
+ 
+ /// \brief      Get the amount of physical memory in bytes
+ ///
+@@ -62,6 +69,12 @@ physmem(void)
+ 			ret = mem;
+ 		}
+ 	}
++
++#elif defined(_WIN32)
++	MEMORYSTATUSEX meminfo;
++	meminfo.dwLength = sizeof(meminfo);
++	if (GlobalMemoryStatusEx(&meminfo))
++		ret = meminfo.ullTotalPhys;
+ #endif
+ 
+ 	return ret;
+diff --git a/src/xz/Makefile.am b/src/xz/Makefile.am
+index b8477c03..5deed299 100644
+--- a/src/xz/Makefile.am
++++ b/src/xz/Makefile.am
+@@ -30,6 +30,8 @@ xz_SOURCES = \
+ 	private.h \
+ 	process.c \
+ 	process.h \
++	signals.c \
++	signals.h \
+ 	suffix.c \
+ 	suffix.h \
+ 	util.c \
+diff --git a/src/xz/args.h b/src/xz/args.h
+index 6d4e8282..b07b2100 100644
+--- a/src/xz/args.h
++++ b/src/xz/args.h
+@@ -17,12 +17,6 @@
+ //
+ ///////////////////////////////////////////////////////////////////////////////
+ 
+-#ifndef ARGS_H
+-#define ARGS_H
+-
+-#include "private.h"
+-
+-
+ typedef struct {
+ 	/// Filenames from command line
+ 	char **arg_names;
+@@ -52,5 +46,3 @@ extern bool opt_keep_original;
+ extern const char *stdin_filename;
+ 
+ extern void args_parse(args_info *args, int argc, char **argv);
+-
+-#endif
+diff --git a/src/xz/hardware.h b/src/xz/hardware.h
+index f604df20..a6d91d78 100644
+--- a/src/xz/hardware.h
++++ b/src/xz/hardware.h
+@@ -1,6 +1,6 @@
+ ///////////////////////////////////////////////////////////////////////////////
+ //
+-/// \file       hardware.c
++/// \file       hardware.h
+ /// \brief      Detection of available hardware resources
+ //
+ //  Copyright (C) 2007 Lasse Collin
+@@ -17,12 +17,6 @@
+ //
+ ///////////////////////////////////////////////////////////////////////////////
+ 
+-#ifndef HARDWARE_H
+-#define HARDWARE_H
+-
+-#include "private.h"
+-
+-
+ extern size_t opt_threads;
+ 
+ 
+@@ -41,5 +35,3 @@ extern uint64_t hardware_memlimit_encoder(void);
+ 
+ /// Get the memory usage limit for decoding. By default this is 30 % of RAM.
+ extern uint64_t hardware_memlimit_decoder(void);
+-
+-#endif
+diff --git a/src/xz/io.c b/src/xz/io.c
+index 851b6494..b8b8d8d7 100644
+--- a/src/xz/io.c
++++ b/src/xz/io.c
+@@ -27,6 +27,38 @@
+ #	include <utime.h>
+ #endif
+ 
++#ifndef O_BINARY
++#	define O_BINARY 0
++#endif
++
++#ifndef O_NOCTTY
++#	define O_NOCTTY 0
++#endif
++
++#ifndef _WIN32
++#	include "open_stdxxx.h"
++static bool warn_fchown;
++#endif
++
++
++extern void
++io_init(void)
++{
++#ifndef _WIN32
++	// Make sure that stdin, stdout, and and stderr are connected to
++	// a valid file descriptor. Exit immediatelly with exit code ERROR
++	// if we cannot make the file descriptors valid. Maybe we should
++	// print an error message, but our stderr could be screwed anyway.
++	open_stdxxx(E_ERROR);
++
++	// If fchown() fails setting the owner, we warn about it only if
++	// we are root.
++	warn_fchown = geteuid() == 0;
++#endif
++
++	return;
++}
++
+ 
+ /// \brief      Unlinks a file
+ ///
+@@ -37,20 +69,22 @@
+ static void
+ io_unlink(const char *name, const struct stat *known_st)
+ {
++	// On Windows, st_ino is meaningless, so don't bother testing it.
++#ifndef _WIN32
+ 	struct stat new_st;
+ 
+ 	if (lstat(name, &new_st)
+ 			|| new_st.st_dev != known_st->st_dev
+-			|| new_st.st_ino != known_st->st_ino) {
++			|| new_st.st_ino != known_st->st_ino)
+ 		message_error(_("%s: File seems to be moved, not removing"),
+ 				name);
+-	} else {
++	else
++#endif
+ 		// There's a race condition between lstat() and unlink()
+ 		// but at least we have tried to avoid removing wrong file.
+ 		if (unlink(name))
+ 			message_error(_("%s: Cannot remove: %s"),
+ 					name, strerror(errno));
+-	}
+ 
+ 	return;
+ }
+@@ -63,31 +97,19 @@ io_unlink(const char *name, const struct stat *known_st)
+ static void
+ io_copy_attrs(const file_pair *pair)
+ {
++	// Skip chown and chmod on Windows.
++#ifndef _WIN32
+ 	// This function is more tricky than you may think at first.
+ 	// Blindly copying permissions may permit users to access the
+ 	// destination file who didn't have permission to access the
+ 	// source file.
+ 
+-	// Simple cache to avoid repeated calls to geteuid().
+-	static enum {
+-		WARN_FCHOWN_UNKNOWN,
+-		WARN_FCHOWN_NO,
+-		WARN_FCHOWN_YES,
+-	} warn_fchown = WARN_FCHOWN_UNKNOWN;
+-
+ 	// Try changing the owner of the file. If we aren't root or the owner
+ 	// isn't already us, fchown() probably doesn't succeed. We warn
+ 	// about failing fchown() only if we are root.
+-	if (fchown(pair->dest_fd, pair->src_st.st_uid, -1)
+-			&& warn_fchown != WARN_FCHOWN_NO) {
+-		if (warn_fchown == WARN_FCHOWN_UNKNOWN)
+-			warn_fchown = geteuid() == 0
+-					? WARN_FCHOWN_YES : WARN_FCHOWN_NO;
+-
+-		if (warn_fchown == WARN_FCHOWN_YES)
+-			message_warning(_("%s: Cannot set the file owner: %s"),
+-					pair->dest_name, strerror(errno));
+-	}
++	if (fchown(pair->dest_fd, pair->src_st.st_uid, -1) && warn_fchown)
++		message_warning(_("%s: Cannot set the file owner: %s"),
++				pair->dest_name, strerror(errno));
+ 
+ 	mode_t mode;
+ 
+@@ -113,6 +135,7 @@ io_copy_attrs(const file_pair *pair)
+ 	if (fchmod(pair->dest_fd, mode))
+ 		message_warning(_("%s: Cannot set the file permissions: %s"),
+ 				pair->dest_name, strerror(errno));
++#endif
+ 
+ 	// Copy the timestamps. We have several possible ways to do this, of
+ 	// which some are better in both security and precision.
+@@ -210,6 +233,9 @@ io_open_src(file_pair *pair)
+ 	// There's nothing to open when reading from stdin.
+ 	if (pair->src_name == stdin_filename) {
+ 		pair->src_fd = STDIN_FILENO;
++#ifdef _WIN32
++		setmode(STDIN_FILENO, O_BINARY);
++#endif
+ 		return false;
+ 	}
+ 
+@@ -218,8 +244,9 @@ io_open_src(file_pair *pair)
+ 	const bool reg_files_only = !opt_stdout && !opt_force;
+ 
+ 	// Flags for open()
+-	int flags = O_RDONLY | O_NOCTTY;
++	int flags = O_RDONLY | O_BINARY | O_NOCTTY;
+ 
++#ifndef _WIN32
+ 	// If we accept only regular files, we need to be careful to avoid
+ 	// problems with special files like devices and FIFOs. O_NONBLOCK
+ 	// prevents blocking when opening such files. When we want to accept
+@@ -227,11 +254,12 @@ io_open_src(file_pair *pair)
+ 	// block waiting e.g. FIFOs to become readable.
+ 	if (reg_files_only)
+ 		flags |= O_NONBLOCK;
++#endif
+ 
+-#ifdef O_NOFOLLOW
++#if defined(O_NOFOLLOW)
+ 	if (reg_files_only)
+ 		flags |= O_NOFOLLOW;
+-#else
++#elif !defined(_WIN32)
+ 	// Some POSIX-like systems lack O_NOFOLLOW (it's not required
+ 	// by POSIX). Check for symlinks with a separate lstat() on
+ 	// these systems.
+@@ -335,6 +363,7 @@ io_open_src(file_pair *pair)
+ 		return true;
+ 	}
+ 
++#ifndef _WIN32
+ 	// Drop O_NONBLOCK, which is used only when we are accepting only
+ 	// regular files. After the open() call, we want things to block
+ 	// instead of giving EAGAIN.
+@@ -348,6 +377,7 @@ io_open_src(file_pair *pair)
+ 		if (fcntl(pair->src_fd, F_SETFL, flags))
+ 			goto error_msg;
+ 	}
++#endif
+ 
+ 	// Stat the source file. We need the result also when we copy
+ 	// the permissions, and when unlinking.
+@@ -367,6 +397,8 @@ io_open_src(file_pair *pair)
+ 			goto error;
+ 		}
+ 
++		// These are meaningless on Windows.
++#ifndef _WIN32
+ 		if (pair->src_st.st_mode & (S_ISUID | S_ISGID)) {
+ 			// gzip rejects setuid and setgid files even
+ 			// when --force was used. bzip2 doesn't check
+@@ -396,6 +428,7 @@ io_open_src(file_pair *pair)
+ 					"skipping"), pair->src_name);
+ 			goto error;
+ 		}
++#endif
+ 	}
+ 
+ 	return false;
+@@ -417,14 +450,23 @@ static void
+ io_close_src(file_pair *pair, bool success)
+ {
+ 	if (pair->src_fd != STDIN_FILENO && pair->src_fd != -1) {
++#ifdef _WIN32
++		(void)close(pair->src_fd);
++#endif
++
+ 		// If we are going to unlink(), do it before closing the file.
+ 		// This way there's no risk that someone replaces the file and
+ 		// happens to get same inode number, which would make us
+ 		// unlink() wrong file.
++		//
++		// NOTE: Windows is an exception to this, because it doesn't
++		// allow unlinking files that are open. *sigh*
+ 		if (success && !opt_keep_original)
+ 			io_unlink(pair->src_name, &pair->src_st);
+ 
++#ifndef _WIN32
+ 		(void)close(pair->src_fd);
++#endif
+ 	}
+ 
+ 	return;
+@@ -438,6 +480,9 @@ io_open_dest(file_pair *pair)
+ 		// We don't modify or free() this.
+ 		pair->dest_name = (char *)"(stdout)";
+ 		pair->dest_fd = STDOUT_FILENO;
++#ifdef _WIN32
++		setmode(STDOUT_FILENO, O_BINARY);
++#endif
+ 		return false;
+ 	}
+ 
+@@ -461,7 +506,7 @@ io_open_dest(file_pair *pair)
+ 	}
+ 
+ 	// Open the file.
+-	const int flags = O_WRONLY | O_NOCTTY | O_CREAT | O_EXCL;
++	const int flags = O_WRONLY | O_BINARY | O_NOCTTY | O_CREAT | O_EXCL;
+ 	const mode_t mode = S_IRUSR | S_IWUSR;
+ 	pair->dest_fd = open(pair->dest_name, flags, mode);
+ 
+diff --git a/src/xz/io.h b/src/xz/io.h
+index 4d8e61b2..87cfdac2 100644
+--- a/src/xz/io.h
++++ b/src/xz/io.h
+@@ -17,12 +17,6 @@
+ //
+ ///////////////////////////////////////////////////////////////////////////////
+ 
+-#ifndef IO_H
+-#define IO_H
+-
+-#include "private.h"
+-
+-
+ // Some systems have suboptimal BUFSIZ. Use a bit bigger value on them.
+ #if BUFSIZ <= 1024
+ #	define IO_BUFFER_SIZE 8192
+@@ -58,6 +52,10 @@ typedef struct {
+ } file_pair;
+ 
+ 
++/// \brief      Initialize the I/O module
++extern void io_init(void);
++
++
+ /// \brief      Opens a file pair
+ extern file_pair *io_open(const char *src_name);
+ 
+@@ -93,5 +91,3 @@ extern size_t io_read(file_pair *pair, uint8_t *buf, size_t size);
+ /// \return     On success, zero is returned. On error, -1 is returned
+ ///             and error message printed.
+ extern bool io_write(const file_pair *pair, const uint8_t *buf, size_t size);
+-
+-#endif
+diff --git a/src/xz/main.c b/src/xz/main.c
+index a3d1101a..b683cf9b 100644
+--- a/src/xz/main.c
++++ b/src/xz/main.c
+@@ -18,119 +18,12 @@
+ ///////////////////////////////////////////////////////////////////////////////
+ 
+ #include "private.h"
+-#include "open_stdxxx.h"
+ #include <ctype.h>
+ 
+ 
+-volatile sig_atomic_t user_abort = false;
+-
+ /// Exit status to use. This can be changed with set_exit_status().
+ static enum exit_status_type exit_status = E_SUCCESS;
+ 
+-/// If we were interrupted by a signal, we store the signal number so that
+-/// we can raise that signal to kill the program when all cleanups have
+-/// been done.
+-static volatile sig_atomic_t exit_signal = 0;
+-
+-/// Mask of signals for which have have established a signal handler to set
+-/// user_abort to true.
+-static sigset_t hooked_signals;
+-
+-/// signals_block() and signals_unblock() can be called recursively.
+-static size_t signals_block_count = 0;
+-
+-
+-static void
+-signal_handler(int sig)
+-{
+-	exit_signal = sig;
+-	user_abort = true;
+-	return;
+-}
+-
+-
+-static void
+-establish_signal_handlers(void)
+-{
+-	// List of signals for which we establish the signal handler.
+-	static const int sigs[] = {
+-		SIGINT,
+-		SIGTERM,
+-#ifdef SIGHUP
+-		SIGHUP,
+-#endif
+-#ifdef SIGPIPE
+-		SIGPIPE,
+-#endif
+-#ifdef SIGXCPU
+-		SIGXCPU,
+-#endif
+-#ifdef SIGXFSZ
+-		SIGXFSZ,
+-#endif
+-	};
+-
+-	// Mask of the signals for which we have established a signal handler.
+-	sigemptyset(&hooked_signals);
+-	for (size_t i = 0; i < ARRAY_SIZE(sigs); ++i)
+-		sigaddset(&hooked_signals, sigs[i]);
+-
+-	struct sigaction sa;
+-
+-	// All the signals that we handle we also blocked while the signal
+-	// handler runs.
+-	sa.sa_mask = hooked_signals;
+-
+-	// Don't set SA_RESTART, because we want EINTR so that we can check
+-	// for user_abort and cleanup before exiting. We block the signals
+-	// for which we have established a handler when we don't want EINTR.
+-	sa.sa_flags = 0;
+-	sa.sa_handler = &signal_handler;
+-
+-	for (size_t i = 0; i < ARRAY_SIZE(sigs); ++i) {
+-		// If the parent process has left some signals ignored,
+-		// we don't unignore them.
+-		struct sigaction old;
+-		if (sigaction(sigs[i], NULL, &old) == 0
+-				&& old.sa_handler == SIG_IGN)
+-			continue;
+-
+-		// Establish the signal handler.
+-		if (sigaction(sigs[i], &sa, NULL))
+-			message_signal_handler();
+-	}
+-
+-	return;
+-}
+-
+-
+-extern void
+-signals_block(void)
+-{
+-	if (signals_block_count++ == 0) {
+-		const int saved_errno = errno;
+-		mythread_sigmask(SIG_BLOCK, &hooked_signals, NULL);
+-		errno = saved_errno;
+-	}
+-
+-	return;
+-}
+-
+-
+-extern void
+-signals_unblock(void)
+-{
+-	assert(signals_block_count > 0);
+-
+-	if (--signals_block_count == 0) {
+-		const int saved_errno = errno;
+-		mythread_sigmask(SIG_UNBLOCK, &hooked_signals, NULL);
+-		errno = saved_errno;
+-	}
+-
+-	return;
+-}
+-
+ 
+ extern void
+ set_exit_status(enum exit_status_type new_status)
+@@ -174,19 +67,8 @@ my_exit(enum exit_status_type status)
+ 	}
+ 
+ 	// If we have got a signal, raise it to kill the program.
+-	const int sig = exit_signal;
+-	if (sig != 0) {
+-		struct sigaction sa;
+-		sa.sa_handler = SIG_DFL;
+-		sigfillset(&sa.sa_mask);
+-		sa.sa_flags = 0;
+-		sigaction(sig, &sa, NULL);
+-		raise(exit_signal);
+-
+-		// If, for some weird reason, the signal doesn't kill us,
+-		// we safely fall to the exit below.
+-	}
+-
++	// Otherwise we just call exit().
++	signals_exit();
+ 	exit(status);
+ }
+ 
+@@ -278,11 +160,9 @@ read_name(const args_info *args)
+ int
+ main(int argc, char **argv)
+ {
+-	// Make sure that stdin, stdout, and and stderr are connected to
+-	// a valid file descriptor. Exit immediatelly with exit code ERROR
+-	// if we cannot make the file descriptors valid. Maybe we should
+-	// print an error message, but our stderr could be screwed anyway.
+-	open_stdxxx(E_ERROR);
++	// Initialize the file I/O as the very first step. This makes sure
++	// that stdin, stdout, and stderr are something valid.
++	io_init();
+ 
+ 	// Set up the locale.
+ 	setlocale(LC_ALL, "");
+@@ -334,7 +214,7 @@ main(int argc, char **argv)
+ 	// Hook the signal handlers. We don't need these before we start
+ 	// the actual action, so this is done after parsing the command
+ 	// line arguments.
+-	establish_signal_handlers();
++	signals_init();
+ 
+ 	// Process the files given on the command line. Note that if no names
+ 	// were given, parse_args() gave us a fake "-" filename.
+diff --git a/src/xz/main.h b/src/xz/main.h
+index 1e369425..2d6419ad 100644
+--- a/src/xz/main.h
++++ b/src/xz/main.h
+@@ -17,9 +17,6 @@
+ //
+ ///////////////////////////////////////////////////////////////////////////////
+ 
+-#ifndef MAIN_H
+-#define MAIN_H
+-
+ /// Possible exit status values. These are the same as used by gzip and bzip2.
+ enum exit_status_type {
+ 	E_SUCCESS  = 0,
+@@ -28,22 +25,6 @@ enum exit_status_type {
+ };
+ 
+ 
+-/// If this is true, we will clean up the possibly incomplete output file,
+-/// return to main() as soon as practical. That is, the code needs to poll
+-/// this variable in various places.
+-extern volatile sig_atomic_t user_abort;
+-
+-
+-/// Block the signals which don't have SA_RESTART and which would just set
+-/// user_abort to true. This is handy when we don't want to handle EINTR
+-/// and don't want SA_RESTART either.
+-extern void signals_block(void);
+-
+-
+-/// Unblock the signals blocked by signals_block().
+-extern void signals_unblock(void);
+-
+-
+ /// Sets the exit status after a warning or error has occurred. If new_status
+ /// is EX_WARNING and the old exit status was already EX_ERROR, the exit
+ /// status is not changed.
+@@ -55,6 +36,3 @@ extern void set_exit_status(enum exit_status_type new_status);
+ /// a signal, this function will raise it so that to the parent process it
+ /// appears that we were killed by the signal sent by the user.
+ extern void my_exit(enum exit_status_type status) lzma_attribute((noreturn));
+-
+-
+-#endif
+diff --git a/src/xz/message.c b/src/xz/message.c
+index c2e35e8e..e342a3ff 100644
+--- a/src/xz/message.c
++++ b/src/xz/message.c
+@@ -19,10 +19,15 @@
+ 
+ #include "private.h"
+ 
+-#if defined(HAVE_SYS_TIME_H)
++#ifdef HAVE_SYS_TIME_H
+ #	include <sys/time.h>
+-#elif defined(SIGALRM)
+-// FIXME
++#endif
++
++#ifdef _WIN32
++#	ifndef _WIN32_WINNT
++#		define _WIN32_WINNT 0x0500
++#	endif
++#	include <windows.h>
+ #endif
+ 
+ #include <stdarg.h>
+@@ -76,6 +81,47 @@ static double start_time;
+ static volatile sig_atomic_t progress_needs_updating = false;
+ 
+ 
++#ifdef _WIN32
++
++static HANDLE timer_queue = NULL;
++static HANDLE timer_timer = NULL;
++
++
++static void CALLBACK
++timer_callback(PVOID dummy1 lzma_attribute((unused)),
++		BOOLEAN dummy2 lzma_attribute((unused)))
++{
++	progress_needs_updating = true;
++	return;
++}
++
++
++/// Emulate alarm() on Windows.
++static void
++my_alarm(unsigned int seconds)
++{
++	// Just in case creating the queue has failed.
++	if (timer_queue == NULL)
++		return;
++
++	// If an old timer_timer exists, get rid of it first.
++	if (timer_timer != NULL) {
++		(void)DeleteTimerQueueTimer(timer_queue, timer_timer, NULL);
++		timer_timer = NULL;
++	}
++
++	// If it fails, tough luck. It's not that important.
++	(void)CreateTimerQueueTimer(&timer_timer, timer_queue, &timer_callback,
++			NULL, 1000U * seconds, 0,
++			WT_EXECUTEINTIMERTHREAD | WT_EXECUTEONLYONCE);
++
++	return;
++}
++
++#else
++
++#define my_alarm alarm
++
+ /// Signal handler for SIGALRM
+ static void
+ progress_signal_handler(int sig lzma_attribute((unused)))
+@@ -84,6 +130,7 @@ progress_signal_handler(int sig lzma_attribute((unused)))
+ 	return;
+ }
+ 
++#endif
+ 
+ /// Get the current time as double
+ static double
+@@ -157,7 +204,9 @@ message_init(const char *given_argv0)
+ 	}
+ */
+ 
+-#ifdef SIGALRM
++#ifdef _WIN32
++	timer_queue = CreateTimerQueue();
++#else
+ 	// Establish the signal handler for SIGALRM. Since this signal
+ 	// doesn't require any quick action, we set SA_RESTART.
+ 	struct sigaction sa;
+@@ -266,7 +315,7 @@ message_progress_start(const char *src_name, uint64_t in_size)
+ 		// progress_needs_updating to true here immediatelly, but
+ 		// setting the timer looks better to me, since extremely
+ 		// early progress info is pretty much useless.
+-		alarm(1);
++		my_alarm(1);
+ 	}
+ 
+ 	return;
+@@ -486,7 +535,7 @@ message_progress_update(uint64_t in_pos, uint64_t out_pos)
+ 	// Updating the progress info was finished. Reset
+ 	// progress_needs_updating to wait for the next SIGALRM.
+ 	//
+-	// NOTE: This has to be done before alarm() call or with (very) bad
++	// NOTE: This has to be done before my_alarm() call or with (very) bad
+ 	// luck we could be setting this to false after the alarm has already
+ 	// been triggered.
+ 	progress_needs_updating = false;
+@@ -498,7 +547,7 @@ message_progress_update(uint64_t in_pos, uint64_t out_pos)
+ 
+ 		// Restart the timer so that progress_needs_updating gets
+ 		// set to true after about one second.
+-		alarm(1);
++		my_alarm(1);
+ 	} else {
+ 		// The progress message was printed because user had sent us
+ 		// SIGALRM. In this case, each progress message is printed
+@@ -521,7 +570,7 @@ message_progress_end(uint64_t in_pos, uint64_t out_pos, bool success)
+ 
+ 	// Cancel a pending alarm, if any.
+ 	if (progress_automatic) {
+-		alarm(0);
++		my_alarm(0);
+ 		progress_active = false;
+ 	}
+ 
+diff --git a/src/xz/message.h b/src/xz/message.h
+index d67fecc7..3d117fe5 100644
+--- a/src/xz/message.h
++++ b/src/xz/message.h
+@@ -17,10 +17,6 @@
+ //
+ ///////////////////////////////////////////////////////////////////////////////
+ 
+-#ifndef MESSAGE_H
+-#define MESSAGE_H
+-
+-
+ /// Verbosity levels
+ enum message_verbosity {
+ 	V_SILENT,   ///< No messages
+@@ -133,5 +129,3 @@ extern void message_progress_update(uint64_t in_pos, uint64_t out_pos);
+ ///
+ extern void message_progress_end(
+ 		uint64_t in_pos, uint64_t out_pos, bool success);
+-
+-#endif
+diff --git a/src/xz/options.h b/src/xz/options.h
+index 4253ac3c..3835d12a 100644
+--- a/src/xz/options.h
++++ b/src/xz/options.h
+@@ -17,12 +17,6 @@
+ //
+ ///////////////////////////////////////////////////////////////////////////////
+ 
+-#ifndef OPTIONS_H
+-#define OPTIONS_H
+-
+-#include "private.h"
+-
+-
+ /// \brief      Parser for Subblock options
+ ///
+ /// \return     Pointer to allocated options structure.
+@@ -42,5 +36,3 @@ extern lzma_options_delta *options_delta(const char *str);
+ /// \return     Pointer to allocated options structure.
+ ///             Doesn't return on error.
+ extern lzma_options_lzma *options_lzma(const char *str);
+-
+-#endif
+diff --git a/src/xz/private.h b/src/xz/private.h
+index 3c8b4e05..21c3559a 100644
+--- a/src/xz/private.h
++++ b/src/xz/private.h
+@@ -17,9 +17,6 @@
+ //
+ ///////////////////////////////////////////////////////////////////////////////
+ 
+-#ifndef PRIVATE_H
+-#define PRIVATE_H
+-
+ #include "sysdefs.h"
+ #include "mythread.h"
+ #include "lzma.h"
+@@ -41,6 +38,18 @@
+ #	define N_(msgid1, msgid2, n) ((n) == 1 ? (msgid1) : (msgid2))
+ #endif
+ 
++#ifndef STDIN_FILENO
++#	define STDIN_FILENO (fileno(stdin))
++#endif
++
++#ifndef STDOUT_FILENO
++#	define STDOUT_FILENO (fileno(stdout))
++#endif
++
++#ifndef STDERR_FILENO
++#	define STDERR_FILENO (fileno(stderr))
++#endif
++
+ #include "main.h"
+ #include "process.h"
+ #include "message.h"
+@@ -48,7 +57,6 @@
+ #include "hardware.h"
+ #include "io.h"
+ #include "options.h"
++#include "signals.h"
+ #include "suffix.h"
+ #include "util.h"
+-
+-#endif
+diff --git a/src/xz/process.h b/src/xz/process.h
+index 38485285..709f287d 100644
+--- a/src/xz/process.h
++++ b/src/xz/process.h
+@@ -1,6 +1,6 @@
+ ///////////////////////////////////////////////////////////////////////////////
+ //
+-/// \file       process.c
++/// \file       process.h
+ /// \brief      Compresses or uncompresses a file
+ //
+ //  Copyright (C) 2007 Lasse Collin
+@@ -17,12 +17,6 @@
+ //
+ ///////////////////////////////////////////////////////////////////////////////
+ 
+-#ifndef PROCESS_H
+-#define PROCESS_H
+-
+-#include "private.h"
+-
+-
+ enum operation_mode {
+ 	MODE_COMPRESS,
+ 	MODE_DECOMPRESS,
+@@ -69,5 +63,3 @@ extern void coder_set_compression_settings(void);
+ extern void process_init(void);
+ 
+ extern void process_file(const char *filename);
+-
+-#endif
+diff --git a/src/xz/signals.c b/src/xz/signals.c
+new file mode 100644
+index 00000000..f19f3f9b
+--- /dev/null
++++ b/src/xz/signals.c
+@@ -0,0 +1,180 @@
++///////////////////////////////////////////////////////////////////////////////
++//
++/// \file       signals.c
++/// \brief      Handling signals to abort operation
++//
++//  Copyright (C) 2007-2009 Lasse Collin
++//
++//  This program is free software; you can redistribute it and/or
++//  modify it under the terms of the GNU Lesser General Public
++//  License as published by the Free Software Foundation; either
++//  version 2.1 of the License, or (at your option) any later version.
++//
++//  This program is distributed in the hope that it will be useful,
++//  but WITHOUT ANY WARRANTY; without even the implied warranty of
++//  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
++//  Lesser General Public License for more details.
++//
++///////////////////////////////////////////////////////////////////////////////
++
++#include "private.h"
++
++
++volatile sig_atomic_t user_abort = false;
++
++
++#ifndef _WIN32
++
++/// If we were interrupted by a signal, we store the signal number so that
++/// we can raise that signal to kill the program when all cleanups have
++/// been done.
++static volatile sig_atomic_t exit_signal = 0;
++
++/// Mask of signals for which have have established a signal handler to set
++/// user_abort to true.
++static sigset_t hooked_signals;
++
++/// signals_block() and signals_unblock() can be called recursively.
++static size_t signals_block_count = 0;
++
++
++static void
++signal_handler(int sig)
++{
++	exit_signal = sig;
++	user_abort = true;
++	return;
++}
++
++
++extern void
++signals_init(void)
++{
++	// List of signals for which we establish the signal handler.
++	static const int sigs[] = {
++		SIGINT,
++		SIGTERM,
++#ifdef SIGHUP
++		SIGHUP,
++#endif
++#ifdef SIGPIPE
++		SIGPIPE,
++#endif
++#ifdef SIGXCPU
++		SIGXCPU,
++#endif
++#ifdef SIGXFSZ
++		SIGXFSZ,
++#endif
++	};
++
++	// Mask of the signals for which we have established a signal handler.
++	sigemptyset(&hooked_signals);
++	for (size_t i = 0; i < ARRAY_SIZE(sigs); ++i)
++		sigaddset(&hooked_signals, sigs[i]);
++
++	struct sigaction sa;
++
++	// All the signals that we handle we also blocked while the signal
++	// handler runs.
++	sa.sa_mask = hooked_signals;
++
++	// Don't set SA_RESTART, because we want EINTR so that we can check
++	// for user_abort and cleanup before exiting. We block the signals
++	// for which we have established a handler when we don't want EINTR.
++	sa.sa_flags = 0;
++	sa.sa_handler = &signal_handler;
++
++	for (size_t i = 0; i < ARRAY_SIZE(sigs); ++i) {
++		// If the parent process has left some signals ignored,
++		// we don't unignore them.
++		struct sigaction old;
++		if (sigaction(sigs[i], NULL, &old) == 0
++				&& old.sa_handler == SIG_IGN)
++			continue;
++
++		// Establish the signal handler.
++		if (sigaction(sigs[i], &sa, NULL))
++			message_signal_handler();
++	}
++
++	return;
++}
++
++
++extern void
++signals_block(void)
++{
++	if (signals_block_count++ == 0) {
++		const int saved_errno = errno;
++		mythread_sigmask(SIG_BLOCK, &hooked_signals, NULL);
++		errno = saved_errno;
++	}
++
++	return;
++}
++
++
++extern void
++signals_unblock(void)
++{
++	assert(signals_block_count > 0);
++
++	if (--signals_block_count == 0) {
++		const int saved_errno = errno;
++		mythread_sigmask(SIG_UNBLOCK, &hooked_signals, NULL);
++		errno = saved_errno;
++	}
++
++	return;
++}
++
++
++extern void
++signals_exit(void)
++{
++	const int sig = exit_signal;
++
++	if (sig != 0) {
++		struct sigaction sa;
++		sa.sa_handler = SIG_DFL;
++		sigfillset(&sa.sa_mask);
++		sa.sa_flags = 0;
++		sigaction(sig, &sa, NULL);
++		raise(exit_signal);
++	}
++
++	return;
++}
++
++#else
++
++// While Windows has some very basic signal handling functions as required
++// by C89, they are not really used, or so I understood. Instead, we use
++// SetConsoleCtrlHandler() to catch user pressing C-c.
++
++#include <windows.h>
++
++
++static BOOL WINAPI
++signal_handler(DWORD type lzma_attribute((unused)))
++{
++	// Since we don't get a signal number which we could raise() at
++	// signals_exit() like on POSIX, just set the exit status to
++	// indicate an error, so that we cannot return with zero exit status.
++	set_exit_status(E_ERROR);
++	user_abort = true;
++	return TRUE;
++}
++
++
++extern void
++signals_init(void)
++{
++	if (!SetConsoleCtrlHandler(&signal_handler, TRUE))
++		message_signal_handler();
++
++	return;
++}
++
++#endif
+diff --git a/src/xz/signals.h b/src/xz/signals.h
+new file mode 100644
+index 00000000..d963a416
+--- /dev/null
++++ b/src/xz/signals.h
+@@ -0,0 +1,51 @@
++///////////////////////////////////////////////////////////////////////////////
++//
++/// \file       signals.h
++/// \brief      Handling signals to abort operation
++//
++//  Copyright (C) 2007-2009 Lasse Collin
++//
++//  This program is free software; you can redistribute it and/or
++//  modify it under the terms of the GNU Lesser General Public
++//  License as published by the Free Software Foundation; either
++//  version 2.1 of the License, or (at your option) any later version.
++//
++//  This program is distributed in the hope that it will be useful,
++//  but WITHOUT ANY WARRANTY; without even the implied warranty of
++//  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
++//  Lesser General Public License for more details.
++//
++///////////////////////////////////////////////////////////////////////////////
++
++/// If this is true, we will clean up the possibly incomplete output file,
++/// return to main() as soon as practical. That is, the code needs to poll
++/// this variable in various places.
++extern volatile sig_atomic_t user_abort;
++
++
++/// Initialize the signal handler, which will set user_abort to true when
++/// user e.g. presses C-c.
++extern void signals_init(void);
++
++
++#ifndef _WIN32
++
++/// Block the signals which don't have SA_RESTART and which would just set
++/// user_abort to true. This is handy when we don't want to handle EINTR
++/// and don't want SA_RESTART either.
++extern void signals_block(void);
++
++/// Unblock the signals blocked by signals_block().
++extern void signals_unblock(void);
++
++/// If user has sent us a signal earlier to terminate the process,
++/// re-raise that signal to actually terminate the process.
++extern void signals_exit(void);
++
++#else
++
++#define signals_block() do { } while (0)
++#define signals_unblock() do { } while (0)
++#define signals_exit() do { } while (0)
++
++#endif
+diff --git a/src/xz/suffix.h b/src/xz/suffix.h
+index c92b92dc..623d9681 100644
+--- a/src/xz/suffix.h
++++ b/src/xz/suffix.h
+@@ -17,9 +17,6 @@
+ //
+ ///////////////////////////////////////////////////////////////////////////////
+ 
+-#ifndef SUFFIX_H
+-#define SUFFIX_H
+-
+ /// \brief      Get the name of the destination file
+ ///
+ /// Depending on the global variable opt_mode, this tries to find a matching
+@@ -36,5 +33,3 @@ extern char *suffix_get_dest_name(const char *src_name);
+ /// suffix, thus if this is called multiple times, the old suffixes are freed
+ /// and forgotten.
+ extern void suffix_set(const char *suffix);
+-
+-#endif
+diff --git a/src/xz/util.c b/src/xz/util.c
+index 13b67925..e1716bcb 100644
+--- a/src/xz/util.c
++++ b/src/xz/util.c
+@@ -116,9 +116,8 @@ str_to_uint64(const char *name, const char *value, uint64_t min, uint64_t max)
+ 
+ error:
+ 	message_fatal(_("Value of the option `%s' must be in the range "
+-				"[%llu, %llu]"), name,
+-				(unsigned long long)(min),
+-				(unsigned long long)(max));
++				"[%" PRIu64 ", %" PRIu64 "]"),
++				name, min, max);
+ }
+ 
+ 
+diff --git a/src/xz/util.h b/src/xz/util.h
+index dca62b26..8b4bc3f8 100644
+--- a/src/xz/util.h
++++ b/src/xz/util.h
+@@ -17,9 +17,6 @@
+ //
+ ///////////////////////////////////////////////////////////////////////////////
+ 
+-#ifndef UTIL_H
+-#define UTIL_H
+-
+ /// \brief      Safe malloc() that never returns NULL
+ ///
+ /// \note       xmalloc(), xrealloc(), and xstrdup() must not be used when
+@@ -67,5 +64,3 @@ extern bool is_tty_stdin(void);
+ /// If stdout is a terminal, an error message is printed and exit status set
+ /// to EXIT_ERROR.
+ extern bool is_tty_stdout(void);
+-
+-#endif

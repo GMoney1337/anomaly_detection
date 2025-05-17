@@ -1,0 +1,155 @@
+diff --git a/src/xz/args.c b/src/xz/args.c
+index 2732ae08..8b481c93 100644
+--- a/src/xz/args.c
++++ b/src/xz/args.c
+@@ -124,7 +124,7 @@ parse_block_list(const char *str_const)
+ 			if (str[2] == '\0')
+ 				message_fatal(_("In --block-list, block "
+ 						"size is missing after "
+-						"filter chain number `%c:'"),
++						"filter chain number '%c:'"),
+ 						str[0]);
+ 
+ 			int filter_num = str[0] - '0';
+@@ -598,8 +598,8 @@ parse_real(args_info *args, int argc, char **argv)
+ 		case OPT_FILES0:
+ 			if (args->files_name != NULL)
+ 				message_fatal(_("Only one file can be "
+-						"specified with `--files' "
+-						"or `--files0'."));
++						"specified with '--files' "
++						"or '--files0'."));
+ 
+ 			if (optarg == NULL) {
+ 				args->files_name = stdin_filename;
+diff --git a/src/xz/file_io.c b/src/xz/file_io.c
+index e6e4f158..55652c53 100644
+--- a/src/xz/file_io.c
++++ b/src/xz/file_io.c
+@@ -433,7 +433,7 @@ io_copy_attrs(const file_pair *pair)
+ 		message_warning(_("%s: Cannot set the file group: %s"),
+ 				pair->dest_name, strerror(errno));
+ 		// We can still safely copy some additional permissions:
+-		// `group' must be at least as strict as `other' and
++		// 'group' must be at least as strict as 'other' and
+ 		// also vice versa.
+ 		//
+ 		// NOTE: After this, the owner of the source file may
+diff --git a/src/xz/main.c b/src/xz/main.c
+index c9c3deca..f0c2194c 100644
+--- a/src/xz/main.c
++++ b/src/xz/main.c
+@@ -119,8 +119,8 @@ read_name(const args_info *args)
+ 			// newlines.
+ 			message_error(_("%s: Null character found when "
+ 					"reading filenames; maybe you meant "
+-					"to use `--files0' instead "
+-					"of `--files'?"), args->files_name);
++					"to use '--files0' instead "
++					"of '--files'?"), args->files_name);
+ 			return NULL;
+ 		}
+ 
+diff --git a/src/xz/message.c b/src/xz/message.c
+index 056ba5ea..c2a5d33d 100644
+--- a/src/xz/message.c
++++ b/src/xz/message.c
+@@ -938,7 +938,7 @@ message_try_help(void)
+ {
+ 	// Print this with V_WARNING instead of V_ERROR to prevent it from
+ 	// showing up when --quiet has been specified.
+-	message(V_WARNING, _("Try `%s --help' for more information."),
++	message(V_WARNING, _("Try '%s --help' for more information."),
+ 			progname);
+ 	return;
+ }
+@@ -1000,7 +1000,7 @@ message_help(bool long_help)
+ "                      ignore possible remaining input data"));
+ 		puts(_(
+ "      --no-sparse     do not create sparse files when decompressing\n"
+-"  -S, --suffix=.SUF   use the suffix `.SUF' on compressed files\n"
++"  -S, --suffix=.SUF   use the suffix '.SUF' on compressed files\n"
+ "      --files[=FILE]  read filenames to process from FILE; if FILE is\n"
+ "                      omitted, filenames are read from the standard input;\n"
+ "                      filenames must be terminated with the newline character\n"
+@@ -1011,9 +1011,9 @@ message_help(bool long_help)
+ 		puts(_("\n Basic file format and compression options:\n"));
+ 		puts(_(
+ "  -F, --format=FMT    file format to encode or decode; possible values are\n"
+-"                      `auto' (default), `xz', `lzma', `lzip', and `raw'\n"
+-"  -C, --check=CHECK   integrity check type: `none' (use with caution),\n"
+-"                      `crc32', `crc64' (default), or `sha256'"));
++"                      'auto' (default), 'xz', 'lzma', 'lzip', and 'raw'\n"
++"  -C, --check=CHECK   integrity check type: 'none' (use with caution),\n"
++"                      'crc32', 'crc64' (default), or 'sha256'"));
+ 		puts(_(
+ "      --ignore-check  don't verify the integrity check when decompressing"));
+ 	}
+@@ -1039,7 +1039,7 @@ message_help(bool long_help)
+ "      --block-list=BLOCKS\n"
+ "                      start a new .xz block after the given comma-separated\n"
+ "                      intervals of uncompressed data; optionally, specify a\n"
+-"                      filter chain number (0-9) followed by a `:' before the\n"
++"                      filter chain number (0-9) followed by a ':' before the\n"
+ "                      uncompressed data size"));
+ 		puts(_(
+ "      --flush-timeout=TIMEOUT\n"
+@@ -1183,7 +1183,7 @@ message_filters_help(void)
+ 		puts(_(
+ "Filter chains are set using the --filters=FILTERS or\n"
+ "--filters1=FILTERS ... --filters9=FILTERS options. Each filter in the chain\n"
+-"can be separated by spaces or `--'. Alternatively a preset <0-9>[e] can be\n"
++"can be separated by spaces or '--'. Alternatively a preset <0-9>[e] can be\n"
+ "specified instead of a filter chain.\n"
+ 		));
+ 
+diff --git a/src/xz/options.c b/src/xz/options.c
+index 4d5e899c..618a50f7 100644
+--- a/src/xz/options.c
++++ b/src/xz/options.c
+@@ -83,7 +83,7 @@ parse_options(const char *str, const option_map *opts,
+ 			*value++ = '\0';
+ 
+ 		if (value == NULL || value[0] == '\0')
+-			message_fatal(_("%s: Options must be `name=value' "
++			message_fatal(_("%s: Options must be 'name=value' "
+ 					"pairs separated with commas"), str);
+ 
+ 		// Look for the option name from the option map.
+diff --git a/src/xz/suffix.c b/src/xz/suffix.c
+index 2df2b8c8..f2541831 100644
+--- a/src/xz/suffix.c
++++ b/src/xz/suffix.c
+@@ -184,7 +184,7 @@ uncompressed_name(const char *src_name, const size_t src_len)
+ static void
+ msg_suffix(const char *src_name, const char *suffix)
+ {
+-	message_warning(_("%s: File already has `%s' suffix, skipping"),
++	message_warning(_("%s: File already has '%s' suffix, skipping"),
+ 			src_name, suffix);
+ 	return;
+ }
+diff --git a/src/xz/util.c b/src/xz/util.c
+index df6fd709..45d3085e 100644
+--- a/src/xz/util.c
++++ b/src/xz/util.c
+@@ -153,8 +153,8 @@ str_to_uint64(const char *name, const char *value, uint64_t min, uint64_t max)
+ 		if (multiplier == 0) {
+ 			message(V_ERROR, _("%s: Invalid multiplier suffix"),
+ 					value - 1);
+-			message_fatal(_("Valid suffixes are `KiB' (2^10), "
+-					"`MiB' (2^20), and `GiB' (2^30)."));
++			message_fatal(_("Valid suffixes are 'KiB' (2^10), "
++					"'MiB' (2^20), and 'GiB' (2^30)."));
+ 		}
+ 
+ 		// Don't overflow here either.
+@@ -170,7 +170,7 @@ str_to_uint64(const char *name, const char *value, uint64_t min, uint64_t max)
+ 	return result;
+ 
+ error:
+-	message_fatal(_("Value of the option `%s' must be in the range "
++	message_fatal(_("Value of the option '%s' must be in the range "
+ 				"[%" PRIu64 ", %" PRIu64 "]"),
+ 				name, min, max);
+ }

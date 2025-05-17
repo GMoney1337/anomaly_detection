@@ -1,0 +1,12 @@
+diff --git a/configure.ac b/configure.ac
+index fa186e26..b52eb662 100644
+--- a/configure.ac
++++ b/configure.ac
+@@ -653,6 +653,7 @@ if test "$GCC" = yes ; then
+ 	for NEW_FLAG in \
+ 			-Wall \
+ 			-Wextra \
++			-Wvla \
+ 			-Wformat=2 \
+ 			-Winit-self \
+ 			-Wmissing-include-dirs \

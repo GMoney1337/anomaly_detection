@@ -1,0 +1,60 @@
+diff --git a/configure.ac b/configure.ac
+index 2f3af3d0..ce63eeee 100644
+--- a/configure.ac
++++ b/configure.ac
+@@ -23,6 +23,11 @@ AC_CONFIG_SRCDIR([src/liblzma/common/common.h])
+ AC_CONFIG_HEADER([config.h])
+ AC_CONFIG_MACRO_DIR([m4])
+ 
++PACKAGE_HOMEPAGE=http://tukaani.org/xz/
++AC_DEFINE_UNQUOTED([PACKAGE_HOMEPAGE], ["$PACKAGE_HOMEPAGE"],
++	[Define to the URL of the home page of this package.])
++AC_SUBST([PACKAGE_HOMEPAGE])
++
+ echo
+ echo "$PACKAGE_STRING"
+ 
+diff --git a/src/xz/message.c b/src/xz/message.c
+index 8fa06e15..19aff9bd 100644
+--- a/src/xz/message.c
++++ b/src/xz/message.c
+@@ -1015,7 +1015,7 @@ message_version(void)
+ {
+ 	// It is possible that liblzma version is different than the command
+ 	// line tool version, so print both.
+-	printf("xz " LZMA_VERSION_STRING "\n");
++	printf("xz (" PACKAGE_NAME ") " LZMA_VERSION_STRING "\n");
+ 	printf("liblzma %s\n", lzma_version_string());
+ 	my_exit(E_SUCCESS);
+ }
+@@ -1166,7 +1166,7 @@ message_help(bool long_help)
+ 
+ 	printf(_("Report bugs to <%s> (in English or Finnish).\n"),
+ 			PACKAGE_BUGREPORT);
+-	printf(_("XZ Utils home page: <http://tukaani.org/xz/>\n"));
++	printf(_("%s home page: <%s>\n"), PACKAGE_NAME, PACKAGE_HOMEPAGE);
+ 
+ 	my_exit(E_SUCCESS);
+ }
+diff --git a/src/xzdec/xzdec.c b/src/xzdec/xzdec.c
+index e6f576de..33a7004c 100644
+--- a/src/xzdec/xzdec.c
++++ b/src/xzdec/xzdec.c
+@@ -108,7 +108,7 @@ help(void)
+ "%" PRIu64 " MiB RAM.\n"
+ "\n"
+ "Report bugs to <" PACKAGE_BUGREPORT "> (in English or Finnish).\n"
+-"XZ Utils home page: <http://tukaani.org/xz/>\n",
++PACKAGE_NAME " home page: <" PACKAGE_HOMEPAGE ">\n",
+ 		argv0, memlimit / (1024 * 1024));
+ 	my_exit();
+ }
+@@ -117,7 +117,7 @@ help(void)
+ static void lzma_attribute((noreturn))
+ version(void)
+ {
+-	printf(TOOL_FORMAT "dec " LZMA_VERSION_STRING "\n"
++	printf(TOOL_FORMAT "dec (" PACKAGE_NAME ") " LZMA_VERSION_STRING "\n"
+ 			"liblzma %s\n", lzma_version_string());
+ 
+ 	my_exit();

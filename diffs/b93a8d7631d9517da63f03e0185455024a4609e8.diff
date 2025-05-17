@@ -1,0 +1,134 @@
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+index 3b616b5c..a346dd02 100644
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -853,10 +853,6 @@ if(MICROLZMA_DECODER)
+     target_sources(liblzma PRIVATE src/liblzma/common/microlzma_decoder.c)
+ endif()
+ 
+-if (MICROLZMA_ENCODER OR MICROLZMA_DECODER)
+-    add_compile_definitions(HAVE_MICROLZMA)
+-endif()
+-
+ 
+ #############################
+ # lzip (.lz) format support #
+@@ -2044,11 +2040,20 @@ if(BUILD_TESTING)
+         test_index_hash
+         test_lzip_decoder
+         test_memlimit
+-        test_microlzma
+         test_stream_flags
+         test_vli
+     )
+ 
++    # MicroLZMA encoder is needed for both encoder and decoder tests.
++    # If MicroLZMA decoder is not configured but LZMA1 decoder is, then
++    # test_microlzma will fail to compile because this configuration is
++    # not possible in the Autotools build, so the test was not made to
++    # support it since it would have required additional changes.
++    if (MICROLZMA_ENCODER AND (MICROLZMA_DECODER
++            OR NOT "lzma1" IN_LIST DECODERS))
++        list(APPEND LIBLZMA_TESTS test_microlzma)
++    endif()
++
+     foreach(TEST IN LISTS LIBLZMA_TESTS)
+         add_executable("${TEST}" "tests/${TEST}.c")
+ 
+diff --git a/configure.ac b/configure.ac
+index 176bb9ce..075567f6 100644
+--- a/configure.ac
++++ b/configure.ac
+@@ -304,13 +304,8 @@ AC_ARG_ENABLE([microlzma], AS_HELP_STRING([--disable-microlzma],
+ 		for example, erofs-utils.]),
+ 	[], [enable_microlzma=yes])
+ case $enable_microlzma in
+-	yes)
+-		AC_DEFINE([HAVE_MICROLZMA], [1],
+-			[Define to 1 if MicroLZMA support is enabled.])
+-		AC_MSG_RESULT([yes])
+-		;;
+-	no)
+-		AC_MSG_RESULT([no])
++	yes | no)
++		AC_MSG_RESULT([$enable_microlzma])
+ 		;;
+ 	*)
+ 		AC_MSG_RESULT([])
+diff --git a/tests/Makefile.am b/tests/Makefile.am
+index 759bd71a..d7f4a418 100644
+--- a/tests/Makefile.am
++++ b/tests/Makefile.am
+@@ -42,8 +42,7 @@ check_PROGRAMS = \
+ 	test_bcj_exact_size \
+ 	test_memlimit \
+ 	test_lzip_decoder \
+-	test_vli \
+-	test_microlzma
++	test_vli
+ 
+ TESTS = \
+ 	test_check \
+@@ -58,7 +57,6 @@ TESTS = \
+ 	test_memlimit \
+ 	test_lzip_decoder \
+ 	test_vli \
+-	test_microlzma \
+ 	test_files.sh \
+ 	test_suffix.sh \
+ 	test_compress_prepared_bcj_sparc \
+@@ -67,6 +65,11 @@ TESTS = \
+ 	test_compress_generated_random \
+ 	test_compress_generated_text
+ 
++if COND_MICROLZMA
++check_PROGRAMS += test_microlzma
++TESTS += test_microlzma
++endif
++
+ if COND_SCRIPTS
+ TESTS += test_scripts.sh
+ endif
+diff --git a/tests/test_microlzma.c b/tests/test_microlzma.c
+index 43594a0a..f939e397 100644
+--- a/tests/test_microlzma.c
++++ b/tests/test_microlzma.c
+@@ -11,8 +11,6 @@
+ 
+ #include "tests.h"
+ 
+-#ifdef HAVE_MICROLZMA
+-
+ #define BUFFER_SIZE 1024
+ 
+ #ifdef HAVE_ENCODER_LZMA1
+@@ -513,7 +511,6 @@ test_decode_bad_lzma_properties(void)
+ 	lzma_end(&strm);
+ }
+ #endif
+-#endif
+ 
+ 
+ extern int
+@@ -521,17 +518,16 @@ main(int argc, char **argv)
+ {
+ 	tuktest_start(argc, argv);
+ 
+-#ifndef HAVE_MICROLZMA
+-	tuktest_early_skip("MicroLZMA disabled");
++#ifndef HAVE_ENCODER_LZMA1
++	tuktest_early_skip("LZMA1 encoder disabled");
+ #else
+-#	ifdef HAVE_ENCODER_LZMA1
+ 	tuktest_run(test_encode_options);
+ 	tuktest_run(test_encode_basic);
+ 	tuktest_run(test_encode_small_out);
+ 	tuktest_run(test_encode_actions);
+-#	endif
+ 
+-#	if defined(HAVE_DECODER_LZMA1) && defined(HAVE_ENCODER_LZMA1)
++	// MicroLZMA decoder tests require the basic encoder functionality.
++#	ifdef HAVE_DECODER_LZMA1
+ 	goodbye_world_encoded_size = basic_microlzma_encode(goodbye_world,
+ 			ARRAY_SIZE(goodbye_world), &goodbye_world_encoded);
+ 

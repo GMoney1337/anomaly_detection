@@ -1,0 +1,13 @@
+diff --git a/src/lzma/main.c b/src/lzma/main.c
+index 26edc47e..02891193 100644
+--- a/src/lzma/main.c
++++ b/src/lzma/main.c
+@@ -89,7 +89,7 @@ is_tty_stdout(void)
+ 	if (ret) {
+ 		errmsg(V_ERROR, _("Compressed data not written to "
+ 				"a terminal."));
+-		errmsg(V_ERROR, _("Use `--force' to force decompression."));
++		errmsg(V_ERROR, _("Use `--force' to force compression."));
+ 		show_try_help();
+ 	}
+ 

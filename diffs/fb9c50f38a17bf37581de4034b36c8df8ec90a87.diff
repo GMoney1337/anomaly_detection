@@ -1,0 +1,12 @@
+diff --git a/THANKS b/THANKS
+index 0d811705..fcd1e698 100644
+--- a/THANKS
++++ b/THANKS
+@@ -52,6 +52,7 @@ has been important. :-) In alphabetical order:
+   - Michał Górny
+   - Jason Gorski
+   - Juan Manuel Guerrero
++  - Gabriela Gutierrez
+   - Diederik de Haas
+   - Joachim Henke
+   - Christian Hesse

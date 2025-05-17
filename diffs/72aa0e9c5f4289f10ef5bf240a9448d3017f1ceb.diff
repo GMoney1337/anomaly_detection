@@ -1,0 +1,20 @@
+diff --git a/THANKS b/THANKS
+index e6ab48ae..52b4eba2 100644
+--- a/THANKS
++++ b/THANKS
+@@ -14,6 +14,7 @@ In alphabetical order:
+   - Per Øyvind Karlsen
+   - Ville Koskinen
+   - Stephan Kulow
++  - Hin-Tak Leung
+   - Andraž 'ruskie' Levstik
+   - Jim Meyering
+   - Hongbo Ni
+@@ -26,6 +27,7 @@ In alphabetical order:
+   - Dan Shechter
+   - Paul Townsend
+   - Mohammed Adnène Trojette
++  - Patrick J. Volkerding
+   - Bert Wesarg
+   - Ralf Wildenhues
+   - Andreas Zieringer

@@ -1,0 +1,12 @@
+diff --git a/THANKS b/THANKS
+index 87140404..47779ce2 100644
+--- a/THANKS
++++ b/THANKS
+@@ -25,6 +25,7 @@ has been important. :-) In alphabetical order:
+   - Hongbo Ni
+   - Jonathan Nieder
+   - Igor Pavlov
++  - Elbert Pol
+   - Mikko Pouru
+   - Bernhard Reutner-Fischer
+   - Christian von Roques

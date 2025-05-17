@@ -1,0 +1,11 @@
+diff --git a/tests/test_compress.sh b/tests/test_compress.sh
+index 457bfbe8..72c53411 100755
+--- a/tests/test_compress.sh
++++ b/tests/test_compress.sh
+@@ -146,5 +146,6 @@ test_filter ARM arm
+ test_filter ARMTHUMB armthumb
+ test_filter ARM64 arm64
+ test_filter SPARC sparc
++test_filter RISCV riscv
+ 
+ exit 0

@@ -1,0 +1,37 @@
+diff --git a/.github/workflows/ci.yml b/.github/workflows/ci.yml
+index 1691b5a8..823f5438 100644
+--- a/.github/workflows/ci.yml
++++ b/.github/workflows/ci.yml
+@@ -89,12 +89,9 @@ jobs:
+       - name: Test without decoders
+         run: ./build-aux/ci_build.sh -b ${{ matrix.build_system }} -d decoders,shared -p test -n no_decoders
+ 
+-      # Our CMake build cannot disable threads yet.
+       - name: Build without threads
+-        if: ${{ matrix.build_system == 'autotools' }}
+         run: ./build-aux/ci_build.sh -b ${{ matrix.build_system }} -d threads,shared -p build
+       - name: Test without threads
+-        if: ${{ matrix.build_system == 'autotools' }}
+         run: ./build-aux/ci_build.sh -b ${{ matrix.build_system }} -d threads,shared -p test -n no_threads
+ 
+       - name: Build without BCJ filters
+diff --git a/build-aux/ci_build.sh b/build-aux/ci_build.sh
+index 7fb180c2..724e66da 100755
+--- a/build-aux/ci_build.sh
++++ b/build-aux/ci_build.sh
+@@ -202,13 +202,13 @@ then
+ 		make
+ 	;;
+ 	cmake)
+-		# The CMake build currently does not support disabling
+-		# threading.
+ 		cd "$DEST_DIR"
+ 
+ 		add_to_filter_list "$BCJ" ";x86;powerpc;ia64;arm;armthumb;arm64;sparc"
+ 		add_to_filter_list "$DELTA" ";delta"
+ 
++		add_extra_option "$THREADS" "-DENABLE_THREADS=ON" "-DENABLE_THREADS=OFF"
++
+ 		# Disable MicroLZMA if encoders are not configured.
+ 		add_extra_option "$ENCODERS" "-DENCODERS=$FILTER_LIST" "-DENCODERS= -DMICROLZMA_ENCODER=OFF"
+ 

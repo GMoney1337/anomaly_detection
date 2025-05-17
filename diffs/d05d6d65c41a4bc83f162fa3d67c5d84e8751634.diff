@@ -1,0 +1,12 @@
+diff --git a/THANKS b/THANKS
+index f18c9c22..d93f9b0d 100644
+--- a/THANKS
++++ b/THANKS
+@@ -65,6 +65,7 @@ has been important. :-) In alphabetical order:
+   - Christian von Roques
+   - Jukka Salmi
+   - Alexandre Sauvé
++  - Benno Schulenberg
+   - Andreas Schwab
+   - Dan Shechter
+   - Stuart Shelton

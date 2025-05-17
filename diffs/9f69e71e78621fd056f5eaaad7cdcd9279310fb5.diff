@@ -1,0 +1,12 @@
+diff --git a/THANKS b/THANKS
+index 153a63f1..1d169695 100644
+--- a/THANKS
++++ b/THANKS
+@@ -181,6 +181,7 @@ has been important. :-) In alphabetical order:
+   - Christian Weisgerber
+   - Dan Weiss
+   - Bert Wesarg
++  - Mark Wielaard
+   - Fredrik Wikstrom
+   - Jim Wilcoxson
+   - Ralf Wildenhues

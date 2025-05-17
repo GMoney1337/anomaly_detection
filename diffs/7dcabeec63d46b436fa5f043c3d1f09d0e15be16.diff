@@ -1,0 +1,36 @@
+diff --git a/tests/test_check.c b/tests/test_check.c
+index e059130d..cbe6917d 100644
+--- a/tests/test_check.c
++++ b/tests/test_check.c
+@@ -12,6 +12,7 @@
+ ///////////////////////////////////////////////////////////////////////////////
+ 
+ #include "tests.h"
++#include "mythread.h"
+ 
+ 
+ // These must be specified as numbers so that the test works on EBCDIC
+diff --git a/tests/test_hardware.c b/tests/test_hardware.c
+index 17c51da2..ee4434c1 100644
+--- a/tests/test_hardware.c
++++ b/tests/test_hardware.c
+@@ -15,6 +15,7 @@
+ ///////////////////////////////////////////////////////////////////////////////
+ 
+ #include "tests.h"
++#include "mythread.h"
+ 
+ 
+ static void
+diff --git a/tests/test_memlimit.c b/tests/test_memlimit.c
+index 6e2e62e1..b5f91472 100644
+--- a/tests/test_memlimit.c
++++ b/tests/test_memlimit.c
+@@ -11,6 +11,7 @@
+ ///////////////////////////////////////////////////////////////////////////////
+ 
+ #include "tests.h"
++#include "mythread.h"
+ 
+ 
+ #define MEMLIMIT_TOO_LOW 1234U

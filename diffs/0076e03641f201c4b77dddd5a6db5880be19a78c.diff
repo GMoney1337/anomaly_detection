@@ -1,0 +1,95 @@
+diff --git a/src/liblzma/common/filter_encoder.c b/src/liblzma/common/filter_encoder.c
+index 436d2cc6..635d8122 100644
+--- a/src/liblzma/common/filter_encoder.c
++++ b/src/liblzma/common/filter_encoder.c
+@@ -226,6 +226,7 @@ lzma_raw_encoder_memusage(const lzma_filter *filters)
+ }
+ 
+ 
++/*
+ extern LZMA_API(lzma_vli)
+ lzma_chunk_size(const lzma_filter *filters)
+ {
+@@ -247,6 +248,7 @@ lzma_chunk_size(const lzma_filter *filters)
+ 
+ 	return max;
+ }
++*/
+ 
+ 
+ extern LZMA_API(lzma_ret)
+diff --git a/src/liblzma/common/filter_encoder.h b/src/liblzma/common/filter_encoder.h
+index a978932d..5bc137f6 100644
+--- a/src/liblzma/common/filter_encoder.h
++++ b/src/liblzma/common/filter_encoder.h
+@@ -16,8 +16,8 @@
+ #include "common.h"
+ 
+ 
+-// FIXME !!! Public API
+-extern lzma_vli lzma_chunk_size(const lzma_filter *filters);
++// FIXME: Might become a part of the public API once finished.
++// extern lzma_vli lzma_chunk_size(const lzma_filter *filters);
+ 
+ 
+ extern lzma_ret lzma_raw_encoder_init(
+diff --git a/src/liblzma/lzma/lzma2_decoder.c b/src/liblzma/lzma/lzma2_decoder.c
+index b4c2f2d5..f38879ce 100644
+--- a/src/liblzma/lzma/lzma2_decoder.c
++++ b/src/liblzma/lzma/lzma2_decoder.c
+@@ -191,7 +191,6 @@ lzma2_decode(lzma_coder *restrict coder, lzma_dict *restrict dict,
+ 
+ 	case SEQ_COPY: {
+ 		// Copy from input to the dictionary as is.
+-		// FIXME Can copy too much?
+ 		dict_write(dict, in, in_pos, in_size, &coder->compressed_size);
+ 		if (coder->compressed_size != 0)
+ 			return LZMA_OK;
+diff --git a/src/liblzma/lzma/lzma_decoder.c b/src/liblzma/lzma/lzma_decoder.c
+index 4329e019..9979bb42 100644
+--- a/src/liblzma/lzma/lzma_decoder.c
++++ b/src/liblzma/lzma/lzma_decoder.c
+@@ -656,7 +656,8 @@ lzma_decode(lzma_coder *restrict coder, lzma_dict *restrict dictptr,
+ 						}
+ 
+ 	case SEQ_EOPM:
+-						// TODO Comment
++						// LZMA1 stream with
++						// end-of-payload marker.
+ 						rc_normalize(SEQ_EOPM);
+ 						ret = LZMA_STREAM_END;
+ 						goto out;
+@@ -856,7 +857,6 @@ lzma_decoder_reset(lzma_coder *coder, const void *opt)
+ 
+ 	// NOTE: We assume that lc/lp/pb are valid since they were
+ 	// successfully decoded with lzma_lzma_decode_properties().
+-	// FIXME?
+ 
+ 	// Calculate pos_mask. We don't need pos_bits as is for anything.
+ 	coder->pos_mask = (1U << options->pb) - 1;
+diff --git a/src/liblzma/lzma/lzma_encoder.c b/src/liblzma/lzma/lzma_encoder.c
+index 0fe992d5..0b9ee9e1 100644
+--- a/src/liblzma/lzma/lzma_encoder.c
++++ b/src/liblzma/lzma/lzma_encoder.c
+@@ -334,7 +334,7 @@ lzma_lzma_encode(lzma_coder *restrict coder, lzma_mf *restrict mf,
+ 
+ 		// With LZMA2 we need to take care that compressed size of
+ 		// a chunk doesn't get too big.
+-		// TODO
++		// FIXME? Check if this could be improved.
+ 		if (limit != UINT32_MAX
+ 				&& (mf->read_pos - mf->read_ahead >= limit
+ 					|| *out_pos + rc_pending(&coder->rc)
+diff --git a/src/xz/message.h b/src/xz/message.h
+index ba1d3222..e3fca3cc 100644
+--- a/src/xz/message.h
++++ b/src/xz/message.h
+@@ -16,7 +16,7 @@ enum message_verbosity {
+ 	V_ERROR,    ///< Only error messages
+ 	V_WARNING,  ///< Errors and warnings
+ 	V_VERBOSE,  ///< Errors, warnings, and verbose statistics
+-	V_DEBUG,    ///< Debugging, FIXME remove?
++	V_DEBUG,    ///< Very verbose
+ };
+ 
+ 

@@ -1,0 +1,83 @@
+diff --git a/.gitignore b/.gitignore
+index 11dbc591..ca5f024e 100644
+--- a/.gitignore
++++ b/.gitignore
+@@ -51,6 +51,7 @@ build-aux/test-driver
+ /tests/test_block_header
+ /tests/test_check
+ /tests/test_filter_flags
++/tests/test_hardware
+ /tests/test_index
+ /tests/test_stream_flags
+ /tests/xzgrep_test_1.xz
+diff --git a/tests/Makefile.am b/tests/Makefile.am
+index e049add4..ae63f464 100644
+--- a/tests/Makefile.am
++++ b/tests/Makefile.am
+@@ -39,6 +39,7 @@ LDADD += $(LTLIBINTL)
+ check_PROGRAMS = \
+ 	create_compress_files \
+ 	test_check \
++	test_hardware \
+ 	test_stream_flags \
+ 	test_filter_flags \
+ 	test_block_header \
+@@ -47,6 +48,7 @@ check_PROGRAMS = \
+ 
+ TESTS = \
+ 	test_check \
++	test_hardware \
+ 	test_stream_flags \
+ 	test_filter_flags \
+ 	test_block_header \
+diff --git a/tests/test_hardware.c b/tests/test_hardware.c
+new file mode 100644
+index 00000000..34d07892
+--- /dev/null
++++ b/tests/test_hardware.c
+@@ -0,0 +1,45 @@
++///////////////////////////////////////////////////////////////////////////////
++//
++/// \file       test_hardware.c
++/// \brief      Tests src/liblzma/api/lzma/hardware.h API functions
++///
++/// Since the output values of these functions are hardware dependent, these
++/// tests are trivial. They are simply used to detect errors and machines
++/// that these function are not supported on.
++//
++//  Author:     Jia Tan
++//
++//  This file has been put into the public domain.
++//  You can do whatever you want with this file.
++//
++///////////////////////////////////////////////////////////////////////////////
++
++#include "tests.h"
++
++
++static void
++test_lzma_physmem(void)
++{
++	// NOTE: Use _skip instead of _fail because 0 can also mean that we
++	// don't know how to get this information on this operating system.
++	if (lzma_physmem() == 0)
++		assert_skip("Could not determine amount of physical memory");
++}
++
++
++static void
++test_lzma_cputhreads(void)
++{
++	if (lzma_cputhreads() == 0)
++		assert_skip("Could not determine cpu core count");
++}
++
++
++extern int
++main(int argc, char **argv)
++{
++	tuktest_start(argc, argv);
++	tuktest_run(test_lzma_physmem);
++	tuktest_run(test_lzma_cputhreads);
++	return tuktest_end();
++}

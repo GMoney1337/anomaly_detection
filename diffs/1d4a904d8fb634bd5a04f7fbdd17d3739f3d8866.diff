@@ -1,0 +1,87 @@
+diff --git a/src/xz/file_io.c b/src/xz/file_io.c
+index 43db7c7f..2d1f8a91 100644
+--- a/src/xz/file_io.c
++++ b/src/xz/file_io.c
+@@ -1170,11 +1170,19 @@ io_read(file_pair *pair, io_buf *buf_union, size_t size)
+ 
+ 
+ extern bool
+-io_seek_src(file_pair *pair, off_t pos)
++io_seek_src(file_pair *pair, uint64_t pos)
+ {
+-	assert(pos >= 0);
++	// Caller must not attempt to seek past the end of the input file
++	// (seeking to 100 in a 100-byte file is seeking to the end of
++	// the file, not past the end of the file, and thus that is allowed).
++	//
++	// This also validates that pos can be safely cast to off_t.
++	if (pos > (uint64_t)(pair->src_st.st_size))
++		message_bug();
++
++	const off_t offset = (off_t)pos;
+ 
+-	if (lseek(pair->src_fd, pos, SEEK_SET) != pos) {
++	if (lseek(pair->src_fd, offset, SEEK_SET) != offset) {
+ 		message_error(_("%s: Error seeking the file: %s"),
+ 				pair->src_name, strerror(errno));
+ 		return true;
+@@ -1187,7 +1195,7 @@ io_seek_src(file_pair *pair, off_t pos)
+ 
+ 
+ extern bool
+-io_pread(file_pair *pair, io_buf *buf, size_t size, off_t pos)
++io_pread(file_pair *pair, io_buf *buf, size_t size, uint64_t pos)
+ {
+ 	// Using lseek() and read() is more portable than pread() and
+ 	// for us it is as good as real pread().
+diff --git a/src/xz/file_io.h b/src/xz/file_io.h
+index 84d5b44d..ff6fb80a 100644
+--- a/src/xz/file_io.h
++++ b/src/xz/file_io.h
+@@ -139,7 +139,7 @@ extern void io_fix_src_pos(file_pair *pair, size_t rewind_size);
+ ///
+ /// \return     On success, false is returned. On error, error message
+ ///             is printed and true is returned.
+-extern bool io_seek_src(file_pair *pair, off_t pos);
++extern bool io_seek_src(file_pair *pair, uint64_t pos);
+ 
+ 
+ /// \brief      Read from source file from given offset to a buffer
+@@ -155,7 +155,7 @@ extern bool io_seek_src(file_pair *pair, off_t pos);
+ ///
+ /// \return     On success, false is returned. On error, error message
+ ///             is printed and true is returned.
+-extern bool io_pread(file_pair *pair, io_buf *buf, size_t size, off_t pos);
++extern bool io_pread(file_pair *pair, io_buf *buf, size_t size, uint64_t pos);
+ 
+ 
+ /// \brief      Writes a buffer to the destination file
+diff --git a/src/xz/list.c b/src/xz/list.c
+index 364e2c14..70b4a9bb 100644
+--- a/src/xz/list.c
++++ b/src/xz/list.c
+@@ -382,12 +382,11 @@ parse_indexes(xz_file_info *xfi, file_pair *pair)
+ 			break;
+ 
+ 		case LZMA_SEEK_NEEDED:
+-			// The cast is safe because liblzma won't ask us to
+-			// seek past the known size of the input file which
+-			// did fit into off_t.
++			// liblzma won't ask us to seek past the known size
++			// of the input file.
+ 			assert(strm.seek_pos
+ 					<= (uint64_t)(pair->src_st.st_size));
+-			if (io_seek_src(pair, (off_t)(strm.seek_pos)))
++			if (io_seek_src(pair, strm.seek_pos))
+ 				goto error;
+ 
+ 			// avail_in must be zero so that we will read new
+@@ -589,7 +588,7 @@ parse_check_value(file_pair *pair, const lzma_index_iter *iter)
+ 
+ 	// Locate and read the Check field.
+ 	const uint32_t size = lzma_check_size(iter->stream.flags->check);
+-	const off_t offset = iter->block.compressed_file_offset
++	const uint64_t offset = iter->block.compressed_file_offset
+ 			+ iter->block.total_size - size;
+ 	io_buf buf;
+ 	if (io_pread(pair, &buf, size, offset))

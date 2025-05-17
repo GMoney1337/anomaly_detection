@@ -1,0 +1,290 @@
+diff --git a/m4/tuklib_cpucores.m4 b/m4/tuklib_cpucores.m4
+index d48f2e5e..9e295c8f 100644
+--- a/m4/tuklib_cpucores.m4
++++ b/m4/tuklib_cpucores.m4
+@@ -8,8 +8,10 @@
+ #   Check how to find out the number of available CPU cores in the system.
+ #   This information is used by tuklib_cpucores.c.
+ #
+-#   Currently this supports sysctl() (BSDs, OS/2) and sysconf() (GNU/Linux,
+-#   Solaris, IRIX, Cygwin).
++#   Supported methods:
++#     - sysctl(): BSDs, OS/2
++#     - sysconf(): GNU/Linux, Solaris, Tru64, IRIX, AIX, Cygwin
++#     - pstat_getdynamic(): HP-UX
+ #
+ # COPYING
+ #
+@@ -63,11 +65,25 @@ main(void)
+ #endif
+ 	return 0;
+ }
+-]])], [
+-	tuklib_cv_cpucores_method=sysconf
+-], [
++]])], [tuklib_cv_cpucores_method=sysconf], [
++
++AC_COMPILE_IFELSE([AC_LANG_SOURCE([[
++#include <sys/param.h>
++#include <sys/pstat.h>
++
++int
++main(void)
++{
++	struct pst_dynamic pst;
++	pstat_getdynamic(&pst, sizeof(pst), 1, 0);
++	(void)pst.psd_proc_cnt;
++	return 0;
++}
++]])], [tuklib_cv_cpucores_method=pstat_getdynamic], [
++
+ 	tuklib_cv_cpucores_method=unknown
+-])])])
++])])])])
++
+ case $tuklib_cv_cpucores_method in
+ 	sysctl)
+ 		AC_DEFINE([TUKLIB_CPUCORES_SYSCTL], [1],
+@@ -80,5 +96,10 @@ case $tuklib_cv_cpucores_method in
+ 			can be detected with sysconf(_SC_NPROCESSORS_ONLN)
+ 			or sysconf(_SC_NPROC_ONLN).])
+ 		;;
++	pstat_getdynamic)
++		AC_DEFINE([TUKLIB_CPUCORES_PSTAT_GETDYNAMIC], [1],
++			[Define to 1 if the number of available CPU cores
++			can be detected with pstat_getdynamic().])
++		;;
+ esac
+ ])dnl
+diff --git a/m4/tuklib_physmem.m4 b/m4/tuklib_physmem.m4
+index a8c869f3..12499256 100644
+--- a/m4/tuklib_physmem.m4
++++ b/m4/tuklib_physmem.m4
+@@ -13,11 +13,17 @@
+ #     - Windows (including Cygwin), OS/2, DJGPP (DOS), and OpenVMS have
+ #       operating-system specific functions.
+ #
++#     - AIX has _system_configuration.physmem.
++#
+ #     - sysconf() works on GNU/Linux and Solaris, and possibly on
+ #       some BSDs.
+ #
+ #     - BSDs use sysctl().
+ #
++#     - Tru64 uses getsysinfo().
++#
++#     - HP-UX uses pstat_getstatic().
++#
+ #     - IRIX has setinvent_r(), getinvent_r(), and endinvent_r().
+ #
+ #     - sysinfo() works on Linux/dietlibc and probably on other Linux
+@@ -42,15 +48,32 @@ AC_CACHE_CHECK([how to detect the amount of physical memory],
+ 
+ # Maybe checking $host_os would be enough but this matches what
+ # tuklib_physmem.c does.
++#
++# NOTE: IRIX has a compiler that doesn't error out with #error, so use
++# a non-compilable text instead of #error to generate an error.
+ AC_COMPILE_IFELSE([AC_LANG_SOURCE([[
+ #if defined(_WIN32) || defined(__CYGWIN__) || defined(__OS2__) \
+ 		|| defined(__DJGPP__) || defined(__VMS)
+ int main(void) { return 0; }
+ #else
+-#error
++compile error
+ #endif
+ ]])], [tuklib_cv_physmem_method=special], [
+ 
++# Look for AIX-specific solution before sysconf(), because the test
++# for sysconf() will pass on AIX but won't actually work
++# (sysconf(_SC_PHYS_PAGES) compiles but always returns -1 on AIX).
++AC_COMPILE_IFELSE([AC_LANG_SOURCE([[
++#include <sys/systemcfg.h>
++
++int
++main(void)
++{
++	(void)_system_configuration.physmem;
++	return 0;
++}
++]])], [tuklib_cv_physmem_method=aix], [
++
+ AC_COMPILE_IFELSE([AC_LANG_SOURCE([[
+ #include <unistd.h>
+ int
+@@ -80,6 +103,35 @@ main(void)
+ }
+ ]])], [tuklib_cv_physmem_method=sysctl], [
+ 
++AC_COMPILE_IFELSE([AC_LANG_SOURCE([[
++#include <sys/sysinfo.h>
++#include <machine/hal_sysinfo.h>
++
++int
++main(void)
++{
++	int memkb;
++	int start = 0;
++	getsysinfo(GSI_PHYSMEM, (caddr_t)&memkb, sizeof(memkb), &start);
++	return 0;
++}
++]])], [tuklib_cv_physmem_method=getsysinfo],[
++
++AC_COMPILE_IFELSE([AC_LANG_SOURCE([[
++#include <sys/param.h>
++#include <sys/pstat.h>
++
++int
++main(void)
++{
++	struct pst_static pst;
++	pstat_getstatic(&pst, sizeof(pst), 1, 0);
++	(void)pst.physical_memory;
++	(void)pst.page_size;
++	return 0;
++}
++]])], [tuklib_cv_physmem_method=pstat_getstatic],[
++
+ AC_COMPILE_IFELSE([AC_LANG_SOURCE([[
+ #include <invent.h>
+ int
+@@ -116,8 +168,14 @@ main(void)
+ 		tuklib_cv_physmem_method=unknown
+ 		;;
+ esac
+-])])])])])
++])])])])])])])])
++
+ case $tuklib_cv_physmem_method in
++	aix)
++		AC_DEFINE([TUKLIB_PHYSMEM_AIX], [1],
++			[Define to 1 if the amount of physical memory
++			can be detected with _system_configuration.physmem.])
++		;;
+ 	sysconf)
+ 		AC_DEFINE([TUKLIB_PHYSMEM_SYSCONF], [1],
+ 			[Define to 1 if the amount of physical memory can
+@@ -129,6 +187,16 @@ case $tuklib_cv_physmem_method in
+ 			[Define to 1 if the amount of physical memory can
+ 			be detected with sysctl().])
+ 		;;
++	getsysinfo)
++		AC_DEFINE([TUKLIB_PHYSMEM_GETSYSINFO], [1],
++			[Define to 1 if the amount of physical memory can
++			be detected with getsysinfo().])
++		;;
++	pstat_getstatic)
++		AC_DEFINE([TUKLIB_PHYSMEM_PSTAT_GETSTATIC], [1],
++			[Define to 1 if the amount of physical memory can
++			be detected with pstat_getstatic().])
++		;;
+ 	getinvent_r)
+ 		AC_DEFINE([TUKLIB_PHYSMEM_GETINVENT_R], [1],
+ 			[Define to 1 if the amount of physical memory
+diff --git a/src/common/tuklib_cpucores.c b/src/common/tuklib_cpucores.c
+index e35d9bc7..1da13df7 100644
+--- a/src/common/tuklib_cpucores.c
++++ b/src/common/tuklib_cpucores.c
+@@ -20,6 +20,11 @@
+ 
+ #elif defined(TUKLIB_CPUCORES_SYSCONF)
+ #	include <unistd.h>
++
++// HP-UX
++#elif defined(TUKLIB_CPUCORES_PSTAT_GETDYNAMIC)
++#	include <sys/param.h>
++#	include <sys/pstat.h>
+ #endif
+ 
+ 
+@@ -34,7 +39,7 @@ tuklib_cpucores(void)
+ 	size_t cpus_size = sizeof(cpus);
+ 	if (sysctl(name, 2, &cpus, &cpus_size, NULL, 0) != -1
+ 			&& cpus_size == sizeof(cpus) && cpus > 0)
+-		ret = (uint32_t)cpus;
++		ret = cpus;
+ 
+ #elif defined(TUKLIB_CPUCORES_SYSCONF)
+ #	ifdef _SC_NPROCESSORS_ONLN
+@@ -45,7 +50,12 @@ tuklib_cpucores(void)
+ 	const long cpus = sysconf(_SC_NPROC_ONLN);
+ #	endif
+ 	if (cpus > 0)
+-		ret = (uint32_t)cpus;
++		ret = cpus;
++
++#elif defined(TUKLIB_CPUCORES_PSTAT_GETDYNAMIC)
++	struct pst_dynamic pst;
++	if (pstat_getdynamic(&pst, sizeof(pst), 1, 0) != -1)
++		ret = pst.psd_proc_cnt;
+ #endif
+ 
+ 	return ret;
+diff --git a/src/common/tuklib_physmem.c b/src/common/tuklib_physmem.c
+index 1536e6e5..623b6e70 100644
+--- a/src/common/tuklib_physmem.c
++++ b/src/common/tuklib_physmem.c
+@@ -33,6 +33,10 @@
+ #	include <syidef.h>
+ #	include <ssdef.h>
+ 
++// AIX
++#elif defined(TUKLIB_PHYSMEM_AIX)
++#	include <sys/systemcfg.h>
++
+ #elif defined(TUKLIB_PHYSMEM_SYSCONF)
+ #	include <unistd.h>
+ 
+@@ -42,6 +46,16 @@
+ #	endif
+ #	include <sys/sysctl.h>
+ 
++// Tru64
++#elif defined(TUKLIB_PHYSMEM_GETSYSINFO)
++#	include <sys/sysinfo.h>
++#	include <machine/hal_sysinfo.h>
++
++// HP-UX
++#elif defined(TUKLIB_PHYSMEM_PSTAT_GETSTATIC)
++#	include <sys/param.h>
++#	include <sys/pstat.h>
++
+ // IRIX
+ #elif defined(TUKLIB_PHYSMEM_GETINVENT_R)
+ #	include <invent.h>
+@@ -105,10 +119,13 @@ tuklib_physmem(void)
+ 	if (LIB$GETSYI(&val, &vms_mem, 0, 0, 0, 0) == SS$_NORMAL)
+ 		ret = (uint64_t)vms_mem * 8192;
+ 
++#elif defined(TUKLIB_PHYSMEM_AIX)
++	ret = _system_configuration.physmem;
++
+ #elif defined(TUKLIB_PHYSMEM_SYSCONF)
+ 	const long pagesize = sysconf(_SC_PAGESIZE);
+ 	const long pages = sysconf(_SC_PHYS_PAGES);
+-	if (pagesize != -1 || pages != -1)
++	if (pagesize != -1 && pages != -1)
+ 		// According to docs, pagesize * pages can overflow.
+ 		// Simple case is 32-bit box with 4 GiB or more RAM,
+ 		// which may report exactly 4 GiB of RAM, and "long"
+@@ -140,6 +157,20 @@ tuklib_physmem(void)
+ 			ret = mem.u32;
+ 	}
+ 
++#elif defined(TUKLIB_PHYSMEM_GETSYSINFO)
++	// Docs are unclear if "start" is needed, but it doesn't hurt
++	// much to have it.
++	int memkb;
++	int start = 0;
++	if (getsysinfo(GSI_PHYSMEM, (caddr_t)&memkb, sizeof(memkb), &start)
++			!= -1)
++		ret = (uint64_t)memkb * 1024;
++
++#elif defined(TUKLIB_PHYSMEM_PSTAT_GETSTATIC)
++	struct pst_static pst;
++	if (pstat_getstatic(&pst, sizeof(pst), 1, 0) != -1)
++		ret = (uint64_t)pst.physical_memory * (uint64_t)pst.page_size;
++
+ #elif defined(TUKLIB_PHYSMEM_GETINVENT_R)
+ 	inv_state_t *st = NULL;
+ 	if (setinvent_r(&st) != -1) {

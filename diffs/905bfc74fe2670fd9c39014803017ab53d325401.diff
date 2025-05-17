@@ -1,0 +1,13 @@
+diff --git a/.gitattributes b/.gitattributes
+new file mode 100644
+index 00000000..26bcbb1f
+--- /dev/null
++++ b/.gitattributes
+@@ -0,0 +1,7 @@
++.gitattributes export-ignore
++.gitignore export-ignore
++
++/.codespellrc export-ignore
++/.github export-ignore
++
++/build-aux/ci_build.bash export-ignore

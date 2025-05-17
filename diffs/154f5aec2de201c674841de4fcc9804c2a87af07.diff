@@ -1,0 +1,12 @@
+diff --git a/.gitignore b/.gitignore
+index fda92348..5ada05d1 100644
+--- a/.gitignore
++++ b/.gitignore
+@@ -3,7 +3,6 @@
+ *.la
+ *.lo
+ *.o
+-Makefile
+ Makefile.in
+ 
+ /ABOUT-NLS

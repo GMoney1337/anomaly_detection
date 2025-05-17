@@ -1,0 +1,94 @@
+diff --git a/tests/Makefile.am b/tests/Makefile.am
+index c4e17ed1..8223a189 100644
+--- a/tests/Makefile.am
++++ b/tests/Makefile.am
+@@ -52,4 +52,5 @@ TESTS += test_scripts.sh
+ endif
+ 
+ clean-local:
+-	-rm -f compress_generated_*
++	-rm -f compress_generated_* \
++		xzgrep_test_output xzgrep_test_1.xz xzgrep_test_2.xz
+diff --git a/tests/test_scripts.sh b/tests/test_scripts.sh
+index 7ac1fea8..48a9308a 100755
+--- a/tests/test_scripts.sh
++++ b/tests/test_scripts.sh
+@@ -54,19 +54,23 @@ fi
+ 
+ # The exit status must be 0 when a match was found at least from one file,
+ # and 1 when no match was found in any file.
++cp "$srcdir/files/good-1-lzma2-1.xz" xzgrep_test_1.xz
++cp "$srcdir/files/good-2-lzma2.xz" xzgrep_test_2.xz
+ for pattern in el Hello NOMATCH; do
+ 	for opts in "" "-l" "-h" "-H"; do
+-		"$XZGREP" $opts $pattern \
+-			"$srcdir/files/good-1-lzma2-1.xz" \
+-			"$srcdir/files/good-2-lzma2.xz" > /dev/null 2>&1
+-		status=$?
+-		test $status = 0 && test $pattern != NOMATCH && continue
+-		test $status = 1 && test $pattern = NOMATCH && continue
+-		echo "wrong exit status from xzgrep"
+-		(exit 1)
+-		exit 1
++		echo "=> xzgrep $opts $pattern <="
++		"$XZGREP" $opts $pattern xzgrep_test_1.xz xzgrep_test_2.xz
++		echo retval $?
+ 	done
+-done
++done > xzgrep_test_output 2>&1
++
++if cmp -s "$srcdir/xzgrep_expected_output" xzgrep_test_output ; then
++	:
++else
++	echo "unexpected output from xzgrep"
++	(exit 1)
++	exit 1
++fi
+ 
+ (exit 0)
+ exit 0
+diff --git a/tests/xzgrep_expected_output b/tests/xzgrep_expected_output
+new file mode 100644
+index 00000000..e531d931
+--- /dev/null
++++ b/tests/xzgrep_expected_output
+@@ -0,0 +1,39 @@
++=> xzgrep  el <=
++xzgrep_test_1.xz:elit, sed do eiusmod tempor incididunt ut 
++xzgrep_test_1.xz:in voluptate velit esse cillum dolore eu 
++xzgrep_test_2.xz:Hello
++retval 0
++=> xzgrep -l el <=
++xzgrep_test_1.xz
++xzgrep_test_2.xz
++retval 0
++=> xzgrep -h el <=
++elit, sed do eiusmod tempor incididunt ut 
++in voluptate velit esse cillum dolore eu 
++Hello
++retval 0
++=> xzgrep -H el <=
++xzgrep_test_1.xz:elit, sed do eiusmod tempor incididunt ut 
++xzgrep_test_1.xz:in voluptate velit esse cillum dolore eu 
++xzgrep_test_2.xz:Hello
++retval 0
++=> xzgrep  Hello <=
++xzgrep_test_2.xz:Hello
++retval 0
++=> xzgrep -l Hello <=
++xzgrep_test_2.xz
++retval 0
++=> xzgrep -h Hello <=
++Hello
++retval 0
++=> xzgrep -H Hello <=
++xzgrep_test_2.xz:Hello
++retval 0
++=> xzgrep  NOMATCH <=
++retval 1
++=> xzgrep -l NOMATCH <=
++retval 1
++=> xzgrep -h NOMATCH <=
++retval 1
++=> xzgrep -H NOMATCH <=
++retval 1

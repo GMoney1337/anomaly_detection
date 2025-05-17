@@ -1,0 +1,118 @@
+diff --git a/src/xz/args.c b/src/xz/args.c
+index be293902..941214b5 100644
+--- a/src/xz/args.c
++++ b/src/xz/args.c
+@@ -126,6 +126,7 @@ parse_real(args_info *args, int argc, char **argv)
+ 		OPT_IA64,
+ 		OPT_ARM,
+ 		OPT_ARMTHUMB,
++		OPT_ARM64,
+ 		OPT_SPARC,
+ 		OPT_DELTA,
+ 		OPT_LZMA1,
+@@ -197,6 +198,7 @@ parse_real(args_info *args, int argc, char **argv)
+ 		{ "ia64",         optional_argument, NULL,  OPT_IA64 },
+ 		{ "arm",          optional_argument, NULL,  OPT_ARM },
+ 		{ "armthumb",     optional_argument, NULL,  OPT_ARMTHUMB },
++		{ "experimental-arm64",        optional_argument, NULL,  OPT_ARM64 },
+ 		{ "sparc",        optional_argument, NULL,  OPT_SPARC },
+ 		{ "delta",        optional_argument, NULL,  OPT_DELTA },
+ 
+@@ -370,6 +372,11 @@ parse_real(args_info *args, int argc, char **argv)
+ 					options_bcj(optarg));
+ 			break;
+ 
++		case OPT_ARM64:
++			coder_add_filter(LZMA_FILTER_ARM64,
++					options_arm64(optarg));
++			break;
++
+ 		case OPT_SPARC:
+ 			coder_add_filter(LZMA_FILTER_SPARC,
+ 					options_bcj(optarg));
+diff --git a/src/xz/message.c b/src/xz/message.c
+index e626b5e8..4e344ea6 100644
+--- a/src/xz/message.c
++++ b/src/xz/message.c
+@@ -1036,6 +1036,13 @@ message_filters_to_str(char buf[FILTERS_STR_SIZE],
+ 			break;
+ 		}
+ 
++		case LZMA_FILTER_ARM64: {
++			const lzma_options_arm64 *opt = filters[i].options;
++			my_snprintf(&pos, &left, "arm64=width=%" PRIu32,
++					opt->width);
++			break;
++		}
++
+ 		case LZMA_FILTER_DELTA: {
+ 			const lzma_options_delta *opt = filters[i].options;
+ 			my_snprintf(&pos, &left, "delta=dist=%" PRIu32,
+diff --git a/src/xz/options.c b/src/xz/options.c
+index 0c1ee221..899bd842 100644
+--- a/src/xz/options.c
++++ b/src/xz/options.c
+@@ -224,6 +224,45 @@ options_bcj(const char *str)
+ }
+ 
+ 
++///////////
++// ARM64 //
++///////////
++
++enum {
++	OPT_WIDTH,
++};
++
++
++static void
++set_arm64(void *options, unsigned key, uint64_t value,
++		const char *valuestr lzma_attribute((__unused__)))
++{
++	lzma_options_arm64 *opt = options;
++	switch (key) {
++	case OPT_WIDTH:
++		opt->width = value;
++		break;
++	}
++}
++
++
++extern lzma_options_arm64 *
++options_arm64(const char *str)
++{
++	static const option_map opts[] = {
++		{ "width", NULL, LZMA_ARM64_WIDTH_MIN, LZMA_ARM64_WIDTH_MAX },
++		{ NULL,    NULL, 0, 0 }
++	};
++
++	lzma_options_arm64 *options = xmalloc(sizeof(lzma_options_arm64));
++	options->width = LZMA_ARM64_WIDTH_DEFAULT;
++
++	parse_options(str, opts, &set_arm64, options);
++
++	return options;
++}
++
++
+ //////////
+ // LZMA //
+ //////////
+diff --git a/src/xz/options.h b/src/xz/options.h
+index 61ec8d58..d56adc8a 100644
+--- a/src/xz/options.h
++++ b/src/xz/options.h
+@@ -24,6 +24,13 @@ extern lzma_options_delta *options_delta(const char *str);
+ extern lzma_options_bcj *options_bcj(const char *str);
+ 
+ 
++/// \brief      Parser for ARM64 options
++///
++/// \return     Pointer to allocated options structure.
++///             Doesn't return on error.
++extern lzma_options_arm64 *options_arm64(const char *str);
++
++
+ /// \brief      Parser for LZMA options
+ ///
+ /// \return     Pointer to allocated options structure.

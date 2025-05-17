@@ -1,0 +1,212 @@
+diff --git a/src/liblzma/api/lzma/filter.h b/src/liblzma/api/lzma/filter.h
+index 8d0db96b..c3a20998 100644
+--- a/src/liblzma/api/lzma/filter.h
++++ b/src/liblzma/api/lzma/filter.h
+@@ -94,6 +94,37 @@ extern LZMA_API(lzma_bool) lzma_filter_decoder_is_supported(lzma_vli id)
+ 		lzma_nothrow lzma_attr_const;
+ 
+ 
++/**
++ * \brief       Copy the filters array
++ *
++ * Copy the Filter IDs and filter-specific options from src to dest.
++ * Up to LZMA_FILTERS_MAX filters are copied, plus the terminating
++ * .id == LZMA_VLI_UNKNOWN. Thus, dest should have at least
++ * LZMA_FILTERS_MAX + 1 elements space unless the caller knows that
++ * src is smaller than that.
++ *
++ * Unless the filter-specific options is NULL, the Filter ID has to be
++ * supported by liblzma, because liblzma needs to know the size of every
++ * filter-specific options structure. The filter-specific options are not
++ * validated. If options is NULL, any unsupported Filter IDs are copied
++ * without returning an error.
++ *
++ * Old filter-specific options in dest are not freed, so dest doesn't
++ * need to be initialized by the caller in any way.
++ *
++ * If an error occurs, memory possibly already allocated by this function
++ * is always freed.
++ *
++ * \return      - LZMA_OK
++ *              - LZMA_MEM_ERROR
++ *              - LZMA_OPTIONS_ERROR: Unsupported Filter ID and its options
++ *                is not NULL.
++ *              - LZMA_PROG_ERROR: src or dest is NULL.
++ */
++extern LZMA_API(lzma_ret) lzma_filters_dup(const lzma_filter *src,
++		lzma_filter *dest, lzma_allocator *allocator);
++
++
+ /**
+  * \brief       Calculate rough memory requirements for raw encoder
+  *
+diff --git a/src/liblzma/common/filter_common.c b/src/liblzma/common/filter_common.c
+index 4762460a..c839e231 100644
+--- a/src/liblzma/common/filter_common.c
++++ b/src/liblzma/common/filter_common.c
+@@ -17,6 +17,9 @@ static const struct {
+ 	/// Filter ID
+ 	lzma_vli id;
+ 
++	/// Size of the filter-specific options structure
++	size_t options_size;
++
+ 	/// True if it is OK to use this filter as non-last filter in
+ 	/// the chain.
+ 	bool non_last_ok;
+@@ -34,6 +37,7 @@ static const struct {
+ #if defined (HAVE_ENCODER_LZMA1) || defined(HAVE_DECODER_LZMA1)
+ 	{
+ 		.id = LZMA_FILTER_LZMA1,
++		.options_size = sizeof(lzma_options_lzma),
+ 		.non_last_ok = false,
+ 		.last_ok = true,
+ 		.changes_size = true,
+@@ -42,6 +46,7 @@ static const struct {
+ #ifdef HAVE_DECODER_LZMA2
+ 	{
+ 		.id = LZMA_FILTER_LZMA2,
++		.options_size = sizeof(lzma_options_lzma),
+ 		.non_last_ok = false,
+ 		.last_ok = true,
+ 		.changes_size = true,
+@@ -50,6 +55,7 @@ static const struct {
+ #if defined(HAVE_ENCODER_SUBBLOCK) || defined(HAVE_DECODER_SUBBLOCK)
+ 	{
+ 		.id = LZMA_FILTER_SUBBLOCK,
++		.options_size = sizeof(lzma_options_subblock),
+ 		.non_last_ok = true,
+ 		.last_ok = true,
+ 		.changes_size = true,
+@@ -58,6 +64,7 @@ static const struct {
+ #ifdef HAVE_DECODER_X86
+ 	{
+ 		.id = LZMA_FILTER_X86,
++		.options_size = sizeof(lzma_options_bcj),
+ 		.non_last_ok = true,
+ 		.last_ok = false,
+ 		.changes_size = false,
+@@ -66,6 +73,7 @@ static const struct {
+ #if defined(HAVE_ENCODER_POWERPC) || defined(HAVE_DECODER_POWERPC)
+ 	{
+ 		.id = LZMA_FILTER_POWERPC,
++		.options_size = sizeof(lzma_options_bcj),
+ 		.non_last_ok = true,
+ 		.last_ok = false,
+ 		.changes_size = false,
+@@ -74,6 +82,7 @@ static const struct {
+ #ifdef HAVE_DECODER_IA64
+ 	{
+ 		.id = LZMA_FILTER_IA64,
++		.options_size = sizeof(lzma_options_bcj),
+ 		.non_last_ok = true,
+ 		.last_ok = false,
+ 		.changes_size = false,
+@@ -82,6 +91,7 @@ static const struct {
+ #if defined(HAVE_ENCODER_ARM) || defined(HAVE_DECODER_ARM)
+ 	{
+ 		.id = LZMA_FILTER_ARM,
++		.options_size = sizeof(lzma_options_bcj),
+ 		.non_last_ok = true,
+ 		.last_ok = false,
+ 		.changes_size = false,
+@@ -90,6 +100,7 @@ static const struct {
+ #if defined(HAVE_ENCODER_ARMTHUMB) || defined(HAVE_DECODER_ARMTHUMB)
+ 	{
+ 		.id = LZMA_FILTER_ARMTHUMB,
++		.options_size = sizeof(lzma_options_bcj),
+ 		.non_last_ok = true,
+ 		.last_ok = false,
+ 		.changes_size = false,
+@@ -98,6 +109,7 @@ static const struct {
+ #if defined(HAVE_ENCODER_SPARC) || defined(HAVE_DECODER_SPARC)
+ 	{
+ 		.id = LZMA_FILTER_SPARC,
++		.options_size = sizeof(lzma_options_bcj),
+ 		.non_last_ok = true,
+ 		.last_ok = false,
+ 		.changes_size = false,
+@@ -106,6 +118,7 @@ static const struct {
+ #if defined(HAVE_ENCODER_DELTA) || defined(HAVE_DECODER_DELTA)
+ 	{
+ 		.id = LZMA_FILTER_DELTA,
++		.options_size = sizeof(lzma_options_delta),
+ 		.non_last_ok = true,
+ 		.last_ok = false,
+ 		.changes_size = false,
+@@ -117,6 +130,75 @@ static const struct {
+ };
+ 
+ 
++extern LZMA_API(lzma_ret)
++lzma_filters_dup(const lzma_filter *src, lzma_filter *dest,
++		lzma_allocator *allocator)
++{
++	if (src == NULL || dest == NULL)
++		return LZMA_PROG_ERROR;
++
++	lzma_ret ret;
++	size_t i;
++	for (i = 0; src[i].id != LZMA_VLI_UNKNOWN; ++i) {
++		// There must be a maximum of four filters plus
++		// the array terminator.
++		if (i == LZMA_FILTERS_MAX) {
++			ret = LZMA_OPTIONS_ERROR;
++			goto error;
++		}
++
++		dest[i].id = src[i].id;
++
++		if (src[i].options == NULL) {
++			dest[i].options = NULL;
++		} else {
++			// See if the filter is supported only when the
++			// options is not NULL. This might be convenient
++			// sometimes if the app is actually copying only
++			// a partial filter chain with a place holder ID.
++			//
++			// When options is not NULL, the Filter ID must be
++			// supported by us, because otherwise we don't know
++			// how big the options are.
++			size_t j;
++			for (j = 0; src[i].id != features[j].id; ++j) {
++				if (features[j].id == LZMA_VLI_UNKNOWN) {
++					ret = LZMA_OPTIONS_ERROR;
++					goto error;
++				}
++			}
++
++			// Allocate and copy the options.
++			dest[i].options = lzma_alloc(features[j].options_size,
++					allocator);
++			if (dest[i].options == NULL) {
++				ret = LZMA_MEM_ERROR;
++				goto error;
++			}
++
++			memcpy(dest[i].options, src[i].options,
++					features[j].options_size);
++		}
++	}
++
++	// Terminate the filter array.
++	assert(i <= LZMA_FILTERS_MAX + 1);
++	dest[i].id = LZMA_VLI_UNKNOWN;
++	dest[i].options = NULL;
++
++	return LZMA_OK;
++
++error:
++	// Free the options which we have already allocated.
++	while (i-- > 0) {
++		lzma_free(dest[i].options, allocator);
++		dest[i].options = NULL;
++	}
++
++	return ret;
++}
++
++
+ static lzma_ret
+ validate_chain(const lzma_filter *filters, size_t *count)
+ {

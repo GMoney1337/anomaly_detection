@@ -1,0 +1,12 @@
+diff --git a/Makefile.am b/Makefile.am
+index 8342ebb3..507fe333 100644
+--- a/Makefile.am
++++ b/Makefile.am
+@@ -26,6 +26,7 @@ EXTRA_DIST = \
+ 	Doxyfile.in \
+ 	extra \
+ 	doc \
++	windows \
+ 	COPYING.GPLv2 \
+ 	COPYING.GPLv3 \
+ 	COPYING.LGPLv2.1

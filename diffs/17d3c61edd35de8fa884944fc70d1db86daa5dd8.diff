@@ -1,0 +1,50 @@
+diff --git a/Makefile.am b/Makefile.am
+index 9d6cf1ec..34b49fa7 100644
+--- a/Makefile.am
++++ b/Makefile.am
+@@ -32,13 +32,13 @@ EXTRA_DIST = \
+ 	dos \
+ 	windows \
+ 	autogen.sh \
+-	version.sh \
+ 	Doxyfile.in \
+ 	COPYING.GPLv2 \
+ 	COPYING.GPLv3 \
+ 	COPYING.LGPLv2.1 \
+ 	INSTALL.generic \
+-	PACKAGERS
++	PACKAGERS \
++	build-aux/version.sh
+ 
+ ACLOCAL_AMFLAGS = -I m4
+ 
+diff --git a/version.sh b/build-aux/version.sh
+similarity index 100%
+rename from version.sh
+rename to build-aux/version.sh
+diff --git a/configure.ac b/configure.ac
+index 8c61b5da..d616e7b8 100644
+--- a/configure.ac
++++ b/configure.ac
+@@ -17,7 +17,7 @@
+ 
+ AC_PREREQ([2.64])
+ 
+-AC_INIT([XZ Utils], m4_esyscmd([/bin/sh version.sh]),
++AC_INIT([XZ Utils], m4_esyscmd([/bin/sh build-aux/version.sh]),
+ 	[lasse.collin@tukaani.org], [xz], [http://tukaani.org/xz/])
+ AC_CONFIG_SRCDIR([src/liblzma/common/common.h])
+ AC_CONFIG_AUX_DIR([build-aux])
+diff --git a/windows/build.bash b/windows/build.bash
+index e6754358..7119cf6c 100644
+--- a/windows/build.bash
++++ b/windows/build.bash
+@@ -172,7 +172,7 @@ txtcp pkg "" windows/README-Windows.txt
+ 
+ # Create the package. This requires 7z.exe from 7-Zip. If it wasn't found,
+ # this step is skipped and you have to zip it yourself.
+-VER=$(sh version.sh)
++VER=$(sh build-aux/version.sh)
+ cd pkg
+ if [ -x "$SEVENZ_EXE" ]; then
+ 	"$SEVENZ_EXE" a -tzip ../xz-$VER-windows.zip *

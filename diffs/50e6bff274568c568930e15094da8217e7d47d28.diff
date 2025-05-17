@@ -1,0 +1,60 @@
+diff --git a/src/liblzma/check/crc32_table.c b/src/liblzma/check/crc32_table.c
+index c141cefe..56413eec 100644
+--- a/src/liblzma/check/crc32_table.c
++++ b/src/liblzma/check/crc32_table.c
+@@ -34,9 +34,9 @@ typedef void lzma_crc32_dummy;
+ // Having the declaration here silences clang -Wmissing-variable-declarations.
+ extern const uint32_t lzma_crc32_table[8][256];
+ 
+-#       ifdef WORDS_BIGENDIAN
+-#       	include "crc32_table_be.h"
+-#       else
+-#       	include "crc32_table_le.h"
+-#       endif
++#	ifdef WORDS_BIGENDIAN
++#		include "crc32_table_be.h"
++#	else
++#		include "crc32_table_le.h"
++#	endif
+ #endif
+diff --git a/src/liblzma/check/crc_x86_clmul.h b/src/liblzma/check/crc_x86_clmul.h
+index f1254ece..5d5607d1 100644
+--- a/src/liblzma/check/crc_x86_clmul.h
++++ b/src/liblzma/check/crc_x86_clmul.h
+@@ -266,7 +266,7 @@ crc32_arch_optimized(const uint8_t *buf, size_t size, uint32_t crc)
+ 
+ 	__m128i v0, v1, v2;
+ 
+-	crc_simd_body(buf,  size, &v0, &v1, vfold16,
++	crc_simd_body(buf, size, &v0, &v1, vfold16,
+ 			_mm_cvtsi32_si128((int32_t)~crc));
+ 
+ 	v1 = _mm_xor_si128(
+@@ -355,12 +355,12 @@ crc64_arch_optimized(const uint8_t *buf, size_t size, uint64_t crc)
+ 	__m128i v0, v1, v2;
+ 
+ #if defined(__i386__) || defined(_M_IX86)
+-	crc_simd_body(buf,  size, &v0, &v1, vfold16,
++	crc_simd_body(buf, size, &v0, &v1, vfold16,
+ 			_mm_set_epi64x(0, (int64_t)~crc));
+ #else
+ 	// GCC and Clang would produce good code with _mm_set_epi64x
+ 	// but MSVC needs _mm_cvtsi64_si128 on x86-64.
+-	crc_simd_body(buf,  size, &v0, &v1, vfold16,
++	crc_simd_body(buf, size, &v0, &v1, vfold16,
+ 			_mm_cvtsi64_si128((int64_t)~crc));
+ #endif
+ 
+diff --git a/src/liblzma/check/sha256.c b/src/liblzma/check/sha256.c
+index bd0d2806..c067a3a6 100644
+--- a/src/liblzma/check/sha256.c
++++ b/src/liblzma/check/sha256.c
+@@ -21,7 +21,7 @@
+ static inline uint32_t
+ rotr_32(uint32_t num, unsigned amount)
+ {
+-        return (num >> amount) | (num << (32 - amount));
++	return (num >> amount) | (num << (32 - amount));
+ }
+ 
+ #define blk0(i) (W[i] = conv32be(data[i]))

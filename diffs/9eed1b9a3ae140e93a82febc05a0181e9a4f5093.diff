@@ -1,0 +1,20 @@
+diff --git a/tests/test_microlzma.c b/tests/test_microlzma.c
+index 0fba9192..43594a0a 100644
+--- a/tests/test_microlzma.c
++++ b/tests/test_microlzma.c
+@@ -1,3 +1,5 @@
++// SPDX-License-Identifier: 0BSD
++
+ ///////////////////////////////////////////////////////////////////////////////
+ //
+ /// \file       test_microlzma.c
+@@ -5,9 +7,6 @@
+ //
+ //  Author:     Jia Tan
+ //
+-//  This file has been put into the public domain.
+-//  You can do whatever you want with this file.
+-//
+ ///////////////////////////////////////////////////////////////////////////////
+ 
+ #include "tests.h"

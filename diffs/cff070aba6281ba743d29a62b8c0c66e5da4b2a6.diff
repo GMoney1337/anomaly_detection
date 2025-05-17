@@ -1,0 +1,14 @@
+diff --git a/src/scripts/xzgrep.in b/src/scripts/xzgrep.in
+index 9e25b53a..d8e9bb58 100644
+--- a/src/scripts/xzgrep.in
++++ b/src/scripts/xzgrep.in
+@@ -195,7 +195,8 @@ for i; do
+     fi >&3 5>&-
+   )
+   r=$?
+-  test "$xz_status" -eq 0 || test "$xz_status" -eq 2 || r=2
++  test "$xz_status" -eq 0 || test "$xz_status" -eq 2 \
++      || test "$(kill -l "$xz_status" 2> /dev/null)" = "PIPE" || r=2
+   test $res -lt $r && res=$r
+ done
+ exit $res

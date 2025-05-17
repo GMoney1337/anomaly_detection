@@ -1,0 +1,17 @@
+diff --git a/po/POTFILES.in b/po/POTFILES.in
+index 4d1299a3..ee430c5c 100644
+--- a/po/POTFILES.in
++++ b/po/POTFILES.in
+@@ -1,10 +1,10 @@
+ # List of source files which contain translatable strings.
+ src/xz/args.c
++src/xz/coder.c
++src/xz/file_io.c
+ src/xz/hardware.c
+-src/xz/io.c
+ src/xz/main.c
+ src/xz/message.c
+ src/xz/options.c
+-src/xz/process.c
+ src/xz/suffix.c
+ src/xz/util.c

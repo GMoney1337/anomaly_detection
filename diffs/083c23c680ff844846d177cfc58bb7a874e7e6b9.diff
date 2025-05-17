@@ -1,0 +1,118 @@
+diff --git a/src/liblzma/api/lzma/block.h b/src/liblzma/api/lzma/block.h
+index 566edce1..ab2bb5bf 100644
+--- a/src/liblzma/api/lzma/block.h
++++ b/src/liblzma/api/lzma/block.h
+@@ -207,6 +207,23 @@ typedef struct {
+ 	 */
+ 	lzma_filter *filters;
+ 
++	/**
++	 * \brief       Raw value stored in the Check field
++	 *
++	 * After successful coding, the first lzma_check_size(check) bytes
++	 * of this array contain the raw value stored in the Check field.
++	 *
++	 * Note that CRC32 and CRC64 are stored in little endian byte order.
++	 * Take it into account if you display the Check values to the user.
++	 *
++	 * Written by:
++	 *  - lzma_block_encoder()
++	 *  - lzma_block_decoder()
++	 *  - lzma_block_buffer_encode()
++	 *  - lzma_block_buffer_decode()
++	 */
++	uint8_t raw_check[64];
++
+ 	/*
+ 	 * Reserved space to allow possible future extensions without
+ 	 * breaking the ABI. You should not touch these, because the names
+diff --git a/src/liblzma/common/block_buffer_encoder.c b/src/liblzma/common/block_buffer_encoder.c
+index ef6aeb82..4d90feef 100644
+--- a/src/liblzma/common/block_buffer_encoder.c
++++ b/src/liblzma/common/block_buffer_encoder.c
+@@ -290,6 +290,7 @@ lzma_block_buffer_encode(lzma_block *block, lzma_allocator *allocator,
+ 		lzma_check_update(&check, block->check, in, in_size);
+ 		lzma_check_finish(&check, block->check);
+ 
++		memcpy(block->raw_check, check.buffer.u8, check_size);
+ 		memcpy(out + *out_pos, check.buffer.u8, check_size);
+ 		*out_pos += check_size;
+ 	}
+diff --git a/src/liblzma/common/block_decoder.c b/src/liblzma/common/block_decoder.c
+index 9b998e63..a3ce6f49 100644
+--- a/src/liblzma/common/block_decoder.c
++++ b/src/liblzma/common/block_decoder.c
+@@ -146,26 +146,22 @@ block_decode(lzma_coder *coder, lzma_allocator *allocator,
+ 	// Fall through
+ 
+ 	case SEQ_CHECK: {
+-		const bool chksup = lzma_check_is_supported(
+-				coder->block->check);
+-
+-		while (*in_pos < in_size) {
+-			// coder->check.buffer[] may be uninitialized when
+-			// the Check ID is not supported.
+-			if (chksup && coder->check.buffer.u8[coder->check_pos]
+-					!= in[*in_pos]) {
+-				++*in_pos;
+-				return LZMA_DATA_ERROR;
+-			}
+-
+-			++*in_pos;
+-
+-			if (++coder->check_pos == lzma_check_size(
+-					coder->block->check))
+-				return LZMA_STREAM_END;
+-		}
++		const size_t check_size = lzma_check_size(coder->block->check);
++		lzma_bufcpy(in, in_pos, in_size, coder->block->raw_check,
++				&coder->check_pos, check_size);
++		if (coder->check_pos < check_size)
++			return LZMA_OK;
++
++		// Validate the Check only if we support it.
++		// coder->check.buffer may be uninitialized
++		// when the Check ID is not supported.
++		if (lzma_check_is_supported(coder->block->check)
++				&& memcmp(coder->block->raw_check,
++					coder->check.buffer.u8,
++					check_size) != 0)
++			return LZMA_DATA_ERROR;
+ 
+-		return LZMA_OK;
++		return LZMA_STREAM_END;
+ 	}
+ 	}
+ 
+diff --git a/src/liblzma/common/block_encoder.c b/src/liblzma/common/block_encoder.c
+index 0d7b3ef2..567889aa 100644
+--- a/src/liblzma/common/block_encoder.c
++++ b/src/liblzma/common/block_encoder.c
+@@ -117,18 +117,15 @@ block_encode(lzma_coder *coder, lzma_allocator *allocator,
+ 	// Fall through
+ 
+ 	case SEQ_CHECK: {
+-		const uint32_t check_size
+-				= lzma_check_size(coder->block->check);
+-
+-		while (*out_pos < out_size) {
+-			out[*out_pos] = coder->check.buffer.u8[coder->pos];
+-			++*out_pos;
+-
+-			if (++coder->pos == check_size)
+-				return LZMA_STREAM_END;
+-		}
+-
+-		return LZMA_OK;
++		const size_t check_size = lzma_check_size(coder->block->check);
++		lzma_bufcpy(coder->check.buffer.u8, &coder->pos, check_size,
++				out, out_pos, out_size);
++		if (coder->pos < check_size)
++			return LZMA_OK;
++
++		memcpy(coder->block->raw_check, coder->check.buffer.u8,
++				check_size);
++		return LZMA_STREAM_END;
+ 	}
+ 	}
+ 

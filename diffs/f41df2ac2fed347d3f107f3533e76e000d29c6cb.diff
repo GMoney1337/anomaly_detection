@@ -1,0 +1,38 @@
+diff --git a/src/common/tuklib_integer.h b/src/common/tuklib_integer.h
+index 21256955..aee1ad0d 100644
+--- a/src/common/tuklib_integer.h
++++ b/src/common/tuklib_integer.h
+@@ -52,6 +52,12 @@
+ // and such functions.
+ #if defined(__INTEL_COMPILER) && (__INTEL_COMPILER >= 1500)
+ #	include <immintrin.h>
++// Only include <intrin.h> when it is needed. GCC and Clang can both
++// use __builtin's, so we only need Windows instrincs when using MSVC.
++// GCC and Clang can set _MSC_VER on Windows, so we need to exclude these
++// cases explicitly.
++#elif defined(_MSC_VER) && !TUKLIB_GNUC_REQ(3, 4) && !defined(__clang__)
++#	include <intrin.h>
+ #endif
+ 
+ 
+diff --git a/src/liblzma/common/memcmplen.h b/src/liblzma/common/memcmplen.h
+index 5372cfa8..db3fff60 100644
+--- a/src/liblzma/common/memcmplen.h
++++ b/src/liblzma/common/memcmplen.h
+@@ -19,6 +19,16 @@
+ #	include <immintrin.h>
+ #endif
+ 
++// Only include <intrin.h> if it is needed. The header is only needed
++// on Windows when using an MSVC compatible compiler. The Intel compiler
++// can use the intrinsics without the header file.
++#if defined(TUKLIB_FAST_UNALIGNED_ACCESS) \
++		&& (defined(_MSC_VER) \
++		&& defined(_M_X64) \
++		&& !defined(__INTEL_COMPILER))
++#	include <intrin.h>
++#endif
++
+ 
+ /// Find out how many equal bytes the two buffers have.
+ ///

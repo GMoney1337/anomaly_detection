@@ -1,0 +1,30 @@
+diff --git a/src/liblzma/check/Makefile.am b/src/liblzma/check/Makefile.am
+index f00d71a0..e436cb59 100644
+--- a/src/liblzma/check/Makefile.am
++++ b/src/liblzma/check/Makefile.am
+@@ -23,7 +23,7 @@ libcheck_la_CPPFLAGS = \
+ if COND_CHECK_CRC32
+ 
+ if COND_ASM_X86
+-libcheck_la_SOURCES += crc32_x86.s
++libcheck_la_SOURCES += crc32_x86.S
+ else
+ libcheck_la_SOURCES += crc32.c
+ endif
+@@ -40,7 +40,7 @@ endif
+ if COND_CHECK_CRC64
+ 
+ if COND_ASM_X86
+-libcheck_la_SOURCES += crc64_x86.s
++libcheck_la_SOURCES += crc64_x86.S
+ else
+ libcheck_la_SOURCES += crc64.c
+ endif
+diff --git a/src/liblzma/check/crc32_x86.s b/src/liblzma/check/crc32_x86.S
+similarity index 100%
+rename from src/liblzma/check/crc32_x86.s
+rename to src/liblzma/check/crc32_x86.S
+diff --git a/src/liblzma/check/crc64_x86.s b/src/liblzma/check/crc64_x86.S
+similarity index 100%
+rename from src/liblzma/check/crc64_x86.s
+rename to src/liblzma/check/crc64_x86.S

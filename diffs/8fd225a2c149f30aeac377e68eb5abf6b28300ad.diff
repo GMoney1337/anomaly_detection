@@ -1,0 +1,12 @@
+diff --git a/src/liblzma/simple/arm64.c b/src/liblzma/simple/arm64.c
+index 5e7f2656..0fe0824e 100644
+--- a/src/liblzma/simple/arm64.c
++++ b/src/liblzma/simple/arm64.c
+@@ -14,6 +14,7 @@
+ //
+ //  Authors:    Lasse Collin
+ //              Jia Tan
++//              Igor Pavlov
+ //
+ //  This file has been put into the public domain.
+ //  You can do whatever you want with this file.

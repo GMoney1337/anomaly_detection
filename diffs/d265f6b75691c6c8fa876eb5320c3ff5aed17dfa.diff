@@ -1,0 +1,12 @@
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+index f91d2772..284f78cd 100644
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -1363,7 +1363,6 @@ if(BUILD_TESTING)
+             src/common
+             src/liblzma/api
+             src/liblzma
+-            lib
+         )
+ 
+         target_link_libraries("${TEST}" PRIVATE liblzma)

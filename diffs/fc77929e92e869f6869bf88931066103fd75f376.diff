@@ -1,0 +1,13 @@
+diff --git a/configure.ac b/configure.ac
+index 9786a3b4..5cd9ca6e 100644
+--- a/configure.ac
++++ b/configure.ac
+@@ -683,7 +683,7 @@ TUKLIB_PHYSMEM
+ TUKLIB_CPUCORES
+ TUKLIB_MBSTR
+ 
+-# If requsted, check for system-provided SHA-256. At least the following
++# If requested, check for system-provided SHA-256. At least the following
+ # implementations are supported:
+ #
+ # OS       Headers                     Library  Type           Function

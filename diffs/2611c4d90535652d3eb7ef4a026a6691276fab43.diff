@@ -1,0 +1,38 @@
+diff --git a/m4/tuklib_cpucores.m4 b/m4/tuklib_cpucores.m4
+index 63063982..873812d6 100644
+--- a/m4/tuklib_cpucores.m4
++++ b/m4/tuklib_cpucores.m4
+@@ -102,7 +102,12 @@ compile error
+ int
+ main(void)
+ {
++#ifdef HW_NCPUONLINE
++	/* This is preferred on OpenBSD, see tuklib_cpucores.c. */
++	int name[2] = { CTL_HW, HW_NCPUONLINE };
++#else
+ 	int name[2] = { CTL_HW, HW_NCPU };
++#endif
+ 	int cpus;
+ 	size_t cpus_size = sizeof(cpus);
+ 	sysctl(name, 2, &cpus, &cpus_size, NULL, 0);
+diff --git a/src/common/tuklib_cpucores.c b/src/common/tuklib_cpucores.c
+index cc968dd2..bb3f2f75 100644
+--- a/src/common/tuklib_cpucores.c
++++ b/src/common/tuklib_cpucores.c
+@@ -72,7 +72,16 @@ tuklib_cpucores(void)
+ 	}
+ 
+ #elif defined(TUKLIB_CPUCORES_SYSCTL)
++	// On OpenBSD HW_NCPUONLINE tells the number of processor cores that
++	// are online so it is preferred over HW_NCPU which also counts cores
++	// that aren't currently available. The number of cores online is
++	// often less than HW_NCPU because OpenBSD disables simultaneous
++	// multi-threading (SMT) by default.
++#	ifdef HW_NCPUONLINE
++	int name[2] = { CTL_HW, HW_NCPUONLINE };
++#	else
+ 	int name[2] = { CTL_HW, HW_NCPU };
++#	endif
+ 	int cpus;
+ 	size_t cpus_size = sizeof(cpus);
+ 	if (sysctl(name, 2, &cpus, &cpus_size, NULL, 0) != -1

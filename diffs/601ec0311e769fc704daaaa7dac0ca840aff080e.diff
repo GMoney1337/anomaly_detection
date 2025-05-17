@@ -1,0 +1,423 @@
+diff --git a/src/liblzma/api/lzma/container.h b/src/liblzma/api/lzma/container.h
+index 9fbf4df0..581f3507 100644
+--- a/src/liblzma/api/lzma/container.h
++++ b/src/liblzma/api/lzma/container.h
+@@ -444,6 +444,55 @@ extern LZMA_API(lzma_ret) lzma_stream_buffer_encode(
+ 		lzma_nothrow lzma_attr_warn_unused_result;
+ 
+ 
++/**
++ * \brief       EROFS LZMA encoder
++ *
++ * The EROFS LZMA format is a raw LZMA stream whose first byte (always 0x00)
++ * has been replaced with bitwise-negation of the LZMA properties (lc/lp/pb).
++ * This encoding ensures that the first byte of EROFS LZMA stream is never
++ * 0x00. There is no end of payload marker and thus the uncompressed size
++ * must be stored separately. For the best error detection the dictionary
++ * size should be stored separately as well but alternatively one may use
++ * the uncompressed size as the dictionary size when decoding.
++ *
++ * With the EROFS LZMA encoder, lzma_code() behaves slightly unusually.
++ * The action argument must be LZMA_FINISH and the return value cannot be
++ * LZMA_OK. Thus the encoding is always done with a single lzma_code() after
++ * the initialization. The benefit of the combination of initialization
++ * function and lzma_code() is that memory allocations can be re-used for
++ * better performance.
++ *
++ * lzma_code() will try to encode as much input as is possible to fit into
++ * the given output buffer. If not all input can be encoded, the stream will
++ * be finished without encoding all the input. The caller must check both
++ * input and output buffer usage after lzma_code() (total_in and total_out
++ * in lzma_stream can be convenient). Often lzma_code() can fill the output
++ * buffer completely if there is a lot of input, but sometimes a few bytes
++ * may remain unused because the next LZMA symbol would require more space.
++ *
++ * lzma_stream.avail_out must be at least 6. Otherwise LZMA_PROG_ERROR
++ * will be returned.
++ *
++ * The LZMA dictionary should be reasonably low to speed up the encoder
++ * re-initialization. A good value is bigger than the resulting
++ * uncompressed size of most of the output chunks. For example, if output
++ * size is 4 KiB, dictionary size of 32 KiB or 64 KiB is good. If the
++ * data compresses extremely well, even 128 KiB may be useful.
++ *
++ * \return      - LZMA_STREAM_END: All good. Check the amounts of input used
++ *                and output produced. Store the amount of input used
++ *                (uncompressed size) as it needs to be known to decompress
++ *                the data.
++ *              - LZMA_OPTIONS_ERROR
++ *              - LZMA_MEM_ERROR
++ *              - LZMA_PROG_ERROR: In addition to the generic reasons for this
++ *                error code, this may also be returned if there isn't enough
++ *                output space (6 bytes) to create a valid EROFS LZMA stream.
++ */
++extern LZMA_API(lzma_ret) lzma_erofs_encoder(
++		lzma_stream *strm, const lzma_options_lzma *options);
++
++
+ /************
+  * Decoding *
+  ************/
+@@ -630,3 +679,30 @@ extern LZMA_API(lzma_ret) lzma_stream_buffer_decode(
+ 		const uint8_t *in, size_t *in_pos, size_t in_size,
+ 		uint8_t *out, size_t *out_pos, size_t out_size)
+ 		lzma_nothrow lzma_attr_warn_unused_result;
++
++
++/**
++ * \brief       EROFS LZMA decoder
++ *
++ * See lzma_erofs_decoder() for more information.
++ *
++ * The lzma_code() usage with this decoder is completely normal.
++ * The special behavior of lzma_code() applies to lzma_erofs_encoder() only.
++ *
++ * \param       strm        Pointer to properly prepared lzma_stream
++ * \param       uncomp_size Uncompressed size of the EROFS LZMA stream.
++ *                          The caller must somehow know this. Note that
++ *                          while the EROFS LZMA decoder in XZ Embedded needs
++ *                          also the compressed size, the implementation in
++ *                          liblzma doesn't need to know the compressed size.
++ * \param       dict_size   LZMA dictionary size that was used when
++ *                          compressing the data. It is OK to use a bigger
++ *                          value too but liblzma will then allocate more
++ *                          memory than would actually be required and error
++ *                          detection will be slightly worse. (Note that with
++ *                          the implementation in XZ Embedded it doesn't
++ *                          affect the memory usage if one specifies bigger
++ *                          dictionary than actually required.)
++ */
++extern LZMA_API(lzma_ret) lzma_erofs_decoder(
++		lzma_stream *strm, uint64_t uncomp_size, uint32_t dict_size);
+diff --git a/src/liblzma/common/Makefile.inc b/src/liblzma/common/Makefile.inc
+index 0408f9a4..8205eb7f 100644
+--- a/src/liblzma/common/Makefile.inc
++++ b/src/liblzma/common/Makefile.inc
+@@ -36,6 +36,7 @@ liblzma_la_SOURCES += \
+ 	common/easy_buffer_encoder.c \
+ 	common/easy_encoder.c \
+ 	common/easy_encoder_memusage.c \
++	common/erofs_encoder.c \
+ 	common/filter_buffer_encoder.c \
+ 	common/filter_encoder.c \
+ 	common/filter_encoder.h \
+@@ -65,6 +66,7 @@ liblzma_la_SOURCES += \
+ 	common/block_decoder.h \
+ 	common/block_header_decoder.c \
+ 	common/easy_decoder_memusage.c \
++	common/erofs_decoder.c \
+ 	common/file_info.c \
+ 	common/filter_buffer_decoder.c \
+ 	common/filter_decoder.c \
+diff --git a/src/liblzma/common/erofs_decoder.c b/src/liblzma/common/erofs_decoder.c
+new file mode 100644
+index 00000000..ef584373
+--- /dev/null
++++ b/src/liblzma/common/erofs_decoder.c
+@@ -0,0 +1,148 @@
++///////////////////////////////////////////////////////////////////////////////
++//
++/// \file       erofs_decoder.c
++/// \brief      Decode EROFS LZMA format
++//
++//  Author:     Lasse Collin
++//
++//  This file has been put into the public domain.
++//  You can do whatever you want with this file.
++//
++///////////////////////////////////////////////////////////////////////////////
++
++#include "lzma_decoder.h"
++#include "lz_decoder.h"
++
++
++typedef struct {
++	/// LZMA1 decoder
++	lzma_next_coder lzma;
++
++	/// Uncompressed size of the stream as given by the application
++	lzma_vli uncomp_size;
++
++	/// LZMA dictionary size as given by the application
++	uint32_t dict_size;
++
++	/// True once the first byte of the EROFS LZMA stream
++	/// has been processed.
++	bool props_decoded;
++} lzma_erofs_coder;
++
++
++static lzma_ret
++erofs_decode(void *coder_ptr, const lzma_allocator *allocator,
++		const uint8_t *restrict in, size_t *restrict in_pos,
++		size_t in_size, uint8_t *restrict out,
++		size_t *restrict out_pos, size_t out_size, lzma_action action)
++{
++	lzma_erofs_coder *coder = coder_ptr;
++
++	if (!coder->props_decoded) {
++		// There must be at least one byte of input to decode
++		// the properties byte.
++		if (*in_pos >= in_size)
++			return LZMA_OK;
++
++		lzma_options_lzma options = {
++			.preset_dict = NULL,
++			.preset_dict_size = 0,
++		};
++
++		// The properties are stored as bitwise-negation
++		// of the typical encoding.
++		if (lzma_lzma_lclppb_decode(&options, ~in[*in_pos]))
++			return LZMA_OPTIONS_ERROR;
++
++		++*in_pos;
++
++		// Initialize the decoder.
++		options.dict_size = coder->dict_size;
++		lzma_filter_info filters[2] = {
++			{
++				.init = &lzma_lzma_decoder_init,
++				.options = &options,
++			}, {
++				.init = NULL,
++			}
++		};
++
++		return_if_error(lzma_next_filter_init(&coder->lzma,
++				allocator, filters));
++
++		// Use a hack to set the uncompressed size.
++		lzma_lz_decoder_uncompressed(coder->lzma.coder,
++				coder->uncomp_size);
++
++		// Pass one dummy 0x00 byte to the LZMA decoder since that
++		// is what it expects the first byte to be.
++		const uint8_t dummy_in = 0;
++		size_t dummy_in_pos = 0;
++		if (coder->lzma.code(coder->lzma.coder, allocator,
++				&dummy_in, &dummy_in_pos, 1,
++				out, out_pos, out_size, LZMA_RUN) != LZMA_OK)
++			return LZMA_PROG_ERROR;
++
++		assert(dummy_in_pos == 1);
++		coder->props_decoded = true;
++	}
++
++	// The rest is normal LZMA decoding.
++	return coder->lzma.code(coder->lzma.coder, allocator,
++				in, in_pos, in_size,
++				out, out_pos, out_size, action);
++}
++
++
++static void
++erofs_decoder_end(void *coder_ptr, const lzma_allocator *allocator)
++{
++	lzma_erofs_coder *coder = coder_ptr;
++	lzma_next_end(&coder->lzma, allocator);
++	lzma_free(coder, allocator);
++	return;
++}
++
++
++static lzma_ret
++erofs_decoder_init(lzma_next_coder *next, const lzma_allocator *allocator,
++		uint64_t uncomp_size, uint32_t dict_size)
++{
++	lzma_next_coder_init(&erofs_decoder_init, next, allocator);
++
++	lzma_erofs_coder *coder = next->coder;
++
++	if (coder == NULL) {
++		coder = lzma_alloc(sizeof(lzma_erofs_coder), allocator);
++		if (coder == NULL)
++			return LZMA_MEM_ERROR;
++
++		next->coder = coder;
++		next->code = &erofs_decode;
++		next->end = &erofs_decoder_end;
++
++		coder->lzma = LZMA_NEXT_CODER_INIT;
++	}
++
++	if (uncomp_size > LZMA_VLI_MAX)
++		return LZMA_OPTIONS_ERROR;
++
++	coder->uncomp_size = uncomp_size;
++	coder->dict_size = dict_size;
++
++	coder->props_decoded = false;
++
++	return LZMA_OK;
++}
++
++
++extern LZMA_API(lzma_ret)
++lzma_erofs_decoder(lzma_stream *strm, uint64_t uncomp_size, uint32_t dict_size)
++{
++	lzma_next_strm_init(erofs_decoder_init, strm, uncomp_size, dict_size);
++
++	strm->internal->supported_actions[LZMA_RUN] = true;
++	strm->internal->supported_actions[LZMA_FINISH] = true;
++
++	return LZMA_OK;
++}
+diff --git a/src/liblzma/common/erofs_encoder.c b/src/liblzma/common/erofs_encoder.c
+new file mode 100644
+index 00000000..4cdd08f1
+--- /dev/null
++++ b/src/liblzma/common/erofs_encoder.c
+@@ -0,0 +1,139 @@
++///////////////////////////////////////////////////////////////////////////////
++//
++/// \file       erofs_encoder.c
++/// \brief      Encode into EROFS LZMA format
++//
++//  Author:     Lasse Collin
++//
++//  This file has been put into the public domain.
++//  You can do whatever you want with this file.
++//
++///////////////////////////////////////////////////////////////////////////////
++
++#include "lzma_encoder.h"
++
++
++typedef struct {
++	/// LZMA1 encoder
++	lzma_next_coder lzma;
++
++	/// LZMA properties byte (lc/lp/pb)
++	uint8_t props;
++} lzma_erofs_coder;
++
++
++static lzma_ret
++erofs_encode(void *coder_ptr, const lzma_allocator *allocator,
++		const uint8_t *restrict in, size_t *restrict in_pos,
++		size_t in_size, uint8_t *restrict out,
++		size_t *restrict out_pos, size_t out_size, lzma_action action)
++{
++	lzma_erofs_coder *coder = coder_ptr;
++
++	// Remember *out_pos so that we can overwrite the first byte with
++	// the LZMA properties byte.
++	const size_t out_start = *out_pos;
++
++	// Remember *in_pos so that we can set it based on how many
++	// uncompressed bytes were actually encoded.
++	const size_t in_start = *in_pos;
++
++	// Set the output size limit based on the available output space.
++	// We know that the encoder supports set_out_limit() so
++	// LZMA_OPTIONS_ERROR isn't possible. LZMA_BUF_ERROR is possible
++	// but lzma_code() has an assertion to not allow it to be returned
++	// from here and I don't want to change that for now, so
++	// LZMA_BUF_ERROR becomes LZMA_PROG_ERROR.
++	uint64_t uncomp_size;
++	if (coder->lzma.set_out_limit(coder->lzma.coder,
++			&uncomp_size, out_size - *out_pos) != LZMA_OK)
++		return LZMA_PROG_ERROR;
++
++	// set_out_limit fails if this isn't true.
++	assert(out_size - *out_pos >= 6);
++
++	// Encode as much as possible.
++	const lzma_ret ret = coder->lzma.code(coder->lzma.coder, allocator,
++			in, in_pos, in_size, out, out_pos, out_size, action);
++
++	if (ret != LZMA_STREAM_END) {
++		if (ret == LZMA_OK) {
++			assert(0);
++			return LZMA_PROG_ERROR;
++		}
++
++		return ret;
++	}
++
++	// The first output byte is bitwise-negation of the properties byte.
++	// We know that there is space for this byte because set_out_limit
++	// and the actual encoding succeeded.
++	out[out_start] = (uint8_t)(~coder->props);
++
++	// The LZMA encoder likely read more input than it was able to encode.
++	// Set *in_pos based on uncomp_size.
++	assert(uncomp_size <= in_size - in_start);
++	*in_pos = in_start + (size_t)(uncomp_size);
++
++	return ret;
++}
++
++
++static void
++erofs_encoder_end(void *coder_ptr, const lzma_allocator *allocator)
++{
++	lzma_erofs_coder *coder = coder_ptr;
++	lzma_next_end(&coder->lzma, allocator);
++	lzma_free(coder, allocator);
++	return;
++}
++
++
++static lzma_ret
++erofs_encoder_init(lzma_next_coder *next, const lzma_allocator *allocator,
++		const lzma_options_lzma *options)
++{
++	lzma_next_coder_init(&erofs_encoder_init, next, allocator);
++
++	lzma_erofs_coder *coder = next->coder;
++
++	if (coder == NULL) {
++		coder = lzma_alloc(sizeof(lzma_erofs_coder), allocator);
++		if (coder == NULL)
++			return LZMA_MEM_ERROR;
++
++		next->coder = coder;
++		next->code = &erofs_encode;
++		next->end = &erofs_encoder_end;
++
++		coder->lzma = LZMA_NEXT_CODER_INIT;
++	}
++
++	// Encode the properties byte. Bitwise-negation of it will be the
++	// first output byte.
++	return_if_error(lzma_lzma_lclppb_encode(options, &coder->props));
++
++	// Initialize the LZMA encoder.
++	const lzma_filter_info filters[2] = {
++		{
++			.init = &lzma_lzma_encoder_init,
++			.options = (void *)(options),
++		}, {
++			.init = NULL,
++		}
++	};
++
++	return lzma_next_filter_init(&coder->lzma, allocator, filters);
++}
++
++
++extern LZMA_API(lzma_ret)
++lzma_erofs_encoder(lzma_stream *strm, const lzma_options_lzma *options)
++{
++	lzma_next_strm_init(erofs_encoder_init, strm, options);
++
++	strm->internal->supported_actions[LZMA_FINISH] = true;
++
++	return LZMA_OK;
++
++}
+diff --git a/src/liblzma/liblzma.map b/src/liblzma/liblzma.map
+index bad8633c..251ef022 100644
+--- a/src/liblzma/liblzma.map
++++ b/src/liblzma/liblzma.map
+@@ -106,6 +106,8 @@ global:
+ 
+ XZ_5.3.1alpha {
+ global:
++	lzma_erofs_decoder;
++	lzma_erofs_encoder;
+ 	lzma_file_info_decoder;
+ 
+ local:

@@ -1,0 +1,183 @@
+diff --git a/src/xz/util.c b/src/xz/util.c
+index dd95fa7a..deb5dcc2 100644
+--- a/src/xz/util.c
++++ b/src/xz/util.c
+@@ -65,39 +65,32 @@ str_to_uint64(const char *name, const char *value, uint64_t min, uint64_t max)
+ 	} while (*value >= '0' && *value <= '9');
+ 
+ 	if (*value != '\0') {
+-		// Look for suffix.
+-		static const struct {
+-			const char name[4];
+-			uint64_t multiplier;
+-		} suffixes[] = {
+-			{ "k",   UINT64_C(1000) },
+-			{ "kB",  UINT64_C(1000) },
+-			{ "M",   UINT64_C(1000000) },
+-			{ "MB",  UINT64_C(1000000) },
+-			{ "G",   UINT64_C(1000000000) },
+-			{ "GB",  UINT64_C(1000000000) },
+-			{ "Ki",  UINT64_C(1024) },
+-			{ "KiB", UINT64_C(1024) },
+-			{ "Mi",  UINT64_C(1048576) },
+-			{ "MiB", UINT64_C(1048576) },
+-			{ "Gi",  UINT64_C(1073741824) },
+-			{ "GiB", UINT64_C(1073741824) }
+-		};
+-
++		// Look for suffix. Originally this supported both base-2
++		// and base-10, but since there seems to be little need
++		// for base-10 in this program, treat everything as base-2
++		// and also be more relaxed about the case of the first
++		// letter of the suffix.
+ 		uint64_t multiplier = 0;
+-		for (size_t i = 0; i < ARRAY_SIZE(suffixes); ++i) {
+-			if (strcmp(value, suffixes[i].name) == 0) {
+-				multiplier = suffixes[i].multiplier;
+-				break;
+-			}
+-		}
++		if (*value == 'k' || *value == 'K')
++			multiplier = UINT64_C(1) << 10;
++		else if (*value == 'm' || *value == 'M')
++			multiplier = UINT64_C(1) << 20;
++		else if (*value == 'g' || *value == 'G')
++			multiplier = UINT64_C(1) << 30;
++
++		++value;
++
++		// Allow also e.g. Ki, KiB, and KB.
++		if (*value != '\0' && strcmp(value, "i") != 0
++				&& strcmp(value, "iB") != 0
++				&& strcmp(value, "B") != 0)
++			multiplier = 0;
+ 
+ 		if (multiplier == 0) {
+-			message(V_ERROR, _("%s: Invalid multiplier suffix. "
+-					"Valid suffixes:"), value);
+-			message_fatal("`k' (10^3), `M' (10^6), `G' (10^9) "
+-					"`Ki' (2^10), `Mi' (2^20), "
+-					"`Gi' (2^30)");
++			message(V_ERROR, _("%s: Invalid multiplier suffix"),
++					value - 1);
++			message_fatal(_("Valid suffixes are `KiB' (2^10), "
++					"`MiB' (2^20), and `GiB' (2^30)."));
+ 		}
+ 
+ 		// Don't overflow here either.
+diff --git a/src/xz/xz.1 b/src/xz/xz.1
+index aba0a693..b60353d0 100644
+--- a/src/xz/xz.1
++++ b/src/xz/xz.1
+@@ -238,28 +238,36 @@ In most places where an integer argument is expected, an optional suffix
+ is supported to easily indicate large integers. There must be no space
+ between the integer and the suffix.
+ .TP
+-.BR k " or " kB
+-The integer is multiplied by 1,000 (10^3). For example,
+-.B "5k"
+-or
+-.B "5kB"
+-equals
+-.BR "5000" .
+-.TP
+-.BR Ki " or " KiB
+-The integer is multiplied by 1,024 (2^10).
+-.TP
+-.BR M " or " MB
+-The integer is multiplied by 1,000,000 (10^6).
+-.TP
+-.BR Mi " or " MiB
+-The integer is multiplied by 1,048,576 (2^20).
++.B KiB
++The integer is multiplied by 1,024 (2^10). Also
++.BR Ki ,
++.BR k ,
++.BR kB ,
++.BR K ,
++and
++.B KB
++are accepted as synonyms for
++.BR KiB .
+ .TP
+-.BR G " or " GB
+-The integer is multiplied by 1,000,000,000 (10^9).
++.B MiB
++The integer is multiplied by 1,048,576 (2^20). Also
++.BR Mi ,
++.BR m ,
++.BR M ,
++and
++.B MB
++are accepted as synonyms for
++.BR MiB .
+ .TP
+-.BR Gi " or " GiB
+-The integer is multiplied by 1,073,741,824 (2^30).
++.B GiB
++The integer is multiplied by 1,073,741,824 (2^30). Also
++.BR Gi ,
++.BR g ,
++.BR G ,
++and
++.B GB
++are accepted as synonyms for
++.BR GiB .
+ .PP
+ A special value
+ .B max
+diff --git a/src/xzdec/xzdec.c b/src/xzdec/xzdec.c
+index 3b1ab0f1..8518d362 100644
+--- a/src/xzdec/xzdec.c
++++ b/src/xzdec/xzdec.c
+@@ -183,34 +183,24 @@ str_to_uint64(const char *value, uint64_t max)
+ 
+ 	if (*value != '\0') {
+ 		// Look for suffix.
+-		static const struct {
+-			const char name[4];
+-			uint32_t multiplier;
+-		} suffixes[] = {
+-			{ "k",   1000 },
+-			{ "kB",  1000 },
+-			{ "M",   1000000 },
+-			{ "MB",  1000000 },
+-			{ "G",   1000000000 },
+-			{ "GB",  1000000000 },
+-			{ "Ki",  1024 },
+-			{ "KiB", 1024 },
+-			{ "Mi",  1048576 },
+-			{ "MiB", 1048576 },
+-			{ "Gi",  1073741824 },
+-			{ "GiB", 1073741824 }
+-		};
+-
+-		uint32_t multiplier = 0;
+-		for (size_t i = 0; i < ARRAY_SIZE(suffixes); ++i) {
+-			if (strcmp(value, suffixes[i].name) == 0) {
+-				multiplier = suffixes[i].multiplier;
+-				break;
+-			}
+-		}
++		uint64_t multiplier = 0;
++		if (*value == 'k' || *value == 'K')
++			multiplier = UINT64_C(1) << 10;
++		else if (*value == 'm' || *value == 'M')
++			multiplier = UINT64_C(1) << 20;
++		else if (*value == 'g' || *value == 'G')
++			multiplier = UINT64_C(1) << 30;
++
++		++value;
++
++		// Allow also e.g. Ki, KiB, and KB.
++		if (*value != '\0' && strcmp(value, "i") != 0
++				&& strcmp(value, "iB") != 0
++				&& strcmp(value, "B") != 0)
++			multiplier = 0;
+ 
+ 		if (multiplier == 0) {
+-			my_errorf("%s: Invalid suffix", value);
++			my_errorf("%s: Invalid suffix", value - 1);
+ 			exit(EXIT_FAILURE);
+ 		}
+ 

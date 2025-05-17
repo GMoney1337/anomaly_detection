@@ -1,0 +1,87 @@
+diff --git a/Makefile.am b/Makefile.am
+index 3a634991..e5b1265e 100644
+--- a/Makefile.am
++++ b/Makefile.am
+@@ -64,7 +64,7 @@ EXTRA_DIST = \
+ 
+ ACLOCAL_AMFLAGS = -I m4
+ 
+-# List of man pages to conver to PDF and plain text in the dist-hook target.
++# List of man pages to convert to PDF and plain text in the dist-hook target.
+ manfiles = \
+ 	src/xz/xz.1 \
+ 	src/xzdec/xzdec.1 \
+diff --git a/doc/examples/01_compress_easy.c b/doc/examples/01_compress_easy.c
+index e6dd2b0c..ec32a379 100644
+--- a/doc/examples/01_compress_easy.c
++++ b/doc/examples/01_compress_easy.c
+@@ -173,7 +173,7 @@ compress(lzma_stream *strm, FILE *infile, FILE *outfile)
+ 		lzma_ret ret = lzma_code(strm, action);
+ 
+ 		// If the output buffer is full or if the compression finished
+-		// successfully, write the data from the output bufffer to
++		// successfully, write the data from the output buffer to
+ 		// the output file.
+ 		if (strm->avail_out == 0 || ret == LZMA_STREAM_END) {
+ 			// When lzma_code() has returned LZMA_STREAM_END,
+diff --git a/src/liblzma/api/lzma/base.h b/src/liblzma/api/lzma/base.h
+index 228e8ec4..749e4fe7 100644
+--- a/src/liblzma/api/lzma/base.h
++++ b/src/liblzma/api/lzma/base.h
+@@ -477,7 +477,7 @@ typedef struct lzma_internal_s lzma_internal;
+  *
+  * The lzma_stream structure is used for
+  *  - passing pointers to input and output buffers to liblzma;
+- *  - defining custom memory hander functions; and
++ *  - defining custom memory handler functions; and
+  *  - holding a pointer to coder-specific internal data structures.
+  *
+  * Typical usage:
+diff --git a/src/liblzma/check/crc32_x86.S b/src/liblzma/check/crc32_x86.S
+index 67f68a41..632c7b37 100644
+--- a/src/liblzma/check/crc32_x86.S
++++ b/src/liblzma/check/crc32_x86.S
+@@ -195,7 +195,7 @@ LZMA_CRC32:
+ 
+ 	/*
+ 	 * Read the next four bytes, for which the CRC is calculated
+-	 * on the next interation of the loop.
++	 * on the next iteration of the loop.
+ 	 */
+ 	movl	12(%esi), %ecx
+ 
+diff --git a/src/liblzma/common/index.c b/src/liblzma/common/index.c
+index a41e8f33..86c10544 100644
+--- a/src/liblzma/common/index.c
++++ b/src/liblzma/common/index.c
+@@ -1226,7 +1226,7 @@ lzma_index_iter_locate(lzma_index_iter *iter, lzma_vli target)
+ 
+ 	// Use binary search to locate the exact Record. It is the first
+ 	// Record whose uncompressed_sum is greater than target.
+-	// This is because we want the rightmost Record that fullfills the
++	// This is because we want the rightmost Record that fulfills the
+ 	// search criterion. It is possible that there are empty Blocks;
+ 	// we don't want to return them.
+ 	size_t left = 0;
+diff --git a/src/xz/xz.1 b/src/xz/xz.1
+index 540d1364..f81278f5 100644
+--- a/src/xz/xz.1
++++ b/src/xz/xz.1
+@@ -5,7 +5,7 @@
+ .\" This file has been put into the public domain.
+ .\" You can do whatever you want with this file.
+ .\"
+-.TH XZ 1 "2020-02-01" "Tukaani" "XZ Utils"
++.TH XZ 1 "2020-03-23" "Tukaani" "XZ Utils"
+ .
+ .SH NAME
+ xz, unxz, xzcat, lzma, unlzma, lzcat \- Compress or decompress .xz and .lzma files
+@@ -1294,7 +1294,7 @@ The default means four-byte alignment
+ .RI (2^ pb =2^2=4),
+ which is often a good choice when there's no better guess.
+ .IP ""
+-When the aligment is known, setting
++When the alignment is known, setting
+ .I pb
+ accordingly may reduce the file size a little.
+ E.g. with text files having one-byte

@@ -1,0 +1,25 @@
+diff --git a/tests/ossfuzz/config/fuzz.options b/tests/ossfuzz/config/fuzz.options
+deleted file mode 100644
+index d59dfc13..00000000
+--- a/tests/ossfuzz/config/fuzz.options
++++ /dev/null
+@@ -1,2 +0,0 @@
+-[libfuzzer]
+-dict = fuzz.dict
+diff --git a/tests/ossfuzz/config/fuzz_decode_stream.options b/tests/ossfuzz/config/fuzz_decode_stream.options
+new file mode 100644
+index 00000000..61799737
+--- /dev/null
++++ b/tests/ossfuzz/config/fuzz_decode_stream.options
+@@ -0,0 +1,3 @@
++[libfuzzer]
++max_len = 4096
++dict = fuzz_xz.dict
+diff --git a/tests/ossfuzz/config/fuzz.dict b/tests/ossfuzz/config/fuzz_xz.dict
+similarity index 100%
+rename from tests/ossfuzz/config/fuzz.dict
+rename to tests/ossfuzz/config/fuzz_xz.dict
+diff --git a/tests/ossfuzz/fuzz.c b/tests/ossfuzz/fuzz_decode_stream.c
+similarity index 100%
+rename from tests/ossfuzz/fuzz.c
+rename to tests/ossfuzz/fuzz_decode_stream.c

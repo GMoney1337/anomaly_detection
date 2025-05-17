@@ -1,0 +1,44 @@
+diff --git a/src/liblzma/check/crc_common.h b/src/liblzma/check/crc_common.h
+index 045bc20e..417d88bb 100644
+--- a/src/liblzma/check/crc_common.h
++++ b/src/liblzma/check/crc_common.h
+@@ -49,26 +49,6 @@
+ #endif
+ 
+ 
+-// The inline keyword is only a suggestion to the compiler to substitute the
+-// body of the function into the places where it is called. If a function
+-// is large and called multiple times then compiler may choose to ignore the
+-// inline suggestion at a sometimes high performance cost.
+-//
+-// MSVC's __forceinline is a keyword that should be used in place of inline.
+-// If both __forceinline and inline are used, MSVC will issue a warning.
+-// Since MSVC's keyword is a replacement keyword, the lzma_always_inline
+-// macro must also contain the inline keyword when its not used in MSVC.
+-//
+-// NOTE: This doesn't use lzma_always_inline for now as support for it is
+-// detected using preprocessor macros which might miss a compiler that
+-// does support it. All compilers that support the CLMUL code support
+-// the attribute too; if not, we will hopefully get a bug report.
+-#ifdef _MSC_VER
+-#	define crc_always_inline __forceinline
+-#else
+-#	define crc_always_inline __attribute__((__always_inline__)) inline
+-#endif
+-
+ #undef CRC_GENERIC
+ #undef CRC_ARCH_OPTIMIZED
+ #undef CRC_X86_CLMUL
+diff --git a/src/liblzma/check/crc_x86_clmul.h b/src/liblzma/check/crc_x86_clmul.h
+index bf3c2397..fbf042a5 100644
+--- a/src/liblzma/check/crc_x86_clmul.h
++++ b/src/liblzma/check/crc_x86_clmul.h
+@@ -66,7 +66,7 @@
+ 
+ crc_attr_target
+ crc_attr_no_sanitize_address
+-static crc_always_inline void
++static lzma_always_inline void
+ crc_simd_body(const uint8_t *buf, const size_t size, __m128i *v0, __m128i *v1,
+ 		const __m128i vfold16, const __m128i initial_crc)
+ {

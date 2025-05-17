@@ -1,0 +1,66 @@
+diff --git a/src/xz/args.c b/src/xz/args.c
+index 97aa3599..eba1b97d 100644
+--- a/src/xz/args.c
++++ b/src/xz/args.c
+@@ -105,7 +105,7 @@ parse_block_list(const char *str_const)
+ 			*p = '\0';
+ 
+ 		// Use the default filter chain unless overridden.
+-		opt_block_list[i].filters_index = 0;
++		opt_block_list[i].chain_num = 0;
+ 
+ 		// To specify a filter chain, the block list entry may be
+ 		// prepended with "[filter-chain-number]:". The size is
+@@ -132,9 +132,9 @@ parse_block_list(const char *str_const)
+ 						"filter chain number '%c:'"),
+ 						str[0]);
+ 
+-			const unsigned filter_num = (unsigned)(str[0] - '0');
+-			opt_block_list[i].filters_index = filter_num;
+-			block_list_chain_mask |= 1U << filter_num;
++			const unsigned chain_num = (unsigned)(str[0] - '0');
++			opt_block_list[i].chain_num = chain_num;
++			block_list_chain_mask |= 1U << chain_num;
+ 			str += 2;
+ 		} else {
+ 			// This Block uses the default filter chain.
+diff --git a/src/xz/coder.c b/src/xz/coder.c
+index c4c5c28d..b2d2c7d9 100644
+--- a/src/xz/coder.c
++++ b/src/xz/coder.c
+@@ -867,7 +867,7 @@ coder_init(file_pair *pair)
+ 	// Otherwise, use first filter chain from the block list.
+ 	lzma_filter *active_filters = opt_block_list == NULL
+ 			? chains[0]
+-			: chains[opt_block_list[0].filters_index];
++			: chains[opt_block_list[0].chain_num];
+ 
+ 	if (opt_mode == MODE_COMPRESS) {
+ #ifdef HAVE_ENCODERS
+@@ -1112,10 +1112,10 @@ split_block(uint64_t *block_remaining,
+ 			++*list_pos;
+ 
+ 			// Update the filters if needed.
+-			if (opt_block_list[*list_pos - 1].filters_index
+-				!= opt_block_list[*list_pos].filters_index) {
++			if (opt_block_list[*list_pos - 1].chain_num
++				!= opt_block_list[*list_pos].chain_num) {
+ 				const unsigned chain_idx = opt_block_list
+-						[*list_pos].filters_index;
++						[*list_pos].chain_num;
+ 				const lzma_filter *next = chains[chain_idx];
+ 				const lzma_ret ret = lzma_filters_update(
+ 						&strm, next);
+diff --git a/src/xz/coder.h b/src/xz/coder.h
+index f1fdba01..4e0351bd 100644
+--- a/src/xz/coder.h
++++ b/src/xz/coder.h
+@@ -38,7 +38,7 @@ typedef struct {
+ 
+ 	/// Index into the filters[] representing the filter chain to use
+ 	/// for this Block.
+-	unsigned filters_index;
++	unsigned chain_num;
+ } block_list_entry;
+ 
+ 

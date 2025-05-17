@@ -1,0 +1,601 @@
+diff --git a/src/liblzma/lz/lz_encoder.c b/src/liblzma/lz/lz_encoder.c
+index 629f9df2..8d2277ec 100644
+--- a/src/liblzma/lz/lz_encoder.c
++++ b/src/liblzma/lz/lz_encoder.c
+@@ -141,8 +141,9 @@ lzma_lz_encoder_reset(lzma_lz_encoder *lz, lzma_allocator *allocator,
+ 		const uint8_t *preset_dictionary,
+ 		size_t preset_dictionary_size)
+ {
+-	// Set uncompressed size.
++	lz->sequence = SEQ_RUN;
+ 	lz->uncompressed_size = uncompressed_size;
++	lz->temp_size = 0;
+ 
+ 	///////////////
+ 	// In Window //
+@@ -187,7 +188,6 @@ lzma_lz_encoder_reset(lzma_lz_encoder *lz, lzma_allocator *allocator,
+ 	lz->read_pos = 0;
+ 	lz->read_limit = 0;
+ 	lz->write_pos = 0;
+-	lz->stream_end_was_reached = false;
+ 
+ 
+ 	//////////////////
+@@ -368,35 +368,59 @@ fill_window(lzma_coder *coder, lzma_allocator *allocator, const uint8_t *in,
+ 		size_t *in_pos, size_t in_size, lzma_action action)
+ {
+ 	assert(coder->lz.read_pos <= coder->lz.write_pos);
+-	lzma_ret ret;
+ 
+ 	// Move the sliding window if needed.
+ 	if (coder->lz.read_pos >= coder->lz.size - coder->lz.keep_size_after)
+ 		move_window(&coder->lz);
+ 
++	size_t in_used;
++	lzma_ret ret;
+ 	if (coder->next.code == NULL) {
+ 		// Not using a filter, simply memcpy() as much as possible.
+-		bufcpy(in, in_pos, in_size, coder->lz.buffer,
++		in_used = bufcpy(in, in_pos, in_size, coder->lz.buffer,
+ 				&coder->lz.write_pos, coder->lz.size);
+ 
+-		if (action == LZMA_FINISH && *in_pos == in_size)
++		if (action != LZMA_RUN && *in_pos == in_size)
+ 			ret = LZMA_STREAM_END;
+ 		else
+ 			ret = LZMA_OK;
+ 
+ 	} else {
++		const size_t in_start = *in_pos;
+ 		ret = coder->next.code(coder->next.coder, allocator,
+ 				in, in_pos, in_size,
+ 				coder->lz.buffer, &coder->lz.write_pos,
+ 				coder->lz.size, action);
++		in_used = *in_pos - in_start;
+ 	}
+ 
+-	// If end of stream has been reached, we allow the encoder to process
+-	// all the input (that is, read_pos is allowed to reach write_pos).
+-	// Otherwise we keep keep_size_after bytes available as prebuffer.
++	assert(coder->lz.uncompressed_size >= in_used);
++	if (coder->lz.uncompressed_size != LZMA_VLI_VALUE_UNKNOWN)
++		coder->lz.uncompressed_size -= in_used;
++
++	// If end of stream has been reached or flushing completed, we allow
++	// the encoder to process all the input (that is, read_pos is allowed
++	// to reach write_pos). Otherwise we keep keep_size_after bytes
++	// available as prebuffer.
+ 	if (ret == LZMA_STREAM_END) {
+-		coder->lz.stream_end_was_reached = true;
++		assert(*in_pos == in_size);
+ 		coder->lz.read_limit = coder->lz.write_pos;
++		ret = LZMA_OK;
++
++		switch (action) {
++		case LZMA_SYNC_FLUSH:
++			coder->lz.sequence = SEQ_FLUSH;
++			break;
++
++		case LZMA_FINISH:
++			coder->lz.sequence = SEQ_FINISH;
++			break;
++
++		default:
++			assert(0);
++			ret = LZMA_PROG_ERROR;
++			break;
++		}
+ 
+ 	} else if (coder->lz.write_pos > coder->lz.keep_size_after) {
+ 		// This needs to be done conditionally, because if we got
+@@ -406,6 +430,19 @@ fill_window(lzma_coder *coder, lzma_allocator *allocator, const uint8_t *in,
+ 				- coder->lz.keep_size_after;
+ 	}
+ 
++	// Switch to finishing mode if we have got all the input data.
++	// lzma_lz_encode() won't return LZMA_STREAM_END until LZMA_FINISH
++	// is used.
++	//
++	// NOTE: When LZMA is used together with other filters, it is possible
++	// that coder->lz.sequence gets set to SEQ_FINISH before the next
++	// encoder has returned LZMA_STREAM_END. This is somewhat ugly, but
++	// works correctly, because the next encoder cannot have any more
++	// output left to be produced. If it had, then our known Uncompressed
++	// Size would be invalid, which would mean that we have a bad bug.
++	if (ret == LZMA_OK && coder->lz.uncompressed_size == 0)
++		coder->lz.sequence = SEQ_FINISH;
++
+ 	return ret;
+ }
+ 
+@@ -417,20 +454,81 @@ lzma_lz_encode(lzma_coder *coder, lzma_allocator *allocator,
+ 		uint8_t *restrict out, size_t *restrict out_pos,
+ 		size_t out_size, lzma_action action)
+ {
+-	while (*out_pos < out_size
+-			&& (*in_pos < in_size || action == LZMA_FINISH)) {
+-		// Fill the input window if there is no more usable data.
+-		if (!coder->lz.stream_end_was_reached && coder->lz.read_pos
+-				>= coder->lz.read_limit) {
+-			const lzma_ret ret = fill_window(coder, allocator,
+-					in, in_pos, in_size, action);
+-			if (ret != LZMA_OK && ret != LZMA_STREAM_END)
+-				return ret;
++	// Flush the temporary output buffer, which may be used when the
++	// encoder runs of out of space in primary output buffer (the out,
++	// *out_pos, and out_size variables).
++	if (coder->lz.temp_size > 0) {
++		const size_t out_avail = out_size - *out_pos;
++		if (out_avail < coder->lz.temp_size) {
++			// Cannot copy everything. Copy as much as possible
++			// and move the data in lz.temp to the beginning of
++			// that buffer.
++			memcpy(out + *out_pos, coder->lz.temp, out_avail);
++			*out_pos += out_avail;
++			memmove(coder->lz.temp, coder->lz.temp + out_avail,
++					coder->lz.temp_size - out_avail);
++			coder->lz.temp_size -= out_avail;
++			return LZMA_OK;
+ 		}
+ 
++		// We can copy everything from coder->lz.temp to out.
++		memcpy(out + *out_pos, coder->lz.temp, coder->lz.temp_size);
++		*out_pos += coder->lz.temp_size;
++		coder->lz.temp_size = 0;
++	}
++
++	if (coder->lz.sequence == SEQ_FLUSH_END) {
++		// During an earlier call to this function, flushing was
++		// otherwise finished except some data was left pending
++		// in coder->lz.buffer. Now we have copied all that data
++		// to the output buffer and can return LZMA_STREAM_END.
++		coder->lz.sequence = SEQ_RUN;
++		assert(action == LZMA_SYNC_FLUSH);
++		return LZMA_STREAM_END;
++	}
++
++	if (coder->lz.sequence == SEQ_END) {
++		// This is like the above flushing case, but for finishing
++		// the encoding.
++		//
++		// NOTE: action is not necesarily LZMA_FINISH; it can
++		// be LZMA_SYNC_FLUSH too in case it is used at the
++		// end of the stream with known Uncompressed Size.
++		return action != LZMA_RUN ? LZMA_STREAM_END : LZMA_OK;
++	}
++
++	while (*out_pos < out_size
++			&& (*in_pos < in_size || action != LZMA_RUN)) {
++		// Read more data to coder->lz.buffer if needed.
++		if (coder->lz.sequence == SEQ_RUN
++				&& coder->lz.read_pos >= coder->lz.read_limit)
++			return_if_error(fill_window(coder, allocator,
++					in, in_pos, in_size, action));
++
+ 		// Encode
+-		if (coder->lz.process(coder, out, out_pos, out_size))
+-			return LZMA_STREAM_END;
++		if (coder->lz.process(coder, out, out_pos, out_size)) {
++			if (coder->lz.sequence == SEQ_FLUSH) {
++				assert(action == LZMA_SYNC_FLUSH);
++				if (coder->lz.temp_size == 0) {
++					// Flushing was finished successfully.
++					coder->lz.sequence = SEQ_RUN;
++				} else {
++					// Flushing was otherwise finished,
++					// except that some data was left
++					// into coder->lz.buffer.
++					coder->lz.sequence = SEQ_FLUSH_END;
++				}
++			} else {
++				// NOTE: action may be LZMA_RUN here in case
++				// Uncompressed Size is known and we have
++				// processed all the data already.
++				assert(coder->lz.sequence == SEQ_FINISH);
++				coder->lz.sequence = SEQ_END;
++			}
++
++			return action != LZMA_RUN && coder->lz.temp_size == 0
++					? LZMA_STREAM_END : LZMA_OK;
++		}
+ 	}
+ 
+ 	return LZMA_OK;
+diff --git a/src/liblzma/lz/lz_encoder.h b/src/liblzma/lz/lz_encoder.h
+index fe94618b..11d12722 100644
+--- a/src/liblzma/lz/lz_encoder.h
++++ b/src/liblzma/lz/lz_encoder.h
+@@ -24,11 +24,15 @@
+ #include "common.h"
+ 
+ 
++#define LZMA_LZ_TEMP_SIZE 64
++
++
+ typedef struct lzma_lz_encoder_s lzma_lz_encoder;
+ struct lzma_lz_encoder_s {
+ 	enum {
+-		SEQ_INIT,
+ 		SEQ_RUN,
++		SEQ_FLUSH,
++		SEQ_FLUSH_END,
+ 		SEQ_FINISH,
+ 		SEQ_END
+ 	} sequence;
+@@ -36,8 +40,15 @@ struct lzma_lz_encoder_s {
+ 	bool (*process)(lzma_coder *coder, uint8_t *restrict out,
+ 			size_t *restrict out_pos, size_t out_size);
+ 
++	/// Uncompressed Size or LZMA_VLI_VALUE_UNKNOWN if using EOPM. We need
++	/// to track Uncompressed Size to prevent writing flush marker to the
++	/// very end of stream that doesn't use EOPM.
+ 	lzma_vli uncompressed_size;
+ 
++	/// Temporary buffer for range encoder.
++	uint8_t temp[LZMA_LZ_TEMP_SIZE];
++	size_t temp_size;
++
+ 	///////////////
+ 	// In Window //
+ 	///////////////
+@@ -84,10 +95,6 @@ struct lzma_lz_encoder_s {
+ 	/// is allowed to reach write_pos).
+ 	size_t keep_size_after;
+ 
+-	/// This is set to true once the last byte of the input data has
+-	/// been copied to buffer.
+-	bool stream_end_was_reached;
+-
+ 	//////////////////
+ 	// Match Finder //
+ 	//////////////////
+diff --git a/src/liblzma/lzma/lzma_encoder.c b/src/liblzma/lzma/lzma_encoder.c
+index f9c1e3fe..2c46b0c5 100644
+--- a/src/liblzma/lzma/lzma_encoder.c
++++ b/src/liblzma/lzma/lzma_encoder.c
+@@ -149,20 +149,11 @@ extern bool
+ lzma_lzma_encode(lzma_coder *coder, uint8_t *restrict out,
+ 		size_t *restrict out_pos, size_t out_size)
+ {
+-	// Flush the range encoder's temporary buffer to out[].
+-	// Return immediatelly if not everything could be flushed.
+-	if (rc_flush_buffer(&coder->rc, out, out_pos, out_size))
+-		return false;
+-
+-	// Return immediatelly if we have already finished our work.
+-	if (coder->lz.stream_end_was_reached
+-			&& coder->is_initialized
+-			&& coder->lz.read_pos == coder->lz.write_pos
+-			&& coder->additional_offset == 0)
+-		return true;
++#define rc_buffer coder->lz.temp
++#define rc_buffer_size coder->lz.temp_size
+ 
+ 	// Local copies
+-	rc_to_local(coder->rc);
++	lzma_range_encoder rc = coder->rc;
+ 	size_t out_pos_local = *out_pos;
+ 	const uint32_t pos_mask = coder->pos_mask;
+ 	const bool best_compression = coder->best_compression;
+@@ -170,13 +161,30 @@ lzma_lzma_encode(lzma_coder *coder, uint8_t *restrict out,
+ 	// Initialize the stream if no data has been encoded yet.
+ 	if (!coder->is_initialized) {
+ 		if (coder->lz.read_pos == coder->lz.read_limit) {
+-			// Cannot initialize, because there is no input data.
+-			if (!coder->lz.stream_end_was_reached)
++			switch (coder->lz.sequence) {
++			case SEQ_RUN:
++				// Cannot initialize, because there is
++				// no input data.
+ 				return false;
+ 
+-			// If we get here, we are encoding an empty file.
+-			// Initialization is skipped completely.
+-			assert(coder->lz.write_pos == coder->lz.read_pos);
++			case SEQ_FLUSH:
++				// Nothing to flush. There cannot be a flush
++				// marker when no data has been processed
++				// yet (file format doesn't allow it, and
++				// it would be just waste of space).
++				return true;
++
++			case SEQ_FINISH:
++				// We are encoding an empty file. No need
++				// to initialize the encoder.
++				assert(coder->lz.write_pos == coder->lz.read_pos);
++				break;
++
++			default:
++				// We never get here.
++				assert(0);
++				return true;
++			}
+ 
+ 		} else {
+ 			// Do the actual initialization.
+@@ -214,9 +222,10 @@ lzma_lzma_encode(lzma_coder *coder, uint8_t *restrict out,
+ 
+ 		// Check that there is some input to process.
+ 		if (coder->lz.read_pos >= coder->lz.read_limit) {
+-			// If end of input has been reached, we must keep
+-			// encoding until additional_offset becomes zero.
+-			if (!coder->lz.stream_end_was_reached
++			// If flushing or finishing, we must keep encoding
++			// until additional_offset becomes zero to make
++			// all the input available at output.
++			if (coder->lz.sequence == SEQ_RUN
+ 					|| coder->additional_offset == 0)
+ 				break;
+ 		}
+@@ -224,7 +233,7 @@ lzma_lzma_encode(lzma_coder *coder, uint8_t *restrict out,
+ 		assert(coder->lz.read_pos <= coder->lz.write_pos);
+ 
+ #ifndef NDEBUG
+-		if (coder->lz.stream_end_was_reached) {
++		if (coder->lz.sequence != SEQ_RUN) {
+ 			assert(coder->lz.read_limit == coder->lz.write_pos);
+ 		} else {
+ 			assert(coder->lz.read_limit + coder->lz.keep_size_after
+@@ -363,19 +372,21 @@ lzma_lzma_encode(lzma_coder *coder, uint8_t *restrict out,
+ 
+ 	// Check if everything is done.
+ 	bool all_done = false;
+-	if (coder->lz.stream_end_was_reached
++	if (coder->lz.sequence != SEQ_RUN
+ 			&& coder->lz.read_pos == coder->lz.write_pos
+ 			&& coder->additional_offset == 0) {
+-		// Write end of stream marker. It is encoded as a match with
+-		// distance of UINT32_MAX. Match length is needed but it is
+-		// ignored by the decoder.
+-		if (coder->lz.uncompressed_size == LZMA_VLI_VALUE_UNKNOWN) {
++		if (coder->lz.uncompressed_size == LZMA_VLI_VALUE_UNKNOWN
++				|| coder->lz.sequence == SEQ_FLUSH) {
++			// Write special marker: flush marker or end of payload
++			// marker. Both are encoded as a match with distance of
++			// UINT32_MAX. The match length codes the type of the marker.
+ 			const uint32_t pos_state = coder->now_pos & pos_mask;
+ 			bit_encode_1(coder->is_match[coder->state][pos_state]);
+ 			bit_encode_0(coder->is_rep[coder->state]);
+ 			update_match(coder->state);
+ 
+-			const uint32_t len = MATCH_MIN_LEN; // MATCH_MAX_LEN;
++			const uint32_t len = coder->lz.sequence == SEQ_FLUSH
++					? LEN_SPECIAL_FLUSH : LEN_SPECIAL_EOPM;
+ 			length_encode(coder->len_encoder, len - MATCH_MIN_LEN,
+ 					pos_state, best_compression);
+ 
+@@ -398,15 +409,16 @@ lzma_lzma_encode(lzma_coder *coder, uint8_t *restrict out,
+ 		// the range coder to the output buffer.
+ 		rc_flush();
+ 
++		rc_reset(rc);
++
+ 		// All done. Note that some output bytes might be
+-		// pending in coder->buffer. lzma_encode() will
++		// pending in coder->lz.temp. lzma_lz_encode() will
+ 		// take care of those bytes.
+-		if (rc_buffer_size == 0)
+-			all_done = true;
++		all_done = true;
+ 	}
+ 
+ 	// Store local variables back to *coder.
+-	rc_from_local(coder->rc);
++	coder->rc = rc;
+ 	*out_pos = out_pos_local;
+ 
+ 	return all_done;
+diff --git a/src/liblzma/rangecoder/range_encoder.h b/src/liblzma/rangecoder/range_encoder.h
+index d513cfd1..cd5e6457 100644
+--- a/src/liblzma/rangecoder/range_encoder.h
++++ b/src/liblzma/rangecoder/range_encoder.h
+@@ -24,46 +24,21 @@
+ #include "range_common.h"
+ 
+ 
+-// Allow #including this file even if RC_TEMP_BUFFER_SIZE isn't defined.
+-#ifdef RC_BUFFER_SIZE
+ typedef struct {
+ 	uint64_t low;
+ 	uint32_t range;
+ 	uint32_t cache_size;
+ 	uint8_t cache;
+-	uint8_t buffer[RC_BUFFER_SIZE];
+-	size_t buffer_size;
+ } lzma_range_encoder;
+-#endif
+-
+ 
+-/// Makes local copies of range encoder variables.
+-#define rc_to_local(rc) \
+-	uint64_t rc_low = (rc).low; \
+-	uint32_t rc_range = (rc).range; \
+-	uint32_t rc_cache_size = (rc).cache_size; \
+-	uint8_t rc_cache = (rc).cache; \
+-	uint8_t *rc_buffer = (rc).buffer; \
+-	size_t rc_buffer_size = (rc).buffer_size
+-
+-/// Stores the local copes back to the range encoder structure.
+-#define rc_from_local(rc) \
+-do { \
+-	(rc).low = rc_low; \
+-	(rc).range = rc_range; \
+-	(rc).cache_size = rc_cache_size; \
+-	(rc).cache = rc_cache; \
+-	(rc).buffer_size = rc_buffer_size; \
+-} while (0)
+ 
+ /// Resets the range encoder structure.
+ #define rc_reset(rc) \
+ do { \
+ 	(rc).low = 0; \
+-	(rc).range = 0xFFFFFFFF; \
++	(rc).range = UINT32_MAX; \
+ 	(rc).cache_size = 1; \
+ 	(rc).cache = 0; \
+-	(rc).buffer_size = 0; \
+ } while (0)
+ 
+ 
+@@ -72,13 +47,14 @@ do { \
+ //////////////////
+ 
+ // These macros expect that the following variables are defined:
+-//  - uint64_t  rc_low;
+-//  - uint32_t  rc_range;
+-//  - uint8_t   rc_cache;
+-//  - uint32_t  rc_cache_size;
+-//  - uint8_t   *out;
+-//  - size_t    out_pos_local;  // Local copy of *out_pos
+-//  - size_t    size_out;
++//  - lzma_range_encoder rc;
++//  - uint8_t *out;
++//  - size_t out_pos_local;  // Local copy of *out_pos
++//  - size_t size_out;
++//
++// Macros pointing to these variables are also needed:
++//  - uint8_t rc_buffer[]; // Don't use a pointer, must be real array!
++//  - size_t rc_buffer_size;
+ 
+ 
+ // Combined from NRangeCoder::CEncoder::Encode()
+@@ -87,13 +63,13 @@ do { \
+ do { \
+ 	probability rc_prob = prob; \
+ 	const uint32_t rc_bound \
+-			= (rc_range >> BIT_MODEL_TOTAL_BITS) * rc_prob; \
++			= (rc.range >> BIT_MODEL_TOTAL_BITS) * rc_prob; \
+ 	if ((symbol) == 0) { \
+-		rc_range = rc_bound; \
++		rc.range = rc_bound; \
+ 		rc_prob += (BIT_MODEL_TOTAL - rc_prob) >> MOVE_BITS; \
+ 	} else { \
+-		rc_low += rc_bound; \
+-		rc_range -= rc_bound; \
++		rc.low += rc_bound; \
++		rc.range -= rc_bound; \
+ 		rc_prob -= rc_prob >> MOVE_BITS; \
+ 	} \
+ 	prob = rc_prob; \
+@@ -105,7 +81,7 @@ do { \
+ #define bit_encode_0(prob) \
+ do { \
+ 	probability rc_prob = prob; \
+-	rc_range = (rc_range >> BIT_MODEL_TOTAL_BITS) * rc_prob; \
++	rc.range = (rc.range >> BIT_MODEL_TOTAL_BITS) * rc_prob; \
+ 	rc_prob += (BIT_MODEL_TOTAL - rc_prob) >> MOVE_BITS; \
+ 	prob = rc_prob; \
+ 	rc_normalize(); \
+@@ -116,10 +92,10 @@ do { \
+ #define bit_encode_1(prob) \
+ do { \
+ 	probability rc_prob = prob; \
+-	const uint32_t rc_bound = (rc_range >> BIT_MODEL_TOTAL_BITS) \
++	const uint32_t rc_bound = (rc.range >> BIT_MODEL_TOTAL_BITS) \
+ 			* rc_prob; \
+-	rc_low += rc_bound; \
+-	rc_range -= rc_bound; \
++	rc.low += rc_bound; \
++	rc.range -= rc_bound; \
+ 	rc_prob -= rc_prob >> MOVE_BITS; \
+ 	prob = rc_prob; \
+ 	rc_normalize(); \
+@@ -160,9 +136,9 @@ do { \
+ #define rc_encode_direct_bits(value, num_total_bits) \
+ do { \
+ 	for (int32_t rc_i = (num_total_bits) - 1; rc_i >= 0; --rc_i) { \
+-		rc_range >>= 1; \
++		rc.range >>= 1; \
+ 		if ((((value) >> rc_i) & 1) == 1) \
+-			rc_low += rc_range; \
++			rc.low += rc.range; \
+ 		rc_normalize(); \
+ 	} \
+ } while (0)
+@@ -175,8 +151,8 @@ do { \
+ // Calls rc_shift_low() to write out a byte if needed.
+ #define rc_normalize() \
+ do { \
+-	if (rc_range < TOP_VALUE) { \
+-		rc_range <<= SHIFT_BITS; \
++	if (rc.range < TOP_VALUE) { \
++		rc.range <<= SHIFT_BITS; \
+ 		rc_shift_low(); \
+ 	} \
+ } while (0)
+@@ -192,23 +168,23 @@ do { \
+ // TODO: Notation change?
+ //       (uint32_t)(0xFF000000)  =>  ((uint32_t)(0xFF) << TOP_BITS)
+ // TODO: Another notation change?
+-//       rc_low = (uint32_t)(rc_low) << SHIFT_BITS;
++//       rc.low = (uint32_t)(rc.low) << SHIFT_BITS;
+ //       =>
+-//       rc_low &= TOP_VALUE - 1;
+-//       rc_low <<= SHIFT_BITS;
++//       rc.low &= TOP_VALUE - 1;
++//       rc.low <<= SHIFT_BITS;
+ #define rc_shift_low() \
+ do { \
+-	if ((uint32_t)(rc_low) < (uint32_t)(0xFF000000) \
+-			|| (uint32_t)(rc_low >> 32) != 0) { \
+-		uint8_t rc_temp = rc_cache; \
++	if ((uint32_t)(rc.low) < (uint32_t)(0xFF000000) \
++			|| (uint32_t)(rc.low >> 32) != 0) { \
++		uint8_t rc_temp = rc.cache; \
+ 		do { \
+-			rc_write_byte(rc_temp + (uint8_t)(rc_low >> 32)); \
++			rc_write_byte(rc_temp + (uint8_t)(rc.low >> 32)); \
+ 			rc_temp = 0xFF; \
+-		} while(--rc_cache_size != 0); \
+-		rc_cache = (uint8_t)((uint32_t)(rc_low) >> 24); \
++		} while(--rc.cache_size != 0); \
++		rc.cache = (uint8_t)((uint32_t)(rc.low) >> 24); \
+ 	} \
+-	++rc_cache_size; \
+-	rc_low = (uint32_t)(rc_low) << SHIFT_BITS; \
++	++rc.cache_size; \
++	rc.low = (uint32_t)(rc.low) << SHIFT_BITS; \
+ } while (0)
+ 
+ 
+@@ -218,7 +194,7 @@ do { \
+ do { \
+ 	if (out_pos_local == out_size) { \
+ 		rc_buffer[rc_buffer_size++] = (uint8_t)(b); \
+-		assert(rc_buffer_size < RC_BUFFER_SIZE); \
++		assert(rc_buffer_size < sizeof(rc_buffer)); \
+ 	} else { \
+ 		assert(rc_buffer_size == 0); \
+ 		out[out_pos_local++] = (uint8_t)(b); \
+@@ -287,31 +263,4 @@ extern uint32_t lzma_rc_prob_prices[BIT_MODEL_TOTAL >> MOVE_REDUCING_BITS];
+ extern void lzma_rc_init(void);
+ 
+ 
+-#ifdef RC_BUFFER_SIZE
+-/// Flushes data from rc->temp[] to out[] as much as possible. If everything
+-/// cannot be flushed, returns true; false otherwise.
+-static inline bool
+-rc_flush_buffer(lzma_range_encoder *rc,
+-		uint8_t *out, size_t *out_pos, size_t out_size)
+-{
+-	if (rc->buffer_size > 0) {
+-		const size_t out_avail = out_size - *out_pos;
+-		if (rc->buffer_size > out_avail) {
+-			memcpy(out + *out_pos, rc->buffer, out_avail);
+-			*out_pos += out_avail;
+-			rc->buffer_size -= out_avail;
+-			memmove(rc->buffer, rc->buffer + out_avail,
+-					rc->buffer_size);
+-			return true;
+-		}
+-
+-		memcpy(out + *out_pos, rc->buffer, rc->buffer_size);
+-		*out_pos += rc->buffer_size;
+-		rc->buffer_size = 0;
+-	}
+-
+-	return false;
+-}
+-#endif
+-
+ #endif

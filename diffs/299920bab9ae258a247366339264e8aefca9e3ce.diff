@@ -1,0 +1,13 @@
+diff --git a/tests/test_files.sh b/tests/test_files.sh
+index 60402e73..b1505f7b 100755
+--- a/tests/test_files.sh
++++ b/tests/test_files.sh
+@@ -9,7 +9,7 @@
+ #
+ ###############################################################################
+ 
+-# If both xz and xzdec were not build, skip this test.
++# If both xz and xzdec were not built, skip this test.
+ XZ=../src/xz/xz
+ XZDEC=../src/xzdec/xzdec
+ test -x "$XZ" || XZ=

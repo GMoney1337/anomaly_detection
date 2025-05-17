@@ -1,0 +1,439 @@
+diff --git a/src/scripts/Makefile.am b/src/scripts/Makefile.am
+index 8f63bde8..965f65ff 100644
+--- a/src/scripts/Makefile.am
++++ b/src/scripts/Makefile.am
+@@ -5,27 +5,37 @@
+ ## You can do whatever you want with this file.
+ ##
+ 
+-dist_bin_SCRIPTS = lzdiff lzgrep lzmore
+-dist_man_MANS = lzdiff.1 lzgrep.1 lzmore.1
++dist_bin_SCRIPTS = xzdiff xzgrep xzmore
++dist_man_MANS = xzdiff.1 xzgrep.1 xzmore.1
+ 
+ install-exec-hook:
+ 	cd $(DESTDIR)$(bindir) && \
+-	rm -f lzcmp lzegrep lzfgrep lzless && \
+-	$(LN_S) lzdiff lzcmp && \
+-	$(LN_S) lzgrep lzegrep && \
+-	$(LN_S) lzgrep lzfgrep && \
+-	$(LN_S) lzmore lzless
++	rm -f xzcmp xzegrep xzfgrep xzless lzcmp lzegrep lzfgrep lzless && \
++	$(LN_S) xzdiff xzcmp && \
++	$(LN_S) xzgrep xzegrep && \
++	$(LN_S) xzgrep xzfgrep && \
++	$(LN_S) xzmore xzless && \
++	$(LN_S) xzdiff lzcmp && \
++	$(LN_S) xzgrep lzegrep && \
++	$(LN_S) xzgrep lzfgrep && \
++	$(LN_S) xzmore lzless
+ 
+ install-data-hook:
+ 	cd $(DESTDIR)$(mandir)/man1 && \
+-	rm -f lzcmp.1 lzegrep.1 lzfgrep.1 lzless.1 && \
+-	$(LN_S) lzdiff.1 lzcmp.1 && \
+-	$(LN_S) lzgrep.1 lzegrep.1 && \
+-	$(LN_S) lzgrep.1 lzfgrep.1 && \
+-	$(LN_S) lzmore.1 lzless.1
++	rm -f xzcmp.1 xzegrep.1 xzfgrep.1 xzless.1 \
++		lzcmp.1 lzegrep.1 lzfgrep.1 lzless.1 && \
++	$(LN_S) xzdiff.1 xzcmp.1 && \
++	$(LN_S) xzgrep.1 xzegrep.1 && \
++	$(LN_S) xzgrep.1 xzfgrep.1 && \
++	$(LN_S) xzmore.1 xzless.1 && \
++	$(LN_S) xzdiff.1 lzcmp.1 && \
++	$(LN_S) xzgrep.1 lzegrep.1 && \
++	$(LN_S) xzgrep.1 lzfgrep.1 && \
++	$(LN_S) xzmore.1 lzless.1
+ 
+ uninstall-hook:
+ 	cd $(DESTDIR)$(bindir) && \
+-	rm -f lzcmp lzegrep lzfgrep lzless
++	rm -f xzcmp xzegrep xzfgrep xzless lzcmp lzegrep lzfgrep lzless
+ 	cd $(DESTDIR)$(mandir)/man1 && \
+-	rm -f lzcmp.1 lzegrep.1 lzfgrep.1 lzless.1
++	rm -f xzcmp.1 xzegrep.1 xzfgrep.1 xzless.1 \
++		lzcmp.1 lzegrep.1 lzfgrep.1 lzless.1
+diff --git a/src/scripts/lzdiff b/src/scripts/xzdiff
+similarity index 68%
+rename from src/scripts/lzdiff
+rename to src/scripts/xzdiff
+index c867cbea..50179bb9 100755
+--- a/src/scripts/lzdiff
++++ b/src/scripts/xzdiff
+@@ -1,10 +1,10 @@
+ #!/bin/sh
+ # sh is buggy on RS/6000 AIX 3.2. Replace above line with #!/bin/ksh
+ 
+-# lzcmp and lzdiff are used to invoke the cmp or the diff pro-
++# xzcmp and xzdiff are used to invoke the cmp or the diff pro-
+ # gram  on compressed files.  All options specified are passed
+ # directly to cmp or diff.  If only 1 file is specified,  then
+-# the files compared  are file1 and an uncompressed file1.lzma.
++# the files compared  are file1 and an uncompressed file1.xz.
+ # If two files are specified, then they are  uncompressed  and
+ # fed  to  cmp  or  diff.  The exit status from cmp or diff is
+ # preserved.
+@@ -35,29 +35,29 @@ if test -z "$FILES"; then
+ fi
+ set $FILES
+ if test $# -eq 1; then
+-	FILE=`echo "$1" | sed 's/[-.][tlaz]*$//'`
+-	lzma -dc "$1" | $comp $OPTIONS - "$FILE"
++	FILE=`echo "$1" | sed 's/[-.][almtxz]*$//'`
++	xz -dc "$1" | $comp $OPTIONS - "$FILE"
+ 
+ elif test $# -eq 2; then
+ 	case "$1" in
+-        *[-.]lzma | *.t[la]z)
++        *[-.]xz | *.txz | *[-.]lzma | *.tlz)
+                 case "$2" in
+-	        *[-.]lzma | *.t[la]z)
+-			F=`echo "$2" | sed 's|.*/||;s|[-.][tlaz]*||'`
++	        *[-.]xz | *.txz | *[-.]lzma | *.tlz)
++			F=`echo "$2" | sed 's|.*/||;s|[-.][almtxz]*||'`
+ 			TF=`/usr/bin/mktemp ${TMPDIR:-/tmp}/"$F".XXXXXXXXXX` || exit 1
+ 			trap 'rm -f "$TF"; exit 2' EXIT HUP INT PIPE TERM
+-			lzma -dc "$2" > "$TF" || exit
+-                        lzma -dc "$1" | $comp $OPTIONS - "$TF"
++			xz -dc -- "$2" > "$TF" || exit
++                        xz -dc -- "$1" | $comp $OPTIONS - "$TF"
+                         STAT="$?"
+ 			rm -f "$TF" || STAT=2
+ 			trap EXIT HUP INT PIPE TERM
+ 			exit $STAT;;
+ 
+-                *)      lzma -dc "$1" | $comp $OPTIONS - "$2";;
++                *)      xz -dc -- "$1" | $comp $OPTIONS - "$2";;
+                 esac;;
+         *)      case "$2" in
+-	        *[-.]lzma | *.t[la]z)
+-                        lzma -dc "$2" | $comp $OPTIONS "$1" -;;
++	        *[-.]xz | *.txz | *[-.]lzma | *.tlz)
++                        xz -dc -- "$2" | $comp $OPTIONS "$1" -;;
+                 *)      $comp $OPTIONS "$1" "$2";;
+                 esac;;
+ 	esac
+diff --git a/src/scripts/lzdiff.1 b/src/scripts/xzdiff.1
+similarity index 61%
+rename from src/scripts/lzdiff.1
+rename to src/scripts/xzdiff.1
+index 17bb855a..7d4f6060 100644
+--- a/src/scripts/lzdiff.1
++++ b/src/scripts/xzdiff.1
+@@ -1,16 +1,23 @@
+-.TH LZDIFF 1 "24 Jun 2005" "LZMA utils"
++.\" Original file was take from gzip, thus this man page is under GNU GPLv2+.
++.TH XZDIFF 1 "2009-04-13" "XZ Utils"
+ .SH NAME
+-lzcmp, lzdiff \- compare LZMA compressed files
++xzcmp, xzdiff, lzcmp, lzdiff \- compare .xz and .lzma compressed files
+ .SH SYNOPSIS
++.B xzcmp
++.RI [ cmp_options "] " file1 " [" file2 ]
++.br
++.B xzdiff
++.RI [ diff_options "] " file1 " [" file2 ]
++.br
+ .B lzcmp
+ .RI [ cmp_options "] " file1 " [" file2 ]
+ .br
+-.B zdiff
++.B lzdiff
+ .RI [ diff_options "] " file1 " [" file2 ]
+ .SH DESCRIPTION
+-.B  lzcmp
++.B  xzcmp
+ and
+-.B zdiff
++.B xdiff
+ are used to invoke the
+ .BR cmp (1)
+ or the
+@@ -21,8 +28,9 @@ or
+ .BR diff "."
+ If only 1 file is specified, then the files compared are
+ .I file1
+-and an uncompressed
+-.IB file1 ".gz\fR."
++(which must have .xz or .lzma suffix) and
++.I file1
++from which the .xz or .lzma suffix has been stripped.
+ If two files are specified, then they are uncompressed if necessary and fed to
+ .B cmp
+ or
+@@ -39,10 +47,9 @@ shipped in gzip package.
+ .SH "SEE ALSO"
+ .BR cmp (1),
+ .BR diff (1),
+-.BR lzmore(1),
+-.BR lzgrep(1),
+-.BR lzma (1),
+-.BR lzmash (1)
++.BR xzmore(1),
++.BR xzgrep(1),
++.BR xz (1)
+ .SH BUGS
+ Messages from the
+ .B cmp
+diff --git a/src/scripts/lzgrep b/src/scripts/xzgrep
+similarity index 93%
+rename from src/scripts/lzgrep
+rename to src/scripts/xzgrep
+index c872df4e..e359378b 100755
+--- a/src/scripts/lzgrep
++++ b/src/scripts/xzgrep
+@@ -1,7 +1,7 @@
+ #!/bin/sh
+ 
+-# lzgrep -- a wrapper around a grep program that decompresses files as needed
+-# Adapted to LZMA utils from gzip-1.3.3 + Red Hat's security patches
++# xzgrep -- a wrapper around a grep program that decompresses files as needed
++# Adapted to XZ Utils from gzip-1.3.3 + Red Hat's security patches
+ # Adapted from a version sent by Charles Levert <charles@comm.polymtl.ca>
+ # Copyright (C) 1998, 2001 Free Software Foundation
+ # Copyright (C) 1993 Jean-loup Gailly
+@@ -82,20 +82,20 @@ while test $# -ne 0; do
+ done
+ 
+ if test -z "$pat"; then
+-  echo "grep through lzma files"
++  echo "grep through .xz and .lzma files"
+   echo "usage: $prog [grep_options] pattern [files]"
+   exit 1
+ fi
+ 
+ if test $# -eq 0; then
+-  lzma -dc | $grep $opt "$pat"
++  xz -dc | $grep $opt "$pat"
+   exit $?
+ fi
+ 
+ res=0
+ trap break SIGPIPE
+ for i do
+-  lzma -dc "$i" |
++  xz -dc -- "$i" |
+     if test $files_with_matches -eq 1; then
+       $grep $opt "$pat" > /dev/null && printf "%s\n" "$i"
+     elif test $files_without_matches -eq 1; then
+diff --git a/src/scripts/lzgrep.1 b/src/scripts/xzgrep.1
+similarity index 50%
+rename from src/scripts/lzgrep.1
+rename to src/scripts/xzgrep.1
+index 65e344dd..d8647f2a 100644
+--- a/src/scripts/lzgrep.1
++++ b/src/scripts/xzgrep.1
+@@ -1,23 +1,33 @@
+-.TH LZGREP 1 "24 Jun 2005" "LZMA utils"
++.\" Original file was take from gzip, thus this man page is under GNU GPLv2+.
++.TH XZGREP 1 "2009-04-13" "XZ Utils"
+ .SH NAME
+-lzgrep \- search LZMA compressed files for a regular expression
++xzgrep \- search .xz and .lzma compressed files for a regular expression
+ .SH SYNOPSIS
+-.B lzgrep
++.B xzgrep
+ .RI [ grep_options ]
+ .RB  [ \-e ]
+ .I pattern
+ .IR filename ".\|.\|."
+ .br
++.B xzegrep
++.RB ...
++.br
++.B xzfgrep
++.RB ...
++.br
++.B lzgrep
++.RB ...
++.br
+ .B lzegrep
+ .RB ...
+ .br
+ .B lzfgrep
+ .RB ...
+ .SH DESCRIPTION
+-.B  lzgrep
++.B  xzgrep
+ is used to invoke the
+ .BR grep (1)
+-on LZMA compressed files. All options specified are passed directly to
++on .xz or .lzma compressed files. All options specified are passed directly to
+ .BR grep .
+ If no file is specified, then the standard input is decompressed
+ if necessary and fed to grep.
+@@ -25,37 +35,43 @@ Otherwise the given files are uncompressed if necessary and fed to
+ .BR grep .
+ .PP
+ If
+-.B lzgrep
++.B xzgrep
+ is invoked as
+-.B lzegrep
++.B xzegrep
+ or
+-.B lzfgrep
++.B xzfgrep
+ then
+ .B egrep
+ or
+ .B fgrep
+ is used instead of
+ .B grep.
++The same applies to names
++.BR lzgrep ,
++.BR lzegrep ,
++and
++.BR lzfgrep ,
++which are provided for backward compatibility with LZMA Utils.
++
+ If the GREP environment variable is set,
+-.B lzgrep
++.B xzgrep
+ uses it as the
+ .B grep
+ program to be invoked. For example:
+ 
+-    for sh:  GREP=fgrep  lzgrep string files
+-    for csh: (setenv GREP fgrep; lzgrep string files)
++    for sh:  GREP=fgrep  xzgrep string files
++    for csh: (setenv GREP fgrep; xzgrep string files)
+ .SH AUTHORS
+ Original
+ .BR zgrep (1)
+ manual page by Charles Levert <charles@comm.polymtl.ca>.
+ .PP
+-Minor modifications for LZMA utils by Lasse Collin
++Minor modifications for XZ Utils by Lasse Collin
+ <lasse.collin@tukaani.org>.
+ .SH "SEE ALSO"
+ .BR grep (1),
+ .BR egrep (1),
+ .BR fgrep (1),
+-.BR lzdiff (1),
+-.BR lzmore (1),
+-.BR lzma (1),
+-.BR lzmash (1)
++.BR xzdiff (1),
++.BR xzmore (1),
++.BR xz (1)
+diff --git a/src/scripts/lzmore b/src/scripts/xzmore
+similarity index 89%
+rename from src/scripts/lzmore
+rename to src/scripts/xzmore
+index d694774d..3ff3cbf7 100755
+--- a/src/scripts/lzmore
++++ b/src/scripts/xzmore
+@@ -2,7 +2,7 @@
+ 
+ # Copyright (C) 2001 Free Software Foundation
+ # Copyright (C) 1992, 1993 Jean-loup Gailly
+-# Adapted to LZMA utils from gzip-1.3.3 + Red Hat's security patches
++# Adapted to XZ Utils from gzip-1.3.3 + Red Hat's security patches
+ 
+ # This program is free software; you can redistribute it and/or modify
+ # it under the terms of the GNU General Public License as published by
+@@ -19,9 +19,9 @@
+ # Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA
+ # 02111-1307, USA.
+ 
+-if test "`echo "$0" | sed 's|.*/||'`" = "lzless"; then
+-  PAGER=less
+-fi
++case "$0" in
++  *less) PAGER=less ;;
++esac
+ 
+ if test "`echo -n a`" = "-n a"; then
+   # looks like a SysV system:
+@@ -46,7 +46,7 @@ if test $# = 0; then
+     if test -t 0; then
+ 	echo usage: zmore files...
+     else
+-	lzma -dc | eval ${PAGER-more}
++	xz -dc | eval ${PAGER-more}
+     fi
+ else
+     FIRST=1
+@@ -65,7 +65,7 @@ else
+ 	fi
+ 	if test "$ANS" != 's'; then
+ 		echo "------> $FILE <------"
+-		lzma -dc "$FILE" | eval ${PAGER-more}
++		xz -dc -- "$FILE" | eval ${PAGER-more}
+ 	fi
+ 	if test -t; then
+ 		FIRST=0
+diff --git a/src/scripts/lzmore.1 b/src/scripts/xzmore.1
+similarity index 61%
+rename from src/scripts/lzmore.1
+rename to src/scripts/xzmore.1
+index d92f95d3..dc76ac22 100644
+--- a/src/scripts/lzmore.1
++++ b/src/scripts/xzmore.1
+@@ -1,15 +1,22 @@
+-.TH LZMORE 1 "30 Jun 2005" "LZMA utils"
++.\" Original file was take from gzip, thus this man page is under GNU GPLv2+.
++.TH XZMORE 1 "2009-04-13" "XZ Utils"
+ .SH NAME
+-lzmore, lzless \- view LZMA compressed (text) files
++xzmore, xzless, lzmore, lzless \- view .xz or .lzma compressed (text) files
+ .SH SYNOPSIS
++.B xzmore
++.RI [ "filename ..."  ]
++.br
++.B xzless
++.RI [ "filename ..."  ]
++.br
+ .B lzmore
+ .RI [ "filename ..."  ]
+ .br
+ .B lzless
+ .RI [ "filename ..."  ]
+ .SH DESCRIPTION
+-.B  lzmore
+-is a filter which allows examination of LZMA compressed text files
++.B  xzmore
++is a filter which allows examination of .xz or .lzma compressed text files
+ one screenful at a time on a soft-copy terminal.
+ .PP
+ To use a pager other than the default
+@@ -19,18 +26,23 @@ set environment variable
+ to the name of the desired program, such as
+ .BR less .
+ If
+-.B lzmore
++.B xzmore
+ is called as
+-.B lzless
++.B xzless
+ then
+ .B less
+ is used as the
+ .BR PAGER .
++The names
++.B lzmore
++and
++.B lzless
++are provided for backward compatibility with LZMA Utils.
+ .TP
+ .BR e " or " q
+ When the prompt --More--(Next file:
+ .IR file )
+-is printed, this command causes lzmore to exit.
++is printed, this command causes xzmore to exit.
+ .TP
+ .B s
+ When the prompt --More--(Next file:
+@@ -49,7 +61,6 @@ shipped in gzip package.
+ .SH "SEE ALSO"
+ .BR more (1),
+ .BR zmore (1),
+-.BR lzdiff (1),
+-.BR lzgrep (1),
+-.BR lzma (1),
+-.BR lzmash (1)
++.BR xzdiff (1),
++.BR xzgrep (1),
++.BR xz (1)

@@ -1,0 +1,46 @@
+diff --git a/.gitignore b/.gitignore
+index 1217ea8b..3220269a 100644
+--- a/.gitignore
++++ b/.gitignore
+@@ -1,6 +1,7 @@
+ *~
+ *.bak
+ *.bak[0-9]
++.gdb_history
+ 
+ .deps
+ .libs
+@@ -29,6 +30,7 @@ build-aux/depcomp
+ build-aux/install-sh
+ build-aux/ltmain.sh
+ build-aux/missing
++build-aux/test-driver
+ 
+ /src/liblzma/liblzma.pc
+ /src/lzmainfo/lzmainfo
+diff --git a/m4/.gitignore b/m4/.gitignore
+index 6e6c3015..20f26034 100644
+--- a/m4/.gitignore
++++ b/m4/.gitignore
+@@ -1,4 +1,5 @@
+ codeset.m4
++fcntl-o.m4
+ gettext.m4
+ glibc2.m4
+ glibc21.m4
+@@ -6,6 +7,7 @@ iconv.m4
+ intdiv0.m4
+ intl.m4
+ intldir.m4
++intlmacosx.m4
+ intmax.m4
+ inttypes-pri.m4
+ inttypes_h.m4
+@@ -27,6 +29,7 @@ printf-posix.m4
+ progtest.m4
+ size_max.m4
+ stdint_h.m4
++threadlib.m4
+ uintmax_t.m4
+ ulonglong.m4
+ visibility.m4

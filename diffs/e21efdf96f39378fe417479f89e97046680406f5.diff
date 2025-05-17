@@ -1,0 +1,68 @@
+diff --git a/INSTALL b/INSTALL
+index ad924fe5..37c40055 100644
+--- a/INSTALL
++++ b/INSTALL
+@@ -352,6 +352,12 @@ XZ Utils Installation
+                 will still be installed. The $docdir can be changed
+                 with --docdir=DIR.
+ 
++    --enable-doxygen
++                Enable generation of the HTML version of the liblzma API
++                documentation using Doxygen. The resulting files are
++                installed to $docdir/api. This option assumes that
++                the 'doxygen' tool is available.
++
+     --disable-assembler
+                 This disables CRC32 and CRC64 assembly code on
+                 32-bit x86. This option currently does nothing
+diff --git a/configure.ac b/configure.ac
+index 68a02c97..2e3320f0 100644
+--- a/configure.ac
++++ b/configure.ac
+@@ -516,10 +516,18 @@ AM_CONDITIONAL([COND_SCRIPTS], [test x$enable_scripts != xno])
+ 
+ AC_ARG_ENABLE([doc], [AS_HELP_STRING([--disable-doc],
+ 		[do not install documentation files to docdir
+-		(man pages will still be installed)])],
++		(man pages are still installed and,
++		if --enable-doxygen is used,
++		liblzma API documentation is installed too)])],
+ 	[], [enable_doc=yes])
+ AM_CONDITIONAL([COND_DOC], [test x$enable_doc != xno])
+ 
++AC_ARG_ENABLE([doxygen], [AS_HELP_STRING([--enable-doxygen],
++		[generate HTML version of the liblzma API documentation
++		using Doxygen and install the result to docdir])],
++	[], [enable_doxygen=no])
++AM_CONDITIONAL([COND_DOXYGEN], [test x$enable_doxygen != xno])
++
+ 
+ ##############
+ # Sandboxing #
+diff --git a/src/liblzma/api/Makefile.am b/src/liblzma/api/Makefile.am
+index a7cb3c47..4f91c77a 100644
+--- a/src/liblzma/api/Makefile.am
++++ b/src/liblzma/api/Makefile.am
+@@ -17,3 +17,22 @@ nobase_include_HEADERS = \
+ 	lzma/stream_flags.h \
+ 	lzma/version.h \
+ 	lzma/vli.h
++
++if COND_DOXYGEN
++$(top_builddir)/doc/api/index.html: $(top_srcdir)/doxygen/update-doxygen $(top_srcdir)/doxygen/Doxyfile $(nobase_include_HEADERS)
++	$(MKDIR_P) "$(top_builddir)/doc"
++	"$(top_srcdir)/doxygen/update-doxygen" api \
++		"$(top_srcdir)" "$(top_builddir)/doc"
++
++all-local: $(top_builddir)/doc/api/index.html
++
++install-data-local:
++	$(MKDIR_P) "$(DESTDIR)$(docdir)/api"
++	$(INSTALL_DATA) "$(top_builddir)"/doc/api/* "$(DESTDIR)$(docdir)/api"
++
++uninstall-local:
++	rm -rf "$(DESTDIR)$(docdir)/api"
++
++clean-local:
++	rm -rf "$(top_builddir)/doc/api"
++endif

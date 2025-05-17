@@ -1,0 +1,35 @@
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+index 06282b4d..4924f436 100644
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -819,6 +819,10 @@ if(MICROLZMA_DECODER)
+     target_sources(liblzma PRIVATE src/liblzma/common/microlzma_decoder.c)
+ endif()
+ 
++if (MICROLZMA_ENCODER OR MICROLZMA_DECODER)
++    add_compile_definitions(HAVE_MICROLZMA)
++endif()
++
+ 
+ #############################
+ # lzip (.lz) format support #
+diff --git a/configure.ac b/configure.ac
+index 4476c8b4..3676cd03 100644
+--- a/configure.ac
++++ b/configure.ac
+@@ -304,8 +304,13 @@ AC_ARG_ENABLE([microlzma], AS_HELP_STRING([--disable-microlzma],
+ 		for example, erofs-utils.]),
+ 	[], [enable_microlzma=yes])
+ case $enable_microlzma in
+-	yes | no)
+-		AC_MSG_RESULT([$enable_microlzma])
++	yes)
++		AC_DEFINE([HAVE_MICROLZMA], [1],
++			[Define to 1 if MicroLZMA support is enabled.])
++		AC_MSG_RESULT([yes])
++		;;
++	no)
++		AC_MSG_RESULT([no])
+ 		;;
+ 	*)
+ 		AC_MSG_RESULT([])

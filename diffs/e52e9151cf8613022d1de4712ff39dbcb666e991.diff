@@ -1,0 +1,12 @@
+diff --git a/THANKS b/THANKS
+index 93dc3ba7..0c63e7ab 100644
+--- a/THANKS
++++ b/THANKS
+@@ -75,6 +75,7 @@ has been important. :-) In alphabetical order:
+   - Diego Elio Pettenò
+   - Elbert Pol
+   - Mikko Pouru
++  - Rich Prohaska
+   - Trần Ngọc Quân
+   - Pavel Raiskup
+   - Ole André Vadla Ravnås

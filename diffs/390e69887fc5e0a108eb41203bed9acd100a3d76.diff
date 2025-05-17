@@ -1,0 +1,39 @@
+diff --git a/m4/lc_cpucores.m4 b/m4/lc_cpucores.m4
+index 5e4e02d7..2fae953a 100644
+--- a/m4/lc_cpucores.m4
++++ b/m4/lc_cpucores.m4
+@@ -26,7 +26,7 @@ main(void)
+ 	return 0;
+ }
+ ]])], [
+-	AC_DEFINE([HAVE_NCPU_SYSCONF], [1],
++	AC_DEFINE([HAVE_CPUCORES_SYSCONF], [1],
+ 		[Define to 1 if the number of available CPU cores can be
+ 		detected with sysconf(_SC_NPROCESSORS_ONLN).])
+ 	AC_MSG_RESULT([sysconf])
+@@ -47,7 +47,7 @@ main(void)
+ 	return 0;
+ }
+ ]])], [
+-	AC_DEFINE([HAVE_NCPU_SYSCTL], [1],
++	AC_DEFINE([HAVE_CPUCORES_SYSCTL], [1],
+ 		[Define to 1 if the number of available CPU cores can be
+ 		detected with sysctl().])
+ 	AC_MSG_RESULT([sysctl])
+diff --git a/src/common/cpucores.h b/src/common/cpucores.h
+index 7e1a1438..1066a8e9 100644
+--- a/src/common/cpucores.h
++++ b/src/common/cpucores.h
+@@ -14,10 +14,10 @@
+ #ifndef CPUCORES_H
+ #define CPUCORES_H
+ 
+-#if defined(HAVE_NCPU_SYSCONF)
++#if defined(HAVE_CPUCORES_SYSCONF)
+ #	include <unistd.h>
+ 
+-#elif defined(HAVE_NCPU_SYSCTL)
++#elif defined(HAVE_CPUCORES_SYSCTL)
+ #	ifdef HAVE_SYS_PARAM_H
+ #		include <sys/param.h>
+ #	endif

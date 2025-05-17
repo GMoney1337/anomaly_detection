@@ -1,0 +1,113 @@
+diff --git a/src/liblzma/simple/arm.c b/src/liblzma/simple/arm.c
+index ff5073ae..1b8e24ac 100644
+--- a/src/liblzma/simple/arm.c
++++ b/src/liblzma/simple/arm.c
+@@ -49,7 +49,7 @@ arm_coder_init(lzma_next_coder *next, const lzma_allocator *allocator,
+ 		const lzma_filter_info *filters, bool is_encoder)
+ {
+ 	return lzma_simple_coder_init(next, allocator, filters,
+-			&arm_code, 0, 4, 4, is_encoder);
++			&arm_code, 0, 4, 4, is_encoder, true);
+ }
+ 
+ 
+diff --git a/src/liblzma/simple/armthumb.c b/src/liblzma/simple/armthumb.c
+index a8da334a..c559368e 100644
+--- a/src/liblzma/simple/armthumb.c
++++ b/src/liblzma/simple/armthumb.c
+@@ -54,7 +54,7 @@ armthumb_coder_init(lzma_next_coder *next, const lzma_allocator *allocator,
+ 		const lzma_filter_info *filters, bool is_encoder)
+ {
+ 	return lzma_simple_coder_init(next, allocator, filters,
+-			&armthumb_code, 0, 4, 2, is_encoder);
++			&armthumb_code, 0, 4, 2, is_encoder, true);
+ }
+ 
+ 
+diff --git a/src/liblzma/simple/ia64.c b/src/liblzma/simple/ia64.c
+index 6492d0a3..6ca1a91b 100644
+--- a/src/liblzma/simple/ia64.c
++++ b/src/liblzma/simple/ia64.c
+@@ -90,7 +90,7 @@ ia64_coder_init(lzma_next_coder *next, const lzma_allocator *allocator,
+ 		const lzma_filter_info *filters, bool is_encoder)
+ {
+ 	return lzma_simple_coder_init(next, allocator, filters,
+-			&ia64_code, 0, 16, 16, is_encoder);
++			&ia64_code, 0, 16, 16, is_encoder, true);
+ }
+ 
+ 
+diff --git a/src/liblzma/simple/powerpc.c b/src/liblzma/simple/powerpc.c
+index 0b60e9b3..51fa550a 100644
+--- a/src/liblzma/simple/powerpc.c
++++ b/src/liblzma/simple/powerpc.c
+@@ -54,7 +54,7 @@ powerpc_coder_init(lzma_next_coder *next, const lzma_allocator *allocator,
+ 		const lzma_filter_info *filters, bool is_encoder)
+ {
+ 	return lzma_simple_coder_init(next, allocator, filters,
+-			&powerpc_code, 0, 4, 4, is_encoder);
++			&powerpc_code, 0, 4, 4, is_encoder, true);
+ }
+ 
+ 
+diff --git a/src/liblzma/simple/simple_coder.c b/src/liblzma/simple/simple_coder.c
+index 4f499bef..59018366 100644
+--- a/src/liblzma/simple/simple_coder.c
++++ b/src/liblzma/simple/simple_coder.c
+@@ -237,7 +237,7 @@ lzma_simple_coder_init(lzma_next_coder *next, const lzma_allocator *allocator,
+ 		size_t (*filter)(void *simple, uint32_t now_pos,
+ 			bool is_encoder, uint8_t *buffer, size_t size),
+ 		size_t simple_size, size_t unfiltered_max,
+-		uint32_t alignment, bool is_encoder)
++		uint32_t alignment, bool is_encoder, bool is_generic_bcj)
+ {
+ 	// Allocate memory for the lzma_simple_coder structure if needed.
+ 	lzma_simple_coder *coder = next->coder;
+@@ -270,7 +270,7 @@ lzma_simple_coder_init(lzma_next_coder *next, const lzma_allocator *allocator,
+ 		}
+ 	}
+ 
+-	if (filters[0].options != NULL) {
++	if (is_generic_bcj && filters[0].options != NULL) {
+ 		const lzma_options_bcj *simple = filters[0].options;
+ 		coder->now_pos = simple->start_offset;
+ 		if (coder->now_pos & (alignment - 1))
+diff --git a/src/liblzma/simple/simple_private.h b/src/liblzma/simple/simple_private.h
+index 9d2c0fdd..108f9ced 100644
+--- a/src/liblzma/simple/simple_private.h
++++ b/src/liblzma/simple/simple_private.h
+@@ -69,6 +69,6 @@ extern lzma_ret lzma_simple_coder_init(lzma_next_coder *next,
+ 		size_t (*filter)(void *simple, uint32_t now_pos,
+ 			bool is_encoder, uint8_t *buffer, size_t size),
+ 		size_t simple_size, size_t unfiltered_max,
+-		uint32_t alignment, bool is_encoder);
++		uint32_t alignment, bool is_encoder, bool is_generic_bcj);
+ 
+ #endif
+diff --git a/src/liblzma/simple/sparc.c b/src/liblzma/simple/sparc.c
+index 74b2655f..96934d04 100644
+--- a/src/liblzma/simple/sparc.c
++++ b/src/liblzma/simple/sparc.c
+@@ -61,7 +61,7 @@ sparc_coder_init(lzma_next_coder *next, const lzma_allocator *allocator,
+ 		const lzma_filter_info *filters, bool is_encoder)
+ {
+ 	return lzma_simple_coder_init(next, allocator, filters,
+-			&sparc_code, 0, 4, 4, is_encoder);
++			&sparc_code, 0, 4, 4, is_encoder, true);
+ }
+ 
+ 
+diff --git a/src/liblzma/simple/x86.c b/src/liblzma/simple/x86.c
+index 0e78909c..0e682922 100644
+--- a/src/liblzma/simple/x86.c
++++ b/src/liblzma/simple/x86.c
+@@ -128,7 +128,8 @@ x86_coder_init(lzma_next_coder *next, const lzma_allocator *allocator,
+ 		const lzma_filter_info *filters, bool is_encoder)
+ {
+ 	const lzma_ret ret = lzma_simple_coder_init(next, allocator, filters,
+-			&x86_code, sizeof(lzma_simple_x86), 5, 1, is_encoder);
++			&x86_code, sizeof(lzma_simple_x86), 5, 1, is_encoder,
++			true);
+ 
+ 	if (ret == LZMA_OK) {
+ 		lzma_simple_coder *coder = next->coder;

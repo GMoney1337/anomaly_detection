@@ -1,0 +1,361 @@
+diff --git a/Makefile.am b/Makefile.am
+index 16db5142..3a634991 100644
+--- a/Makefile.am
++++ b/Makefile.am
+@@ -47,6 +47,7 @@ dist_examplesold_DATA = \
+ endif
+ 
+ EXTRA_DIST = \
++	po4a \
+ 	extra \
+ 	dos \
+ 	windows \
+@@ -99,8 +100,11 @@ dist-hook:
+ 	fi
+ 
+ # This works with GNU tar and gives cleaner package than normal 'make dist'.
++# This also ensures that the man page translations are up to date (dist-hook
++# would be too late for that).
+ mydist:
+ 	sh "$(srcdir)/src/liblzma/validate_map.sh"
++	cd "$(srcdir)/po4a" && sh update-po
+ 	VERSION=$(VERSION); \
+ 	if test -d "$(srcdir)/.git" && type git > /dev/null 2>&1; then \
+ 		SNAPSHOT=`cd "$(srcdir)" && git describe --abbrev=4 | cut -b2-`; \
+diff --git a/autogen.sh b/autogen.sh
+index f0195eca..fb8d983f 100755
+--- a/autogen.sh
++++ b/autogen.sh
+@@ -9,14 +9,16 @@
+ #
+ ###############################################################################
+ 
+-# The result of using "autoreconf -fi" should be identical to using this
+-# script. I'm leaving this script here just in case someone finds it useful.
+-
+ set -e -x
+ 
++# The following six lines are almost identical to "autoreconf -fi" but faster.
+ ${AUTOPOINT:-autopoint} -f
+ ${LIBTOOLIZE:-libtoolize} -c -f || glibtoolize -c -f
+ ${ACLOCAL:-aclocal} -I m4
+ ${AUTOCONF:-autoconf}
+ ${AUTOHEADER:-autoheader}
+ ${AUTOMAKE:-automake} -acf --foreign
++
++# Generate the translated man pages if the "po4a" tool is available.
++# This is *NOT* done by "autoreconf -fi" or when "make" is run.
++cd po4a && sh update-po
+diff --git a/po4a/.gitignore b/po4a/.gitignore
+new file mode 100644
+index 00000000..5bcfa04b
+--- /dev/null
++++ b/po4a/.gitignore
+@@ -0,0 +1,2 @@
++/man
++/xz-man.pot
+diff --git a/po4a/po4a.conf b/po4a/po4a.conf
+new file mode 100644
+index 00000000..41a90fc2
+--- /dev/null
++++ b/po4a/po4a.conf
+@@ -0,0 +1,14 @@
++# To add a new language, add it to po4a_langs and run "update-po"
++# to get a new .po file. After translating the .po file, run
++# "update-po" again to generate the translated man pages.
++
++[po4a_langs]
++[po4a_paths] xz-man.pot $lang:$lang.po
++
++[type: man] ../src/xz/xz.1              $lang:man/$lang/xz.1
++[type: man] ../src/xzdec/xzdec.1        $lang:man/$lang/xzdec.1
++[type: man] ../src/lzmainfo/lzmainfo.1  $lang:man/$lang/lzmainfo.1
++[type: man] ../src/scripts/xzdiff.1     $lang:man/$lang/xzdiff.1
++[type: man] ../src/scripts/xzgrep.1     $lang:man/$lang/xzgrep.1
++[type: man] ../src/scripts/xzless.1     $lang:man/$lang/xzless.1
++[type: man] ../src/scripts/xzmore.1     $lang:man/$lang/xzmore.1
+diff --git a/po4a/update-po b/po4a/update-po
+new file mode 100755
+index 00000000..c07af928
+--- /dev/null
++++ b/po4a/update-po
+@@ -0,0 +1,45 @@
++#!/bin/sh
++#
++#############################################################################
++#
++# Updates xz-man.pot and the *.po files, and generates translated man pages.
++# These are done using the program po4a. If po4a is missing, it is still
++# possible to build the package without translated man pages.
++#
++#############################################################################
++#
++# Author: Lasse Collin
++#
++# This file has been put into the public domain.
++# You can do whatever you want with this file.
++#
++#############################################################################
++
++if type po4a > /dev/null 2>&1; then
++	:
++else
++	echo "po4a/update-po: The program 'po4a' was not found." >&2
++	echo "po4a/update-po: Translated man pages were not generated." >&2
++	exit 1
++fi
++
++if test ! -f po4a.conf; then
++	cd `dirname "$0"` || exit 1
++	if test ! -f po4a.conf; then
++		echo "update-po: Error: Cannot find po4a.conf." >&2
++		exit 1
++	fi
++fi
++
++PACKAGE_VERSION=`cd .. && sh build-aux/version.sh` || exit 1
++
++# Using --force to get up-to-date version numbers in the output files
++# when nothing else has changed. This makes it slower but it's fine
++# as long as this isn't run every time when "make" is run at the
++# top level directory. (po4a isn't super-fast even without --force).
++set -x
++po4a --force --verbose \
++	--package-name="XZ Utils" \
++	--package-version="$PACKAGE_VERSION" \
++	--copyright-holder="This file is put in the public domain." \
++	po4a.conf
+diff --git a/src/scripts/Makefile.am b/src/scripts/Makefile.am
+index 29bdbcd7..fe5742d0 100644
+--- a/src/scripts/Makefile.am
++++ b/src/scripts/Makefile.am
+@@ -25,31 +25,65 @@ links += \
+ endif
+ 
+ install-exec-hook:
+-	cd $(DESTDIR)$(bindir) && \
++	cd "$(DESTDIR)$(bindir)" && \
+ 	for pair in $(links); do \
+ 		target=`echo $$pair | sed 's/-.*$$//' | sed '$(transform)'` && \
+ 		link=`echo $$pair | sed 's/^.*-//' | sed '$(transform)'` && \
+-		rm -f $$link && \
+-		$(LN_S) $$target $$link; \
++		rm -f "$$link" && \
++		$(LN_S) "$$target" "$$link"; \
+ 	done
+ 
++# The installation of translated man pages abuses Automake internals
++# by calling "install-man" with redefined dist_man_MANS and man_MANS.
++# If this breaks some day, don't blame Automake developers.
+ install-data-hook:
+-	cd $(DESTDIR)$(mandir)/man1 && \
+-	for pair in $(links); do \
+-		target=`echo $$pair | sed 's/-.*$$//' | sed '$(transform)'` && \
+-		link=`echo $$pair | sed 's/^.*-//' | sed '$(transform)'` && \
+-		rm -f $$link.1 && \
+-		$(LN_S) $$target.1 $$link.1; \
++	languages= ; \
++	if test "$(USE_NLS)" = yes && test -d "$(top_srcdir)/po4a/man"; then \
++		languages=`ls "$(top_srcdir)/po4a/man"`; \
++	fi; \
++	for lang in $$languages; do \
++		mans= ; \
++		for man in $(dist_man_MANS); do \
++			man="$(top_srcdir)/po4a/man/$$lang/$$man" ; \
++			if test -f "$$man"; then \
++				mans="$$mans $$man"; \
++			fi; \
++		done; \
++		$(MAKE) dist_man_MANS="$$mans" man_MANS= \
++				mandir="$(mandir)/$$lang" install-man; \
++	done; \
++	for lang in . $$languages; do \
++		for pair in $(links); do \
++			target=`echo $$pair | sed 's/-.*$$//' \
++					| sed '$(transform)'` && \
++			link=`echo $$pair | sed 's/^.*-//' \
++					| sed '$(transform)'` && \
++			man1dir="$(DESTDIR)$(mandir)/$$lang/man1" && \
++			if test -f "$$man1dir/$$target.1"; then ( \
++				cd "$$man1dir" && \
++				rm -f "$$link.1" && \
++				$(LN_S) "$$target.1" "$$link.1" \
++			); fi; \
++		done; \
+ 	done
+ 
+ uninstall-hook:
+-	cd $(DESTDIR)$(bindir) && \
++	cd "$(DESTDIR)$(bindir)" && \
+ 	for pair in $(links); do \
+ 		link=`echo $$pair | sed 's/^.*-//' | sed '$(transform)'` && \
+-		rm -f $$link; \
++		rm -f "$$link"; \
+ 	done
+-	cd $(DESTDIR)$(mandir)/man1 && \
+-	for pair in $(links); do \
+-		link=`echo $$pair | sed 's/^.*-//' | sed '$(transform)'` && \
+-		rm -f $$link.1; \
++	languages= ; \
++	if test "$(USE_NLS)" = yes && test -d "$(top_srcdir)/po4a/man"; then \
++		languages=`ls "$(top_srcdir)/po4a/man"`; \
++	fi; \
++	for lang in . $$languages; do \
++		for pair in $(links); do \
++			target=`echo $$pair | sed 's/-.*$$//' \
++					| sed '$(transform)'` && \
++			link=`echo $$pair | sed 's/^.*-//' \
++					| sed '$(transform)'` && \
++			rm -f "$(DESTDIR)$(mandir)/$$lang/man1/$$target.1" \
++				"$(DESTDIR)$(mandir)/$$lang/man1/$$link.1"; \
++		done; \
+ 	done
+diff --git a/src/xz/Makefile.am b/src/xz/Makefile.am
+index 0890aad7..4bc64f36 100644
+--- a/src/xz/Makefile.am
++++ b/src/xz/Makefile.am
+@@ -81,31 +81,53 @@ xzlinks += lzma unlzma lzcat
+ endif
+ 
+ install-exec-hook:
+-	cd $(DESTDIR)$(bindir) && \
++	cd "$(DESTDIR)$(bindir)" && \
+ 	target=`echo xz | sed '$(transform)'`$(EXEEXT) && \
+ 	for name in $(xzlinks); do \
+ 		link=`echo $$name | sed '$(transform)'`$(LN_EXEEXT) && \
+-		rm -f $$link && \
+-		$(LN_S) $$target $$link; \
++		rm -f "$$link" && \
++		$(LN_S) "$$target" "$$link"; \
+ 	done
+ 
++# The installation of translated man pages abuses Automake internals
++# by calling "install-man" with redefined dist_man_MANS and man_MANS.
++# If this breaks some day, don't blame Automake developers.
+ install-data-hook:
+-	cd $(DESTDIR)$(mandir)/man1 && \
++	languages= ; \
++	if test "$(USE_NLS)" = yes && test -d "$(top_srcdir)/po4a/man"; then \
++		languages=`ls "$(top_srcdir)/po4a/man"`; \
++	fi; \
+ 	target=`echo xz | sed '$(transform)'` && \
+-	for name in $(xzlinks); do \
+-		link=`echo $$name | sed '$(transform)'` && \
+-		rm -f $$link.1 && \
+-		$(LN_S) $$target.1 $$link.1; \
++	for lang in . $$languages; do \
++		man="$(top_srcdir)/po4a/man/$$lang/xz.1" ; \
++		if test -f "$$man"; then \
++			$(MAKE) dist_man_MANS="$$man" man_MANS= \
++				mandir="$(mandir)/$$lang" install-man; \
++		fi; \
++		man1dir="$(DESTDIR)$(mandir)/$$lang/man1" && \
++		if test -f "$$man1dir/$$target.1"; then ( \
++			cd "$$man1dir" && \
++			for name in $(xzlinks); do \
++				link=`echo $$name | sed '$(transform)'` && \
++				rm -f "$$link.1" && \
++				$(LN_S) "$$target.1" "$$link.1"; \
++			done \
++		); fi; \
+ 	done
+ 
+ uninstall-hook:
+-	cd $(DESTDIR)$(bindir) && \
++	cd "$(DESTDIR)$(bindir)" && \
+ 	for name in $(xzlinks); do \
+ 		link=`echo $$name | sed '$(transform)'`$(LN_EXEEXT) && \
+-		rm -f $$link; \
++		rm -f "$$link"; \
+ 	done
+-	cd $(DESTDIR)$(mandir)/man1 && \
+-	for name in $(xzlinks); do \
+-		link=`echo $$name | sed '$(transform)'` && \
+-		rm -f $$link.1; \
++	languages= ; \
++	if test "$(USE_NLS)" = yes && test -d "$(top_srcdir)/po4a/man"; then \
++		languages=`ls "$(top_srcdir)/po4a/man"`; \
++	fi; \
++	for lang in . $$languages; do \
++		for name in xz $(xzlinks); do \
++			name=`echo $$name | sed '$(transform)'` && \
++			rm -f "$(DESTDIR)$(mandir)/$$lang/man1/$$name.1"; \
++		done; \
+ 	done
+diff --git a/src/xzdec/Makefile.am b/src/xzdec/Makefile.am
+index 5ff8e373..90f1e922 100644
+--- a/src/xzdec/Makefile.am
++++ b/src/xzdec/Makefile.am
+@@ -50,6 +50,7 @@ lzmadec_LDADD = $(xzdec_LDADD)
+ 
+ 
+ bin_PROGRAMS =
++lzmadecmanlink =
+ 
+ if COND_XZDEC
+ bin_PROGRAMS += xzdec
+@@ -60,23 +61,51 @@ if COND_LZMADEC
+ bin_PROGRAMS += lzmadec
+ 
+ # Create the symlink lzmadec.1->xzdec.1 only if xzdec.1 was installed.
+-# This is better than creating a dangling symlink, especially
+-# because creating the link may fail due to the directory being missing.
+-#
+-# FIXME: The correct solution would be to install xzdec.1 as lzmadec.1
+-# but I don't know what is the sane way to do it and since this is a bit
+-# unusual situation anyway, it's not that important.
++# This is better than creating a dangling symlink. The correct solution
++# would be to install xzdec.1 as lzmadec.1 but this code is already too
++# complicated so I won't do it. Installing only lzmadec is a bit unusual
++# situation anyway so it's not that important.
+ if COND_XZDEC
++lzmadecmanlink += lzmadec
++endif
++endif
++
++if COND_XZDEC
++# The installation of translated man pages abuses Automake internals
++# by calling "install-man" with redefined dist_man_MANS and man_MANS.
++# If this breaks some day, don't blame Automake developers.
+ install-data-hook:
+-	cd $(DESTDIR)$(mandir)/man1 && \
++	languages= ; \
++	if test "$(USE_NLS)" = yes && test -d "$(top_srcdir)/po4a/man"; then \
++		languages=`ls "$(top_srcdir)/po4a/man"`; \
++	fi; \
+ 	target=`echo xzdec | sed '$(transform)'` && \
+ 	link=`echo lzmadec | sed '$(transform)'` && \
+-	rm -f $$link.1 && \
+-	$(LN_S) $$target.1 $$link.1
++	for lang in . $$languages; do \
++		man="$(top_srcdir)/po4a/man/$$lang/xzdec.1" ; \
++		if test -f "$$man"; then \
++			$(MAKE) dist_man_MANS="$$man" man_MANS= \
++				mandir="$(mandir)/$$lang" install-man; \
++		fi; \
++		man1dir="$(DESTDIR)$(mandir)/$$lang/man1" && \
++		if test -f "$$man1dir/$$target.1"; then \
++			if test -n "$(lzmadecmanlink)"; then ( \
++				cd "$$man1dir" && \
++				rm -f "$$link.1" && \
++				$(LN_S) "$$target.1" "$$link.1" \
++			); fi; \
++		fi; \
++	done
+ 
+ uninstall-hook:
+-	cd $(DESTDIR)$(mandir)/man1 && \
+-	link=`echo lzmadec | sed '$(transform)'` && \
+-	rm -f $$link.1
+-endif
++	languages= ; \
++	if test "$(USE_NLS)" = yes && test -d "$(top_srcdir)/po4a/man"; then \
++		languages=`ls "$(top_srcdir)/po4a/man"`; \
++	fi; \
++	for lang in . $$languages; do \
++		for name in xzdec $(lzmadecmanlink); do \
++			name=`echo $$name | sed '$(transform)'` && \
++			rm -f "$(DESTDIR)$(mandir)/$$lang/man1/$$name.1"; \
++		done; \
++	done
+ endif

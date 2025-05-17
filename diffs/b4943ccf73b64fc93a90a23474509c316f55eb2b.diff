@@ -1,0 +1,15 @@
+diff --git a/tests/test_files.sh b/tests/test_files.sh
+index f9b340f7..71b43a0b 100755
+--- a/tests/test_files.sh
++++ b/tests/test_files.sh
+@@ -18,7 +18,9 @@
+ 
+ for I in "$srcdir"/files/good-*.lzma
+ do
+-	if ! ../src/lzmadec/lzmadec "$I" > /dev/null 2> /dev/null ; then
++	if ../src/lzmadec/lzmadec "$I" > /dev/null 2> /dev/null ; then
++		:
++	else
+ 		echo "Good file failed: $I"
+ 		(exit 1)
+ 		exit 1

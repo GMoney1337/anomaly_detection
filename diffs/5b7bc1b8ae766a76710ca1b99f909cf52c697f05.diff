@@ -1,0 +1,12 @@
+diff --git a/THANKS b/THANKS
+index c2e799dc..0b438f4d 100644
+--- a/THANKS
++++ b/THANKS
+@@ -73,6 +73,7 @@ has been important. :-) In alphabetical order:
+   - Martin Matuška
+   - Jim Meyering
+   - Arkadiusz Miskiewicz
++  - Nathan Moinvaziri
+   - Étienne Mollier
+   - Conley Moorhous
+   - Rafał Mużyło

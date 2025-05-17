@@ -1,0 +1,56 @@
+diff --git a/src/common/mythread.h b/src/common/mythread.h
+index cd9ae89a..ee8a341d 100644
+--- a/src/common/mythread.h
++++ b/src/common/mythread.h
+@@ -20,6 +20,9 @@
+ 		pthread_once(&once_, &func); \
+ 	} while (0)
+ 
++#	define mythread_sigmask(how, set, oset) \
++		pthread_sigmask(how, set, oset)
++
+ #else
+ 
+ #	define mythread_once(func) \
+@@ -31,4 +34,7 @@
+ 		} \
+ 	} while (0)
+ 
++#	define mythread_sigmask(how, set, oset) \
++		sigprocmask(how, set, oset)
++
+ #endif
+diff --git a/src/xz/main.c b/src/xz/main.c
+index 23a2de1f..a3d1101a 100644
+--- a/src/xz/main.c
++++ b/src/xz/main.c
+@@ -109,7 +109,7 @@ signals_block(void)
+ {
+ 	if (signals_block_count++ == 0) {
+ 		const int saved_errno = errno;
+-		sigprocmask(SIG_BLOCK, &hooked_signals, NULL);
++		mythread_sigmask(SIG_BLOCK, &hooked_signals, NULL);
+ 		errno = saved_errno;
+ 	}
+ 
+@@ -124,7 +124,7 @@ signals_unblock(void)
+ 
+ 	if (--signals_block_count == 0) {
+ 		const int saved_errno = errno;
+-		sigprocmask(SIG_UNBLOCK, &hooked_signals, NULL);
++		mythread_sigmask(SIG_UNBLOCK, &hooked_signals, NULL);
+ 		errno = saved_errno;
+ 	}
+ 
+diff --git a/src/xz/private.h b/src/xz/private.h
+index b463a08e..9f0c52cc 100644
+--- a/src/xz/private.h
++++ b/src/xz/private.h
+@@ -21,6 +21,7 @@
+ #define PRIVATE_H
+ 
+ #include "sysdefs.h"
++#include "mythread.h"
+ 
+ #include <sys/types.h>
+ #include <sys/stat.h>

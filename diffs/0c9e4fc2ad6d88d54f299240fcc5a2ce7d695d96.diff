@@ -1,0 +1,13 @@
+diff --git a/src/liblzma/api/lzma/base.h b/src/liblzma/api/lzma/base.h
+index caf488fe..9e513450 100644
+--- a/src/liblzma/api/lzma/base.h
++++ b/src/liblzma/api/lzma/base.h
+@@ -139,7 +139,7 @@ typedef enum {
+ 		 */
+ 
+ 	LZMA_MEMLIMIT_ERROR     = 6,
+-		/**
++		/**<
+ 		 * \brief       Memory usage limit was reached
+ 		 *
+ 		 * Decoder would need more memory than allowed by the

@@ -1,0 +1,99 @@
+diff --git a/src/liblzma/common/Makefile.inc b/src/liblzma/common/Makefile.inc
+index 29f43ff1..f154f82f 100644
+--- a/src/liblzma/common/Makefile.inc
++++ b/src/liblzma/common/Makefile.inc
+@@ -8,7 +8,6 @@
+ liblzma_la_SOURCES += \
+ 	common/common.c \
+ 	common/common.h \
+-	common/bsr.h \
+ 	common/block_util.c \
+ 	common/easy_preset.c \
+ 	common/easy_preset.h \
+diff --git a/src/liblzma/common/bsr.h b/src/liblzma/common/bsr.h
+deleted file mode 100644
+index bef8641f..00000000
+--- a/src/liblzma/common/bsr.h
++++ /dev/null
+@@ -1,60 +0,0 @@
+-///////////////////////////////////////////////////////////////////////////////
+-//
+-/// \file       bsr.h
+-/// \brief      Bit scan reverse
+-//
+-//  Author:     Lasse Collin
+-//
+-//  This file has been put into the public domain.
+-//  You can do whatever you want with this file.
+-//
+-///////////////////////////////////////////////////////////////////////////////
+-
+-#ifndef LZMA_BSR_H
+-#define LZMA_BSR_H
+-
+-// NOTE: Both input and output variables for lzma_bsr must be uint32_t.
+-
+-#if defined(__GNUC__) && (defined (HAVE_ASM_X86) || defined(HAVE_ASM_X86_64))
+-#	define lzma_bsr(dest, n) \
+-		__asm__("bsrl %1, %0" : "=r" (dest) : "rm" (n))
+-
+-#else
+-#	define lzma_bsr(dest, n) dest = lzma_bsr_helper(n)
+-
+-static inline uint32_t
+-lzma_bsr_helper(uint32_t n)
+-{
+-	assert(n != 0);
+-
+-	uint32_t i = 31;
+-
+-	if ((n & UINT32_C(0xFFFF0000)) == 0) {
+-		n <<= 16;
+-		i = 15;
+-	}
+-
+-	if ((n & UINT32_C(0xFF000000)) == 0) {
+-		n <<= 8;
+-		i -= 8;
+-	}
+-
+-	if ((n & UINT32_C(0xF0000000)) == 0) {
+-		n <<= 4;
+-		i -= 4;
+-	}
+-
+-	if ((n & UINT32_C(0xC0000000)) == 0) {
+-		n <<= 2;
+-		i -= 2;
+-	}
+-
+-	if ((n & UINT32_C(0x80000000)) == 0)
+-		--i;
+-
+-	return i;
+-}
+-
+-#endif
+-
+-#endif
+diff --git a/src/liblzma/lzma/fastpos.h b/src/liblzma/lzma/fastpos.h
+index a95a00c4..4aea2318 100644
+--- a/src/liblzma/lzma/fastpos.h
++++ b/src/liblzma/lzma/fastpos.h
+@@ -76,15 +76,12 @@
+ // slightly faster, but sometimes it is a lot slower.
+ 
+ #ifdef HAVE_SMALL
+-#	include "bsr.h"
+-
+ #	define get_pos_slot(pos) ((pos) <= 4 ? (pos) : get_pos_slot_2(pos))
+ 
+ static inline uint32_t
+ get_pos_slot_2(uint32_t pos)
+ {
+-	uint32_t i;
+-	lzma_bsr(i, pos);
++	const uint32_t i = bsr32(pos);
+ 	return (i + i) + ((pos >> (i - 1)) & 1);
+ }
+ 

@@ -1,0 +1,10 @@
+diff --git a/tests/ossfuzz/config/fuzz_decode_stream_mt.options b/tests/ossfuzz/config/fuzz_decode_stream_mt.options
+new file mode 100644
+index 00000000..bbf43ac4
+--- /dev/null
++++ b/tests/ossfuzz/config/fuzz_decode_stream_mt.options
+@@ -0,0 +1,4 @@
++# SPDX-License-Identifier: 0BSD
++
++[libfuzzer]
++dict = fuzz_xz.dict

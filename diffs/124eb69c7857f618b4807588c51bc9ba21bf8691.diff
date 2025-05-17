@@ -1,0 +1,76 @@
+diff --git a/m4/tuklib_cpucores.m4 b/m4/tuklib_cpucores.m4
+index 9e295c8f..64a6b43c 100644
+--- a/m4/tuklib_cpucores.m4
++++ b/m4/tuklib_cpucores.m4
+@@ -9,8 +9,10 @@
+ #   This information is used by tuklib_cpucores.c.
+ #
+ #   Supported methods:
++#     - GetSystemInfo(): Windows (including Cygwin)
+ #     - sysctl(): BSDs, OS/2
+-#     - sysconf(): GNU/Linux, Solaris, Tru64, IRIX, AIX, Cygwin
++#     - sysconf(): GNU/Linux, Solaris, Tru64, IRIX, AIX, Cygwin (but
++#       GetSystemInfo() is used on Cygwin)
+ #     - pstat_getdynamic(): HP-UX
+ #
+ # COPYING
+@@ -30,6 +32,19 @@ AC_CHECK_HEADERS([sys/param.h])
+ AC_CACHE_CHECK([how to detect the number of available CPU cores],
+ 	[tuklib_cv_cpucores_method], [
+ 
++# Maybe checking $host_os would be enough but this matches what
++# tuklib_cpucores.c does.
++#
++# NOTE: IRIX has a compiler that doesn't error out with #error, so use
++# a non-compilable text instead of #error to generate an error.
++AC_COMPILE_IFELSE([AC_LANG_SOURCE([[
++#if defined(_WIN32) || defined(__CYGWIN__)
++int main(void) { return 0; }
++#else
++compile error
++#endif
++]])], [tuklib_cv_cpucores_method=special], [
++
+ # Look for sysctl() solution first, because on OS/2, both sysconf()
+ # and sysctl() pass the tests in this file, but only sysctl()
+ # actually works.
+@@ -82,7 +97,7 @@ main(void)
+ ]])], [tuklib_cv_cpucores_method=pstat_getdynamic], [
+ 
+ 	tuklib_cv_cpucores_method=unknown
+-])])])])
++])])])])])
+ 
+ case $tuklib_cv_cpucores_method in
+ 	sysctl)
+diff --git a/src/common/tuklib_cpucores.c b/src/common/tuklib_cpucores.c
+index 1da13df7..93413a3c 100644
+--- a/src/common/tuklib_cpucores.c
++++ b/src/common/tuklib_cpucores.c
+@@ -12,6 +12,12 @@
+ 
+ #include "tuklib_cpucores.h"
+ 
++#if defined(_WIN32) || defined(__CYGWIN__)
++#	ifndef _WIN32_WINNT
++#		define _WIN32_WINNT 0x0500
++#	endif
++#	include <windows.h>
++
+ #if defined(TUKLIB_CPUCORES_SYSCTL)
+ #	ifdef HAVE_SYS_PARAM_H
+ #		include <sys/param.h>
+@@ -33,7 +39,12 @@ tuklib_cpucores(void)
+ {
+ 	uint32_t ret = 0;
+ 
+-#if defined(TUKLIB_CPUCORES_SYSCTL)
++#if defined(_WIN32) || defined(__CYGWIN__)
++	SYSTEM_INFO sysinfo;
++	GetSystemInfo(&sysinfo);
++	ret = sysinfo.dwNumberOfProcessors;
++
++#elif defined(TUKLIB_CPUCORES_SYSCTL)
+ 	int name[2] = { CTL_HW, HW_NCPU };
+ 	int cpus;
+ 	size_t cpus_size = sizeof(cpus);

@@ -1,0 +1,192 @@
+diff --git a/src/liblzma/common/copy_coder.c b/src/liblzma/common/copy_coder.c
+index 41f327d1..0bd674f6 100644
+--- a/src/liblzma/common/copy_coder.c
++++ b/src/liblzma/common/copy_coder.c
+@@ -42,33 +42,12 @@ copy_encode(lzma_coder *coder, lzma_allocator *allocator,
+ 				in, in_pos, in_size, out, out_pos, out_size,
+ 				action);
+ 
+-	// If we get here, we are the last filter in the chain.
+-	assert(coder->uncompressed_size <= LZMA_VLI_VALUE_MAX);
+-
+-	const size_t in_avail = in_size - *in_pos;
+-
+-	// Check that we don't have too much input.
+-	if ((lzma_vli)(in_avail) > coder->uncompressed_size)
+-		return LZMA_DATA_ERROR;
+-
+-	// Check that once LZMA_FINISH has been given, the amount of input
+-	// matches uncompressed_size, which is always known.
+-	if (action == LZMA_FINISH
+-			&& coder->uncompressed_size != (lzma_vli)(in_avail))
+-		return LZMA_DATA_ERROR;
+-
+ 	// We are the last coder in the chain.
+ 	// Just copy as much data as possible.
+-	const size_t in_used = bufcpy(
+-			in, in_pos, in_size, out, out_pos, out_size);
+-
+-	// Update uncompressed_size if it is known.
+-	if (coder->uncompressed_size != LZMA_VLI_VALUE_UNKNOWN)
+-		coder->uncompressed_size -= in_used;
++	bufcpy(in, in_pos, in_size, out, out_pos, out_size);
+ 
+ 	// LZMA_SYNC_FLUSH and LZMA_FINISH are the same thing for us.
+-	if ((action != LZMA_RUN && *in_pos == in_size)
+-			|| coder->uncompressed_size == 0)
++	if (action != LZMA_RUN && *in_pos == in_size)
+ 		return LZMA_STREAM_END;
+ 
+ 	return LZMA_OK;
+diff --git a/src/liblzma/simple/simple_coder.c b/src/liblzma/simple/simple_coder.c
+index f60dff34..6ecd119e 100644
+--- a/src/liblzma/simple/simple_coder.c
++++ b/src/liblzma/simple/simple_coder.c
+@@ -39,44 +39,23 @@ copy_or_code(lzma_coder *coder, lzma_allocator *allocator,
+ 	if (coder->next.code == NULL) {
+ 		const size_t in_avail = in_size - *in_pos;
+ 
+-		if (coder->is_encoder) {
+-			if (action == LZMA_FINISH) {
+-				// If uncompressed size is known and the
+-				// amount of available input doesn't match
+-				// the uncompressed size, return an error.
+-				if (coder->uncompressed_size
+-						!= LZMA_VLI_VALUE_UNKNOWN
+-						&& coder->uncompressed_size
+-							!= in_avail)
+-					return LZMA_DATA_ERROR;
+-
+-			} else if (coder->uncompressed_size
+-					< (lzma_vli)(in_avail)) {
+-				// There is too much input available.
+-				return LZMA_DATA_ERROR;
+-			}
+-		} else {
++		if (!coder->is_encoder) {
+ 			// Limit in_size so that we don't copy too much.
+ 			if ((lzma_vli)(in_avail) > coder->uncompressed_size)
+ 				in_size = *in_pos + (size_t)(
+ 						coder->uncompressed_size);
+ 		}
+ 
+-		// Store the old position so we can update uncompressed_size.
+ 		const size_t out_start = *out_pos;
+-
+-		// Copy the data
+ 		bufcpy(in, in_pos, in_size, out, out_pos, out_size);
+ 
+-		// Update uncompressed_size.
+-		if (coder->uncompressed_size != LZMA_VLI_VALUE_UNKNOWN)
+-			coder->uncompressed_size -= *out_pos - out_start;
+-
+ 		// Check if end of stream was reached.
+ 		if (coder->is_encoder) {
+ 			if (action == LZMA_FINISH && *in_pos == in_size)
+ 				coder->end_was_reached = true;
+-		} else {
++		} else if (coder->uncompressed_size
++				!= LZMA_VLI_VALUE_UNKNOWN) {
++			coder->uncompressed_size -= *out_pos - out_start;
+ 			if (coder->uncompressed_size == 0)
+ 				coder->end_was_reached = true;
+ 		}
+diff --git a/src/liblzma/subblock/subblock_encoder.c b/src/liblzma/subblock/subblock_encoder.c
+index e1af4a45..96129d87 100644
+--- a/src/liblzma/subblock/subblock_encoder.c
++++ b/src/liblzma/subblock/subblock_encoder.c
+@@ -41,6 +41,7 @@ do { \
+ struct lzma_coder_s {
+ 	lzma_next_coder next;
+ 	bool next_finished;
++	bool use_eopm;
+ 
+ 	enum {
+ 		SEQ_FILL,
+@@ -62,8 +63,6 @@ struct lzma_coder_s {
+ 
+ 	lzma_options_subblock *options;
+ 
+-	lzma_vli uncompressed_size;
+-
+ 	size_t pos;
+ 	uint32_t tmp;
+ 
+@@ -235,18 +234,6 @@ subblock_buffer(lzma_coder *coder, lzma_allocator *allocator,
+ 		size_t in_size, uint8_t *restrict out,
+ 		size_t *restrict out_pos, size_t out_size, lzma_action action)
+ {
+-	// Verify that there is a sane amount of input.
+-	if (coder->uncompressed_size != LZMA_VLI_VALUE_UNKNOWN) {
+-		const lzma_vli in_avail = in_size - *in_pos;
+-		if (action == LZMA_FINISH) {
+-			if (in_avail != coder->uncompressed_size)
+-				return LZMA_DATA_ERROR;
+-		} else {
+-			if (in_avail > coder->uncompressed_size)
+-				return LZMA_DATA_ERROR;
+-		}
+-	}
+-
+ 	// Check if we need to do something special with the Subfilter.
+ 	if (coder->options != NULL && coder->options->allow_subfilters) {
+ 		switch (coder->options->subfilter_mode) {
+@@ -304,18 +291,12 @@ subblock_buffer(lzma_coder *coder, lzma_allocator *allocator,
+ 			assert(coder->subfilter.subcoder.code == NULL);
+ 
+ 			// No Subfilter is enabled, just copy the data as is.
+-			// NOTE: uncompressed_size cannot overflow because we
+-			// have checked/ it in the beginning of this function.
+-			const size_t in_used = bufcpy(in, in_pos, in_size,
++			coder->alignment.in_pending += bufcpy(
++					in, in_pos, in_size,
+ 					coder->subblock.data,
+ 					&coder->subblock.size,
+ 					coder->subblock.limit);
+ 
+-			if (coder->uncompressed_size != LZMA_VLI_VALUE_UNKNOWN)
+-				coder->uncompressed_size -= in_used;
+-
+-			coder->alignment.in_pending += in_used;
+-
+ 		} else {
+ 			const size_t in_start = *in_pos;
+ 			lzma_ret ret;
+@@ -351,11 +332,6 @@ subblock_buffer(lzma_coder *coder, lzma_allocator *allocator,
+ 			if (in_used > 0)
+ 				coder->subfilter.got_input = true;
+ 
+-			// NOTE: uncompressed_size cannot overflow because we
+-			// have checked it in the beginning of this function.
+-			if (coder->uncompressed_size != LZMA_VLI_VALUE_UNKNOWN)
+-				coder->uncompressed_size -= *in_pos - in_start;
+-
+ 			coder->alignment.in_pending += in_used;
+ 
+ 			if (ret == LZMA_STREAM_END) {
+@@ -509,14 +485,11 @@ subblock_buffer(lzma_coder *coder, lzma_allocator *allocator,
+ 				break;
+ 			}
+ 
+-			if (coder->uncompressed_size
+-					== LZMA_VLI_VALUE_UNKNOWN) {
++			if (coder->use_eopm) {
+ 				// NOTE: No need to use write_byte() here
+ 				// since we are finishing.
+ 				out[*out_pos] = 0x10;
+ 				++*out_pos;
+-			} else if (coder->uncompressed_size != 0) {
+-				return LZMA_DATA_ERROR;
+ 			}
+ 
+ 			return LZMA_STREAM_END;
+@@ -782,7 +755,8 @@ lzma_subblock_encoder_init(lzma_next_coder *next, lzma_allocator *allocator,
+ 	next->coder->next_finished = false;
+ 	next->coder->sequence = SEQ_FILL;
+ 	next->coder->options = filters[0].options;
+-	next->coder->uncompressed_size = filters[0].uncompressed_size;
++	next->coder->use_eopm = filters[0].uncompressed_size
++			== LZMA_VLI_VALUE_UNKNOWN;
+ 	next->coder->pos = 0;
+ 
+ 	next->coder->alignment.in_pending = 0;

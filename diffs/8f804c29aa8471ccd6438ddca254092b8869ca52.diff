@@ -1,0 +1,125 @@
+diff --git a/Makefile.am b/Makefile.am
+index 593fa3be..7ce5f95c 100644
+--- a/Makefile.am
++++ b/Makefile.am
+@@ -21,7 +21,6 @@ endif
+ 
+ SUBDIRS += src po tests
+ 
+-
+ EXTRA_DIST = \
+ 	m4 \
+ 	config.rpath  \
+@@ -33,4 +32,8 @@ EXTRA_DIST = \
+ 	COPYING.LGPLv2.1
+ 
+ ACLOCAL_AMFLAGS = -I m4
+-AUTOMAKE_OPTIONS = foreign
++
++# This works with GNU tar and gives cleaner package than normal 'make dist'.
++mydist:
++	TAR_OPTIONS='--owner=0 --group=0 --numeric-owner --mode=u+rw,go+r-w' \
++		$(MAKE) dist-gzip
+diff --git a/README b/README
+index 47d8b715..8d80b150 100644
+--- a/README
++++ b/README
+@@ -59,6 +59,35 @@ Supported platforms
+     in C89 or C++.
+ 
+ 
++Version numbering
++
++    Starting from LZMA Utils 5, the version number of LZMA Utils has
++    absolutely nothing to do with the version number of LZMA SDK or
++    7-Zip. The new version number format of LZMA Utils is X.Y.ZS:
++
++      - X is the major version. When this is incremented, the library
++        API and ABI break.
++
++      - Y is the minor version. It is incremented when new features are
++        added without breaking existing API or ABI. Even Y indicates
++        stable release and odd Y indicates unstable (alpha or beta
++        version).
++
++      - Z is the revision. This has different meaning for stable and
++        unstable releases:
++          * Stable: Z is incremented when bugs get fixed without adding
++            any new features.
++          * Unstable: Z is just a counter. API or ABI of features added
++            in earlier unstable releases having the same X.Y may break.
++
++      - S indicates stability of the release. It is missing from the
++        stable releases where Y is an even number. When Y is odd, S
++        is either "alpha" or "beta" to make it very clear that such
++        versions are not stable releases. The same X.Y.Z combination is
++        not used for more than one stability level i.e. after X.Y.Zalpha,
++        the next version can be X.Y.(Z+1)beta but not X.Y.Zbeta.
++
++
+ configure options
+ 
+     If you are not familiar with `configure' scripts, read the file
+diff --git a/configure.ac b/configure.ac
+index dbafd73c..8e531d67 100644
+--- a/configure.ac
++++ b/configure.ac
+@@ -26,7 +26,7 @@ AC_PREREQ(2.61)
+ 
+ # [LZMA] instead of [LZMA utils] since I prefer to have lzma-version.tar.gz
+ # instead of lzma-utils-version.tar.gz.
+-AC_INIT([LZMA], [4.42.3alpha], [lasse.collin@tukaani.org])
++AC_INIT([LZMA], [4.999.3alpha], [lasse.collin@tukaani.org])
+ 
+ AC_CONFIG_SRCDIR([src/liblzma/common/common.h])
+ AC_CONFIG_HEADER([config.h])
+@@ -354,7 +354,7 @@ echo "Initializing Automake:"
+ CXX=no
+ F77=no
+ 
+-AM_INIT_AUTOMAKE
++AM_INIT_AUTOMAKE([1.10 foreign tar-v7 filename-length-max=99])
+ AC_PROG_LN_S
+ AM_PROG_CC_C_O
+ AM_PROG_AS
+diff --git a/src/liblzma/api/lzma/version.h b/src/liblzma/api/lzma/version.h
+index 5ccda502..d88aa305 100644
+--- a/src/liblzma/api/lzma/version.h
++++ b/src/liblzma/api/lzma/version.h
+@@ -24,14 +24,18 @@
+ /**
+  * \brief       Compile-time version number
+  *
+- * The version number is of format xyyyuuus where
+- *  - x is the major LZMA SDK version
+- *  - yyy is the minor LZMA SDK version
+- *  - uuu is LZMA Utils version (reset to zero every time SDK version
+- *    is incremented)
++ * The version number is of format xyyyzzzs where
++ *  - x = major
++ *  - yyy = minor
++ *  - zzz = revision
+  *  - s indicates stability: 0 = alpha, 1 = beta, 2 = stable
++ *
++ * See the README file for details about the version numbering.
++ *
++ * \note        The version number of LZMA Utils (and thus liblzma)
++ *              has nothing to with the version number of LZMA SDK.
+  */
+-#define LZMA_VERSION UINT32_C(40420030)
++#define LZMA_VERSION UINT32_C(49990030)
+ 
+ 
+ /**
+@@ -49,11 +53,5 @@ extern const uint32_t lzma_version_number;
+  *
+  * This function may be useful if you want to display which version of
+  * libilzma your application is currently using.
+- *
+- * \return      Returns a pointer to a statically allocated string constant,
+- *              which contains the version number of liblzma. The format of
+- *              the version string is usually (but not necessarily) x.y.z
+- *              e.g. "4.42.1". Alpha and beta versions contain a suffix
+- *              ("4.42.0alpha").
+  */
+ extern const char *const lzma_version_string;

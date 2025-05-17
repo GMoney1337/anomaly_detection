@@ -1,0 +1,106 @@
+diff --git a/src/liblzma/simple/arm.c b/src/liblzma/simple/arm.c
+index 58acb2d1..f9d9c08b 100644
+--- a/src/liblzma/simple/arm.c
++++ b/src/liblzma/simple/arm.c
+@@ -18,8 +18,10 @@ arm_code(void *simple lzma_attribute((__unused__)),
+ 		uint32_t now_pos, bool is_encoder,
+ 		uint8_t *buffer, size_t size)
+ {
++	size &= ~(size_t)3;
++
+ 	size_t i;
+-	for (i = 0; i + 4 <= size; i += 4) {
++	for (i = 0; i < size; i += 4) {
+ 		if (buffer[i + 3] == 0xEB) {
+ 			uint32_t src = ((uint32_t)(buffer[i + 2]) << 16)
+ 					| ((uint32_t)(buffer[i + 1]) << 8)
+diff --git a/src/liblzma/simple/arm64.c b/src/liblzma/simple/arm64.c
+index 16c2f565..bc5d3c32 100644
+--- a/src/liblzma/simple/arm64.c
++++ b/src/liblzma/simple/arm64.c
+@@ -28,6 +28,8 @@ arm64_code(void *simple lzma_attribute((__unused__)),
+ 		uint32_t now_pos, bool is_encoder,
+ 		uint8_t *buffer, size_t size)
+ {
++	size &= ~(size_t)3;
++
+ 	size_t i;
+ 
+ 	// Clang 14.0.6 on x86-64 makes this four times bigger and 40 % slower
+@@ -37,7 +39,7 @@ arm64_code(void *simple lzma_attribute((__unused__)),
+ #ifdef __clang__
+ #	pragma clang loop vectorize(disable)
+ #endif
+-	for (i = 0; i + 4 <= size; i += 4) {
++	for (i = 0; i < size; i += 4) {
+ 		uint32_t pc = (uint32_t)(now_pos + i);
+ 		uint32_t instr = read32le(buffer + i);
+ 
+diff --git a/src/liblzma/simple/armthumb.c b/src/liblzma/simple/armthumb.c
+index f1eeca9b..368b51c7 100644
+--- a/src/liblzma/simple/armthumb.c
++++ b/src/liblzma/simple/armthumb.c
+@@ -18,8 +18,13 @@ armthumb_code(void *simple lzma_attribute((__unused__)),
+ 		uint32_t now_pos, bool is_encoder,
+ 		uint8_t *buffer, size_t size)
+ {
++	if (size < 4)
++		return 0;
++
++	size -= 4;
++
+ 	size_t i;
+-	for (i = 0; i + 4 <= size; i += 2) {
++	for (i = 0; i <= size; i += 2) {
+ 		if ((buffer[i + 1] & 0xF8) == 0xF0
+ 				&& (buffer[i + 3] & 0xF8) == 0xF8) {
+ 			uint32_t src = (((uint32_t)(buffer[i + 1]) & 7) << 19)
+diff --git a/src/liblzma/simple/ia64.c b/src/liblzma/simple/ia64.c
+index 50250140..2a4aaebb 100644
+--- a/src/liblzma/simple/ia64.c
++++ b/src/liblzma/simple/ia64.c
+@@ -25,8 +25,10 @@ ia64_code(void *simple lzma_attribute((__unused__)),
+ 		4, 4, 0, 0, 4, 4, 0, 0
+ 	};
+ 
++	size &= ~(size_t)15;
++
+ 	size_t i;
+-	for (i = 0; i + 16 <= size; i += 16) {
++	for (i = 0; i < size; i += 16) {
+ 		const uint32_t instr_template = buffer[i] & 0x1F;
+ 		const uint32_t mask = BRANCH_TABLE[instr_template];
+ 		uint32_t bit_pos = 5;
+diff --git a/src/liblzma/simple/powerpc.c b/src/liblzma/simple/powerpc.c
+index ba6cfbef..ea47d14d 100644
+--- a/src/liblzma/simple/powerpc.c
++++ b/src/liblzma/simple/powerpc.c
+@@ -18,8 +18,10 @@ powerpc_code(void *simple lzma_attribute((__unused__)),
+ 		uint32_t now_pos, bool is_encoder,
+ 		uint8_t *buffer, size_t size)
+ {
++	size &= ~(size_t)3;
++
+ 	size_t i;
+-	for (i = 0; i + 4 <= size; i += 4) {
++	for (i = 0; i < size; i += 4) {
+ 		// PowerPC branch 6(48) 24(Offset) 1(Abs) 1(Link)
+ 		if ((buffer[i] >> 2) == 0x12
+ 				&& ((buffer[i + 3] & 3) == 1)) {
+diff --git a/src/liblzma/simple/sparc.c b/src/liblzma/simple/sparc.c
+index e8ad285a..1fa48504 100644
+--- a/src/liblzma/simple/sparc.c
++++ b/src/liblzma/simple/sparc.c
+@@ -18,9 +18,10 @@ sparc_code(void *simple lzma_attribute((__unused__)),
+ 		uint32_t now_pos, bool is_encoder,
+ 		uint8_t *buffer, size_t size)
+ {
+-	size_t i;
+-	for (i = 0; i + 4 <= size; i += 4) {
++	size &= ~(size_t)3;
+ 
++	size_t i;
++	for (i = 0; i < size; i += 4) {
+ 		if ((buffer[i] == 0x40 && (buffer[i + 1] & 0xC0) == 0x00)
+ 				|| (buffer[i] == 0x7F
+ 				&& (buffer[i + 1] & 0xC0) == 0xC0)) {

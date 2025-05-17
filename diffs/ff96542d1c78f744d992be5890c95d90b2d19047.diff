@@ -1,0 +1,13 @@
+diff --git a/doxygen/Doxyfile b/doxygen/Doxyfile
+index 25428e92..632a0b89 100644
+--- a/doxygen/Doxyfile
++++ b/doxygen/Doxyfile
+@@ -19,6 +19,8 @@ RECURSIVE              = YES
+ OPTIMIZE_OUTPUT_FOR_C  = YES
+ EXTRACT_STATIC         = YES
+ SORT_MEMBER_DOCS       = NO
++WARN_IF_UNDOCUMENTED   = NO
++WARN_AS_ERROR          = FAIL_ON_WARNINGS
+ SOURCE_TOOLTIPS        = NO
+ VERBATIM_HEADERS       = NO
+ ALPHABETICAL_INDEX     = NO

@@ -1,0 +1,14 @@
+diff --git a/AUTHORS b/AUTHORS
+index 69bbfc3e..01730ed7 100644
+--- a/AUTHORS
++++ b/AUTHORS
+@@ -25,7 +25,8 @@ Authors of XZ Utils
+     The initial version of the .lz (lzip) decoder was written
+     by Michał Górny.
+ 
+-    CLMUL-accelerated CRC code was contributed by Ilya Kurdyukov.
++    Architecture-specific CRC optimizations were contributed by
++    Ilya Kurdyukov, Hans Jansen, and Chenxi Mao.
+ 
+     Other authors:
+       - Jonathan Nieder

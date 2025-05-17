@@ -1,0 +1,15 @@
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+index 542df742..7c6d9003 100644
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -1818,7 +1818,9 @@ endif()
+ # xz
+ #############################################################################
+ 
+-if(NOT MSVC OR MSVC_VERSION GREATER_EQUAL 1900)
++option(XZ_TOOL_XZ "Build and install the xz command line tool" ON)
++
++if(XZ_TOOL_XZ)
+     add_executable(xz
+         src/common/mythread.h
+         src/common/sysdefs.h

@@ -1,0 +1,15 @@
+diff --git a/src/xz/mytime.c b/src/xz/mytime.c
+index a81c88af..7e8a0749 100644
+--- a/src/xz/mytime.c
++++ b/src/xz/mytime.c
+@@ -12,7 +12,9 @@
+ 
+ #include "private.h"
+ 
+-#if !(defined(HAVE_CLOCK_GETTIME) && defined(HAVE_CLOCK_MONOTONIC))
++#if defined(HAVE_CLOCK_GETTIME) && defined(HAVE_CLOCK_MONOTONIC)
++#	include <time.h>
++#else
+ #	include <sys/time.h>
+ #endif
+ 

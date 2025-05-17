@@ -1,0 +1,14 @@
+diff --git a/src/liblzma/rangecoder/range_encoder.h b/src/liblzma/rangecoder/range_encoder.h
+index 113f38a4..b216e648 100644
+--- a/src/liblzma/rangecoder/range_encoder.h
++++ b/src/liblzma/rangecoder/range_encoder.h
+@@ -26,8 +26,8 @@
+ 
+ typedef struct {
+ 	uint64_t low;
++	uint64_t cache_size;
+ 	uint32_t range;
+-	uint32_t cache_size;
+ 	uint8_t cache;
+ } lzma_range_encoder;
+ 

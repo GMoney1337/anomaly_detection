@@ -1,0 +1,15 @@
+diff --git a/src/common/mythread.h b/src/common/mythread.h
+index 37b5216b..7a80f966 100644
+--- a/src/common/mythread.h
++++ b/src/common/mythread.h
+@@ -300,8 +300,8 @@ static inline void
+ mythread_condtime_set(mythread_condtime *condtime, const mythread_cond *cond,
+ 		uint32_t timeout_ms)
+ {
+-	condtime->tv_sec = timeout_ms / 1000;
+-	condtime->tv_nsec = (timeout_ms % 1000) * 1000000;
++	condtime->tv_sec = (time_t)(timeout_ms / 1000);
++	condtime->tv_nsec = (long)((timeout_ms % 1000) * 1000000);
+ 
+ #ifdef HAVE_CLOCK_GETTIME
+ 	struct timespec now;

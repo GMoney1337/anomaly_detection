@@ -1,0 +1,58 @@
+diff --git a/tests/Makefile.am b/tests/Makefile.am
+index 14d8436d..159fe419 100644
+--- a/tests/Makefile.am
++++ b/tests/Makefile.am
+@@ -40,4 +40,6 @@ test_block_header_SOURCES = test_block_header.c
+ test_index_SOURCES = test_index.c
+ test_info_SOURCES = test_info.c
+ 
+-TESTS = $(check_PROGRAMS)
++TESTS = \
++	$(check_PROGRAMS) \
++	test_files.sh
+diff --git a/tests/test_files.sh b/tests/test_files.sh
+new file mode 100755
+index 00000000..ee5f7bd2
+--- /dev/null
++++ b/tests/test_files.sh
+@@ -0,0 +1,40 @@
++#/bin/sh
++
++###############################################################################
++#
++#   Copyright (C) 2008 Lasse Collin
++#
++#   This library is free software; you can redistribute it and/or
++#   modify it under the terms of the GNU Lesser General Public
++#   License as published by the Free Software Foundation; either
++#   version 2.1 of the License, or (at your option) any later version.
++#
++#   This library is distributed in the hope that it will be useful,
++#   but WITHOUT ANY WARRANTY; without even the implied warranty of
++#   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
++#   Lesser General Public License for more details.
++#
++###############################################################################
++
++for I in "$srcdir/files/"good-*
++do
++	if ! ../src/lzmadec/lzmadec "$I" > /dev/null 2> /dev/null ; then
++		echo "Good file failed: $I"
++		(exit 1)
++		exit 1
++	fi
++done
++
++for I in "$srcdir/files/"bad-*
++do
++	if ../src/lzmadec/lzmadec "$I" > /dev/null 2> /dev/null ; then
++		echo "Bad file succeeded: $I"
++		(exit 1)
++		exit 1
++	fi
++done
++
++# TODO: Test malicious files too, but with care.
++
++(exit 0)
++exit 0

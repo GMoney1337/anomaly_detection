@@ -1,0 +1,542 @@
+diff --git a/dos/Makefile b/dos/Makefile
+new file mode 100644
+index 00000000..9439295c
+--- /dev/null
++++ b/dos/Makefile
+@@ -0,0 +1,261 @@
++###############################################################################
++#
++# Makefile to build XZ Utils using DJGPP
++#
++# Make flags to alter compilation:
++#
++#   DEBUG=1     Enable assertions. Don't use this for production builds!
++#               You may also want to set CFLAGS="-g -O0" to disable
++#               optimizations.
++#
++# The usual CPPFLAGS and CFLAGS are supported too.
++#
++###############################################################################
++#
++# Author: Lasse Collin
++#
++# This file has been put into the public domain.
++# You can do whatever you want with this file.
++#
++###############################################################################
++
++CC = gcc
++AR = ar
++STRIP = strip
++SED = sed
++RM = rm -f
++
++CFLAGS = -g -Wextra -Wfatal-errors -Wall -march=i386 -mtune=i686 -O2
++
++# NOTE: -fgnu89-inline is needed on DJGPP 2.04 beta and GCC 4.3.2
++# because time.h uses GNU-style "extern inline".
++ALL_CFLAGS = -std=gnu99 -fgnu89-inline
++
++ALL_CPPFLAGS = \
++	-I. \
++	-I../lib \
++	-I../src/common \
++	-I../src/liblzma/api \
++	-I../src/liblzma/common \
++	-I../src/liblzma/check \
++	-I../src/liblzma/rangecoder \
++	-I../src/liblzma/lz \
++	-I../src/liblzma/lzma \
++	-I../src/liblzma/delta \
++	-I../src/liblzma/simple \
++	-I../src/liblzma/subblock
++
++ALL_CPPFLAGS += -DHAVE_CONFIG_H
++
++ifdef DEBUG
++STRIP := rem Skipping strip
++else
++ALL_CPPFLAGS += -DNDEBUG
++endif
++
++ALL_CPPFLAGS += $(CPPFLAGS)
++ALL_CFLAGS += $(CFLAGS)
++
++
++################
++# Common rules #
++################
++
++.PHONY: all clean
++all: liblzma.a getopt.a xzdec.exe lzmadec.exe xz.exe
++clean: liblzma-clean getopt-clean xzdec-clean xz-clean
++
++
++#############
++# liblzma.a #
++#############
++
++LIBLZMA_SRCS_C = \
++	../src/liblzma/common/alone_decoder.c \
++	../src/liblzma/common/alone_encoder.c \
++	../src/liblzma/common/auto_decoder.c \
++	../src/liblzma/common/block_buffer_decoder.c \
++	../src/liblzma/common/block_buffer_encoder.c \
++	../src/liblzma/common/block_decoder.c \
++	../src/liblzma/common/block_encoder.c \
++	../src/liblzma/common/block_header_decoder.c \
++	../src/liblzma/common/block_header_encoder.c \
++	../src/liblzma/common/block_util.c \
++	../src/liblzma/common/common.c \
++	../src/liblzma/common/easy.c \
++	../src/liblzma/common/filter_common.c \
++	../src/liblzma/common/filter_decoder.c \
++	../src/liblzma/common/filter_encoder.c \
++	../src/liblzma/common/filter_flags_decoder.c \
++	../src/liblzma/common/filter_flags_encoder.c \
++	../src/liblzma/common/index.c \
++	../src/liblzma/common/index_decoder.c \
++	../src/liblzma/common/index_encoder.c \
++	../src/liblzma/common/index_hash.c \
++	../src/liblzma/common/stream_buffer_decoder.c \
++	../src/liblzma/common/stream_buffer_encoder.c \
++	../src/liblzma/common/stream_decoder.c \
++	../src/liblzma/common/stream_encoder.c \
++	../src/liblzma/common/stream_flags_common.c \
++	../src/liblzma/common/stream_flags_decoder.c \
++	../src/liblzma/common/stream_flags_encoder.c \
++	../src/liblzma/common/vli_decoder.c \
++	../src/liblzma/common/vli_encoder.c \
++	../src/liblzma/common/vli_size.c \
++	../src/liblzma/check/check.c \
++	../src/liblzma/check/crc32_table.c \
++	../src/liblzma/check/crc64_table.c \
++	../src/liblzma/check/sha256.c \
++	../src/liblzma/rangecoder/price_table.c \
++	../src/liblzma/lz/lz_decoder.c \
++	../src/liblzma/lz/lz_encoder.c \
++	../src/liblzma/lz/lz_encoder_mf.c \
++	../src/liblzma/lzma/fastpos_table.c \
++	../src/liblzma/lzma/lzma2_decoder.c \
++	../src/liblzma/lzma/lzma2_encoder.c \
++	../src/liblzma/lzma/lzma_decoder.c \
++	../src/liblzma/lzma/lzma_encoder.c \
++	../src/liblzma/lzma/lzma_encoder_optimum_fast.c \
++	../src/liblzma/lzma/lzma_encoder_optimum_normal.c \
++	../src/liblzma/lzma/lzma_encoder_presets.c \
++	../src/liblzma/delta/delta_common.c \
++	../src/liblzma/delta/delta_decoder.c \
++	../src/liblzma/delta/delta_encoder.c \
++	../src/liblzma/simple/arm.c \
++	../src/liblzma/simple/armthumb.c \
++	../src/liblzma/simple/ia64.c \
++	../src/liblzma/simple/powerpc.c \
++	../src/liblzma/simple/simple_coder.c \
++	../src/liblzma/simple/simple_decoder.c \
++	../src/liblzma/simple/simple_encoder.c \
++	../src/liblzma/simple/sparc.c \
++	../src/liblzma/simple/x86.c
++
++LIBLZMA_SRCS_ASM = \
++	../src/liblzma/check/crc32_x86.S \
++	../src/liblzma/check/crc64_x86.S
++
++LIBLZMA_OBJS_C = $(LIBLZMA_SRCS_C:.c=.o)
++LIBLZMA_OBJS_ASM = $(LIBLZMA_SRCS_ASM:.S=.o)
++LIBLZMA_OBJS = $(LIBLZMA_OBJS_C) $(LIBLZMA_OBJS_ASM)
++
++$(LIBLZMA_OBJS_C): %.o: %.c
++	$(CC) $(ALL_CPPFLAGS) $(ALL_CFLAGS) -c -o $@ $<
++
++$(LIBLZMA_OBJS_ASM): %.o: %.S
++	$(CC) $(ALL_CPPFLAGS) $(ALL_CFLAGS) -c -o $@ $<
++
++liblzma.a: $(LIBLZMA_OBJS)
++	$(RM) $@
++	$(AR) rcs $@ $(LIBLZMA_OBJS)
++	$(STRIP) --strip-unneeded $@
++
++# Avoid too long command lines.
++.PHONY: liblzma-clean $(LIBLZMA_OBJS:.o=-clean)
++liblzma-clean: $(LIBLZMA_OBJS:.o=-clean)
++	-$(RM) liblzma.a
++
++$(LIBLZMA_OBJS:.o=-clean):
++	-$(RM) $(@:-clean=.o)
++
++
++###############
++# getopt_long #
++###############
++
++GETOPT_SRCS = \
++	../lib/getopt.c \
++	../lib/getopt1.c
++
++GETOPT_OBJS = $(GETOPT_SRCS:.c=.o)
++
++GETOPT_H = ../lib/getopt.h
++
++$(GETOPT_H): %.h: %.in.h
++	$(SED) "" $< > $@
++
++$(GETOPT_OBJS): %.o: %.c $(GETOPT_H)
++	$(CC) $(ALL_CPPFLAGS) $(ALL_CFLAGS) -c -o $@ $<
++
++getopt.a: $(GETOPT_OBJS)
++	$(RM) $@
++	$(AR) rcs $@ $(GETOPT_OBJS)
++	$(STRIP) --strip-unneeded $@	
++
++getopt-clean:
++	$(RM) $(GETOPT_H) $(GETOPT_OBJS) getopt.a
++
++
++###########################
++# xzdec.exe & lzmadec.exe #
++###########################
++
++XZDEC_SRCS = ../src/xzdec/xzdec.c
++
++xzdec.exe: getopt.a liblzma.a $(XZDEC_SRCS)
++	$(CC) $(ALL_CPPFLAGS) $(ALL_CFLAGS) $(XZDEC_SRCS) -o $@ getopt.a liblzma.a
++	$(STRIP) --strip-all $@
++	exe2coff $@
++	$(RM) $@
++	copy /b $(DJGPP:DJGPP.ENV=BIN\CWSDSTUB.EXE) + $(@:.exe=) $@
++	$(RM) $(@:.exe=)
++
++lzmadec.exe: getopt.a liblzma.a $(XZDEC_SRCS)
++	$(CC) $(ALL_CPPFLAGS) -DLZMADEC $(ALL_CFLAGS) $(XZDEC_SRCS) -o $@ getopt.a liblzma.a
++	$(STRIP) --strip-all $@
++	exe2coff $@
++	$(RM) $@
++	copy /b $(DJGPP:DJGPP.ENV=BIN\CWSDSTUB.EXE) + $(@:.exe=) $@
++	$(RM) $(@:.exe=)
++
++.PHONY: xzdec-clean
++xzdec-clean:
++	-$(RM) xzdec.exe lzmadec.exe xzdec lzmadec
++
++
++##########
++# xz.exe #
++##########
++
++XZ_SRCS = \
++	../src/xz/args.c \
++	../src/xz/hardware.c \
++	../src/xz/io.c \
++	../src/xz/main.c \
++	../src/xz/message.c \
++	../src/xz/options.c \
++	../src/xz/process.c \
++	../src/xz/signals.c \
++	../src/xz/suffix.c \
++	../src/xz/util.c
++
++XZ_SRCS_FIXED = $(XZ_SRCS:.c=-fixed.c)
++XZ_OBJS = $(XZ_SRCS:.c=.o)
++
++$(XZ_SRCS_FIXED): %-fixed.c: %.c
++	$(SED) "s/%'/%/g" $< > $@
++
++# We need to "fix" the source files which use ' as format character
++# in printf() to get thousand separators. DJGPP doesn't support it.
++# It's not in C89 or C99, but it is in POSIX.
++$(XZ_OBJS): %.o: %-fixed.c
++	$(CC) $(ALL_CPPFLAGS) $(ALL_CFLAGS) -c -o $@ $<
++
++xz.exe: getopt.a liblzma.a $(XZ_OBJS)
++	$(CC) $(ALL_CFLAGS) $(XZ_OBJS) -o $@ getopt.a liblzma.a
++	$(STRIP) --strip-all $@
++	exe2coff $@
++	$(RM) $@
++	copy /b $(DJGPP:DJGPP.ENV=BIN\CWSDSTUB.EXE) + $(@:.exe=) $@
++	$(RM) $(@:.exe=)
++
++# Avoid too long command lines.
++.PHONY: xz-clean $(XZ_OBJS:.o=-clean)
++xz-clean: $(XZ_OBJS:.o=-clean)
++	-$(RM) xz.exe xz
++
++# FIXME: Deleting hardware-fixed.c may actually delete hardware.c
++# on Dosemu 1.4.0 with its FreeDOS 1.0. Maybe it tries with
++# truncated 8.3 name first.
++$(XZ_OBJS:.o=-clean):
++	-$(RM) $(@:-clean=.o) $(@:-clean=-fixed.c)
+diff --git a/dos/README b/dos/README
+new file mode 100644
+index 00000000..649c58c4
+--- /dev/null
++++ b/dos/README
+@@ -0,0 +1,113 @@
++
++XZ Utils on DOS
++===============
++
++Introduction
++
++    This document explains how to build XZ Utils for DOS using DJGPP.
++    The resulting binaries should run at least on various DOS versions
++    and under Windows 95/98/98SE/ME, which cannot run the Windows version
++    of XZ Utils.
++
++    This is currently experimental and has got very little testing.
++
++
++Getting and Installing DJGPP
++
++    You may use <http://www.delorie.com/djgpp/zip-picker.html> to help
++    deciding what to download, but as of writing (2009-02-13) that may
++    not be the most convenient way taking into account what components
++    are actually required to build XZ Utils. However, using the
++    zip-picker can still be worth doing to get nice short summary of
++    installation instructions (they can be found from readme.1st too).
++
++    For more manual method, first select a mirror from
++    <http://www.delorie.com/djgpp/getting.html>. You need
++    the following files:
++
++        unzip32.exe
++        beta/v2/djdev204.zip
++        v2gnu/bnu219b.zip
++        v2gnu/gcc432b.zip
++        v2gnu/mak3791b.zip
++        v2gnu/sed415b.zip
++        v2misc/csdpmi5b.zip
++
++    If newer versions are available, probably you should try them first.
++    Note that djdev203.zip is too old to build XZ Utils; you need at
++    least djdev204.zip. Also note that you want csdpmi5b.zip even if you
++    run under Windows or DOSEMU, because the XZ Utils Makefile will embed
++    cwsdstub.exe to the resulting binaries.
++
++    See the instructions in readme.1st found from djdev204.zip. Here's
++    a short summary, but you should still read readme.1st.
++
++        C:\> mkdir DJGPP
++        C:\> cd DJGPP
++        C:\DJGPP> c:\download\unzip32 c:\download\djdev204.zip
++        C:\DJGPP> c:\download\unzip32 c:\download\bnu219b.zip
++        C:\DJGPP> c:\download\unzip32 c:\download\gcc432b.zip
++        C:\DJGPP> c:\download\unzip32 c:\download\mak3791b.zip
++        C:\DJGPP> c:\download\unzip32 c:\download\sed415b.zip
++        C:\DJGPP> c:\download\unzip32 c:\download\csdpmi5b.zip
++
++        C:\DJGPP> set PATH=C:\DJGPP\BIN;%PATH%
++        C:\DJGPP> set DJGPP=C:\DJGPP\DJGPP.ENV
++
++    You may want to add the last two lines into AUTOEXEC.BAT or have,
++    for example, DJGPP.BAT which you can run before using DJGPP.
++
++    Make sure you use completely upper case path in the DJGPP environment
++    variable. This is not required by DJGPP, but the XZ Utils Makefile is
++    a bit stupid and expects that everything in DJGPP environment variable
++    is uppercase.
++
++
++Building
++
++    Just run "make" in this directory (the directory containing this
++    README). You should get liblzma.a, xz.exe, xzdec.exe, and
++    lzmadec.exe. Of these, probably xz.exe is the only interesting one.
++
++    Note: You need to have an environment that supports long filenames.
++    Once you have built XZ Utils, the resulting binaries can be run
++    without long filename support.
++
++
++Additional Make Flags and Targets
++
++    You may want to try some additional optimizations, which may or
++    may not make the code faster (and may or may not hit possible
++    compiler bugs more easily):
++
++        make CFLAGS="-O3 -fomit-frame-pointer -funroll-loops"
++
++    If you want to enable assertions (the assert() macro), use DEBUG=1.
++    You may want to disable optimizations too if you plan to actually
++    debug the code. Never use DEBUG=1 for production builds!
++
++        make DEBUG=1 CFLAGS="-g -O0"
++
++
++Bugs
++
++    "make clean" may remove src/xz/hardware.c when it tries to remove
++    src/xz/hardware-fixed.c. This is probably a bug somewhere in the
++    DOS environment I use. Maybe it tries truncated 8.3 name first and
++    since that gives a name of an existing file, it doesn't look for
++    long filename.
++
++    "xz -fc /dev/tty" hangs at least in DOSEMU and cannot be interrupted
++    by pressing C-c. Maybe xz should never accept non-regular files on
++    DOS even when --force is used.
++
++    Using different memory usage limit for encoding and decoding doesn't
++    make sense under pure DOS. Maybe it is still OK when running under
++    Windows.
++
++    The progress indicator of "xz -v" doesn't get updated when running
++    under Dosbox, but it works in DOSEMU. I currently (2009-02-13) don't
++    know if it works in other environments.
++
++    Report bugs to <lasse.collin@tukaani.org> (in English or Finnish).
++
+diff --git a/dos/config.h b/dos/config.h
+new file mode 100644
+index 00000000..9c9fff02
+--- /dev/null
++++ b/dos/config.h
+@@ -0,0 +1,150 @@
++/* Define to 1 if using x86 assembler optimizations. */
++#define HAVE_ASM_X86 1
++
++/* Define to 1 if crc32 integrity check is enabled. */
++#define HAVE_CHECK_CRC32 1
++
++/* Define to 1 if crc64 integrity check is enabled. */
++#define HAVE_CHECK_CRC64 1
++
++/* Define to 1 if sha256 integrity check is enabled. */
++#define HAVE_CHECK_SHA256 1
++
++/* Define to 1 if decoder components are enabled. */
++#define HAVE_DECODER 1
++
++/* Define to 1 if arm decoder is enabled. */
++#define HAVE_DECODER_ARM 1
++
++/* Define to 1 if armthumb decoder is enabled. */
++#define HAVE_DECODER_ARMTHUMB 1
++
++/* Define to 1 if delta decoder is enabled. */
++#define HAVE_DECODER_DELTA 1
++
++/* Define to 1 if ia64 decoder is enabled. */
++#define HAVE_DECODER_IA64 1
++
++/* Define to 1 if lzma1 decoder is enabled. */
++#define HAVE_DECODER_LZMA1 1
++
++/* Define to 1 if lzma2 decoder is enabled. */
++#define HAVE_DECODER_LZMA2 1
++
++/* Define to 1 if powerpc decoder is enabled. */
++#define HAVE_DECODER_POWERPC 1
++
++/* Define to 1 if sparc decoder is enabled. */
++#define HAVE_DECODER_SPARC 1
++
++/* Define to 1 if subblock decoder is enabled. */
++/* #undef HAVE_DECODER_SUBBLOCK */
++
++/* Define to 1 if x86 decoder is enabled. */
++#define HAVE_DECODER_X86 1
++
++/* Define to 1 if encoder components are enabled. */
++#define HAVE_ENCODER 1
++
++/* Define to 1 if arm encoder is enabled. */
++#define HAVE_ENCODER_ARM 1
++
++/* Define to 1 if armthumb encoder is enabled. */
++#define HAVE_ENCODER_ARMTHUMB 1
++
++/* Define to 1 if delta encoder is enabled. */
++#define HAVE_ENCODER_DELTA 1
++
++/* Define to 1 if ia64 encoder is enabled. */
++#define HAVE_ENCODER_IA64 1
++
++/* Define to 1 if lzma1 encoder is enabled. */
++#define HAVE_ENCODER_LZMA1 1
++
++/* Define to 1 if lzma2 encoder is enabled. */
++#define HAVE_ENCODER_LZMA2 1
++
++/* Define to 1 if powerpc encoder is enabled. */
++#define HAVE_ENCODER_POWERPC 1
++
++/* Define to 1 if sparc encoder is enabled. */
++#define HAVE_ENCODER_SPARC 1
++
++/* Define to 1 if subblock encoder is enabled. */
++/* #undef HAVE_ENCODER_SUBBLOCK */
++
++/* Define to 1 if x86 encoder is enabled. */
++#define HAVE_ENCODER_X86 1
++
++/* Define to 1 if the system supports fast unaligned memory access. */
++#define HAVE_FAST_UNALIGNED_ACCESS 1
++
++/* Define to 1 if you have the <inttypes.h> header file. */
++#define HAVE_INTTYPES_H 1
++
++/* Define to 1 if you have the <limits.h> header file. */
++#define HAVE_LIMITS_H 1
++
++/* Define to 1 if you have the <memory.h> header file. */
++#define HAVE_MEMORY_H 1
++
++/* Define to 1 to enable bt2 match finder. */
++#define HAVE_MF_BT2 1
++
++/* Define to 1 to enable bt3 match finder. */
++#define HAVE_MF_BT3 1
++
++/* Define to 1 to enable bt4 match finder. */
++#define HAVE_MF_BT4 1
++
++/* Define to 1 to enable hc3 match finder. */
++#define HAVE_MF_HC3 1
++
++/* Define to 1 to enable hc4 match finder. */
++#define HAVE_MF_HC4 1
++
++/* Define to 1 if optimizing for size. */
++/* #undef HAVE_SMALL */
++
++/* Define to 1 if stdbool.h conforms to C99. */
++#define HAVE_STDBOOL_H 1
++
++/* Define to 1 if you have the <stdint.h> header file. */
++#define HAVE_STDINT_H 1
++
++/* Define to 1 if you have the <stdlib.h> header file. */
++#define HAVE_STDLIB_H 1
++
++/* Define to 1 if you have the <strings.h> header file. */
++#define HAVE_STRINGS_H 1
++
++/* Define to 1 if you have the <string.h> header file. */
++#define HAVE_STRING_H 1
++
++/* Define to 1 if the system has the type `uintptr_t'. */
++#define HAVE_UINTPTR_T 1
++
++/* Define to 1 if you have the <sys/time.h> header file. */
++#define HAVE_SYS_TIME_H 1
++
++/* Define to 1 if you have the `utimes' function. */
++#define HAVE_UTIMES 1
++
++/* Define to 1 or 0, depending whether the compiler supports simple visibility
++   declarations. */
++#define HAVE_VISIBILITY 0
++
++/* Define to 1 if the system has the type `_Bool'. */
++#define HAVE__BOOL 1
++
++/* Define to the address where bug reports for this package should be sent. */
++#define PACKAGE_BUGREPORT "lasse.collin@tukaani.org"
++
++/* Define to the full name of this package. */
++#define PACKAGE_NAME "XZ Utils"
++
++/* The size of `size_t', as computed by sizeof. */
++#define SIZEOF_SIZE_T 4
++
++/* Define to 1 if you have the ANSI C header files. */
++#define STDC_HEADERS 1

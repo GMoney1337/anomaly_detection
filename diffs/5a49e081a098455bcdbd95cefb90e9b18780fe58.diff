@@ -1,0 +1,70 @@
+diff --git a/src/xz/coder.c b/src/xz/coder.c
+index 1cd03857..3f561851 100644
+--- a/src/xz/coder.c
++++ b/src/xz/coder.c
+@@ -729,6 +729,10 @@ coder_normal(file_pair *pair)
+ 
+ 				// Set the time of the most recent flushing.
+ 				mytime_set_flush_time();
++
++				// Mark that we haven't seen any new input
++				// since the previous flush.
++				pair->src_has_seen_input = false;
+ 			} else {
+ 				// Start a new Block after LZMA_FULL_BARRIER.
+ 				if (opt_block_list == NULL) {
+diff --git a/src/xz/file_io.c b/src/xz/file_io.c
+index 5d140750..7e9a4e67 100644
+--- a/src/xz/file_io.c
++++ b/src/xz/file_io.c
+@@ -749,6 +749,7 @@ io_open_src(const char *src_name)
+ 		.src_fd = -1,
+ 		.dest_fd = -1,
+ 		.src_eof = false,
++		.src_has_seen_input = false,
+ 		.dest_try_sparse = false,
+ 		.dest_pending_sparse = 0,
+ 	};
+@@ -1133,10 +1134,15 @@ io_read(file_pair *pair, io_buf *buf, size_t size)
+ 
+ #ifndef TUKLIB_DOSLIKE
+ 			if (IS_EAGAIN_OR_EWOULDBLOCK(errno)) {
+-				const io_wait_ret ret = io_wait(pair,
+-						mytime_get_flush_timeout(),
+-						true);
+-				switch (ret) {
++				// Disable the flush-timeout if no input has
++				// been seen since the previous flush and thus
++				// there would be nothing to flush after the
++				// timeout expires (avoids busy waiting).
++				const int timeout = pair->src_has_seen_input
++						? mytime_get_flush_timeout()
++						: -1;
++
++				switch (io_wait(pair, timeout, true)) {
+ 				case IO_WAIT_MORE:
+ 					continue;
+ 
+@@ -1160,6 +1166,7 @@ io_read(file_pair *pair, io_buf *buf, size_t size)
+ 		}
+ 
+ 		pos += (size_t)(amount);
++		pair->src_has_seen_input = true;
+ 	}
+ 
+ 	return pos;
+diff --git a/src/xz/file_io.h b/src/xz/file_io.h
+index 4b4418d6..5da2c90a 100644
+--- a/src/xz/file_io.h
++++ b/src/xz/file_io.h
+@@ -49,6 +49,10 @@ typedef struct {
+ 	/// True once end of the source file has been detected.
+ 	bool src_eof;
+ 
++	/// For --flush-timeout: True if at least one byte has been read
++	/// since the previous flush or the start of the file.
++	bool src_has_seen_input;
++
+ 	/// If true, we look for long chunks of zeros and try to create
+ 	/// a sparse file.
+ 	bool dest_try_sparse;

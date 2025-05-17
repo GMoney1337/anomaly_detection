@@ -1,0 +1,20 @@
+diff --git a/src/xz/io.c b/src/xz/io.c
+index 2a4c6e9a..851b6494 100644
+--- a/src/xz/io.c
++++ b/src/xz/io.c
+@@ -185,10 +185,11 @@ io_copy_attrs(const file_pair *pair)
+ 
+ #elif defined(HAVE_UTIME)
+ 	// Use one-second precision. utime() doesn't support using file
+-	// descriptor either.
+-	const struct utimbuf buf = {
+-		.actime = pair->src_st.st_atime;
+-		.modtime = pair->src_st.st_mtime;
++	// descriptor either. Some systems have broken utime() prototype
++	// so don't make this const.
++	struct utimbuf buf = {
++		.actime = pair->src_st.st_atime,
++		.modtime = pair->src_st.st_mtime,
+ 	};
+ 
+ 	// Avoid warnings.

@@ -1,0 +1,8 @@
+diff --git a/doc/examples/xz_pipe_comp.c b/doc/examples_old/xz_pipe_comp.c
+similarity index 100%
+rename from doc/examples/xz_pipe_comp.c
+rename to doc/examples_old/xz_pipe_comp.c
+diff --git a/doc/examples/xz_pipe_decomp.c b/doc/examples_old/xz_pipe_decomp.c
+similarity index 100%
+rename from doc/examples/xz_pipe_decomp.c
+rename to doc/examples_old/xz_pipe_decomp.c

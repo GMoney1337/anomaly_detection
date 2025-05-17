@@ -1,0 +1,71 @@
+diff --git a/src/xz/file_io.c b/src/xz/file_io.c
+index d94e2321..a07501c1 100644
+--- a/src/xz/file_io.c
++++ b/src/xz/file_io.c
+@@ -812,6 +812,31 @@ io_read(file_pair *pair, io_buf *buf_union, size_t size)
+ }
+ 
+ 
++extern bool
++io_pread(file_pair *pair, io_buf *buf, size_t size, off_t pos)
++{
++	// Using lseek() and read() is more portable than pread() and
++	// for us it is as good as real pread().
++	if (lseek(pair->src_fd, pos, SEEK_SET) != pos) {
++		message_error(_("%s: Error seeking the file: %s"),
++				pair->src_name, strerror(errno));
++		return true;
++	}
++
++	const size_t amount = io_read(pair, buf, size);
++	if (amount == SIZE_MAX)
++		return true;
++
++	if (amount != size) {
++		message_error(_("%s: Unexpected end of file"),
++				pair->src_name);
++		return true;
++	}
++
++	return false;
++}
++
++
+ static bool
+ is_sparse(const io_buf *buf)
+ {
+diff --git a/src/xz/file_io.h b/src/xz/file_io.h
+index 58bf7b5e..94d4c174 100644
+--- a/src/xz/file_io.h
++++ b/src/xz/file_io.h
+@@ -23,6 +23,7 @@
+ /// Use an union to make sure that the buffer is properly aligned.
+ typedef union {
+ 	uint8_t u8[IO_BUFFER_SIZE];
++	uint32_t u32[IO_BUFFER_SIZE / sizeof(uint32_t)];
+ 	uint64_t u64[IO_BUFFER_SIZE / sizeof(uint64_t)];
+ } io_buf;
+ 
+@@ -97,6 +98,22 @@ extern void io_close(file_pair *pair, bool success);
+ extern size_t io_read(file_pair *pair, io_buf *buf, size_t size);
+ 
+ 
++/// \brief      Read from source file from given offset to a buffer
++///
++/// This is remotely similar to standard pread(). This uses lseek() though,
++/// so the read offset is changed on each call.
++///
++/// \param      pair    Seekable source file
++/// \param      buf     Destination buffer
++/// \param      size    Amount of data to read
++/// \param      pos     Offset relative to the beginning of the file,
++///                     from which the data should be read.
++///
++/// \return     On success, false is returned. On error, error message
++///             is printed and true is returned.
++extern bool io_pread(file_pair *pair, io_buf *buf, size_t size, off_t pos);
++
++
+ /// \brief      Writes a buffer to the destination file
+ ///
+ /// \param      pair    File pair having the destination file open for writing

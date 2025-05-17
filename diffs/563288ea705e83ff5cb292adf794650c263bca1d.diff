@@ -1,0 +1,100 @@
+diff --git a/configure.ac b/configure.ac
+index 0ac3b0f5..81739979 100644
+--- a/configure.ac
++++ b/configure.ac
+@@ -523,7 +523,8 @@ AM_CONDITIONAL([COND_SYMVERS_GENERIC],
+ 
+ AC_MSG_CHECKING([if sandboxing should be used])
+ AC_ARG_ENABLE([sandbox], [AS_HELP_STRING([--enable-sandbox=METHOD],
+-		[Sandboxing METHOD can be `auto', `no', or `capsicum'.
++		[Sandboxing METHOD can be
++		`auto', `no', `capsicum', or `pledge'.
+ 		The default is `auto' which enables sandboxing if
+ 		a supported sandboxing method is found.])],
+ 	[], [enable_sandbox=auto])
+@@ -531,12 +532,12 @@ case $enable_sandbox in
+ 	auto)
+ 		AC_MSG_RESULT([maybe (autodetect)])
+ 		;;
+-	no | capsicum)
++	no | capsicum | pledge)
+ 		AC_MSG_RESULT([$enable_sandbox])
+ 		;;
+ 	*)
+ 		AC_MSG_RESULT([])
+-		AC_MSG_ERROR([--enable-sandbox only accepts `auto', `no', or `capsicum'.])
++		AC_MSG_ERROR([--enable-sandbox only accepts `auto', `no', `capsicum', or `pledge'.])
+ 		;;
+ esac
+ 
+@@ -816,6 +817,11 @@ case $enable_sandbox in
+ 		AX_CHECK_CAPSICUM([enable_sandbox=found], [:])
+ 		;;
+ esac
++case $enable_sandbox in
++	auto | pledge)
++		AC_CHECK_FUNCS([pledge], [enable_sandbox=found ; break])
++		;;
++esac
+ 
+ # If a specific sandboxing method was explicitly requested and it wasn't
+ # found, give an error.
+diff --git a/src/xz/file_io.c b/src/xz/file_io.c
+index 046ca7e3..61857029 100644
+--- a/src/xz/file_io.c
++++ b/src/xz/file_io.c
+@@ -212,6 +212,17 @@ io_sandbox_enter(int src_fd)
+ 	if (cap_enter())
+ 		goto error;
+ 
++#elif defined(HAVE_PLEDGE)
++	// pledge() was introduced in OpenBSD 5.9.
++	//
++	// main() unconditionally calls pledge() with fairly relaxed
++	// promises which work in all situations. Here we make the
++	// sandbox more strict.
++	if (pledge("stdio", ""))
++		goto error;
++
++	(void)src_fd;
++
+ #else
+ #	error ENABLE_SANDBOX is defined but no sandboxing method was found.
+ #endif
+diff --git a/src/xz/main.c b/src/xz/main.c
+index ca8a4680..63e1780c 100644
+--- a/src/xz/main.c
++++ b/src/xz/main.c
+@@ -163,6 +163,19 @@ main(int argc, char **argv)
+ 	// on the command line, thus this must be done before args_parse().
+ 	hardware_init();
+ 
++#ifdef HAVE_PLEDGE
++	// OpenBSD's pledge() sandbox
++	//
++	// Unconditionally enable sandboxing with fairly relaxed promises.
++	// This is still way better than having no sandbox at all. :-)
++	// More strict promises will be made later in file_io.c if possible.
++	//
++	// This is done only after the above initializations
++	// as the error message needs locale support.
++	if (pledge("stdio rpath wpath cpath fattr", ""))
++		message_fatal(_("Failed to enable the sandbox"));
++#endif
++
+ 	// Parse the command line arguments and get an array of filenames.
+ 	// This doesn't return if something is wrong with the command line
+ 	// arguments. If there are no arguments, one filename ("-") is still
+diff --git a/src/xz/private.h b/src/xz/private.h
+index d97c22cc..6414bdb5 100644
+--- a/src/xz/private.h
++++ b/src/xz/private.h
+@@ -45,7 +45,7 @@
+ #	define STDERR_FILENO (fileno(stderr))
+ #endif
+ 
+-#ifdef HAVE_CAPSICUM
++#if defined(HAVE_CAPSICUM) || defined(HAVE_PLEDGE)
+ #	define ENABLE_SANDBOX 1
+ #endif
+ 

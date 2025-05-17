@@ -1,0 +1,13 @@
+diff --git a/THANKS b/THANKS
+index b6506f40..e66c4a51 100644
+--- a/THANKS
++++ b/THANKS
+@@ -8,6 +8,8 @@ In alphabetical order:
+   - Mark Adler
+   - Nelson H. F. Beebe
+   - Anders F. Björklund
++  - Emmanuel Blot
++  - David Burklund
+   - Andrew Dudman
+   - İsmail Dönmez
+   - Mike Frysinger

@@ -1,0 +1,1116 @@
+diff --git a/windows/INSTALL-Windows.txt b/windows/INSTALL-Windows.txt
+new file mode 100644
+index 00000000..b5ac9630
+--- /dev/null
++++ b/windows/INSTALL-Windows.txt
+@@ -0,0 +1,131 @@
++
++Building XZ Utils on Windows
++============================
++
++Introduction
++------------
++
++    This document explains shortly where to get and how to install the
++    build tool that are needed to build XZ Utils on Windows. The final
++    binary package will be standalone in sense that it will depend only
++    on DLLs that are included in all Windows installations.
++
++    These instructions don't apply to Cygwin. XZ Utils can be built under
++    Cygwin in the same way as many other packages.
++
++    These instructions don't apply to MinGW and MSYS developers either,
++    who may want to package XZ Utils for MinGW or MSYS distributions.
++    You know who you are, and will probably use quite different configure
++    options etc. than what is described here.
++
++
++Installing the toolchain(s)
++---------------------------
++
++    Some of the following is needed:
++      - MSYS is always needed to use the GNU Autotools based build system.
++      - MinGW builds 32-bit x86 binaries.
++      - MingW-w32 builds 32-bit x86 executables too.
++      - MinGW-w64 builds 64-bit x86-64 binaries.
++
++    So you need to pick between MinGW and MinGW-w32 when building
++    32-bit version. You don't need both.
++
++    You might find 7-Zip <http://7-zip.org/> handy when extracting
++    some files (especially the .tar.lzma files). The ready-made
++    build script will also use 7-Zip to create the distributable
++    .zip and .7z files.
++
++    I used the following directory structure but you can use whatever
++    you want. Just note that I will use these in my examples. Each of
++    these should have a subdirectory "bin":
++
++        C:\devel\tools\msys
++        C:\devel\tools\mingw
++        C:\devel\tools\mingw-w32
++        C:\devel\tools\mingw-w64
++
++
++Installing MSYS
++
++    You can download MSYS from MinGW's Sourceforge page:
++
++        http://sourceforge.net/projects/mingw/files/
++
++    It's under "MSYS Base System". I recommend using MSYS 1.0.11
++    (MSYS-1.0.11.exe or msysCORE-1.0.11-bin.tar.gz) because that
++    package includes all the required tools. At least some of the
++    later versions include only a subset and thus you would need to
++    download the rest separately. The old version will work fine for
++    building XZ Utils.
++
++    You can use either the .exe or .tar.gz package. I prefer .tar.gz,
++    because it can be extracted into any directory and later removed
++    without worrying about uninstallers.
++
++
++Installing MinGW
++
++    You can download the required packages from MinGW's Sourceforge page:
++
++        http://sourceforge.net/projects/mingw/files/
++
++    These version numbers were the latest when I wrote this document, but
++    you probably should pick the latest versions:
++
++        MinGW Runtime -> mingwrt-3.17-mingw32-dev.tar.gz
++        MinGW API for MS-Windows -> w32api-3.14-mingw32-dev.tar.gz
++        GNU Binutils -> binutils-2.20-1-bin.tar.gz
++        GCC Version 4 -> gcc-full-4.4.0-mingw32-bin-2.tar.lzma
++
++    The full GCC package is quite big, but if you want a smaller
++    download, you will need to download more than one file, so I'm
++    using the full package in this document for simplicity.
++
++    Extract the packages in the above order, possibly overwriting files
++    from packages that were extracted earlier.
++
++
++Installing MinGW-w32 or MinGW-w64
++
++    You can find the latest MinGW-w32 and MinGW-w64 builds here:
++
++        http://sourceforge.net/projects/mingw-w64/files/
++
++    Locate the appropriate files:
++
++        Toolchains targeting Win32 -> mingw-w32-*-mingw*.zip
++        Toolchains targeting Win64 -> mingw-w64-*-mingw*.zip
++
++    I don't know what is the most recommended one. I used sezero's
++    versions from "Personal Builds", since they seemed to have
++    a stable GCC (judging from the GCC version number only).
++
++    If you will install both MinGW-w32 and MinGW-w64, remember to
++    extract them into different directories.
++
++
++Building XZ Utils
++-----------------
++
++    Start MSYS by going to the directory C:\devel\tools\msys and running
++    msys.bat there (double-click or use command prompt). It will start
++    at "home" directory, which is C:\devel\tools\msys\home\YourUserName.
++
++    If you have xz-5.x.x.tar.gz in C:\devel, you should be able to build
++    it now with the following commands:
++
++        cd /c/devel
++        tar xzf xz-5.x.x.tar.gz
++        cd xz-5.x.x
++        sh windows/build.sh
++
++    If you used some other directory than C:\devel\tools for the build
++    tools, edit the variables near the beginning of build.sh first.
++
++    If you want to build manually, read the buildit() function in
++    build.sh. Look especially at the latter configure invocation.
++
++    Be patient. Running configure and other scripts used by the build
++    system is (very) slow under Windows.
++
+diff --git a/windows/Makefile b/windows/Makefile
+deleted file mode 100644
+index 73f874a7..00000000
+--- a/windows/Makefile
++++ /dev/null
+@@ -1,320 +0,0 @@
+-###############################################################################
+-#
+-# Makefile to build XZ Utils using MinGW
+-#
+-# Make flags to alter compilation:
+-#
+-#   DEBUG=1     Enable assertions. Don't use this for production builds!
+-#               You may also want to set CFLAGS="-g -O0" to disable
+-#               optimizations.
+-#
+-#   W64=1       Build for 64-bit Windows. Make sure that you have 64-bit
+-#               MinGW in PATH.
+-#
+-#   WINE=1      Shortcut to set CC, AR, and STRIP to use Wine to run Windows
+-#               versions of MinGW binaries.
+-#
+-# The usual CPPFLAGS and CFLAGS are supported too.
+-#
+-###############################################################################
+-#
+-# Author: Lasse Collin
+-#
+-# This file has been put into the public domain.
+-# You can do whatever you want with this file.
+-#
+-###############################################################################
+-
+-ifdef W64
+-MING_PFX = x86_64-w64-mingw32-
+-CC = $(MING_PFX)gcc
+-WINDRES = $(MING_PFX)windres
+-AR = $(MING_PFX)ar
+-STRIP = $(MING_PFX)strip
+-PKG_DIR=pkg-x64
+-else
+-CC = mingw32-gcc
+-WINDRES = windres
+-AR = ar
+-STRIP = strip
+-PKG_DIR=pkg-x86
+-endif
+-
+-SED = sed
+-MKDIR = mkdir
+-CP = cp
+-RM = rm -f
+-
+-CFLAGS = -g -Wall -Wextra -O2
+-# CFLAGS = -Wall -Wextra -O3 -fomit-frame-pointer -funroll-loops
+-
+-ALL_CFLAGS = -std=gnu99 -mms-bitfields
+-
+-ALL_CPPFLAGS = \
+-	-I. \
+-	-I../src/common \
+-	-I../src/liblzma/api \
+-	-I../src/liblzma/common \
+-	-I../src/liblzma/check \
+-	-I../src/liblzma/rangecoder \
+-	-I../src/liblzma/lz \
+-	-I../src/liblzma/lzma \
+-	-I../src/liblzma/delta \
+-	-I../src/liblzma/simple \
+-	-I../src/liblzma/subblock
+-
+-ALL_CPPFLAGS += -DHAVE_CONFIG_H
+-
+-# This works with Wine too while using native GNU make, sed, and rm.
+-ifdef WINE
+-ifdef W64
+-CC := wine c:/MinGW64/bin/x86_64-pc-mingw32-gcc
+-WINDRES := wine c:/MinGW64/bin/x86_64-pc-mingw32-windres
+-AR := wine c:/MinGW64/bin/x86_64-pc-mingw32-ar
+-STRIP := wine c:/MinGW64/bin/x86_64-pc-mingw32-strip
+-else
+-CC := wine c:/MinGW/bin/gcc
+-WINDRES := wine c:/MinGW/bin/windres
+-AR := wine c:/MinGW/bin/ar
+-STRIP := wine c:/MinGW/bin/strip
+-endif
+-endif
+-
+-ifdef DEBUG
+-# Use echo since it works for this purpose on both Windows and POSIX.
+-STRIP := echo Skipping strip
+-else
+-ALL_CPPFLAGS += -DNDEBUG
+-endif
+-
+-ALL_CPPFLAGS += $(CPPFLAGS)
+-ALL_CFLAGS += $(CFLAGS)
+-
+-
+-################
+-# Common rules #
+-################
+-
+-.PHONY: all clean pkg
+-all: liblzma xzdec xz
+-clean: liblzma-clean xzdec-clean xz-clean
+-
+-pkg: all
+-	$(RM) -r $(PKG_DIR)
+-	$(MKDIR) -p $(PKG_DIR)/lib $(PKG_DIR)/include/lzma
+-	$(CP) liblzma.dll xz-dynamic.exe xz.exe xzdec-dynamic.exe xzdec.exe lzmadec-dynamic.exe lzmadec.exe $(PKG_DIR)
+-	$(CP) liblzma.a liblzma.def liblzma_static.lib $(PKG_DIR)/lib
+-	$(CP) ../src/liblzma/api/lzma.h $(PKG_DIR)/include
+-	$(CP) ../src/liblzma/api/lzma/*.h $(PKG_DIR)/include/lzma
+-
+-%.o: %.rc
+-	$(WINDRES) $(ALL_CPPFLAGS) $< $@
+-
+-
+-###############
+-# liblzma.dll #
+-###############
+-
+-.PHONY: liblzma
+-liblzma: liblzma.dll liblzma_static.lib
+-
+-LIBLZMA_SRCS_C = \
+-	../src/liblzma/common/alone_decoder.c \
+-	../src/liblzma/common/alone_encoder.c \
+-	../src/liblzma/common/auto_decoder.c \
+-	../src/liblzma/common/block_buffer_decoder.c \
+-	../src/liblzma/common/block_buffer_encoder.c \
+-	../src/liblzma/common/block_decoder.c \
+-	../src/liblzma/common/block_encoder.c \
+-	../src/liblzma/common/block_header_decoder.c \
+-	../src/liblzma/common/block_header_encoder.c \
+-	../src/liblzma/common/block_util.c \
+-	../src/liblzma/common/common.c \
+-	../src/liblzma/common/easy_buffer_encoder.c \
+-	../src/liblzma/common/easy_decoder_memusage.c \
+-	../src/liblzma/common/easy_encoder.c \
+-	../src/liblzma/common/easy_encoder_memusage.c \
+-	../src/liblzma/common/easy_preset.c \
+-	../src/liblzma/common/filter_buffer_decoder.c \
+-	../src/liblzma/common/filter_buffer_encoder.c \
+-	../src/liblzma/common/filter_common.c \
+-	../src/liblzma/common/filter_decoder.c \
+-	../src/liblzma/common/filter_encoder.c \
+-	../src/liblzma/common/filter_flags_decoder.c \
+-	../src/liblzma/common/filter_flags_encoder.c \
+-	../src/liblzma/common/hardware_physmem.c \
+-	../src/liblzma/common/index.c \
+-	../src/liblzma/common/index_decoder.c \
+-	../src/liblzma/common/index_encoder.c \
+-	../src/liblzma/common/index_hash.c \
+-	../src/liblzma/common/stream_buffer_decoder.c \
+-	../src/liblzma/common/stream_buffer_encoder.c \
+-	../src/liblzma/common/stream_decoder.c \
+-	../src/liblzma/common/stream_encoder.c \
+-	../src/liblzma/common/stream_flags_common.c \
+-	../src/liblzma/common/stream_flags_decoder.c \
+-	../src/liblzma/common/stream_flags_encoder.c \
+-	../src/liblzma/common/vli_decoder.c \
+-	../src/liblzma/common/vli_encoder.c \
+-	../src/liblzma/common/vli_size.c \
+-	../src/liblzma/check/check.c \
+-	../src/liblzma/check/crc32_table.c \
+-	../src/liblzma/check/crc64_table.c \
+-	../src/liblzma/check/sha256.c \
+-	../src/liblzma/rangecoder/price_table.c \
+-	../src/liblzma/lz/lz_decoder.c \
+-	../src/liblzma/lz/lz_encoder.c \
+-	../src/liblzma/lz/lz_encoder_mf.c \
+-	../src/liblzma/lzma/fastpos_table.c \
+-	../src/liblzma/lzma/lzma2_decoder.c \
+-	../src/liblzma/lzma/lzma2_encoder.c \
+-	../src/liblzma/lzma/lzma_decoder.c \
+-	../src/liblzma/lzma/lzma_encoder.c \
+-	../src/liblzma/lzma/lzma_encoder_optimum_fast.c \
+-	../src/liblzma/lzma/lzma_encoder_optimum_normal.c \
+-	../src/liblzma/lzma/lzma_encoder_presets.c \
+-	../src/liblzma/delta/delta_common.c \
+-	../src/liblzma/delta/delta_decoder.c \
+-	../src/liblzma/delta/delta_encoder.c \
+-	../src/liblzma/simple/arm.c \
+-	../src/liblzma/simple/armthumb.c \
+-	../src/liblzma/simple/ia64.c \
+-	../src/liblzma/simple/powerpc.c \
+-	../src/liblzma/simple/simple_coder.c \
+-	../src/liblzma/simple/simple_decoder.c \
+-	../src/liblzma/simple/simple_encoder.c \
+-	../src/liblzma/simple/sparc.c \
+-	../src/liblzma/simple/x86.c \
+-	../src/common/tuklib_physmem.c
+-
+-LIBLZMA_SRCS_ASM =
+-
+-ifdef W64
+-LIBLZMA_SRCS_C += \
+-	../src/liblzma/check/crc32_fast.c \
+-	../src/liblzma/check/crc64_fast.c
+-else
+-LIBLZMA_SRCS_ASM += \
+-	../src/liblzma/check/crc32_x86.S \
+-	../src/liblzma/check/crc64_x86.S
+-endif
+-
+-LIBLZMA_OBJS_C = $(LIBLZMA_SRCS_C:.c=.o)
+-LIBLZMA_OBJS_ASM = $(LIBLZMA_SRCS_ASM:.S=.o)
+-LIBLZMA_OBJS = \
+-	$(LIBLZMA_OBJS_C) \
+-	$(LIBLZMA_OBJS_ASM) \
+-	../src/liblzma/liblzma_w32res.o
+-
+-LIBLZMA_OBJS_STATIC_C = $(LIBLZMA_SRCS_C:.c=-static.o)
+-LIBLZMA_OBJS_STATIC_ASM = $(LIBLZMA_SRCS_ASM:.S=-static.o)
+-LIBLZMA_OBJS_STATIC = $(LIBLZMA_OBJS_STATIC_C) $(LIBLZMA_OBJS_STATIC_ASM)
+-
+-# The sed is needed to remove ordinals from the .def file. I'm not going
+-# to track the ordinal numbers, so people should link against liblzma.dll
+-# only by using symbol names.
+-liblzma.dll: $(LIBLZMA_OBJS)
+-	$(CC) $(ALL_CFLAGS) -shared -o liblzma.dll $(LIBLZMA_OBJS) -Wl,--out-implib,liblzma.a,--output-def,liblzma.def.in
+-	$(SED) 's/ \+@ *[0-9]\+//' liblzma.def.in > liblzma.def
+-	$(RM) liblzma.def.in
+-	$(STRIP) --strip-unneeded liblzma.a
+-	$(STRIP) --strip-all liblzma.dll
+-
+-$(LIBLZMA_OBJS_C): %.o: %.c
+-	$(CC) -DDLL_EXPORT $(ALL_CPPFLAGS) $(ALL_CFLAGS) -c -o $@ $<
+-
+-$(LIBLZMA_OBJS_ASM): %.o: %.S
+-	$(CC) -DDLL_EXPORT $(ALL_CPPFLAGS) $(ALL_CFLAGS) -c -o $@ $<
+-
+-liblzma_static.lib: $(LIBLZMA_OBJS_STATIC)
+-	$(RM) $@
+-	$(AR) rcs $@ $(LIBLZMA_OBJS_STATIC)
+-	$(STRIP) --strip-unneeded $@
+-
+-$(LIBLZMA_OBJS_STATIC_C): %-static.o: %.c
+-	$(CC) $(ALL_CPPFLAGS) $(ALL_CFLAGS) -c -o $@ $<
+-
+-$(LIBLZMA_OBJS_STATIC_ASM): %-static.o: %.S
+-	$(CC) $(ALL_CPPFLAGS) $(ALL_CFLAGS) -c -o $@ $<
+-
+-.PHONY: liblzma-clean
+-liblzma-clean:
+-	-$(RM) $(LIBLZMA_OBJS) $(LIBLZMA_OBJS_STATIC) liblzma.def.in liblzma.def liblzma.a liblzma.dll liblzma_static.lib
+-
+-
+-###########################
+-# xzdec.exe & lzmadec.exe #
+-###########################
+-
+-.PHONY: xzdec
+-xzdec: xzdec-dynamic.exe lzmadec-dynamic.exe xzdec.exe lzmadec.exe
+-
+-XZDEC_SRCS = ../src/xzdec/xzdec.c \
+-	     ../src/common/tuklib_progname.c \
+-	     ../src/common/tuklib_exit.c
+-
+-xzdec-dynamic.exe: liblzma.dll $(XZDEC_SRCS) ../src/xzdec/xzdec_w32res.o
+-	$(CC) $(ALL_CPPFLAGS) $(ALL_CFLAGS) $(XZDEC_SRCS) ../src/xzdec/xzdec_w32res.o -o $@ liblzma.a
+-	$(STRIP) --strip-all $@
+-
+-lzmadec-dynamic.exe: liblzma.dll $(XZDEC_SRCS) ../src/xzdec/lzmadec_w32res.o
+-	$(CC) $(ALL_CPPFLAGS) -DLZMADEC $(ALL_CFLAGS) $(XZDEC_SRCS) ../src/xzdec/lzmadec_w32res.o -o $@ liblzma.a
+-	$(STRIP) --strip-all $@
+-
+-xzdec.exe: liblzma_static.lib $(XZDEC_SRCS) ../src/xzdec/xzdec_w32res.o
+-	$(CC) -DLZMA_API_STATIC $(ALL_CPPFLAGS) $(ALL_CFLAGS) $(XZDEC_SRCS) ../src/xzdec/xzdec_w32res.o -o $@ liblzma_static.lib
+-	$(STRIP) --strip-all $@
+-
+-lzmadec.exe: liblzma_static.lib $(XZDEC_SRCS) ../src/xzdec/lzmadec_w32res.o
+-	$(CC) -DLZMA_API_STATIC $(ALL_CPPFLAGS) -DLZMADEC $(ALL_CFLAGS) $(XZDEC_SRCS) ../src/xzdec/lzmadec_w32res.o -o $@ liblzma_static.lib
+-	$(STRIP) --strip-all $@
+-
+-.PHONY: xzdec-clean
+-xzdec-clean:
+-	-$(RM) xzdec-dynamic.exe lzmadec-dynamic.exe xzdec.exe lzmadec.exe ../src/xzdec/xzdec_w32res.o ../src/xzdec/lzmadec_w32res.o
+-
+-
+-##########
+-# xz.exe #
+-##########
+-
+-.PHONY: xz
+-xz: xz-dynamic.exe xz.exe
+-
+-XZ_SRCS = \
+-	../src/xz/args.c \
+-	../src/xz/coder.c \
+-	../src/xz/file_io.c \
+-	../src/xz/hardware.c \
+-	../src/xz/main.c \
+-	../src/xz/message.c \
+-	../src/xz/options.c \
+-	../src/xz/signals.c \
+-	../src/xz/suffix.c \
+-	../src/xz/util.c \
+-	../src/common/tuklib_open_stdxxx.c \
+-	../src/common/tuklib_progname.c \
+-	../src/common/tuklib_exit.c \
+-	../src/common/tuklib_cpucores.c
+-
+-
+-XZ_OBJS = $(XZ_SRCS:.c=.o)
+-XZ_OBJS_STATIC = $(XZ_SRCS:.c=-static.o)
+-
+-$(XZ_OBJS): %.o: %.c
+-	$(CC) $(ALL_CPPFLAGS) $(ALL_CFLAGS) -c -o $@ $<
+-
+-xz-dynamic.exe: liblzma.dll $(XZ_OBJS) ../src/xz/xz_w32res.o
+-	$(CC) $(ALL_CFLAGS) $(XZ_OBJS) ../src/xz/xz_w32res.o -o $@ liblzma.a
+-	$(STRIP) --strip-all $@
+-
+-$(XZ_OBJS_STATIC): %-static.o: %.c
+-	$(CC) -DLZMA_API_STATIC $(ALL_CPPFLAGS) $(ALL_CFLAGS) -c -o $@ $<
+-
+-xz.exe: liblzma_static.lib $(XZ_OBJS_STATIC) ../src/xz/xz_w32res.o
+-	$(CC) $(ALL_CFLAGS) $(XZ_OBJS_STATIC) ../src/xz/xz_w32res.o -o $@ liblzma_static.lib
+-	$(STRIP) --strip-all $@
+-
+-.PHONY: xz-clean
+-xz-clean:
+-	-$(RM) $(XZ_OBJS) $(XZ_OBJS_STATIC) ../src/xz/xz_w32res.o xz-dynamic.exe xz.exe
+diff --git a/windows/README b/windows/README
+deleted file mode 100644
+index 0e529de9..00000000
+--- a/windows/README
++++ /dev/null
+@@ -1,155 +0,0 @@
+-
+-XZ Utils on Windows
+-===================
+-
+-Introduction
+-
+-    This document explains how to build XZ Utils for Microsoft Windows
+-    using MinGW (Minimalist GNU for Windows).
+-
+-    This is currently experimental and has got very little testing.
+-    No ABI stability is promised for liblzma.dll.
+-
+-
+-Why MinGW
+-
+-    XZ Utils code is C99. It should be possible to compile at least
+-    liblzma using any C99 compiler. Compiling the command line tools may
+-    need a little extra work to get them built on new systems, because
+-    they use some features that aren't standardized in POSIX.
+-
+-    MinGW is free software. MinGW runtime provides some functions that
+-    made porting the command line tools easier. Most(?) of the MinGW
+-    runtime, which gets linked into the resulting binaries, is in the
+-    public domain.
+-
+-    While most C compilers nowadays support C99 well enough (including
+-    most compilers for Windows), MSVC doesn't. It seems that Microsoft
+-    has no plans to ever support C99. Thus, it is not possible to build
+-    XZ Utils using MSVC without doing a lot of work to convert the code.
+-    Using prebuilt liblzma from MSVC is possible though, since the
+-    liblzma API headers are in C89 and contain some non-standard extra
+-    hacks required by MSVC.
+-
+-
+-Getting and Installing MinGW
+-
+-    You can download MinGW for 32-bit Windows from Sourceforge:
+-
+-        http://sourceforge.net/project/showfiles.php?group_id=2435
+-
+-    It is enough to pick Automated MinGW Installer and MSYS Base System.
+-    Using the automated installer, select at least runtime, w32api,
+-    core compiler, and MinGW make. From MSYS you actually need only
+-    certain tools, but it is easiest to just install the whole MSYS.
+-
+-    To build for x86-64 version of Windows, you can download a snapshot
+-    of MinGW targeting for 64-bit Windows:
+-
+-        http://sourceforge.net/project/showfiles.php?group_id=202880
+-
+-    You can use the 32-bit MSYS also for 64-bit build, since we don't
+-    link against anything in MSYS, just use the tools from it. You may
+-    use the make tool from 32-bit MinGW (mingw32-make.exe) although
+-    probably the make.exe from MSYS works too.
+-
+-    Naturally you can pick the components manually, for example to try
+-    the latest available GCC. It is also possible to use a cross-compiler
+-    to build Windows binaries for example on GNU/Linux, or use Wine to
+-    run the Windows binaries. However, these instructions focus on
+-    building on Windows.
+-
+-
+-Building for 32-bit Windows
+-
+-    Add MinGW and MSYS to PATH (adjust if you installed to non-default
+-    location):
+-
+-        set PATH=C:\MinGW\bin;C:\MSYS\1.0\bin;%PATH%
+-
+-    Then it should be enough to just run mingw32-make in this directory
+-    (the directory containing this README):
+-
+-        mingw32-make
+-
+-
+-Building for 64-bit Windows
+-
+-    For 64-bit build the PATH has to point to 64-bit MinGW:
+-
+-        set PATH=C:\MinGW64\bin;C:\MSYS\1.0\bin;%PATH%
+-
+-    You need to pass W64=1 to mingw32-make (or make if you don't have
+-    mingw32-make):
+-
+-        mingw32-make W64=1
+-
+-
+-Additional Make Flags and Targets
+-
+-    You may want to try some additional optimizations, which may or
+-    may not make the code faster (and may or may not hit possible
+-    compiler bugs more easily):
+-
+-        mingw32-make CFLAGS="-O3 -fomit-frame-pointer -funroll-loops"
+-
+-    If you want to enable assertions (the assert() macro), use DEBUG=1.
+-    You may want to disable optimizations too if you plan to actually
+-    debug the code. Never use DEBUG=1 for production builds!
+-
+-        mingw32-make DEBUG=1 CFLAGS="-g -O0"
+-
+-    To copy the built binaries and required headers into a clean
+-    directory, use the pkg target:
+-
+-        mingw32-make pkg
+-
+-    It first removes a possibly existing pkg directory, and then
+-    recreates it with the required files.
+-
+-    TODO: The pkg target doesn't copy any license or other copyright
+-    related information into the pkg directory.
+-
+-
+-Creating an Import Library for MSVC
+-
+-    The included Makefile creates import library liblzma.a which works
+-    only(?) with MinGW. To use liblzma.dll for MSVC, you need to create
+-    liblzma.lib using the lib command from MSVC:
+-
+-        lib /def:liblzma.def /out:liblzma.lib /machine:ix86
+-
+-    On x86-64, the /machine argument has to naturally be changed:
+-
+-        lib /def:liblzma.def /out:liblzma.lib /machine:x64
+-
+-
+-To Do
+-
+-    - Test Win64 support and add instructions about getting x86-64
+-      version of MinGW.
+-
+-    - Creating the import library for other compilers/linkers
+-
+-    - Building with other compilers for Windows
+-
+-    - liblzma currently uses cdecl. Would stdcall be more compatible?
+-
+-    - Support building more size-optimized liblzma (the HAVE_SMALL
+-      define and other things that are needed)
+-
+-    - Support selecting which parts of liblzma to build to make the
+-      library even smaller.
+-
+-    - Use the configure script on Windows just like it is used on all
+-      the other systems?
+-
+-
+-Bugs
+-
+-    Report bugs to <lasse.collin@tukaani.org> (in English or Finnish).
+-
+-    Take into account that I don't have MSVC and I cannot very easily
+-    test anything on Windows. As of writing, I have tried MinGW and the
+-    resulting binaries only under 32-bit Wine.
+-
+diff --git a/windows/README-Windows.txt b/windows/README-Windows.txt
+new file mode 100644
+index 00000000..536d08f5
+--- /dev/null
++++ b/windows/README-Windows.txt
+@@ -0,0 +1,115 @@
++
++XZ Utils for Windows
++====================
++
++Introduction
++------------
++
++    This package includes command line tools (xz.exe and a few others)
++    and the liblzma compression library from XZ Utils. You can find the
++    latest version and full source code from <http://tukaani.org/xz/>.
++
++    The parts of the XZ Utils source code, that are relevant to this
++    binary package, are in the public domain. XZ Utils have been built
++    for this package with MinGW and linked statically against the MinGW
++    runtime and w32api packages.
++
++    FIXME: Add license info about MinGW runtime and w32api.
++
++
++Package contents
++----------------
++
++    All executables and libraries in this package require msvcrt.dll.
++    It's included in all recent Windows versions. On Windows 95 it
++    might be missing, but once you get it somewhere, XZ Utils should
++    run even on Windows 95.
++
++    There are two different versions of the executable and library files.
++    There is one directory for each type of binaries:
++
++        bin_i486        32-bit x86 (i486 and up), Windows 95 and later
++        bin_x86-64      64-bit x86-64, Windows XP and later
++
++    Each of the above directories have the following files:
++
++        *.exe       Command line tools. (It's useless to double-click
++                    these; use the command prompt instead.) These have
++                    been linked statically against liblzma, so they
++                    don't require liblzma.dll. Thus, you can copy e.g.
++                    xz.exe to a directory that is in PATH without copying
++                    any other files from this package.
++
++        liblzma.dll Shared version of the liblzma compression library.
++                    This file is mostly useful to developers, although
++                    some non-developers might use it to upgrade their
++                    copy of liblzma.
++
++        liblzma.a   Static version of the liblzma compression library.
++                    This file is useful only for developers.
++
++    The rest of the directories contain architecture-independent files:
++
++        doc         Documentation in the plain text (TXT) format. The
++                    manuals of the command line tools are provided also
++                    in the PDF format. liblzma.def is in this directory
++                    too.
++
++        include     C header files for liblzma. These should be
++                    compatible with most C and C++ compilers. If you
++                    have problems, try to fix it and send your fixes
++                    upstream, or at least report a bug, thanks.
++
++
++Linking against liblzma
++-----------------------
++
++MinGW
++
++    If you use MinGW, linking against liblzma.dll or liblzma.a should
++    be straightforward. You don't need an import library to link
++    against liblzma.dll, and for static linking, you don't need to
++    worry about the LZMA_API_STATIC macro.
++
++    Note that the MinGW distribution includes liblzma. If you are
++    building packages that will be part of the MinGW distribution, you
++    probably should use the version of liblzma shipped in MinGW instead
++    of this package.
++
++
++Microsoft Visual C++
++
++    To link against liblzma.dll, you need to create an import library
++    first. You need the "lib" command from MSVC and liblzma.def from
++    the "doc" directory of this package. Here is the command that works
++    on 32-bit x86:
++
++        lib /def:liblzma.def /out:liblzma.lib /machine:ix86
++
++    On x86-64, the /machine argument has to naturally be changed:
++
++        lib /def:liblzma.def /out:liblzma.lib /machine:x64
++
++    Linking against static liblzma should work too. Rename liblzma.a
++    to e.g. liblzma_static.lib and tell MSVC to link against it. You
++    also need to tell lzma.h to not use __declspec(dllimport) by defining
++    the macro LZMA_API_STATIC. You can do it either in the C/C++ code
++
++        #define LZMA_API_STATIC
++        #include <lzma.h>
++
++    or by adding it to compiler options.
++
++
++Other compilers
++
++    If you are using some other compiler, see its documentation how to
++    create an import library (if it is needed). If it is simple, I
++    might consider including the instructions here.
++
++
++Reporting bugs
++--------------
++
++    Report bugs to <lasse.collin@tukaani.org> (in English or Finnish).
++
+diff --git a/windows/build.sh b/windows/build.sh
+new file mode 100644
+index 00000000..42ab85f2
+--- /dev/null
++++ b/windows/build.sh
+@@ -0,0 +1,189 @@
++#!/bin/sh
++#
++###############################################################################
++#
++# Build a binary package on Windows with MinGW and MSYS
++#
++# Set the paths where MinGW, Mingw-w32, or MinGW-w64 are installed. If both
++# MinGW and MinGW-w32 are specified, MinGW will be used. If there is no
++# 32-bit or 64-bit compiler at all, it is simply skipped.
++#
++# Optionally, 7-Zip is used to create the final .zip and .7z packages.
++# If you have installed it in the default directory, this script should
++# find it automatically. Otherwise adjust the path manually.
++#
++# If you want to use a cross-compiler e.g. on GNU/Linux, this script won't
++# work out of the box. You need to omit "make check" commands and replace
++# u2d with some other tool to convert newlines from LF to CR+LF. You will
++# also need to pass the --host option to configure.
++#
++###############################################################################
++#
++# Author: Lasse Collin
++#
++# This file has been put into the public domain.
++# You can do whatever you want with this file.
++#
++###############################################################################
++
++MINGW_DIR=/c/devel/tools/mingw
++MINGW_W32_DIR=/c/devel/tools/mingw-w32
++MINGW_W64_DIR=/c/devel/tools/mingw-w64
++
++for SEVENZ_EXE in "$PROGRAMW6432/7-Zip/7z.exe" "$PROGRAMFILES/7-Zip/7z.exe" \
++		"/c/Program Files/7-Zip/7z.exe"
++do
++	[ -x "$SEVENZ_EXE" ] && break
++done
++
++
++# Abort immediatelly if something goes wrong.
++set -e
++
++# White spaces in directory names may break things so catch them immediatelly.
++case $(pwd) in
++	' ' | '	' | '
++') echo "Error: White space in the directory name" >&2; exit 1 ;;
++esac
++
++# This sciprt can be run either at the top-level directory of the package
++# or in the same directory containing this script.
++if [ ! -f windows/build.sh ]; then
++	cd ..
++	if [ ! -f windows/build.sh ]; then
++		echo "You are in a wrong directory." >&2
++		exit 1
++	fi
++fi
++
++# Run configure and copy the binaries to the given directory.
++#
++# The first argument is the directory where to copy the binaries.
++# The rest of the arguments are passed to configure.
++buildit()
++{
++	DESTDIR=$1
++	BUILD=$2
++	CFLAGS=$3
++
++	# Clean up if it was already configured.
++	[ -f Makefile ] && make distclean
++
++	# Build the size-optimized binaries. Note that I don't want to
++	# provide size-optimized liblzma (shared nor static), because
++	# that isn't thread-safe now, and depending on bunch of things,
++	# maybe it will never be on Windows (pthreads-win32 helps but
++	# static liblzma might bit a bit tricky with it).
++	./configure \
++		--prefix= \
++		--disable-nls \
++		--disable-threads \
++		--disable-shared \
++		--enable-small \
++		--build="$BUILD" \
++		CFLAGS="$CFLAGS -Os"
++	make check
++
++	mkdir -pv "$DESTDIR"
++	cp -v src/xzdec/{xz,lzma}dec.exe src/lzmainfo/lzmainfo.exe "$DESTDIR"
++
++	make distclean
++
++	# Build the normal speed-optimized binaries. Note that while
++	# --disable-threads has been documented to make some things
++	# thread-unsafe, it's not actually true with this combination
++	# of configure flags in XZ Utils 5.0.x. Things can (and probably
++	# will) change after 5.0.x, and this script will be updated too.
++	./configure \
++		--prefix= \
++		--disable-nls \
++		--disable-threads \
++		--enable-dynamic=no \
++		--build="$BUILD" \
++		CFLAGS="$CFLAGS -O2"
++	make check
++
++	cp -v src/xz/xz.exe src/liblzma/.libs/liblzma.a "$DESTDIR"
++	cp -v src/liblzma/.libs/liblzma-*.dll "$DESTDIR/liblzma.dll"
++
++	strip -v "$DESTDIR/"*
++}
++
++# Copy files and convert newlines from LF to CR+LF. Optinally add a suffix
++# to the destination filename.
++#
++# The first argument is the destination directory. The second argument is
++# the suffix to append to the filenames; use empty string if no extra suffix
++# is wanted. The rest of the arguments are actual the filenames.
++txtcp()
++{
++	DESTDIR=$1
++	SUFFIX=$2
++	shift 2
++	for SRCFILE; do
++		DESTFILE="$DESTDIR/${SRCFILE##*/}$SUFFIX"
++		echo "Converting \`$SRCFILE' -> \`$DESTFILE'"
++		u2d < "$SRCFILE" > "$DESTFILE"
++	done
++}
++
++# FIXME: Make sure that we don't get i686 or i586 code from the runtime.
++# Actually i586 would be fine, but i686 probably not if the idea is to
++# support even Win95.
++#
++# FIXME: Using i486 in the configure triplet may be wrong.
++if [ -d "$MINGW_DIR" ]; then
++	# 32-bit x86, Win95 or later, using MinGW
++	PATH=$MINGW_DIR/bin:$PATH \
++			buildit \
++			pkg/bin_i486 \
++			i486-pc-mingw32 \
++			'-march=i486 -mtune=generic'
++elif [ -d "$MINGW_W32_DIR" ]; then
++	# 32-bit x86, Win95 or later, using MinGW-w32
++	PATH=$MINGW_W32_DIR/bin:$MINGW_W32_DIR/i686-w64-mingw32/bin:$PATH \
++			buildit \
++			pkg/bin_i486 \
++			i486-w64-mingw32 \
++			'-march=i486 -mtune=generic'
++fi
++
++if [ -d "$MINGW_W64_DIR" ]; then
++	# 64-bit x86, WinXP or later, using MinGW-w64
++	PATH=$MINGW_W64_DIR/bin:$MINGW_W64_DIR/x86_64-w64-mingw32/bin:$PATH \
++			buildit \
++			pkg/bin_x86-64 \
++			x86_64-w64-mingw32 \
++			'-march=x86-64 -mtune=generic'
++fi
++
++# Copy the headers, the .def file, and the docs.
++# They are the same for all architectures and builds.
++mkdir -pv pkg/{include/lzma,doc/manuals}
++txtcp pkg/include "" src/liblzma/api/lzma.h
++txtcp pkg/include/lzma "" src/liblzma/api/lzma/*.h
++txtcp pkg/doc "" src/liblzma/liblzma.def
++txtcp pkg/doc .txt AUTHORS COPYING NEWS README THANKS TODO
++txtcp pkg/doc "" doc/*.txt
++txtcp pkg/doc/manuals "" doc/man/txt/{xz,xzdec,lzmainfo}.txt
++cp -v doc/man/pdf-*/{xz,xzdec,lzmainfo}-*.pdf pkg/doc/manuals
++txtcp pkg "" windows/README-Windows.txt
++
++# Create the package. This requires either 7z.exe from 7-Zip or zip.exe
++# from Info-ZIP. If neither are found, this is skipped and you have to
++# zip it yourself. 7-Zip tends to easily give the best compression ratio.
++VER=$(sh version.sh)
++cd pkg
++if [ -x "$SEVENZ_EXE" ]; then
++	"$SEVENZ_EXE" a -tzip ../xz-$VER-windows.zip *
++	"$SEVENZ_EXE" a ../xz-$VER-windows.7z *
++else
++	echo
++	echo "NOTE: 7z.exe was not found. xz-$VER-windows.zip"
++	echo "      and xz-$VER-windows.7z were not created."
++	echo "      You can create them yourself from the pkg directory."
++fi
++
++echo
++echo "Build completed successfully."
++echo
+diff --git a/windows/config.h b/windows/config.h
+deleted file mode 100644
+index 09dabdb8..00000000
+--- a/windows/config.h
++++ /dev/null
+@@ -1,170 +0,0 @@
+-/* Define to 1 if using x86 assembler optimizations. */
+-/* #undef HAVE_ASM_X86 */
+-
+-/* Define to 1 if using x86_64 assembler optimizations. */
+-/* #undef HAVE_ASM_X86_64 */
+-
+-/* Define to 1 if crc32 integrity check is enabled. */
+-#define HAVE_CHECK_CRC32 1
+-
+-/* Define to 1 if crc64 integrity check is enabled. */
+-#define HAVE_CHECK_CRC64 1
+-
+-/* Define to 1 if sha256 integrity check is enabled. */
+-#define HAVE_CHECK_SHA256 1
+-
+-/* Define to 1 if decoder components are enabled. */
+-#define HAVE_DECODER 1
+-
+-/* Define to 1 if arm decoder is enabled. */
+-#define HAVE_DECODER_ARM 1
+-
+-/* Define to 1 if armthumb decoder is enabled. */
+-#define HAVE_DECODER_ARMTHUMB 1
+-
+-/* Define to 1 if delta decoder is enabled. */
+-#define HAVE_DECODER_DELTA 1
+-
+-/* Define to 1 if ia64 decoder is enabled. */
+-#define HAVE_DECODER_IA64 1
+-
+-/* Define to 1 if lzma1 decoder is enabled. */
+-#define HAVE_DECODER_LZMA1 1
+-
+-/* Define to 1 if lzma2 decoder is enabled. */
+-#define HAVE_DECODER_LZMA2 1
+-
+-/* Define to 1 if powerpc decoder is enabled. */
+-#define HAVE_DECODER_POWERPC 1
+-
+-/* Define to 1 if sparc decoder is enabled. */
+-#define HAVE_DECODER_SPARC 1
+-
+-/* Define to 1 if subblock decoder is enabled. */
+-/* #undef HAVE_DECODER_SUBBLOCK */
+-
+-/* Define to 1 if x86 decoder is enabled. */
+-#define HAVE_DECODER_X86 1
+-
+-/* Define to 1 if encoder components are enabled. */
+-#define HAVE_ENCODER 1
+-
+-/* Define to 1 if arm encoder is enabled. */
+-#define HAVE_ENCODER_ARM 1
+-
+-/* Define to 1 if armthumb encoder is enabled. */
+-#define HAVE_ENCODER_ARMTHUMB 1
+-
+-/* Define to 1 if delta encoder is enabled. */
+-#define HAVE_ENCODER_DELTA 1
+-
+-/* Define to 1 if ia64 encoder is enabled. */
+-#define HAVE_ENCODER_IA64 1
+-
+-/* Define to 1 if lzma1 encoder is enabled. */
+-#define HAVE_ENCODER_LZMA1 1
+-
+-/* Define to 1 if lzma2 encoder is enabled. */
+-#define HAVE_ENCODER_LZMA2 1
+-
+-/* Define to 1 if powerpc encoder is enabled. */
+-#define HAVE_ENCODER_POWERPC 1
+-
+-/* Define to 1 if sparc encoder is enabled. */
+-#define HAVE_ENCODER_SPARC 1
+-
+-/* Define to 1 if subblock encoder is enabled. */
+-/* #undef HAVE_ENCODER_SUBBLOCK */
+-
+-/* Define to 1 if x86 encoder is enabled. */
+-#define HAVE_ENCODER_X86 1
+-
+-/* Define to 1 if the system supports fast unaligned memory access. */
+-#define HAVE_FAST_UNALIGNED_ACCESS 1
+-
+-/* Define to 1 if you have the <inttypes.h> header file. */
+-#define HAVE_INTTYPES_H 1
+-
+-/* Define to 1 if you have the <limits.h> header file. */
+-#define HAVE_LIMITS_H 1
+-
+-/* Define to 1 if you have the <memory.h> header file. */
+-#define HAVE_MEMORY_H 1
+-
+-/* Define to 1 to enable bt2 match finder. */
+-#define HAVE_MF_BT2 1
+-
+-/* Define to 1 to enable bt3 match finder. */
+-#define HAVE_MF_BT3 1
+-
+-/* Define to 1 to enable bt4 match finder. */
+-#define HAVE_MF_BT4 1
+-
+-/* Define to 1 to enable hc3 match finder. */
+-#define HAVE_MF_HC3 1
+-
+-/* Define to 1 to enable hc4 match finder. */
+-#define HAVE_MF_HC4 1
+-
+-/* Define to 1 if optimizing for size. */
+-/* #undef HAVE_SMALL */
+-
+-/* Define to 1 if stdbool.h conforms to C99. */
+-#define HAVE_STDBOOL_H 1
+-
+-/* Define to 1 if you have the <stdint.h> header file. */
+-#define HAVE_STDINT_H 1
+-
+-/* Define to 1 if you have the <stdlib.h> header file. */
+-#define HAVE_STDLIB_H 1
+-
+-/* Define to 1 if you have the <strings.h> header file. */
+-#define HAVE_STRINGS_H 1
+-
+-/* Define to 1 if you have the <string.h> header file. */
+-#define HAVE_STRING_H 1
+-
+-/* Define to 1 if the system has the type `uintptr_t'. */
+-#define HAVE_UINTPTR_T 1
+-
+-/* Define to 1 if you have the <sys/time.h> header file. */
+-#define HAVE_SYS_TIME_H 1
+-
+-/* Define to 1 if you have the `utime' function. */
+-#define HAVE_UTIME 1
+-
+-/* Define to 1 or 0, depending whether the compiler supports simple visibility
+-   declarations. */
+-#define HAVE_VISIBILITY 0
+-
+-/* Define to 1 if the system has the type `_Bool'. */
+-#define HAVE__BOOL 1
+-
+-/* Define to the address where bug reports for this package should be sent. */
+-#define PACKAGE_BUGREPORT "lasse.collin@tukaani.org"
+-
+-/* Define to the URL of the home page of this package. */
+-#define PACKAGE_HOMEPAGE "http://tukaani.org/xz/"
+-
+-/* Define to the full name of this package. */
+-#define PACKAGE_NAME "XZ Utils"
+-
+-/* The size of `size_t', as computed by sizeof. */
+-#ifdef _WIN64
+-# define SIZEOF_SIZE_T 8
+-#else
+-# define SIZEOF_SIZE_T 4
+-#endif
+-
+-/* Define to 1 if you have the ANSI C header files. */
+-#define STDC_HEADERS 1
+-
+-/* Define WORDS_BIGENDIAN to 1 if your processor stores words with the most
+-   significant byte first (like Motorola and SPARC, unlike Intel and VAX). */
+-#if defined __BIG_ENDIAN__
+-# define WORDS_BIGENDIAN 1
+-#elif ! defined __LITTLE_ENDIAN__
+-/* # undef WORDS_BIGENDIAN */
+-#endif
+-
+-#define ASSUME_RAM 32

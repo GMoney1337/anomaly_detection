@@ -1,0 +1,44 @@
+diff --git a/tests/files/README b/tests/files/README
+index ba05aba5..3e550dfe 100644
+--- a/tests/files/README
++++ b/tests/files/README
+@@ -209,6 +209,16 @@
+     file gets rejected specifically due to Unpadded Size having an invalid
+     value.
+ 
++    bad-3-index-uncomp-overflow.xz has Index whose Uncompressed Size
++    fields have huge values whose sum exceeds the maximum allowed size
++    of 2^63 - 1 bytes. In this file the sum is exactly 2^64.
++    lzma_index_append() in liblzma <= 5.2.6 lacks the integer overflow
++    check for the uncompressed size and thus doesn't catch the error
++    when decoding the Index field in this file. This makes "xz -l"
++    not detect the error and will display 0 as the uncompressed size.
++    Note that regular decompression isn't affected by this bug because
++    it uses lzma_index_hash_append() instead.
++
+     bad-2-compressed_data_padding.xz has non-null byte in the padding of
+     the Compressed Data field of the first Block.
+ 
+diff --git a/tests/files/bad-3-index-uncomp-overflow.xz b/tests/files/bad-3-index-uncomp-overflow.xz
+new file mode 100644
+index 00000000..e1440ec6
+Binary files /dev/null and b/tests/files/bad-3-index-uncomp-overflow.xz differ
+diff --git a/tests/test_files.sh b/tests/test_files.sh
+index dc507912..8686b6db 100755
+--- a/tests/test_files.sh
++++ b/tests/test_files.sh
+@@ -53,6 +53,14 @@ do
+ 	fi
+ done
+ 
++# Testing for the lzma_index_append() bug in <= 5.2.6 needs "xz -l":
++I="$srcdir/files/bad-3-index-uncomp-overflow.xz"
++if test -n "$XZ" && "$XZ" -l "$I" > /dev/null 2>&1; then
++	echo "Bad file succeeded with xz -l: $I"
++	(exit 1)
++	exit 1
++fi
++
+ for I in "$srcdir"/files/good-*.lzma
+ do
+ 	if test -z "$XZ" || "$XZ" -dc "$I" > /dev/null; then

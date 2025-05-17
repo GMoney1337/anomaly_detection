@@ -1,0 +1,14 @@
+diff --git a/Makefile.am b/Makefile.am
+index 2ce74aa5..1e7ba612 100644
+--- a/Makefile.am
++++ b/Makefile.am
+@@ -5,6 +5,9 @@
+ ## You can do whatever you want with this file.
+ ##
+ 
++# Use -n to prevent gzip from adding a timestamp to the .gz headers.
++GZIP_ENV = -9n
++
+ DIST_SUBDIRS = lib src po tests debug
+ SUBDIRS =
+ 

@@ -1,0 +1,13 @@
+diff --git a/src/liblzma/rangecoder/range_decoder.h b/src/liblzma/rangecoder/range_decoder.h
+index ddac1060..4c09eeae 100644
+--- a/src/liblzma/rangecoder/range_decoder.h
++++ b/src/liblzma/rangecoder/range_decoder.h
+@@ -878,7 +878,7 @@ do { \
+ 	uint32_t t0; \
+ 	uint32_t t1; \
+ 	uint32_t t_prob; \
+-	uint32_t t_match_byte = (match_byte_value) << 1; \
++	uint32_t t_match_byte = (uint32_t)(match_byte_value) << 1; \
+ 	uint32_t t_match_bit = t_match_byte; \
+ 	uint32_t t_offset = 0x100; \
+ 	symbol = 1; \

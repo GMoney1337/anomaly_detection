@@ -1,0 +1,16 @@
+diff --git a/src/xz/file_io.c b/src/xz/file_io.c
+index 1a7dac13..bc4f933d 100644
+--- a/src/xz/file_io.c
++++ b/src/xz/file_io.c
+@@ -243,9 +243,9 @@ capsicum_error:
+ 		sandbox_allowed = false;
+ 		return;
+ 	}
+-#endif
+-
++#else
+ error:
++#endif
+ 	message_fatal(_("Failed to enable the sandbox"));
+ }
+ #endif // ENABLE_SANDBOX

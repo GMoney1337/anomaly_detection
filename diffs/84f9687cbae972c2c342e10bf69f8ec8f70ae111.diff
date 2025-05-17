@@ -1,0 +1,63 @@
+diff --git a/src/liblzma/common/index.c b/src/liblzma/common/index.c
+index 24ec3c10..97cc9f95 100644
+--- a/src/liblzma/common/index.c
++++ b/src/liblzma/common/index.c
+@@ -10,6 +10,7 @@
+ //
+ ///////////////////////////////////////////////////////////////////////////////
+ 
++#include "common.h"
+ #include "index.h"
+ #include "stream_flags_common.h"
+ 
+diff --git a/src/liblzma/common/index.h b/src/liblzma/common/index.h
+index ea396714..031efcc7 100644
+--- a/src/liblzma/common/index.h
++++ b/src/liblzma/common/index.h
+@@ -2,6 +2,13 @@
+ //
+ /// \file       index.h
+ /// \brief      Handling of Index
++/// \note       This header file does not include common.h or lzma.h because
++///             this file is needed by both liblzma internally and by the
++///             tests. Including common.h will include and define many things
++///             the tests do not need and prevents issues with header file
++///             include order. This way, if lzma.h or common.h are not
++///             included before this file it will break on every OS instead
++///             of causing more subtle errors.
+ //
+ //  Author:     Lasse Collin
+ //
+@@ -13,8 +20,6 @@
+ #ifndef LZMA_INDEX_H
+ #define LZMA_INDEX_H
+ 
+-#include "common.h"
+-
+ 
+ /// Minimum Unpadded Size
+ #define UNPADDED_SIZE_MIN LZMA_VLI_C(5)
+diff --git a/src/liblzma/common/index_decoder.h b/src/liblzma/common/index_decoder.h
+index 1af433b5..3fec4833 100644
+--- a/src/liblzma/common/index_decoder.h
++++ b/src/liblzma/common/index_decoder.h
+@@ -13,6 +13,7 @@
+ #ifndef LZMA_INDEX_DECODER_H
+ #define LZMA_INDEX_DECODER_H
+ 
++#include "common.h"
+ #include "index.h"
+ 
+ 
+diff --git a/src/liblzma/common/stream_buffer_encoder.c b/src/liblzma/common/stream_buffer_encoder.c
+index af49554a..73157590 100644
+--- a/src/liblzma/common/stream_buffer_encoder.c
++++ b/src/liblzma/common/stream_buffer_encoder.c
+@@ -10,6 +10,7 @@
+ //
+ ///////////////////////////////////////////////////////////////////////////////
+ 
++#include "common.h"
+ #include "index.h"
+ 
+ 

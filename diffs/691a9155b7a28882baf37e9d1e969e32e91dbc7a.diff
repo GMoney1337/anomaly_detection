@@ -1,0 +1,24 @@
+diff --git a/Makefile.am b/Makefile.am
+index 7ce5f95c..8342ebb3 100644
+--- a/Makefile.am
++++ b/Makefile.am
+@@ -22,7 +22,6 @@ endif
+ SUBDIRS += src po tests
+ 
+ EXTRA_DIST = \
+-	m4 \
+ 	config.rpath  \
+ 	Doxyfile.in \
+ 	extra \
+diff --git a/THANKS b/THANKS
+index 909a0408..650c7665 100644
+--- a/THANKS
++++ b/THANKS
+@@ -22,6 +22,7 @@ In alphabetical order:
+   - Julian Seward
+   - Paul Townsend
+   - Mohammed Adnène Trojette
++  - Ralf Wildenhues
+   - Andreas Zieringer
+ 
+ Also thanks to all the people who have participated the Tukaani project

@@ -1,0 +1,103 @@
+diff --git a/src/liblzma/lz/lz_decoder.c b/src/liblzma/lz/lz_decoder.c
+index d4bd59f2..ce3d50d1 100644
+--- a/src/liblzma/lz/lz_decoder.c
++++ b/src/liblzma/lz/lz_decoder.c
+@@ -58,6 +58,17 @@ struct lzma_coder_s {
+ };
+ 
+ 
++static void
++lz_decoder_reset(lzma_coder *coder)
++{
++	coder->dict.pos = 0;
++	coder->dict.full = 0;
++	coder->dict.buf[coder->dict.size - 1] = '\0';
++	coder->dict.need_reset = false;
++	return;
++}
++
++
+ static lzma_ret
+ decode_buffer(lzma_coder *coder,
+ 		const uint8_t *restrict in, size_t *restrict in_pos,
+@@ -93,6 +104,10 @@ decode_buffer(lzma_coder *coder,
+ 				copy_size);
+ 		*out_pos += copy_size;
+ 
++		// Reset the dictionary if so requested by process().
++		if (coder->dict.need_reset)
++			lz_decoder_reset(coder);
++
+ 		// Return if everything got decoded or an error occurred, or
+ 		// if there's no more data to decode.
+ 		if (ret != LZMA_OK || *out_pos == out_size
+@@ -235,7 +250,7 @@ lzma_lz_decoder_init(lzma_next_coder *next, lzma_allocator *allocator,
+ 		next->coder->dict.size = dict_size;
+ 	}
+ 
+-	dict_reset(&next->coder->dict);
++	lz_decoder_reset(next->coder);
+ 
+ 	// Miscellaneous initializations
+ 	next->coder->next_finished = false;
+diff --git a/src/liblzma/lz/lz_decoder.h b/src/liblzma/lz/lz_decoder.h
+index 53ee1c1e..5ac44057 100644
+--- a/src/liblzma/lz/lz_decoder.h
++++ b/src/liblzma/lz/lz_decoder.h
+@@ -45,6 +45,9 @@ typedef struct {
+ 	/// Size of the dictionary
+ 	size_t size;
+ 
++	/// True when dictionary should be reset before decoding more data.
++	bool need_reset;
++
+ } lzma_dict;
+ 
+ 
+@@ -224,9 +227,8 @@ dict_write(lzma_dict *restrict dict, const uint8_t *restrict in,
+ static inline void
+ dict_reset(lzma_dict *dict)
+ {
+-	dict->pos = 0;
+-	dict->full = 0;
+-	dict->buf[dict->size - 1] = '\0';
++	dict->need_reset = true;
++	return;
+ }
+ 
+ #endif
+diff --git a/src/liblzma/lzma/lzma2_decoder.c b/src/liblzma/lzma/lzma2_decoder.c
+index 4470b4b1..ff90803b 100644
+--- a/src/liblzma/lzma/lzma2_decoder.c
++++ b/src/liblzma/lzma/lzma2_decoder.c
+@@ -74,12 +74,11 @@ lzma2_decode(lzma_coder *restrict coder, lzma_dict *restrict dict,
+ 		const uint32_t control = in[*in_pos];
+ 		++*in_pos;
+ 
+-		// Dictionary reset implies that next LZMA chunk has to set
+-		// new properties.
+ 		if (control >= 0xE0 || control == 1) {
+-			dict_reset(dict);
+-			coder->need_dictionary_reset = false;
++			// Dictionary reset implies that next LZMA chunk has
++			// to set new properties.
+ 			coder->need_properties = true;
++			coder->need_dictionary_reset = true;
+ 		} else if (coder->need_dictionary_reset) {
+ 			return LZMA_DATA_ERROR;
+ 		}
+@@ -125,6 +124,14 @@ lzma2_decode(lzma_coder *restrict coder, lzma_dict *restrict dict,
+ 			coder->next_sequence = SEQ_COPY;
+ 		}
+ 
++		if (coder->need_dictionary_reset) {
++			// Finish the dictionary reset and let the caller
++			// flush the dictionary to the actual output buffer.
++			coder->need_dictionary_reset = false;
++			dict_reset(dict);
++			return LZMA_OK;
++		}
++
+ 		break;
+ 	}
+ 

@@ -1,0 +1,21 @@
+diff --git a/src/scripts/xzmore.1 b/src/scripts/xzmore.1
+index a94e8326..42542bfe 100644
+--- a/src/scripts/xzmore.1
++++ b/src/scripts/xzmore.1
+@@ -31,14 +31,14 @@ The name
+ is provided for backward compatibility with LZMA Utils.
+ .TP
+ .BR e " or " q
+-When the prompt --More--(Next file:
++When the prompt \-\-More\-\-(Next file:
+ .IR file )
+ is printed, this command causes
+ .B xzmore
+ to exit.
+ .TP
+ .B s
+-When the prompt --More--(Next file:
++When the prompt \-\-More\-\-(Next file:
+ .IR file )
+ is printed, this command causes
+ .B xzmore

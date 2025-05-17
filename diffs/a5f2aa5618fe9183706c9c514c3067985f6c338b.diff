@@ -1,0 +1,155 @@
+diff --git a/tests/Makefile.am b/tests/Makefile.am
+index d7f4a418..e6516213 100644
+--- a/tests/Makefile.am
++++ b/tests/Makefile.am
+@@ -8,16 +8,11 @@ EXTRA_DIST = \
+ 	tests.h \
+ 	test_files.sh \
+ 	test_compress.sh \
+-	test_compress_prepared_bcj_sparc \
+-	test_compress_prepared_bcj_x86 \
+ 	test_compress_generated_abc \
+ 	test_compress_generated_random \
+ 	test_compress_generated_text \
+ 	test_scripts.sh \
+ 	test_suffix.sh \
+-	bcj_test.c \
+-	compress_prepared_bcj_sparc \
+-	compress_prepared_bcj_x86 \
+ 	xzgrep_expected_output
+ 
+ AM_CPPFLAGS = \
+@@ -59,8 +54,6 @@ TESTS = \
+ 	test_vli \
+ 	test_files.sh \
+ 	test_suffix.sh \
+-	test_compress_prepared_bcj_sparc \
+-	test_compress_prepared_bcj_x86 \
+ 	test_compress_generated_abc \
+ 	test_compress_generated_random \
+ 	test_compress_generated_text
+diff --git a/tests/bcj_test.c b/tests/bcj_test.c
+deleted file mode 100644
+index 84abe7b3..00000000
+--- a/tests/bcj_test.c
++++ /dev/null
+@@ -1,64 +0,0 @@
+-// SPDX-License-Identifier: 0BSD
+-
+-///////////////////////////////////////////////////////////////////////////////
+-//
+-/// \file       bcj_test.c
+-/// \brief      Source code of compress_prepared_bcj_*
+-///
+-/// This is a simple program that should make the compiler to generate
+-/// PC-relative branches, jumps, and calls. The compiled files can then
+-/// be used to test the branch conversion filters. Note that this program
+-/// itself does nothing useful.
+-///
+-/// Compiling: gcc -std=c99 -fPIC -c bcj_test.c
+-/// Don't optimize or strip.
+-//
+-//  Author:     Lasse Collin
+-//
+-///////////////////////////////////////////////////////////////////////////////
+-
+-extern int jump(int a, int b);
+-
+-
+-extern int
+-call(int a, int b)
+-{
+-	if (a < b)
+-		a = jump(a, b);
+-
+-	return a;
+-}
+-
+-
+-extern int
+-jump(int a, int b)
+-{
+-	// The loop generates conditional jump backwards.
+-	while (1) {
+-		if (a < b) {
+-			a *= 2;
+-			a += 3 * b;
+-			break;
+-		} else {
+-			// Put enough code here to prevent JMP SHORT on x86.
+-			a += b;
+-			a /= 2;
+-			b += b % 5;
+-			a -= b / 3;
+-			b = 2 * b + a - 1;
+-			a *= b + a + 1;
+-			b += a - 1;
+-			a += b * 2 - a / 5;
+-		}
+-	}
+-
+-	return a;
+-}
+-
+-
+-int
+-main(int argc, char **argv)
+-{
+-	int a = call(argc, argc + 1);
+-	return a == 0;
+-}
+diff --git a/tests/compress_prepared_bcj_sparc b/tests/compress_prepared_bcj_sparc
+deleted file mode 100644
+index 86ea7ddb..00000000
+Binary files a/tests/compress_prepared_bcj_sparc and /dev/null differ
+diff --git a/tests/compress_prepared_bcj_x86 b/tests/compress_prepared_bcj_x86
+deleted file mode 100644
+index bcc546f0..00000000
+Binary files a/tests/compress_prepared_bcj_x86 and /dev/null differ
+diff --git a/tests/files/README b/tests/files/README
+index 15a75b80..584e6ba4 100644
+--- a/tests/files/README
++++ b/tests/files/README
+@@ -66,14 +66,6 @@
+     good-1-delta-lzma2.tiff.xz is an image file that compresses
+     better with Delta+LZMA2 than with plain LZMA2.
+ 
+-    good-1-x86-lzma2.xz uses the x86 filter (BCJ) and LZMA2. The
+-    uncompressed file is compress_prepared_bcj_x86 found from the tests
+-    directory.
+-
+-    good-1-sparc-lzma2.xz uses the SPARC filter and LZMA2. The
+-    uncompressed file is compress_prepared_bcj_sparc found from the tests
+-    directory.
+-
+     good-1-arm64-lzma2-1.xz uses the ARM64 filter and LZMA2. The
+     uncompressed data is constructed so that it tests integer
+     wrap around and sign extension. To recreate the file, compress
+diff --git a/tests/files/good-1-sparc-lzma2.xz b/tests/files/good-1-sparc-lzma2.xz
+deleted file mode 100644
+index 4532bc61..00000000
+Binary files a/tests/files/good-1-sparc-lzma2.xz and /dev/null differ
+diff --git a/tests/files/good-1-x86-lzma2.xz b/tests/files/good-1-x86-lzma2.xz
+deleted file mode 100644
+index 8053917b..00000000
+Binary files a/tests/files/good-1-x86-lzma2.xz and /dev/null differ
+diff --git a/tests/test_compress_prepared_bcj_sparc b/tests/test_compress_prepared_bcj_sparc
+deleted file mode 100755
+index 15d870af..00000000
+--- a/tests/test_compress_prepared_bcj_sparc
++++ /dev/null
+@@ -1,4 +0,0 @@
+-#!/bin/sh
+-# SPDX-License-Identifier: 0BSD
+-
+-exec "$srcdir/test_compress.sh" compress_prepared_bcj_sparc
+diff --git a/tests/test_compress_prepared_bcj_x86 b/tests/test_compress_prepared_bcj_x86
+deleted file mode 100755
+index 8cdd0312..00000000
+--- a/tests/test_compress_prepared_bcj_x86
++++ /dev/null
+@@ -1,4 +0,0 @@
+-#!/bin/sh
+-# SPDX-License-Identifier: 0BSD
+-
+-exec "$srcdir/test_compress.sh" compress_prepared_bcj_x86

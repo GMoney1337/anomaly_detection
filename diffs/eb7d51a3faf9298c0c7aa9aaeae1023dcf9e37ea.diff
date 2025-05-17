@@ -1,0 +1,827 @@
+diff --git a/README b/README
+index be5bfc6c..6b695d5c 100644
+--- a/README
++++ b/README
+@@ -16,7 +16,7 @@ XZ Utils
+ 0. Overview
+ -----------
+ 
+-    XZ Utils provide a general purporse data compression library and
++    XZ Utils provide a general-purpose data compression library and
+     command line tools. The native file format is the .xz format, but
+     also the legacy .lzma format is supported. The .xz format supports
+     multiple compression algorithms, which are called "filters" in
+diff --git a/configure.ac b/configure.ac
+index 41726b78..bfb64304 100644
+--- a/configure.ac
++++ b/configure.ac
+@@ -612,7 +612,7 @@ AC_SUBST([AM_CFLAGS])
+ # Set additional flags for static/dynamic linking. The idea is that every
+ # program (not library) being built will use either STATIC_{CPPFLAGS,LDFLAGS}
+ # or DYNAMIC_{CPPFLAGS,LDFLAGS} depending on which type of linkage is
+-# preferred. These preferences get overriden by use of --disable-static,
++# preferred. These preferences get overridden by use of --disable-static,
+ # --disable-shared, or --enable-dynamic.
+ #
+ # This is quite messy, because we want to use LZMA_API_STATIC when linking
+diff --git a/doc/faq.txt b/doc/faq.txt
+index 48c4ec71..14860e7c 100644
+--- a/doc/faq.txt
++++ b/doc/faq.txt
+@@ -117,6 +117,6 @@ A:  Give --enable-small to the configure script. Use also appropriate
+     for size. See INSTALL for information about configure options.
+ 
+     If the result is still too big, take a look at XZ Embedded. It is
+-    a separate project, which provides a limited but signinificantly
++    a separate project, which provides a limited but significantly
+     smaller XZ decoder implementation than XZ Utils.
+ 
+diff --git a/extra/7z2lzma/7z2lzma.bash b/extra/7z2lzma/7z2lzma.bash
+index 35ea4dae..1777c786 100755
+--- a/extra/7z2lzma/7z2lzma.bash
++++ b/extra/7z2lzma/7z2lzma.bash
+@@ -62,7 +62,7 @@ if printf '%s\n' "$INFO" | grep -q '^Block = 1'; then
+ 	exit 1
+ fi
+ 
+-# Get copmressed, uncompressed, and dictionary size.
++# Get compressed, uncompressed, and dictionary size.
+ CSIZE=$(printf '%s\n' "$INFO" | sed -rn 's|^Packed Size = ([0-9]+$)|\1|p')
+ USIZE=$(printf '%s\n' "$INFO" | sed -rn 's|^Size = ([0-9]+$)|\1|p')
+ DICT=$(printf '%s\n' "$INFO" | sed -rn 's|^Method = LZMA:([0-9]+[bkm]?)$|\1|p')
+diff --git a/src/common/tuklib_progname.c b/src/common/tuklib_progname.c
+index 12ac8ae1..7cb7e203 100644
+--- a/src/common/tuklib_progname.c
++++ b/src/common/tuklib_progname.c
+@@ -1,7 +1,7 @@
+ ///////////////////////////////////////////////////////////////////////////////
+ //
+ /// \file       tuklib_progname.c
+-/// \brief      Program name to be displayd in messages
++/// \brief      Program name to be displayed in messages
+ //
+ //  Author:     Lasse Collin
+ //
+diff --git a/src/common/tuklib_progname.h b/src/common/tuklib_progname.h
+index 579daa34..791b1251 100644
+--- a/src/common/tuklib_progname.h
++++ b/src/common/tuklib_progname.h
+@@ -1,7 +1,7 @@
+ ///////////////////////////////////////////////////////////////////////////////
+ //
+ /// \file       tuklib_progname.h
+-/// \brief      Program name to be displayd in messages
++/// \brief      Program name to be displayed in messages
+ //
+ //  Author:     Lasse Collin
+ //
+diff --git a/src/liblzma/api/lzma/base.h b/src/liblzma/api/lzma/base.h
+index 01555068..993626a4 100644
+--- a/src/liblzma/api/lzma/base.h
++++ b/src/liblzma/api/lzma/base.h
+@@ -81,7 +81,7 @@ typedef enum {
+ 		 * the decoder. LZMA_NO_CHECK is just a warning, and
+ 		 * the decoding can be continued normally.
+ 		 *
+-		 * It is possible to call lzma_get_check() immediatelly after
++		 * It is possible to call lzma_get_check() immediately after
+ 		 * lzma_code has returned LZMA_NO_CHECK. The result will
+ 		 * naturally be LZMA_CHECK_NONE, but the possibility to call
+ 		 * lzma_get_check() may be convenient in some applications.
+@@ -107,7 +107,7 @@ typedef enum {
+ 		 * errors may go undetected.
+ 		 *
+ 		 * With decoder, it is possible to call lzma_get_check()
+-		 * immediatelly after lzma_code() has returned
++		 * immediately after lzma_code() has returned
+ 		 * LZMA_UNSUPPORTED_CHECK. This way it is possible to find
+ 		 * out what the unsupported Check ID was.
+ 		 */
+@@ -280,7 +280,7 @@ typedef enum {
+ 		 *
+ 		 * Using LZMA_SYNC_FLUSH very often can dramatically reduce
+ 		 * the compression ratio. With some filters (for example,
+-		 * LZMA2), finetuning the compression options may help
++		 * LZMA2), fine-tuning the compression options may help
+ 		 * mitigate this problem significantly.
+ 		 *
+ 		 * Decoders don't support LZMA_SYNC_FLUSH.
+@@ -489,7 +489,7 @@ typedef struct {
+ /**
+  * \brief       Initialization for lzma_stream
+  *
+- * When you declare an instance of lzma_stream, you can immediatelly
++ * When you declare an instance of lzma_stream, you can immediately
+  * initialize it so that initialization functions know that no memory
+  * has been allocated yet:
+  *
+diff --git a/src/liblzma/api/lzma/bcj.h b/src/liblzma/api/lzma/bcj.h
+index 274bf6c7..82e4a440 100644
+--- a/src/liblzma/api/lzma/bcj.h
++++ b/src/liblzma/api/lzma/bcj.h
+@@ -77,7 +77,7 @@ typedef struct {
+ 	 * This setting is useful only when the same filter is used
+ 	 * _separately_ for multiple sections of the same executable file,
+ 	 * and the sections contain cross-section branch/call/jump
+-	 * instructions. In that case it is benefical to set the start
++	 * instructions. In that case it is beneficial to set the start
+ 	 * offset of the non-first sections so that the relative addresses
+ 	 * of the cross-section branch/call/jump instructions will use the
+ 	 * same absolute addresses as in the first section.
+diff --git a/src/liblzma/api/lzma/block.h b/src/liblzma/api/lzma/block.h
+index 68f6755b..8e681ed2 100644
+--- a/src/liblzma/api/lzma/block.h
++++ b/src/liblzma/api/lzma/block.h
+@@ -414,7 +414,7 @@ extern LZMA_API(lzma_vli) lzma_block_total_size(const lzma_block *block)
+  * \return      - LZMA_OK: All good, continue with lzma_code().
+  *              - LZMA_MEM_ERROR
+  *              - LZMA_OPTIONS_ERROR
+- *              - LZMA_UNSUPPORTED_CHECK: block->check specfies a Check ID
++ *              - LZMA_UNSUPPORTED_CHECK: block->check specifies a Check ID
+  *                that is not supported by this buid of liblzma. Initializing
+  *                the encoder failed.
+  *              - LZMA_PROG_ERROR
+diff --git a/src/liblzma/api/lzma/check.h b/src/liblzma/api/lzma/check.h
+index 5661bbe5..6a243db0 100644
+--- a/src/liblzma/api/lzma/check.h
++++ b/src/liblzma/api/lzma/check.h
+@@ -142,7 +142,7 @@ extern LZMA_API(uint64_t) lzma_crc64(
+ /**
+  * \brief       Get the type of the integrity check
+  *
+- * This function can be called only immediatelly after lzma_code() has
++ * This function can be called only immediately after lzma_code() has
+  * returned LZMA_NO_CHECK, LZMA_UNSUPPORTED_CHECK, or LZMA_GET_CHECK.
+  * Calling this function in any other situation has undefined behavior.
+  */
+diff --git a/src/liblzma/api/lzma/filter.h b/src/liblzma/api/lzma/filter.h
+index 81cc35f0..038a9339 100644
+--- a/src/liblzma/api/lzma/filter.h
++++ b/src/liblzma/api/lzma/filter.h
+@@ -290,7 +290,7 @@ extern LZMA_API(lzma_ret) lzma_raw_buffer_decode(
+  * using the raw encoder and decoder.
+  *
+  * \param       size    Pointer to uint32_t to hold the size of the properties
+- * \param       filter  Filter ID and options (the size of the propeties may
++ * \param       filter  Filter ID and options (the size of the properties may
+  *                      vary depending on the options)
+  *
+  * \return      - LZMA_OK
+@@ -365,7 +365,7 @@ extern LZMA_API(lzma_ret) lzma_properties_decode(
+  *
+  * \param       size    Pointer to integer to hold the calculated size
+  * \param       filters Filter ID and associated options whose encoded
+- *                      size is to be calculted
++ *                      size is to be calculated
+  *
+  * \return      - LZMA_OK: *size set successfully. Note that this doesn't
+  *                guarantee that filters->options is valid, thus
+diff --git a/src/liblzma/api/lzma/index.h b/src/liblzma/api/lzma/index.h
+index 90c84f42..8d7a799f 100644
+--- a/src/liblzma/api/lzma/index.h
++++ b/src/liblzma/api/lzma/index.h
+@@ -278,7 +278,7 @@ typedef enum {
+  *
+  * This function calculates an approximate amount of memory needed hold
+  * the given number of Streams and Blocks in lzma_index structure. This
+- * value may vary between CPU archtectures and also between liblzma versions
++ * value may vary between CPU architectures and also between liblzma versions
+  * if the internal implementation is modified.
+  */
+ extern LZMA_API(uint64_t) lzma_index_memusage(
+@@ -477,7 +477,7 @@ extern LZMA_API(lzma_vli) lzma_index_uncompressed_size(const lzma_index *i)
+  * associated lzma_index is valid, that is, until lzma_index_end() or
+  * using it as source in lzma_index_cat(). Specifically, lzma_index doesn't
+  * become invalid if new Blocks are added to it with lzma_index_append() or
+- * if it is used as the destionation in lzma_index_cat().
++ * if it is used as the destination in lzma_index_cat().
+  *
+  * It is safe to make copies of an initialized lzma_index_iter, for example,
+  * to easily restart reading at some particular position.
+@@ -549,7 +549,7 @@ extern LZMA_API(lzma_bool) lzma_index_iter_locate(
+  * Stream.
+  *
+  * \param       dest      lzma_index after which src is appended
+- * \param       src       lzma_index to be appeneded after dest. If this
++ * \param       src       lzma_index to be appended after dest. If this
+  *                        function succeeds, the memory allocated for src
+  *                        is freed or moved to be part of dest, and all
+  *                        iterators pointing to src will become invalid.
+diff --git a/src/liblzma/api/lzma/lzma.h b/src/liblzma/api/lzma/lzma.h
+index 989425e3..c17736d7 100644
+--- a/src/liblzma/api/lzma/lzma.h
++++ b/src/liblzma/api/lzma/lzma.h
+@@ -307,7 +307,7 @@ typedef struct {
+ 	 * This determines how many bytes the encoder compares from the match
+ 	 * candidates when looking for the best match. Once a match of at
+ 	 * least nice_len bytes long is found, the encoder stops looking for
+-	 * better condidates and encodes the match. (Naturally, if the found
++	 * better candidates and encodes the match. (Naturally, if the found
+ 	 * match is actually longer than nice_len, the actual length is
+ 	 * encoded; it's not truncated to nice_len.)
+ 	 *
+diff --git a/src/liblzma/api/lzma/version.h b/src/liblzma/api/lzma/version.h
+index 36b7952d..0f7c2d37 100644
+--- a/src/liblzma/api/lzma/version.h
++++ b/src/liblzma/api/lzma/version.h
+@@ -18,7 +18,7 @@
+ 
+ 
+ /*
+- * Version number splitted in components
++ * Version number split into components
+  */
+ #define LZMA_VERSION_MAJOR 4
+ #define LZMA_VERSION_MINOR 999
+diff --git a/src/liblzma/api/lzma/vli.h b/src/liblzma/api/lzma/vli.h
+index 7fa7b7f1..8d4277f7 100644
+--- a/src/liblzma/api/lzma/vli.h
++++ b/src/liblzma/api/lzma/vli.h
+@@ -57,7 +57,7 @@
+  * [0, LZMA_VLI_MAX]. Unknown value is indicated with LZMA_VLI_UNKNOWN,
+  * which is the maximum value of the underlaying integer type.
+  *
+- * In future, even if lzma_vli is typdefined to something else than uint64_t,
++ * In future, even if lzma_vli is defined to be something other than uint64_t,
+  * it is guaranteed that 2 * LZMA_VLI_MAX will not overflow lzma_vli.
+  * This simplifies integer overflow detection.
+  */
+diff --git a/src/liblzma/common/block_header_encoder.c b/src/liblzma/common/block_header_encoder.c
+index 79dafb80..707dd0cb 100644
+--- a/src/liblzma/common/block_header_encoder.c
++++ b/src/liblzma/common/block_header_encoder.c
+@@ -73,7 +73,7 @@ lzma_block_header_size(lzma_block *block)
+ extern LZMA_API(lzma_ret)
+ lzma_block_header_encode(const lzma_block *block, uint8_t *out)
+ {
+-	// Valdidate everything but filters.
++	// Validate everything but filters.
+ 	if (lzma_block_unpadded_size(block) == 0
+ 			|| !lzma_vli_is_valid(block->uncompressed_size))
+ 		return LZMA_PROG_ERROR;
+diff --git a/src/liblzma/common/chunk_size.c b/src/liblzma/common/chunk_size.c
+index c9129d7c..363f07ec 100644
+--- a/src/liblzma/common/chunk_size.c
++++ b/src/liblzma/common/chunk_size.c
+@@ -20,7 +20,7 @@
+  * doing multi-threaded encoding.
+  *
+  * When compressing a large file on a system having multiple CPUs or CPU
+- * cores, the file can be splitted in smaller chunks, that are compressed
++ * cores, the file can be split into smaller chunks, that are compressed
+  * independently into separate Blocks in the same .lzma Stream.
+  *
+  * \return      Minimum reasonable Uncompressed Size of a Block. The
+@@ -45,7 +45,7 @@ lzma_chunk_size(const lzma_options_filter *filters)
+ 		case LZMA_FILTER_ARMTHUMB:
+ 		case LZMA_FILTER_SPARC:
+ 			// These are very fast, thus there is no point in
+-			// splitting the data in smaller blocks.
++			// splitting the data into smaller blocks.
+ 			break;
+ 
+ 		case LZMA_FILTER_LZMA1:
+diff --git a/src/liblzma/common/common.h b/src/liblzma/common/common.h
+index 6551e39f..7b7fbb11 100644
+--- a/src/liblzma/common/common.h
++++ b/src/liblzma/common/common.h
+@@ -50,7 +50,7 @@
+ 
+ 
+ /// Starting value for memory usage estimates. Instead of calculating size
+-/// of _every_ structure and taking into accont malloc() overhead etc. we
++/// of _every_ structure and taking into account malloc() overhead etc., we
+ /// add a base size to all memory usage estimates. It's not very accurate
+ /// but should be easily good enough.
+ #define LZMA_MEMUSAGE_BASE (UINT64_C(1) << 15)
+@@ -248,7 +248,7 @@ extern size_t lzma_bufcpy(const uint8_t *restrict in, size_t *restrict in_pos,
+ 
+ /// \brief      Return if expression doesn't evaluate to LZMA_OK
+ ///
+-/// There are several situations where we want to return immediatelly
++/// There are several situations where we want to return immediately
+ /// with the value of expr if it isn't LZMA_OK. This macro shortens
+ /// the code a little.
+ #define return_if_error(expr) \
+diff --git a/src/liblzma/common/filter_buffer_decoder.c b/src/liblzma/common/filter_buffer_decoder.c
+index 4fe5d78e..2d35ef8e 100644
+--- a/src/liblzma/common/filter_buffer_decoder.c
++++ b/src/liblzma/common/filter_buffer_decoder.c
+@@ -57,7 +57,7 @@ lzma_raw_buffer_decode(const lzma_filter *filters, lzma_allocator *allocator,
+ 
+ 			} else {
+ 				// All the input was consumed and output
+-				// buffer is full. Now we don't immediatelly
++				// buffer is full. Now we don't immediately
+ 				// know the reason for the error. Try
+ 				// decoding one more byte. If it succeeds,
+ 				// then the output buffer was too small. If
+diff --git a/src/liblzma/common/filter_encoder.c b/src/liblzma/common/filter_encoder.c
+index 3b0493fe..ab3d3af1 100644
+--- a/src/liblzma/common/filter_encoder.c
++++ b/src/liblzma/common/filter_encoder.c
+@@ -32,7 +32,7 @@ typedef struct {
+ 	uint64_t (*memusage)(const void *options);
+ 
+ 	/// Calculates the minimum sane size for Blocks (or other types of
+-	/// chunks) to which the input data can be splitted to make
++	/// chunks) to which the input data can be split to make
+ 	/// multithreaded encoding possible. If this is NULL, it is assumed
+ 	/// that the encoder is fast enough with single thread.
+ 	lzma_vli (*chunk_size)(const void *options);
+@@ -45,7 +45,7 @@ typedef struct {
+ 
+ 	/// Encodes Filter Properties.
+ 	///
+-	/// \return     - LZMA_OK: Properties encoded sucessfully.
++	/// \return     - LZMA_OK: Properties encoded successfully.
+ 	///             - LZMA_OPTIONS_ERROR: Unsupported options
+ 	///             - LZMA_PROG_ERROR: Invalid options or not enough
+ 	///               output space
+diff --git a/src/liblzma/common/index.c b/src/liblzma/common/index.c
+index 9907fbab..3941e28b 100644
+--- a/src/liblzma/common/index.c
++++ b/src/liblzma/common/index.c
+@@ -737,7 +737,7 @@ typedef struct {
+ 
+ /// Add the Stream nodes from the source index to dest using recursion.
+ /// Simplest iterative traversal of the source tree wouldn't work, because
+-/// we update the pointers in nodes when moving them to the destinatino tree.
++/// we update the pointers in nodes when moving them to the destination tree.
+ static void
+ index_cat_helper(const index_cat_info *info, index_stream *this)
+ {
+@@ -867,7 +867,7 @@ index_dup_stream(const index_stream *src, lzma_allocator *allocator)
+ 			src->node.uncompressed_base, src->number,
+ 			src->block_number_base, allocator);
+ 
+-	// Return immediatelly if allocation failed or if there are
++	// Return immediately if allocation failed or if there are
+ 	// no groups to duplicate.
+ 	if (dest == NULL || src->groups.leftmost == NULL)
+ 		return dest;
+@@ -1202,7 +1202,7 @@ lzma_index_iter_locate(lzma_index_iter *iter, lzma_vli target)
+ {
+ 	const lzma_index *i = iter->internal[ITER_INDEX].p;
+ 
+-	// If the target is past the end of the file, return immediatelly.
++	// If the target is past the end of the file, return immediately.
+ 	if (i->uncompressed_size <= target)
+ 		return true;
+ 
+diff --git a/src/liblzma/common/index_encoder.c b/src/liblzma/common/index_encoder.c
+index 21712d00..706f1fd7 100644
+--- a/src/liblzma/common/index_encoder.c
++++ b/src/liblzma/common/index_encoder.c
+@@ -218,7 +218,7 @@ extern LZMA_API(lzma_ret)
+ lzma_index_buffer_encode(const lzma_index *i,
+ 		uint8_t *out, size_t *out_pos, size_t out_size)
+ {
+-	// Validate the arugments.
++	// Validate the arguments.
+ 	if (i == NULL || out == NULL || out_pos == NULL || *out_pos > out_size)
+ 		return LZMA_PROG_ERROR;
+ 
+diff --git a/src/liblzma/common/stream_encoder.c b/src/liblzma/common/stream_encoder.c
+index 054e1145..48d91da7 100644
+--- a/src/liblzma/common/stream_encoder.c
++++ b/src/liblzma/common/stream_encoder.c
+@@ -105,7 +105,7 @@ stream_encode(lzma_coder *coder, lzma_allocator *allocator,
+ 	case SEQ_BLOCK_INIT: {
+ 		if (*in_pos == in_size) {
+ 			// If we are requested to flush or finish the current
+-			// Block, return LZMA_STREAM_END immediatelly since
++			// Block, return LZMA_STREAM_END immediately since
+ 			// there's nothing to do.
+ 			if (action != LZMA_FINISH)
+ 				return action == LZMA_RUN
+diff --git a/src/liblzma/common/vli_decoder.c b/src/liblzma/common/vli_decoder.c
+index 44a1ecfe..c181828b 100644
+--- a/src/liblzma/common/vli_decoder.c
++++ b/src/liblzma/common/vli_decoder.c
+@@ -47,7 +47,7 @@ lzma_vli_decode(lzma_vli *restrict vli, size_t *vli_pos,
+ 
+ 	do {
+ 		// Read the next byte. Use a temporary variable so that we
+-		// can update *in_pos immediatelly.
++		// can update *in_pos immediately.
+ 		const uint8_t byte = in[*in_pos];
+ 		++*in_pos;
+ 
+diff --git a/src/liblzma/lz/lz_encoder.c b/src/liblzma/lz/lz_encoder.c
+index bf6327d8..757e5374 100644
+--- a/src/liblzma/lz/lz_encoder.c
++++ b/src/liblzma/lz/lz_encoder.c
+@@ -229,7 +229,7 @@ lz_encoder_prepare(lzma_mf *mf, lzma_allocator *allocator,
+ 	mf->nice_len = lz_options->nice_len;
+ 
+ 	// cyclic_size has to stay smaller than 2 Gi. Note that this doesn't
+-	// mean limitting dictionary size to less than 2 GiB. With a match
++	// mean limiting dictionary size to less than 2 GiB. With a match
+ 	// finder that uses multibyte resolution (hashes start at e.g. every
+ 	// fourth byte), cyclic_size would stay below 2 Gi even when
+ 	// dictionary size is greater than 2 GiB.
+diff --git a/src/liblzma/lz/lz_encoder.h b/src/liblzma/lz/lz_encoder.h
+index 401185ef..f6352a47 100644
+--- a/src/liblzma/lz/lz_encoder.h
++++ b/src/liblzma/lz/lz_encoder.h
+@@ -182,7 +182,7 @@ typedef struct {
+ // TODO: Maybe this could be changed by making the LZ-based encoders to
+ // store the actual literals as they do with length-distance pairs.
+ //
+-// Alrogithms such as LZMA2 first try to compress a chunk, and then check
++// Algorithms such as LZMA2 first try to compress a chunk, and then check
+ // if the encoded result is smaller than the uncompressed one. If the chunk
+ // was uncompressible, it is better to store it in uncompressed form in
+ // the output stream. To do this, the whole uncompressed chunk has to be
+diff --git a/src/liblzma/lzma/lzma2_encoder.c b/src/liblzma/lzma/lzma2_encoder.c
+index eda4aa9f..1e0569a4 100644
+--- a/src/liblzma/lzma/lzma2_encoder.c
++++ b/src/liblzma/lzma/lzma2_encoder.c
+@@ -169,7 +169,7 @@ lzma2_encode(lzma_coder *restrict coder, lzma_mf *restrict mf,
+ 		uint32_t limit;
+ 
+ 		if (left < mf->match_len_max) {
+-			// Must flush immediatelly since the next LZMA symbol
++			// Must flush immediately since the next LZMA symbol
+ 			// could make the uncompressed size of the chunk too
+ 			// big.
+ 			limit = 0;
+diff --git a/src/liblzma/lzma/lzma_decoder.c b/src/liblzma/lzma/lzma_decoder.c
+index 92c127f1..4329e019 100644
+--- a/src/liblzma/lzma/lzma_decoder.c
++++ b/src/liblzma/lzma/lzma_decoder.c
+@@ -195,7 +195,7 @@ struct lzma_coder_s {
+ 	/// 2 (i.e. MATCH_LEN_MIN), 3, 4, and [5, 273].
+ 	probability pos_slot[LEN_TO_POS_STATES][POS_SLOTS];
+ 
+-	/// Probility trees for additional bits for match distance when the
++	/// Probability trees for additional bits for match distance when the
+ 	/// distance is in the range [4, 127].
+ 	probability pos_special[FULL_DISTANCES - END_POS_MODEL_INDEX];
+ 
+@@ -600,7 +600,7 @@ lzma_decode(lzma_coder *restrict coder, lzma_dict *restrict dictptr,
+ 					}
+ #endif
+ 				} else {
+-					// The distace is >= 128. Decode the
++					// The distance is >= 128. Decode the
+ 					// lower bits without probabilities
+ 					// except the lowest four bits.
+ 					assert(symbol >= 14);
+diff --git a/src/liblzma/lzma/lzma_decoder.h b/src/liblzma/lzma/lzma_decoder.h
+index 147208dc..a463a76f 100644
+--- a/src/liblzma/lzma/lzma_decoder.h
++++ b/src/liblzma/lzma/lzma_decoder.h
+@@ -30,7 +30,7 @@ extern lzma_ret lzma_lzma_props_decode(
+ 
+ /// \brief      Decodes the LZMA Properties byte (lc/lp/pb)
+ ///
+-/// \return     true if error occorred, false on success
++/// \return     true if error occurred, false on success
+ ///
+ extern bool lzma_lzma_lclppb_decode(
+ 		lzma_options_lzma *options, uint8_t byte);
+diff --git a/src/liblzma/lzma/lzma_encoder_optimum_fast.c b/src/liblzma/lzma/lzma_encoder_optimum_fast.c
+index 61aaf3b9..4ca55b60 100644
+--- a/src/liblzma/lzma/lzma_encoder_optimum_fast.c
++++ b/src/liblzma/lzma/lzma_encoder_optimum_fast.c
+@@ -62,7 +62,7 @@ lzma_lzma_optimum_fast(lzma_coder *restrict coder, lzma_mf *restrict mf,
+ 				&& buf[len] == buf_back[len]; ++len) ;
+ 
+ 		// If we have found a repeated match that is at least
+-		// nice_len long, return it immediatelly.
++		// nice_len long, return it immediately.
+ 		if (len >= nice_len) {
+ 			*back_res = i;
+ 			*len_res = len;
+diff --git a/src/liblzma/lzma/lzma_encoder_optimum_normal.c b/src/liblzma/lzma/lzma_encoder_optimum_normal.c
+index 5772b449..9284c8a2 100644
+--- a/src/liblzma/lzma/lzma_encoder_optimum_normal.c
++++ b/src/liblzma/lzma/lzma_encoder_optimum_normal.c
+@@ -838,7 +838,7 @@ lzma_lzma_optimum_normal(lzma_coder *restrict coder, lzma_mf *restrict mf,
+ 	}
+ 
+ 	// TODO: This needs quite a bit of cleaning still. But splitting
+-	// the oroginal function to two pieces makes it at least a little
++	// the original function into two pieces makes it at least a little
+ 	// more readable, since those two parts don't share many variables.
+ 
+ 	uint32_t len_end = helper1(coder, mf, back_res, len_res, position);
+diff --git a/src/liblzma/lzma/lzma_encoder_private.h b/src/liblzma/lzma/lzma_encoder_private.h
+index 3895de2d..68474523 100644
+--- a/src/liblzma/lzma/lzma_encoder_private.h
++++ b/src/liblzma/lzma/lzma_encoder_private.h
+@@ -85,7 +85,7 @@ struct lzma_coder_s {
+ 	/// Number of match candidates in matches[]
+ 	uint32_t matches_count;
+ 
+-	/// Varibale to hold the length of the longest match between calls
++	/// Variable to hold the length of the longest match between calls
+ 	/// to lzma_lzma_optimum_*().
+ 	uint32_t longest_match_length;
+ 
+diff --git a/src/liblzma/simple/simple_coder.c b/src/liblzma/simple/simple_coder.c
+index 52c5ca6d..06db86ec 100644
+--- a/src/liblzma/simple/simple_coder.c
++++ b/src/liblzma/simple/simple_coder.c
+@@ -88,7 +88,7 @@ simple_code(lzma_coder *coder, lzma_allocator *allocator,
+ 				out, out_pos, out_size);
+ 
+ 		// If we couldn't flush all the filtered data, return to
+-		// application immediatelly.
++		// application immediately.
+ 		if (coder->pos < coder->filtered)
+ 			return LZMA_OK;
+ 
+diff --git a/src/liblzma/subblock/subblock_encoder.c b/src/liblzma/subblock/subblock_encoder.c
+index b46b1c29..4f71f99c 100644
+--- a/src/liblzma/subblock/subblock_encoder.c
++++ b/src/liblzma/subblock/subblock_encoder.c
+@@ -516,7 +516,7 @@ subblock_buffer(lzma_coder *coder, lzma_allocator *allocator,
+ 			// Run-length encoder
+ 			//
+ 			// First check if there is some data pending and we
+-			// have an obvious need to flush it immediatelly.
++			// have an obvious need to flush it immediately.
+ 			if (coder->rle.count > 0
+ 					&& (coder->rle.size
+ 							!= coder->options->rle
+diff --git a/src/scripts/xzdiff.1 b/src/scripts/xzdiff.1
+index 252d1cd3..318d06fb 100644
+--- a/src/scripts/xzdiff.1
++++ b/src/scripts/xzdiff.1
+@@ -24,7 +24,7 @@ xzcmp, xzdiff, lzcmp, lzdiff \- compare compressed files
+ .SH DESCRIPTION
+ .B  xzcmp
+ and
+-.B xdiff
++.B xzdiff
+ invoke
+ .BR cmp (1)
+ or
+diff --git a/src/scripts/xzless.1 b/src/scripts/xzless.1
+index 4fe4bcba..299806fd 100644
+--- a/src/scripts/xzless.1
++++ b/src/scripts/xzless.1
+@@ -18,8 +18,8 @@ xzless, lzless \- view xz or lzma compressed (text) files
+ .RI [ file ...]
+ .SH DESCRIPTION
+ .B  xzless
+-is a filter that displays pagefulls of uncompressed text from compressed
+-file(s) to a terminal.  It works on files compressed with
++is a filter that displays text from compressed files to a terminal.
++It works on files compressed with
+ .BR xz (1)
+ or
+ .BR lzma (1).
+@@ -32,13 +32,13 @@ reads from standard input.
+ .B xzless
+ uses
+ .BR less (1)
+-as its only pager.  Unlike
++to present its output.  Unlike
+ .BR xzmore ,
+-the choice of pagers is not alterable by an environment variable.
++its choice of pager cannot be altered by setting an environment variable.
+ Commands are based on both
+ .BR more (1)
+ and
+-.BR vi (1),
++.BR vi (1)
+ and allow back and forth movement and searching.
+ See the
+ .BR less (1)
+diff --git a/src/xz/coder.c b/src/xz/coder.c
+index cd5da299..2ee0c704 100644
+--- a/src/xz/coder.c
++++ b/src/xz/coder.c
+@@ -189,7 +189,7 @@ coder_set_compression_settings(void)
+ 
+ 	if (memory_usage > memory_limit) {
+ 		// If --no-auto-adjust was used or we didn't find LZMA1 or
+-		// LZMA2 as the last filter, give an error immediatelly.
++		// LZMA2 as the last filter, give an error immediately.
+ 		// --format=raw implies --no-auto-adjust.
+ 		if (!auto_adjust || opt_format == FORMAT_RAW)
+ 			memlimit_too_small(memory_usage);
+diff --git a/src/xz/file_io.c b/src/xz/file_io.c
+index 020f33dd..a78002eb 100644
+--- a/src/xz/file_io.c
++++ b/src/xz/file_io.c
+@@ -54,7 +54,7 @@ extern void
+ io_init(void)
+ {
+ 	// Make sure that stdin, stdout, and and stderr are connected to
+-	// a valid file descriptor. Exit immediatelly with exit code ERROR
++	// a valid file descriptor. Exit immediately with exit code ERROR
+ 	// if we cannot make the file descriptors valid. Maybe we should
+ 	// print an error message, but our stderr could be screwed anyway.
+ 	tuklib_open_stdxxx(E_ERROR);
+diff --git a/src/xz/main.c b/src/xz/main.c
+index c5330039..e0905893 100644
+--- a/src/xz/main.c
++++ b/src/xz/main.c
+@@ -46,7 +46,7 @@ static const char *
+ read_name(const args_info *args)
+ {
+ 	// FIXME: Maybe we should have some kind of memory usage limit here
+-	// like the tool has for the actual compression and uncompression.
++	// like the tool has for the actual compression and decompression.
+ 	// Giving some huge text file with --files0 makes us to read the
+ 	// whole file in RAM.
+ 	static char *name = NULL;
+@@ -188,7 +188,7 @@ main(int argc, char **argv)
+ 	if (opt_mode != MODE_LIST)
+ 		signals_init();
+ 
+-	// coder_run() handles compression, decopmression, and testing.
++	// coder_run() handles compression, decompression, and testing.
+ 	// list_file() is for --list.
+ 	void (*run)(const char *filename) = opt_mode == MODE_LIST
+ 			 ? &list_file : &coder_run;
+@@ -226,7 +226,7 @@ main(int argc, char **argv)
+ 			args.arg_names[i] = (char *)stdin_filename;
+ 		}
+ 
+-		// Do the actual compression or uncompression.
++		// Do the actual compression or decompression.
+ 		run(args.arg_names[i]);
+ 	}
+ 
+diff --git a/src/xz/main.h b/src/xz/main.h
+index 5622cebb..323f2f7d 100644
+--- a/src/xz/main.h
++++ b/src/xz/main.h
+@@ -1,7 +1,7 @@
+ ///////////////////////////////////////////////////////////////////////////////
+ //
+ /// \file       main.h
+-/// \brief      Miscellanous declarations
++/// \brief      Miscellaneous declarations
+ //
+ //  Author:     Lasse Collin
+ //
+diff --git a/src/xz/message.c b/src/xz/message.c
+index b5244d44..88efb0c0 100644
+--- a/src/xz/message.c
++++ b/src/xz/message.c
+@@ -288,7 +288,7 @@ message_progress_start(lzma_stream *strm, uint64_t in_size)
+ 	if (verbosity >= V_VERBOSE && progress_automatic) {
+ 		// Start the timer to display the first progress message
+ 		// after one second. An alternative would be to show the
+-		// first message almost immediatelly, but delaying by one
++		// first message almost immediately, but delaying by one
+ 		// second looks better to me, since extremely early
+ 		// progress info is pretty much useless.
+ #ifdef SIGALRM
+@@ -383,8 +383,8 @@ progress_sizes(uint64_t compressed_pos, uint64_t uncompressed_pos, bool final)
+ static const char *
+ progress_speed(uint64_t uncompressed_pos, uint64_t elapsed)
+ {
+-	// Don't print the speed immediatelly, since the early values look
+-	// like somewhat random.
++	// Don't print the speed immediately, since the early values look
++	// somewhat random.
+ 	if (elapsed < 3000000)
+ 		return "";
+ 
+@@ -870,8 +870,8 @@ message_mem_needed(enum message_verbosity v, uint64_t memusage)
+ 				uint64_to_str(memlimit, 1));
+ 	} else {
+ 		// Round up just like with memusage. If this function is
+-		// called for informational purporse (to just show the
+-		// current usage and limit), we will never show that
++		// called for informational purposes (to just show the
++		// current usage and limit), we should never show that
+ 		// the usage is higher than the limit, which would give
+ 		// a false impression that the memory usage limit isn't
+ 		// properly enforced.
+diff --git a/src/xz/message.h b/src/xz/message.h
+index b894bcf3..7d637dfe 100644
+--- a/src/xz/message.h
++++ b/src/xz/message.h
+@@ -116,7 +116,7 @@ extern void message_set_files(unsigned int files);
+ 
+ /// \brief      Set the name of the current file and possibly print it too
+ ///
+-/// The name is printed immediatelly if --list was used or if --verbose
++/// The name is printed immediately if --list was used or if --verbose
+ /// was used and stderr is a terminal. Even when the filename isn't printed,
+ /// it is stored so that it can be printed later if needed for progress
+ /// messages.
+diff --git a/src/xz/xz.1 b/src/xz/xz.1
+index 709fa556..9dc354a0 100644
+--- a/src/xz/xz.1
++++ b/src/xz/xz.1
+@@ -121,7 +121,7 @@ is not a regular file. Symbolic links are not followed, thus they
+ are not considered to be regular files.
+ .IP \(bu 3
+ .I File
+-has more than one hardlink.
++has more than one hard link.
+ .IP \(bu 3
+ .I File
+ has setuid, setgid, or sticky bit set.
+@@ -223,7 +223,7 @@ The absolute value of the active memory usage limit can be seen with
+ .B \-\-info-memory
+ or near the bottom of the output of
+ .BR \-\-long\-help .
+-The default limit can be overriden with
++The default limit can be overridden with
+ \fB\-\-memory=\fIlimit\fR.
+ .SH OPTIONS
+ .SS "Integer suffixes and special values"
+@@ -299,7 +299,7 @@ If the target file already exists, delete it before compressing or
+ decompressing.
+ .IP \(bu 3
+ Compress or decompress even if the input is a symbolic link to a regular file,
+-has more than one hardlink, or has setuid, setgid, or sticky bit set.
++has more than one hard link, or has setuid, setgid, or sticky bit set.
+ The setuid, setgid, and sticky bits are not copied to the target file.
+ .IP \(bu 3
+ If combined with
+@@ -399,10 +399,10 @@ This is the default. When compressing,
+ .B auto
+ is equivalent to
+ .BR xz .
+-When decompressing, the format of the input file is autodetected. Note that
+-raw streams (created with
++When decompressing, the format of the input file is automatically detected.
++Note that raw streams (created with
+ .BR \-\-format=raw )
+-cannot be autodetected.
++cannot be auto-detected.
+ .IP \(bu 3
+ .BR xz :
+ Compress to the
+@@ -568,7 +568,7 @@ increase a little with presets \fB\-0\fR ... \fB\-2\fR). The downside is that
+ the compression time will increase dramatically (it can easily double).
+ .TP
+ \fB\-M\fR \fIlimit\fR, \fB\-\-memory=\fIlimit
+-Set the memory usage limit. If this option is specied multiple times,
++Set the memory usage limit. If this option is specified multiple times,
+ the last one takes effect. The
+ .I limit
+ can be specified in multiple ways:
+@@ -1260,7 +1260,7 @@ files which have dictionary size of
+ .RI "2^" n
+ or
+ .RI "2^" n " + 2^(" n "\-1)."
+-This is to decrease false positives when autodetecting
++This is to decrease false positives when detecting
+ .B .lzma
+ files.
+ .PP
+diff --git a/src/xzdec/lzmadec_w32res.rc b/src/xzdec/lzmadec_w32res.rc
+index 7d90e420..2c71a51a 100644
+--- a/src/xzdec/lzmadec_w32res.rc
++++ b/src/xzdec/lzmadec_w32res.rc
+@@ -1,5 +1,5 @@
+ #define MY_TYPE VFT_APP
+ #define MY_NAME "lzmadec"
+ #define MY_SUFFIX ".exe"
+-#define MY_DESC "lzmadec uncompression tool for .lzma files"
++#define MY_DESC "lzmadec decompression tool for .lzma files"
+ #include "common_w32res.rc"
+diff --git a/src/xzdec/xzdec_w32res.rc b/src/xzdec/xzdec_w32res.rc
+index 626f26ce..0e26a225 100644
+--- a/src/xzdec/xzdec_w32res.rc
++++ b/src/xzdec/xzdec_w32res.rc
+@@ -8,5 +8,5 @@
+ #define MY_TYPE VFT_APP
+ #define MY_NAME "xzdec"
+ #define MY_SUFFIX ".exe"
+-#define MY_DESC "xzdec uncompression tool for .xz files"
++#define MY_DESC "xzdec decompression tool for .xz files"
+ #include "common_w32res.rc"
+diff --git a/tests/test_index.c b/tests/test_index.c
+index 07dd2911..06b4d6ba 100644
+--- a/tests/test_index.c
++++ b/tests/test_index.c
+@@ -570,7 +570,7 @@ test_locate(void)
+ 		expect(r.block.uncompressed_file_offset == ubase + n * 4);
+ 	}
+ 
+-	// Test locating in concatend Index.
++	// Test locating in concatenated Index.
+ 	lzma_index_end(i, NULL);
+ 	i = lzma_index_init(NULL);
+ 	expect(i != NULL);
+diff --git a/windows/build.sh b/windows/build.sh
+index 0ef86901..3c762dc0 100644
+--- a/windows/build.sh
++++ b/windows/build.sh
+@@ -37,10 +37,10 @@ do
+ done
+ 
+ 
+-# Abort immediatelly if something goes wrong.
++# Abort immediately if something goes wrong.
+ set -e
+ 
+-# White spaces in directory names may break things so catch them immediatelly.
++# White spaces in directory names may break things so catch them immediately.
+ case $(pwd) in
+ 	' ' | '	' | '
+ ') echo "Error: White space in the directory name" >&2; exit 1 ;;

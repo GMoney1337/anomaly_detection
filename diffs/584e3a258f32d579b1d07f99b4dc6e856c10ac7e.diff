@@ -1,0 +1,83 @@
+diff --git a/src/xz/util.c b/src/xz/util.c
+index 45d3085e..25c20765 100644
+--- a/src/xz/util.c
++++ b/src/xz/util.c
+@@ -13,11 +13,6 @@
+ #include "private.h"
+ #include <stdarg.h>
+ 
+-#ifdef _MSC_VER
+-#	include <io.h>
+-#	define isatty _isatty
+-#endif
+-
+ 
+ /// Buffers for uint64_to_str() and uint64_to_nicestr()
+ static char bufs[4][128];
+@@ -266,10 +261,31 @@ my_snprintf(char **pos, size_t *left, const char *fmt, ...)
+ }
+ 
+ 
++extern bool
++is_tty(int fd)
++{
++#if defined(_WIN32) && !defined(__CYGWIN__)
++	// There is no need to check if handle == INVALID_HANDLE_VALUE
++	// because it will return false anyway when used in GetConsoleMode().
++	// The resulting HANDLE does not need to be closed based on Windows
++	// API documentation.
++	intptr_t handle = _get_osfhandle(fd);
++	DWORD mode;
++
++	// GetConsoleMode() is an easy way to tell if the HANDLE is a
++	// console or not. We do not care about the value of mode since we
++	// do not plan to use any further Windows console functions.
++	return GetConsoleMode((HANDLE)handle, &mode);
++#else
++	return isatty(fd);
++#endif
++}
++
++
+ extern bool
+ is_tty_stdin(void)
+ {
+-	const bool ret = isatty(STDIN_FILENO);
++	const bool ret = is_tty(STDIN_FILENO);
+ 
+ 	if (ret)
+ 		message_error(_("Compressed data cannot be read from "
+@@ -282,7 +298,7 @@ is_tty_stdin(void)
+ extern bool
+ is_tty_stdout(void)
+ {
+-	const bool ret = isatty(STDOUT_FILENO);
++	const bool ret = is_tty(STDOUT_FILENO);
+ 
+ 	if (ret)
+ 		message_error(_("Compressed data cannot be written to "
+diff --git a/src/xz/util.h b/src/xz/util.h
+index 6d7e1481..1da40371 100644
+--- a/src/xz/util.h
++++ b/src/xz/util.h
+@@ -105,6 +105,20 @@ lzma_attribute((__format__(__printf__, 3, 4)))
+ extern void my_snprintf(char **pos, size_t *left, const char *fmt, ...);
+ 
+ 
++/// \brief      Test if file descriptor is a terminal
++///
++/// For POSIX systems, this is a simple wrapper around isatty(). However on
++/// Windows, isatty() returns true for all character devices, not just
++/// terminals.
++///
++/// \param      fd    File descriptor to test
++///
++/// \return     bool:
++///             - true if file descriptor is a terminal
++///             - false otherwise
++extern bool is_tty(int fd);
++
++
+ /// \brief      Test if stdin is a terminal
+ ///
+ /// If stdin is a terminal, an error message is printed and exit status set

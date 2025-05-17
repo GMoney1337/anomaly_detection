@@ -1,0 +1,12 @@
+diff --git a/configure.ac b/configure.ac
+index beef9df3..6e96a011 100644
+--- a/configure.ac
++++ b/configure.ac
+@@ -480,6 +480,7 @@ dnl AC_C_RESTRICT
+ AC_HEADER_STDBOOL
+ 
+ AC_TYPE_UINT8_T
++AC_TYPE_UINT16_T
+ AC_TYPE_INT32_T
+ AC_TYPE_UINT32_T
+ AC_TYPE_INT64_T

@@ -1,0 +1,13 @@
+diff --git a/tests/files/README b/tests/files/README
+index b3c4795e..15a75b80 100644
+--- a/tests/files/README
++++ b/tests/files/README
+@@ -1,6 +1,6 @@
+ 
+-.xz and .lzma Test Files
+-------------------------
++.xz, .lzma, and .lz Test Files
++------------------------------
+ 
+ 0. Introduction
+ 

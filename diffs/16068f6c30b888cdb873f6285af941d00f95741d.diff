@@ -1,0 +1,12 @@
+diff --git a/src/xz/xz.1 b/src/xz/xz.1
+index 81de5948..dbaa42e4 100644
+--- a/src/xz/xz.1
++++ b/src/xz/xz.1
+@@ -1201,7 +1201,6 @@ to
+ resets the
+ .I limit
+ to the default system-specific value.
+-.IP ""
+ .TP
+ \fB\-M\fR \fIlimit\fR, \fB\-\-memlimit=\fIlimit\fR, \fB\-\-memory=\fIlimit
+ This is equivalent to specifying

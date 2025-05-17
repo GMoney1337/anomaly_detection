@@ -1,0 +1,13 @@
+diff --git a/src/xz/xz.1 b/src/xz/xz.1
+index 875b4ff3..1b49bfdb 100644
+--- a/src/xz/xz.1
++++ b/src/xz/xz.1
+@@ -2395,7 +2395,7 @@ may have more columns, but never more than a single line.
+ .
+ .SS Version
+ .B "xz \-\-robot \-\-version"
+-will print the version number of
++prints the version number of
+ .B xz
+ and liblzma in the following format:
+ .PP

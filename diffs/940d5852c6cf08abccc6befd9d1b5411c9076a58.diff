@@ -1,0 +1,12 @@
+diff --git a/THANKS b/THANKS
+index f904e396..f5d7dea9 100644
+--- a/THANKS
++++ b/THANKS
+@@ -11,6 +11,7 @@ has been important. :-) In alphabetical order:
+   - Anders F. Björklund
+   - Emmanuel Blot
+   - Martin Blumenstingl
++  - Jakub Bogusz
+   - Trent W. Buck
+   - David Burklund
+   - Daniel Mealha Cabrita

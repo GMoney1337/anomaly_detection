@@ -1,0 +1,35 @@
+diff --git a/src/liblzma/check/crc32_x86.S b/src/liblzma/check/crc32_x86.S
+index ff4d8a38..67f68a41 100644
+--- a/src/liblzma/check/crc32_x86.S
++++ b/src/liblzma/check/crc32_x86.S
+@@ -142,7 +142,7 @@ LZMA_CRC32:
+ 	 * We need 16 bytes, because the loop pre-reads eight bytes.
+ 	 */
+ 	cmpl	$16, %edi
+-	jl	.L_rest
++	jb	.L_rest
+ 
+ 	/* Check if we have reached alignment of eight bytes. */
+ 	testl	$7, %esi
+diff --git a/src/liblzma/check/crc64_x86.S b/src/liblzma/check/crc64_x86.S
+index e095ce1a..f5bb84b9 100644
+--- a/src/liblzma/check/crc64_x86.S
++++ b/src/liblzma/check/crc64_x86.S
+@@ -133,7 +133,7 @@ LZMA_CRC64:
+ 	 * We need eight bytes, because the loop pre-reads four bytes.
+ 	 */
+ 	cmpl	$8, %edi
+-	jl	.L_rest
++	jb	.L_rest
+ 
+ 	/* Check if we have reached alignment of four bytes. */
+ 	testl	$3, %esi
+@@ -197,7 +197,7 @@ LZMA_CRC64:
+ 	 * read it here than at the top of the loop.
+ 	 */
+ 	movl	(%esi), %ecx
+-	jl	.L_loop
++	jb	.L_loop
+ 
+ 	/*
+ 	 * Process the remaining four bytes, which we have already

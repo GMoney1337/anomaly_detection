@@ -1,0 +1,26 @@
+diff --git a/src/xz/list.c b/src/xz/list.c
+index 1e487b55..91707b91 100644
+--- a/src/xz/list.c
++++ b/src/xz/list.c
+@@ -724,7 +724,7 @@ list_file(const char *filename)
+ 
+ 		// We have three main modes:
+ 		//  - --robot, which has submodes if --verbose is specified
+-		//     once or twice
++		//    once or twice
+ 		//  - Normal --list without --verbose
+ 		//  - --list with one or two --verbose
+ 		if (opt_robot)
+diff --git a/windows/build.sh b/windows/build.sh
+index eb2d2775..0ef86901 100644
+--- a/windows/build.sh
++++ b/windows/build.sh
+@@ -46,7 +46,7 @@ case $(pwd) in
+ ') echo "Error: White space in the directory name" >&2; exit 1 ;;
+ esac
+ 
+-# This sciprt can be run either at the top-level directory of the package
++# This script can be run either at the top-level directory of the package
+ # or in the same directory containing this script.
+ if [ ! -f windows/build.sh ]; then
+ 	cd ..

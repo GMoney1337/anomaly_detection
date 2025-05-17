@@ -1,0 +1,141 @@
+diff --git a/src/xz/args.c b/src/xz/args.c
+index 8b943530..2732ae08 100644
+--- a/src/xz/args.c
++++ b/src/xz/args.c
+@@ -609,7 +609,10 @@ parse_real(args_info *args, int argc, char **argv)
+ 				args->files_file = fopen(optarg,
+ 						c == OPT_FILES ? "r" : "rb");
+ 				if (args->files_file == NULL)
+-					message_fatal("%s: %s", optarg,
++					// TRANSLATORS: This is a translatable
++					// string because French needs a space
++					// before the colon ("%s : %s").
++					message_fatal(_("%s: %s"), optarg,
+ 							strerror(errno));
+ 			}
+ 
+diff --git a/src/xz/coder.c b/src/xz/coder.c
+index 3fefded9..143fd99a 100644
+--- a/src/xz/coder.c
++++ b/src/xz/coder.c
+@@ -1055,7 +1055,7 @@ coder_init(file_pair *pair)
+ 			strm.avail_out = 0;
+ 			while ((ret = lzma_code(&strm, LZMA_RUN))
+ 					== LZMA_UNSUPPORTED_CHECK)
+-				message_warning("%s: %s", pair->src_name,
++				message_warning(_("%s: %s"), pair->src_name,
+ 						message_strm(ret));
+ 
+ 			// With --single-stream lzma_code won't wait for
+@@ -1071,7 +1071,7 @@ coder_init(file_pair *pair)
+ 	}
+ 
+ 	if (ret != LZMA_OK) {
+-		message_error("%s: %s", pair->src_name, message_strm(ret));
++		message_error(_("%s: %s"), pair->src_name, message_strm(ret));
+ 		if (ret == LZMA_MEMLIMIT_ERROR)
+ 			message_mem_needed(V_ERROR, lzma_memusage(&strm));
+ 
+@@ -1371,10 +1371,10 @@ coder_normal(file_pair *pair)
+ 			// wrong and we print an error. Otherwise it's just
+ 			// a warning and coding can continue.
+ 			if (stop) {
+-				message_error("%s: %s", pair->src_name,
++				message_error(_("%s: %s"), pair->src_name,
+ 						message_strm(ret));
+ 			} else {
+-				message_warning("%s: %s", pair->src_name,
++				message_warning(_("%s: %s"), pair->src_name,
+ 						message_strm(ret));
+ 
+ 				// When compressing, all possible errors set
+diff --git a/src/xz/file_io.c b/src/xz/file_io.c
+index 29f46ea7..a181b531 100644
+--- a/src/xz/file_io.c
++++ b/src/xz/file_io.c
+@@ -602,7 +602,7 @@ io_open_src_real(file_pair *pair)
+ 	if (!follow_symlinks) {
+ 		struct stat st;
+ 		if (lstat(pair->src_name, &st)) {
+-			message_error("%s: %s", pair->src_name,
++			message_error(_("%s: %s"), pair->src_name,
+ 					strerror(errno));
+ 			return true;
+ 
+@@ -676,7 +676,7 @@ io_open_src_real(file_pair *pair)
+ 			// Something else than O_NOFOLLOW failing
+ 			// (assuming that the race conditions didn't
+ 			// confuse us).
+-			message_error("%s: %s", pair->src_name,
++			message_error(_("%s: %s"), pair->src_name,
+ 					strerror(errno));
+ 
+ 		return true;
+@@ -766,7 +766,7 @@ io_open_src_real(file_pair *pair)
+ 	return false;
+ 
+ error_msg:
+-	message_error("%s: %s", pair->src_name, strerror(errno));
++	message_error(_("%s: %s"), pair->src_name, strerror(errno));
+ error:
+ 	(void)close(pair->src_fd);
+ 	return true;
+@@ -937,7 +937,7 @@ io_open_dest_real(file_pair *pair)
+ 		pair->dest_fd = open(pair->dest_name, flags, mode);
+ 
+ 		if (pair->dest_fd == -1) {
+-			message_error("%s: %s", pair->dest_name,
++			message_error(_("%s: %s"), pair->dest_name,
+ 					strerror(errno));
+ 			free(pair->dest_name);
+ 			return true;
+diff --git a/src/xz/list.c b/src/xz/list.c
+index 90799bd2..86c3a762 100644
+--- a/src/xz/list.c
++++ b/src/xz/list.c
+@@ -366,7 +366,7 @@ parse_indexes(xz_file_info *xfi, file_pair *pair)
+ 			hardware_memlimit_get(MODE_LIST),
+ 			(uint64_t)(pair->src_st.st_size));
+ 	if (ret != LZMA_OK) {
+-		message_error("%s: %s", pair->src_name, message_strm(ret));
++		message_error(_("%s: %s"), pair->src_name, message_strm(ret));
+ 		return true;
+ 	}
+ 
+@@ -412,7 +412,7 @@ parse_indexes(xz_file_info *xfi, file_pair *pair)
+ 		}
+ 
+ 		default:
+-			message_error("%s: %s", pair->src_name,
++			message_error(_("%s: %s"), pair->src_name,
+ 					message_strm(ret));
+ 
+ 			// If the error was too low memory usage limit,
+@@ -474,7 +474,7 @@ parse_block_header(file_pair *pair, const lzma_index_iter *iter,
+ 		break;
+ 
+ 	case LZMA_OPTIONS_ERROR:
+-		message_error("%s: %s", pair->src_name,
++		message_error(_("%s: %s"), pair->src_name,
+ 				message_strm(LZMA_OPTIONS_ERROR));
+ 		return true;
+ 
+@@ -578,7 +578,8 @@ parse_block_header(file_pair *pair, const lzma_index_iter *iter,
+ 
+ 	// Check if the stringification succeeded.
+ 	if (str_ret != LZMA_OK) {
+-		message_error("%s: %s", pair->src_name, message_strm(str_ret));
++		message_error(_("%s: %s"), pair->src_name,
++				message_strm(str_ret));
+ 		return true;
+ 	}
+ 
+@@ -586,7 +587,7 @@ parse_block_header(file_pair *pair, const lzma_index_iter *iter,
+ 
+ data_error:
+ 	// Show the error message.
+-	message_error("%s: %s", pair->src_name,
++	message_error(_("%s: %s"), pair->src_name,
+ 			message_strm(LZMA_DATA_ERROR));
+ 	return true;
+ }

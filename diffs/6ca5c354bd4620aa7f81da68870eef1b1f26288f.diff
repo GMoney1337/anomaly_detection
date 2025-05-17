@@ -1,0 +1,61 @@
+diff --git a/tests/test_check.c b/tests/test_check.c
+index fa1326d1..e059130d 100644
+--- a/tests/test_check.c
++++ b/tests/test_check.c
+@@ -235,6 +235,9 @@ test_lzma_get_check_st(void)
+ static void
+ test_lzma_get_check_mt(void)
+ {
++#ifndef MYTHREAD_ENABLED
++	assert_skip("Threading support disabed");
++#else
+ 	const uint32_t flags = LZMA_TELL_ANY_CHECK |
+ 			LZMA_TELL_UNSUPPORTED_CHECK |
+ 			LZMA_TELL_NO_CHECK;
+@@ -311,6 +314,7 @@ test_lzma_get_check_mt(void)
+ #endif
+ 
+ 	lzma_end(&strm);
++#endif
+ }
+ 
+ 
+diff --git a/tests/test_hardware.c b/tests/test_hardware.c
+index 34d07892..17c51da2 100644
+--- a/tests/test_hardware.c
++++ b/tests/test_hardware.c
+@@ -30,8 +30,12 @@ test_lzma_physmem(void)
+ static void
+ test_lzma_cputhreads(void)
+ {
++#ifndef MYTHREAD_ENABLED
++	assert_skip("Threading support disabed");
++#else
+ 	if (lzma_cputhreads() == 0)
+ 		assert_skip("Could not determine cpu core count");
++#endif
+ }
+ 
+ 
+diff --git a/tests/test_memlimit.c b/tests/test_memlimit.c
+index 24b7f6e1..6e2e62e1 100644
+--- a/tests/test_memlimit.c
++++ b/tests/test_memlimit.c
+@@ -53,6 +53,9 @@ test_memlimit_stream_decoder(void)
+ static void
+ test_memlimit_stream_decoder_mt(void)
+ {
++#ifndef MYTHREAD_ENABLED
++	assert_skip("Threading support disabed");
++#else
+ 	lzma_stream strm = LZMA_STREAM_INIT;
+ 	lzma_mt mt = {
+ 		.flags = 0,
+@@ -79,6 +82,7 @@ test_memlimit_stream_decoder_mt(void)
+ 
+ 	assert_lzma_ret(lzma_code(&strm, LZMA_FINISH), LZMA_STREAM_END);
+ 	lzma_end(&strm);
++#endif
+ }
+ 
+ 

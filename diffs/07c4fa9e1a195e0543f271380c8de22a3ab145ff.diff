@@ -1,0 +1,13 @@
+diff --git a/src/xzdec/xzdec.c b/src/xzdec/xzdec.c
+index 5cb7530a..c1bd1998 100644
+--- a/src/xzdec/xzdec.c
++++ b/src/xzdec/xzdec.c
+@@ -37,7 +37,7 @@
+ 
+ /// Error messages are suppressed if this is zero, which is the case when
+ /// --quiet has been given at least twice.
+-static unsigned int display_errors = 2;
++static int display_errors = 2;
+ 
+ 
+ static void lzma_attribute((__format__(__printf__, 1, 2)))

@@ -1,0 +1,13 @@
+diff --git a/src/liblzma/lz/lz_encoder.h b/src/liblzma/lz/lz_encoder.h
+index 429836c8..eb197c6b 100644
+--- a/src/liblzma/lz/lz_encoder.h
++++ b/src/liblzma/lz/lz_encoder.h
+@@ -21,7 +21,7 @@
+ // changing this check.
+ #define IS_ENC_DICT_SIZE_VALID(size) \
+ 	((size) >= LZMA_DICT_SIZE_MIN \
+-			&&  (size) <= (UINT32_C(1) << 30) + (UINT32_C(1) << 29))
++		&& (size) <= (UINT32_C(1) << 30) + (UINT32_C(1) << 29))
+ 
+ 
+ /// A table of these is used by the LZ-based encoder to hold

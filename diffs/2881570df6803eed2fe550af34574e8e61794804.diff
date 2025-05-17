@@ -1,0 +1,26 @@
+diff --git a/src/liblzma/check/crc32_x86.s b/src/liblzma/check/crc32_x86.s
+index ad4ef097..f1ae7f76 100644
+--- a/src/liblzma/check/crc32_x86.s
++++ b/src/liblzma/check/crc32_x86.s
+@@ -45,7 +45,7 @@ init_table(void)
+  */
+ 
+ 	.text
+-	.global	lzma_crc32
++	.globl	lzma_crc32
+ 	.type	lzma_crc32, @function
+ 
+ 	.align	16
+diff --git a/src/liblzma/check/crc64_x86.s b/src/liblzma/check/crc64_x86.s
+index 2b8d349e..f9dc595f 100644
+--- a/src/liblzma/check/crc64_x86.s
++++ b/src/liblzma/check/crc64_x86.s
+@@ -38,7 +38,7 @@ init_table(void)
+  */
+ 
+ 	.text
+-	.global	lzma_crc64
++	.globl	lzma_crc64
+ 	.type	lzma_crc64, @function
+ 
+ 	.align	16

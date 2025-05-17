@@ -1,0 +1,364 @@
+diff --git a/src/common/physmem.h b/src/common/physmem.h
+index c9d50394..fb17eac5 100644
+--- a/src/common/physmem.h
++++ b/src/common/physmem.h
+@@ -34,6 +34,10 @@
+ #	include <windows.h>
+ #endif
+ 
++#ifdef __DJGPP__
++#	include <dpmi.h>
++#endif
++
+ 
+ /// \brief      Get the amount of physical memory in bytes
+ ///
+@@ -76,6 +80,14 @@ physmem(void)
+ 	meminfo.dwLength = sizeof(meminfo);
+ 	if (GlobalMemoryStatusEx(&meminfo))
+ 		ret = meminfo.ullTotalPhys;
++
++#elif defined(__DJGPP__)
++	__dpmi_free_mem_info meminfo;
++	if (__dpmi_get_free_memory_information(&meminfo) == 0
++			&& meminfo.total_number_of_physical_pages
++				!= (unsigned long)(-1))
++		ret = (uint64_t)(meminfo.total_number_of_physical_pages)
++				* 4096;
+ #endif
+ 
+ 	return ret;
+diff --git a/src/common/sysdefs.h b/src/common/sysdefs.h
+index f55c2360..5b8b9cec 100644
+--- a/src/common/sysdefs.h
++++ b/src/common/sysdefs.h
+@@ -154,6 +154,10 @@ typedef unsigned char _Bool;
+ // Macros //
+ ////////////
+ 
++#if defined(_WIN32) || defined(__MSDOS__) || defined(__OS2__)
++#	define DOSLIKE 1
++#endif
++
+ #undef memzero
+ #define memzero(s, n) memset(s, 0, n)
+ 
+diff --git a/src/liblzma/check/crc32_x86.S b/src/liblzma/check/crc32_x86.S
+index a9d07f04..ec28cf5d 100644
+--- a/src/liblzma/check/crc32_x86.S
++++ b/src/liblzma/check/crc32_x86.S
+@@ -60,7 +60,7 @@ init_table(void)
+  * Solaris assembler doesn't have .p2align, and Darwin uses .align
+  * differently than GNU/Linux and Solaris.
+  */
+-#ifdef __MACH__
++#if defined(__MACH__) || defined(__MSDOS__)
+ #	define ALIGN(pow2, abs) .align pow2
+ #else
+ #	define ALIGN(pow2, abs) .align abs
+@@ -69,7 +69,7 @@ init_table(void)
+ 	.text
+ 	.globl	LZMA_CRC32
+ 
+-#if !defined(__MACH__) && !defined(_WIN32)
++#if !defined(__MACH__) && !defined(_WIN32) && !defined(__MSDOS__)
+ 	.type	LZMA_CRC32, @function
+ #endif
+ 
+@@ -275,7 +275,7 @@ LZMA_CRC32:
+ 	.ascii " -export:lzma_crc32"
+ #	endif
+ 
+-#else
++#elif !defined(__MSDOS__)
+ 	/* ELF */
+ 	.size	LZMA_CRC32, .-LZMA_CRC32
+ #endif
+diff --git a/src/liblzma/check/crc64_x86.S b/src/liblzma/check/crc64_x86.S
+index 031285e5..3c25d42d 100644
+--- a/src/liblzma/check/crc64_x86.S
++++ b/src/liblzma/check/crc64_x86.S
+@@ -53,7 +53,7 @@ init_table(void)
+  * Solaris assembler doesn't have .p2align, and Darwin uses .align
+  * differently than GNU/Linux and Solaris.
+  */
+-#ifdef __MACH__
++#if defined(__MACH__) || defined(__MSDOS__)
+ #	define ALIGN(pow2, abs) .align pow2
+ #else
+ #	define ALIGN(pow2, abs) .align abs
+@@ -62,7 +62,7 @@ init_table(void)
+ 	.text
+ 	.globl	LZMA_CRC64
+ 
+-#if !defined(__MACH__) && !defined(_WIN32)
++#if !defined(__MACH__) && !defined(_WIN32) && !defined(__MSDOS__)
+ 	.type	LZMA_CRC64, @function
+ #endif
+ 
+@@ -261,7 +261,7 @@ LZMA_CRC64:
+ 	.ascii " -export:lzma_crc64"
+ #	endif
+ 
+-#else
++#elif !defined(__MSDOS__)
+ 	/* ELF */
+ 	.size	LZMA_CRC64, .-LZMA_CRC64
+ #endif
+diff --git a/src/xz/args.c b/src/xz/args.c
+index 93cd220a..31ff0e58 100644
+--- a/src/xz/args.c
++++ b/src/xz/args.c
+@@ -424,15 +424,12 @@ args_parse(args_info *args, int argc, char **argv)
+ 
+ 	// Check how we were called.
+ 	{
+-		// Remove the leading path name, if any.
+-#ifdef _WIN32
+-		// Some systems support both / and \ to separate path
+-		// components.
+-		const char *name = argv[0] + strlen(argv[0]);
+-		while (argv[0] < name && name[-1] != '/' && name[-1] != '\\')
+-			--name;
++#ifdef DOSLIKE
++		// We adjusted argv[0] in the beginning of main() so we don't
++		// need to do anything here.
++		const char *name = argv[0];
+ #else
+-		// POSIX
++		// Remove the leading path name, if any.
+ 		const char *name = strrchr(argv[0], '/');
+ 		if (name == NULL)
+ 			name = argv[0];
+diff --git a/src/xz/io.c b/src/xz/io.c
+index b8b8d8d7..5ee84a95 100644
+--- a/src/xz/io.c
++++ b/src/xz/io.c
+@@ -21,6 +21,10 @@
+ 
+ #include <fcntl.h>
+ 
++#ifdef DOSLIKE
++#	include <io.h>
++#endif
++
+ #if defined(HAVE_FUTIMES) || defined(HAVE_FUTIMESAT) || defined(HAVE_UTIMES)
+ #	include <sys/time.h>
+ #elif defined(HAVE_UTIME)
+@@ -35,7 +39,7 @@
+ #	define O_NOCTTY 0
+ #endif
+ 
+-#ifndef _WIN32
++#ifndef DOSLIKE
+ #	include "open_stdxxx.h"
+ static bool warn_fchown;
+ #endif
+@@ -44,7 +48,7 @@ static bool warn_fchown;
+ extern void
+ io_init(void)
+ {
+-#ifndef _WIN32
++#ifndef DOSLIKE
+ 	// Make sure that stdin, stdout, and and stderr are connected to
+ 	// a valid file descriptor. Exit immediatelly with exit code ERROR
+ 	// if we cannot make the file descriptors valid. Maybe we should
+@@ -56,6 +60,13 @@ io_init(void)
+ 	warn_fchown = geteuid() == 0;
+ #endif
+ 
++#ifdef __DJGPP__
++	// Avoid doing useless things when statting files.
++	// This isn't important but doesn't hurt.
++	_djstat_flags = _STAT_INODE | _STAT_EXEC_EXT
++			| _STAT_EXEC_MAGIC | _STAT_DIRSIZE;
++#endif
++
+ 	return;
+ }
+ 
+@@ -70,7 +81,7 @@ static void
+ io_unlink(const char *name, const struct stat *known_st)
+ {
+ 	// On Windows, st_ino is meaningless, so don't bother testing it.
+-#ifndef _WIN32
++#ifndef DOSLIKE
+ 	struct stat new_st;
+ 
+ 	if (lstat(name, &new_st)
+@@ -98,7 +109,7 @@ static void
+ io_copy_attrs(const file_pair *pair)
+ {
+ 	// Skip chown and chmod on Windows.
+-#ifndef _WIN32
++#ifndef DOSLIKE
+ 	// This function is more tricky than you may think at first.
+ 	// Blindly copying permissions may permit users to access the
+ 	// destination file who didn't have permission to access the
+@@ -233,7 +244,7 @@ io_open_src(file_pair *pair)
+ 	// There's nothing to open when reading from stdin.
+ 	if (pair->src_name == stdin_filename) {
+ 		pair->src_fd = STDIN_FILENO;
+-#ifdef _WIN32
++#ifdef DOSLIKE
+ 		setmode(STDIN_FILENO, O_BINARY);
+ #endif
+ 		return false;
+@@ -246,7 +257,7 @@ io_open_src(file_pair *pair)
+ 	// Flags for open()
+ 	int flags = O_RDONLY | O_BINARY | O_NOCTTY;
+ 
+-#ifndef _WIN32
++#ifndef DOSLIKE
+ 	// If we accept only regular files, we need to be careful to avoid
+ 	// problems with special files like devices and FIFOs. O_NONBLOCK
+ 	// prevents blocking when opening such files. When we want to accept
+@@ -259,7 +270,7 @@ io_open_src(file_pair *pair)
+ #if defined(O_NOFOLLOW)
+ 	if (reg_files_only)
+ 		flags |= O_NOFOLLOW;
+-#elif !defined(_WIN32)
++#elif !defined(DOSLIKE)
+ 	// Some POSIX-like systems lack O_NOFOLLOW (it's not required
+ 	// by POSIX). Check for symlinks with a separate lstat() on
+ 	// these systems.
+@@ -363,7 +374,7 @@ io_open_src(file_pair *pair)
+ 		return true;
+ 	}
+ 
+-#ifndef _WIN32
++#ifndef DOSLIKE
+ 	// Drop O_NONBLOCK, which is used only when we are accepting only
+ 	// regular files. After the open() call, we want things to block
+ 	// instead of giving EAGAIN.
+@@ -398,7 +409,7 @@ io_open_src(file_pair *pair)
+ 		}
+ 
+ 		// These are meaningless on Windows.
+-#ifndef _WIN32
++#ifndef DOSLIKE
+ 		if (pair->src_st.st_mode & (S_ISUID | S_ISGID)) {
+ 			// gzip rejects setuid and setgid files even
+ 			// when --force was used. bzip2 doesn't check
+@@ -450,7 +461,7 @@ static void
+ io_close_src(file_pair *pair, bool success)
+ {
+ 	if (pair->src_fd != STDIN_FILENO && pair->src_fd != -1) {
+-#ifdef _WIN32
++#ifdef DOSLIKE
+ 		(void)close(pair->src_fd);
+ #endif
+ 
+@@ -459,12 +470,12 @@ io_close_src(file_pair *pair, bool success)
+ 		// happens to get same inode number, which would make us
+ 		// unlink() wrong file.
+ 		//
+-		// NOTE: Windows is an exception to this, because it doesn't
+-		// allow unlinking files that are open. *sigh*
++		// NOTE: DOS-like systems are an exception to this, because
++		// they don't allow unlinking files that are open. *sigh*
+ 		if (success && !opt_keep_original)
+ 			io_unlink(pair->src_name, &pair->src_st);
+ 
+-#ifndef _WIN32
++#ifndef DOSLIKE
+ 		(void)close(pair->src_fd);
+ #endif
+ 	}
+@@ -480,7 +491,7 @@ io_open_dest(file_pair *pair)
+ 		// We don't modify or free() this.
+ 		pair->dest_name = (char *)"(stdout)";
+ 		pair->dest_fd = STDOUT_FILENO;
+-#ifdef _WIN32
++#ifdef DOSLIKE
+ 		setmode(STDOUT_FILENO, O_BINARY);
+ #endif
+ 		return false;
+diff --git a/src/xz/main.c b/src/xz/main.c
+index 6c21cd2a..8e707fb0 100644
+--- a/src/xz/main.c
++++ b/src/xz/main.c
+@@ -164,6 +164,29 @@ main(int argc, char **argv)
+ 	// that stdin, stdout, and stderr are something valid.
+ 	io_init();
+ 
++#ifdef DOSLIKE
++	// Adjust argv[0] to make it look nicer in messages, and also to
++	// help the code in args.c.
++	{
++		// Strip the leading path.
++		char *p = argv[0] + strlen(argv[0]);
++		while (argv[0] < p && p[-1] != '/' && p[-1] != '\\')
++			--p;
++
++		argv[0] = p;
++
++		// Strip the .exe suffix.
++		p = strrchr(p, '.');
++		if (p != NULL)
++			*p = '\0';
++
++		// Make it lowercase.
++		for (p = argv[0]; *p != '\0'; ++p)
++			if (*p >= 'A' && *p <= 'Z')
++				*p = *p - 'A' + 'a';
++	}
++#endif
++
+ 	// Set up the locale.
+ 	setlocale(LC_ALL, "");
+ 
+diff --git a/src/xz/message.c b/src/xz/message.c
+index e342a3ff..33eb0b3b 100644
+--- a/src/xz/message.c
++++ b/src/xz/message.c
+@@ -207,6 +207,9 @@ message_init(const char *given_argv0)
+ #ifdef _WIN32
+ 	timer_queue = CreateTimerQueue();
+ #else
++#	ifndef SA_RESTART
++#		define SA_RESTART 0
++#	endif
+ 	// Establish the signal handler for SIGALRM. Since this signal
+ 	// doesn't require any quick action, we set SA_RESTART.
+ 	struct sigaction sa;
+diff --git a/src/xz/suffix.c b/src/xz/suffix.c
+index 0d46855a..aff4d6d6 100644
+--- a/src/xz/suffix.c
++++ b/src/xz/suffix.c
+@@ -19,6 +19,11 @@
+ 
+ #include "private.h"
+ 
++// For case-insensitive filename suffix on case-insensitive systems
++#ifdef DOSLIKE
++#	define strcmp strcasecmp
++#endif
++
+ 
+ static char *custom_suffix = NULL;
+ 
+diff --git a/src/xzdec/xzdec.c b/src/xzdec/xzdec.c
+index c17b5790..44543f4d 100644
+--- a/src/xzdec/xzdec.c
++++ b/src/xzdec/xzdec.c
+@@ -24,8 +24,9 @@
+ #include <stdio.h>
+ #include <unistd.h>
+ 
+-#ifdef _WIN32
++#ifdef DOSLIKE
+ #	include <fcntl.h>
++#	include <io.h>
+ #endif
+ 
+ #include "getopt.h"
+@@ -408,7 +409,7 @@ main(int argc, char **argv)
+ 	lzma_stream strm = LZMA_STREAM_INIT;
+ 
+ 	// Some systems require setting stdin and stdout to binary mode.
+-#ifdef _WIN32
++#ifdef DOSLIKE
+ 	setmode(fileno(stdin), O_BINARY);
+ 	setmode(fileno(stdout), O_BINARY);
+ #endif

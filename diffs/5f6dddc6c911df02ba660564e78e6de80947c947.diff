@@ -1,0 +1,14 @@
+diff --git a/TODO b/TODO
+index 6912943b..60df3426 100644
+--- a/TODO
++++ b/TODO
+@@ -22,6 +22,9 @@ Known bugs
+     need some tweaking and maybe this issue can be minimized without
+     making the typical case too much slower.
+ 
++    xz doesn't quote unprintable characters when it displays file names
++    given on the command line.
++
+ 
+ Missing features
+ ----------------

@@ -1,0 +1,26 @@
+diff --git a/src/liblzma/lzma/lzma_decoder.c b/src/liblzma/lzma/lzma_decoder.c
+index 58045e11..0abed02b 100644
+--- a/src/liblzma/lzma/lzma_decoder.c
++++ b/src/liblzma/lzma/lzma_decoder.c
+@@ -853,7 +853,9 @@ slow:
+ 						//     that EOPM might be used
+ 						//     (it's not allowed in
+ 						//     LZMA2).
++#ifndef HAVE_SMALL
+ eopm:
++#endif
+ 						if (!eopm_is_valid) {
+ 							ret = LZMA_DATA_ERROR;
+ 							goto out;
+diff --git a/src/liblzma/rangecoder/range_decoder.h b/src/liblzma/rangecoder/range_decoder.h
+index 4c09eeae..e70d73ef 100644
+--- a/src/liblzma/rangecoder/range_decoder.h
++++ b/src/liblzma/rangecoder/range_decoder.h
+@@ -98,6 +98,7 @@ rc_read_init(lzma_range_decoder *rc, const uint8_t *restrict in,
+ 			= (rc_in_end - rc_in_ptr) <= (fast_mode_in_required) \
+ 			? rc_in_ptr \
+ 			: rc_in_end - (fast_mode_in_required); \
++	(void)rc_in_fast_end; /* Silence a warning with HAVE_SMALL. */ \
+ 	uint32_t rc_bound
+ 
+ 

@@ -1,0 +1,82 @@
+diff --git a/src/xz/args.c b/src/xz/args.c
+index c31f759a..3468e276 100644
+--- a/src/xz/args.c
++++ b/src/xz/args.c
+@@ -724,6 +724,14 @@ args_parse(args_info *args, int argc, char **argv)
+ 			&& opt_mode != MODE_LIST))
+ 		coder_set_compression_settings();
+ 
++	// If raw format is used and a custom suffix is not provided,
++	// then only stdout mode can be used when compressing or decompressing.
++	if (opt_format == FORMAT_RAW && suffix_is_set() && !opt_stdout &&
++			(opt_mode == MODE_COMPRESS ||
++			opt_mode == MODE_DECOMPRESS))
++		message_fatal(_("With --format=raw, --suffix=.SUF is "
++				"required unless writing to stdout"));
++
+ 	// If no filenames are given, use stdin.
+ 	if (argv[optind] == NULL && args->files_name == NULL) {
+ 		// We don't modify or free() the "-" constant. The caller
+diff --git a/src/xz/suffix.c b/src/xz/suffix.c
+index 09add381..a9cdbd8a 100644
+--- a/src/xz/suffix.c
++++ b/src/xz/suffix.c
+@@ -131,15 +131,7 @@ uncompressed_name(const char *src_name, const size_t src_len)
+ 	const char *new_suffix = "";
+ 	size_t new_len = 0;
+ 
+-	if (opt_format == FORMAT_RAW) {
+-		// Don't check for known suffixes when --format=raw was used.
+-		if (custom_suffix == NULL) {
+-			message_error(_("%s: With --format=raw, "
+-					"--suffix=.SUF is required unless "
+-					"writing to stdout"), src_name);
+-			return NULL;
+-		}
+-	} else {
++	if (opt_format != FORMAT_RAW) {
+ 		for (size_t i = 0; i < ARRAY_SIZE(suffixes); ++i) {
+ 			new_len = test_suffix(suffixes[i].compressed,
+ 					src_name, src_len);
+@@ -262,15 +254,6 @@ compressed_name(const char *src_name, size_t src_len)
+ 		}
+ 	}
+ 
+-	// TODO: Hmm, maybe it would be better to validate this in args.c,
+-	// since the suffix handling when decoding is weird now.
+-	if (opt_format == FORMAT_RAW && custom_suffix == NULL) {
+-		message_error(_("%s: With --format=raw, "
+-				"--suffix=.SUF is required unless "
+-				"writing to stdout"), src_name);
+-		return NULL;
+-	}
+-
+ 	const char *suffix = custom_suffix != NULL
+ 			? custom_suffix : suffixes[0];
+ 	size_t suffix_len = strlen(suffix);
+@@ -409,3 +392,10 @@ suffix_set(const char *suffix)
+ 	custom_suffix = xstrdup(suffix);
+ 	return;
+ }
++
++
++extern bool
++suffix_is_set(void)
++{
++	return custom_suffix == NULL;
++}
+diff --git a/src/xz/suffix.h b/src/xz/suffix.h
+index 5537d732..cb36dd61 100644
+--- a/src/xz/suffix.h
++++ b/src/xz/suffix.h
+@@ -26,3 +26,10 @@ extern char *suffix_get_dest_name(const char *src_name);
+ /// suffix, thus if this is called multiple times, the old suffixes are freed
+ /// and forgotten.
+ extern void suffix_set(const char *suffix);
++
++/// \brief      Check if a custom suffix has been set
++///
++/// Returns true if the internal tracking of the suffix string has been set
++/// and false if the string has not been set. This will keep the suffix
++/// string encapsulated instead of extern-ing the variable.
++extern bool suffix_is_set(void);

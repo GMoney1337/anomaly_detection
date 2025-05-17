@@ -1,0 +1,30 @@
+diff --git a/tests/files/README b/tests/files/README
+index 8f0a73a7..a8516f2a 100644
+--- a/tests/files/README
++++ b/tests/files/README
+@@ -83,6 +83,10 @@
+     uncompressed and the second is LZMA. The first chunk resets dictionary
+     and the second sets new properties.
+ 
++    good-1-lzma2-4.xz has three LZMA2 chunks: First is LZMA, second is
++    uncompressed with dictionary reset, and third is LZMA with new
++    properties but without dictionary reset.
++
+     good-1-3delta-lzma2.xz has three Delta filters and LZMA2.
+ 
+ 
+@@ -222,3 +226,6 @@
+ 
+     bad-1-lzma2-7.xz has EOPM at LZMA level.
+ 
++    bad-1-lzma2-8.xz is like good-1-lzma2-4.xz but doesn't set new
++    properties in the third LZMA2 chunk.
++
+diff --git a/tests/files/bad-1-lzma2-8.xz b/tests/files/bad-1-lzma2-8.xz
+new file mode 100644
+index 00000000..f21a71b6
+Binary files /dev/null and b/tests/files/bad-1-lzma2-8.xz differ
+diff --git a/tests/files/good-1-lzma2-4.xz b/tests/files/good-1-lzma2-4.xz
+new file mode 100644
+index 00000000..e0d623a0
+Binary files /dev/null and b/tests/files/good-1-lzma2-4.xz differ

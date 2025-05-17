@@ -1,0 +1,12 @@
+diff --git a/THANKS b/THANKS
+index 9af81275..4118c3be 100644
+--- a/THANKS
++++ b/THANKS
+@@ -30,6 +30,7 @@ has been important. :-) In alphabetical order:
+   - Frank Busse
+   - Daniel Mealha Cabrita
+   - Milo Casagrande
++  - Cristiano Ceglia
+   - Marek Černocký
+   - Tomer Chachamu
+   - Vitaly Chikunov

@@ -1,0 +1,359 @@
+diff --git a/src/xz/args.c b/src/xz/args.c
+index 941214b5..2af39098 100644
+--- a/src/xz/args.c
++++ b/src/xz/args.c
+@@ -412,6 +412,9 @@ parse_real(args_info *args, int argc, char **argv)
+ 				{ "xz",     FORMAT_XZ },
+ 				{ "lzma",   FORMAT_LZMA },
+ 				{ "alone",  FORMAT_LZMA },
++#ifdef HAVE_LZIP_DECODER
++				{ "lzip",   FORMAT_LZIP },
++#endif
+ 				// { "gzip",   FORMAT_GZIP },
+ 				// { "gz",     FORMAT_GZIP },
+ 				{ "raw",    FORMAT_RAW },
+@@ -668,6 +671,12 @@ args_parse(args_info *args, int argc, char **argv)
+ 				"at build time"));
+ #endif
+ 
++#ifdef HAVE_LZIP_DECODER
++	if (opt_mode == MODE_COMPRESS && opt_format == FORMAT_LZIP)
++		message_fatal(_("Compression of lzip files (.lz) "
++				"is not supported"));
++#endif
++
+ 	// Never remove the source file when the destination is not on disk.
+ 	// In test mode the data is written nowhere, but setting opt_stdout
+ 	// will make the rest of the code behave well.
+diff --git a/src/xz/coder.c b/src/xz/coder.c
+index 5bca958f..05f22888 100644
+--- a/src/xz/coder.c
++++ b/src/xz/coder.c
+@@ -51,6 +51,11 @@ static lzma_check check;
+ /// This becomes false if the --check=CHECK option is used.
+ static bool check_default = true;
+ 
++/// Indicates if unconsumed input is allowed to remain after
++/// decoding has successfully finished. This is set for each file
++/// in coder_init().
++static bool allow_trailing_input;
++
+ #ifdef MYTHREAD_ENABLED
+ static lzma_mt mt_options = {
+ 	.flags = 0,
+@@ -136,6 +141,11 @@ memlimit_too_small(uint64_t memory_usage)
+ extern void
+ coder_set_compression_settings(void)
+ {
++#ifdef HAVE_LZIP_DECODER
++	// .lz compression isn't supported.
++	assert(opt_format != FORMAT_LZIP);
++#endif
++
+ 	// The default check type is CRC64, but fallback to CRC32
+ 	// if CRC64 isn't supported by the copy of liblzma we are
+ 	// using. CRC32 is always supported.
+@@ -470,6 +480,18 @@ is_format_lzma(void)
+ 
+ 	return true;
+ }
++
++
++#ifdef HAVE_LZIP_DECODER
++/// Return true if the data in in_buf seems to be in the .lz format.
++static bool
++is_format_lzip(void)
++{
++	static const uint8_t magic[4] = { 0x4C, 0x5A, 0x49, 0x50 };
++	return strm.avail_in >= sizeof(magic)
++			&& memcmp(in_buf.u8, magic, sizeof(magic)) == 0;
++}
++#endif
+ #endif
+ 
+ 
+@@ -483,6 +505,12 @@ coder_init(file_pair *pair)
+ {
+ 	lzma_ret ret = LZMA_PROG_ERROR;
+ 
++	// In most cases if there is input left when coding finishes,
++	// something has gone wrong. Exceptions are --single-stream
++	// and decoding .lz files which can contain trailing non-.lz data.
++	// These will be handled later in this function.
++	allow_trailing_input = false;
++
+ 	if (opt_mode == MODE_COMPRESS) {
+ #ifdef HAVE_ENCODERS
+ 		switch (opt_format) {
+@@ -506,6 +534,14 @@ coder_init(file_pair *pair)
+ 			ret = lzma_alone_encoder(&strm, filters[0].options);
+ 			break;
+ 
++#	ifdef HAVE_LZIP_DECODER
++		case FORMAT_LZIP:
++			// args.c should disallow this.
++			assert(0);
++			ret = LZMA_PROG_ERROR;
++			break;
++#	endif
++
+ 		case FORMAT_RAW:
+ 			ret = lzma_raw_encoder(&strm, filters);
+ 			break;
+@@ -522,7 +558,9 @@ coder_init(file_pair *pair)
+ 		else
+ 			flags |= LZMA_TELL_UNSUPPORTED_CHECK;
+ 
+-		if (!opt_single_stream)
++		if (opt_single_stream)
++			allow_trailing_input = true;
++		else
+ 			flags |= LZMA_CONCATENATED;
+ 
+ 		// We abuse FORMAT_AUTO to indicate unknown file format,
+@@ -531,8 +569,14 @@ coder_init(file_pair *pair)
+ 
+ 		switch (opt_format) {
+ 		case FORMAT_AUTO:
++			// .lz is checked before .lzma since .lzma detection
++			// is more complicated (no magic bytes).
+ 			if (is_format_xz())
+ 				init_format = FORMAT_XZ;
++#	ifdef HAVE_LZIP_DECODER
++			else if (is_format_lzip())
++				init_format = FORMAT_LZIP;
++#	endif
+ 			else if (is_format_lzma())
+ 				init_format = FORMAT_LZMA;
+ 			break;
+@@ -547,6 +591,13 @@ coder_init(file_pair *pair)
+ 				init_format = FORMAT_LZMA;
+ 			break;
+ 
++#	ifdef HAVE_LZIP_DECODER
++		case FORMAT_LZIP:
++			if (is_format_lzip())
++				init_format = FORMAT_LZIP;
++			break;
++#	endif
++
+ 		case FORMAT_RAW:
+ 			init_format = FORMAT_RAW;
+ 			break;
+@@ -604,6 +655,15 @@ coder_init(file_pair *pair)
+ 						MODE_DECOMPRESS));
+ 			break;
+ 
++#	ifdef HAVE_LZIP_DECODER
++		case FORMAT_LZIP:
++			allow_trailing_input = true;
++			ret = lzma_lzip_decoder(&strm,
++					hardware_memlimit_get(
++						MODE_DECOMPRESS), flags);
++			break;
++#	endif
++
+ 		case FORMAT_RAW:
+ 			// Memory usage has already been checked in
+ 			// coder_set_compression_settings().
+@@ -864,7 +924,7 @@ coder_normal(file_pair *pair)
+ 			}
+ 
+ 			if (ret == LZMA_STREAM_END) {
+-				if (opt_single_stream) {
++				if (allow_trailing_input) {
+ 					io_fix_src_pos(pair, strm.avail_in);
+ 					success = true;
+ 					break;
+@@ -872,7 +932,9 @@ coder_normal(file_pair *pair)
+ 
+ 				// Check that there is no trailing garbage.
+ 				// This is needed for LZMA_Alone and raw
+-				// streams.
++				// streams. This is *not* done with .lz files
++				// as that format specifically requires
++				// allowing trailing garbage.
+ 				if (strm.avail_in == 0 && !pair->src_eof) {
+ 					// Try reading one more byte.
+ 					// Hopefully we don't get any more
+diff --git a/src/xz/coder.h b/src/xz/coder.h
+index 583da8f6..2930df9a 100644
+--- a/src/xz/coder.h
++++ b/src/xz/coder.h
+@@ -23,6 +23,9 @@ enum format_type {
+ 	FORMAT_AUTO,
+ 	FORMAT_XZ,
+ 	FORMAT_LZMA,
++#ifdef HAVE_LZIP_DECODER
++	FORMAT_LZIP,
++#endif
+ 	// HEADER_GZIP,
+ 	FORMAT_RAW,
+ };
+diff --git a/src/xz/message.c b/src/xz/message.c
+index 651a890f..831b4f9d 100644
+--- a/src/xz/message.c
++++ b/src/xz/message.c
+@@ -1150,7 +1150,7 @@ message_help(bool long_help)
+ 		puts(_("\n Basic file format and compression options:\n"));
+ 		puts(_(
+ "  -F, --format=FMT    file format to encode or decode; possible values are\n"
+-"                      `auto' (default), `xz', `lzma', and `raw'\n"
++"                      `auto' (default), `xz', `lzma', `lzip', and `raw'\n"
+ "  -C, --check=CHECK   integrity check type: `none' (use with caution),\n"
+ "                      `crc32', `crc64' (default), or `sha256'"));
+ 		puts(_(
+diff --git a/src/xz/suffix.c b/src/xz/suffix.c
+index 9d4fcd13..55e4ee2f 100644
+--- a/src/xz/suffix.c
++++ b/src/xz/suffix.c
+@@ -119,7 +119,10 @@ uncompressed_name(const char *src_name, const size_t src_len)
+ #ifdef __DJGPP__
+ 		{ ".lzm",   "" },
+ #endif
+-		{ ".tlz",   ".tar" },
++		{ ".tlz",   ".tar" }, // Both .tar.lzma and .tar.lz
++#ifdef HAVE_LZIP_DECODER
++		{ ".lz",    "" },
++#endif
+ 		// { ".gz",    "" },
+ 		// { ".tgz",   ".tar" },
+ 	};
+@@ -208,6 +211,15 @@ compressed_name(const char *src_name, size_t src_len)
+ #endif
+ 			".tlz",
+ 			NULL
++#ifdef HAVE_LZIP_DECODER
++		// This is needed to keep the table indexing in sync with
++		// enum format_type from coder.h.
++		}, {
++/*
++			".lz",
++*/
++			NULL
++#endif
+ /*
+ 		}, {
+ 			".gz",
+@@ -221,8 +233,11 @@ compressed_name(const char *src_name, size_t src_len)
+ 		}
+ 	};
+ 
+-	// args.c ensures this.
++	// args.c ensures these.
+ 	assert(opt_format != FORMAT_AUTO);
++#ifdef HAVE_LZIP_DECODER
++	assert(opt_format != FORMAT_LZIP);
++#endif
+ 
+ 	const size_t format = opt_format - 1;
+ 	const char *const *suffixes = all_suffixes[format];
+@@ -299,8 +314,11 @@ compressed_name(const char *src_name, size_t src_len)
+ 			// xz foo.tar          -> foo.txz
+ 			// xz -F lzma foo.tar  -> foo.tlz
+ 			static const char *const tar_suffixes[] = {
+-				".txz",
+-				".tlz",
++				".txz", // .tar.xz
++				".tlz", // .tar.lzma
++/*
++				".tlz", // .tar.lz
++*/
+ 				// ".tgz",
+ 			};
+ 			suffix = tar_suffixes[format];
+diff --git a/src/xz/xz.1 b/src/xz/xz.1
+index e11f4ac2..5e11a332 100644
+--- a/src/xz/xz.1
++++ b/src/xz/xz.1
+@@ -5,7 +5,7 @@
+ .\" This file has been put into the public domain.
+ .\" You can do whatever you want with this file.
+ .\"
+-.TH XZ 1 "2022-11-07" "Tukaani" "XZ Utils"
++.TH XZ 1 "2022-11-09" "Tukaani" "XZ Utils"
+ .
+ .SH NAME
+ xz, unxz, xzcat, lzma, unlzma, lzcat \- Compress or decompress .xz and .lzma files
+@@ -62,6 +62,11 @@ format, but the legacy
+ format used by LZMA Utils and
+ raw compressed streams with no container format headers
+ are also supported.
++In addition, decompression of the
++.B .lz
++format used by
++.B lzip
++is supported.
+ .PP
+ .B xz
+ compresses or decompresses each
+@@ -102,9 +107,10 @@ or
+ is appended to the source filename to get the target filename.
+ .IP \(bu 3
+ When decompressing, the
+-.B .xz
++.BR .xz ,
++.BR .lzma ,
+ or
+-.B .lzma
++.B .lz
+ suffix is removed from the filename to get the target filename.
+ .B xz
+ also recognizes the suffixes
+@@ -158,8 +164,9 @@ doesn't have a suffix of any of the supported file formats
+ .RB ( .xz ,
+ .BR .txz ,
+ .BR .lzma ,
++.BR .tlz ,
+ or
+-.BR .tlz ).
++.BR .lz ).
+ .PP
+ After successfully compressing or decompressing the
+ .IR file ,
+@@ -507,8 +514,9 @@ in addition to files with the
+ .BR .xz ,
+ .BR .txz ,
+ .BR .lzma ,
++.BR .tlz ,
+ or
+-.B .tlz
++.B .lz
+ suffix.
+ If the source file has the suffix
+ .IR .suf ,
+@@ -575,6 +583,34 @@ The alternative name
+ .B alone
+ is provided for backwards compatibility with LZMA Utils.
+ .TP
++.B lzip
++Accept only
++.B .lz
++files when decompressing.
++Compression is not supported.
++.IP ""
++The
++.B .lz
++format version 0 and the unextended version 1 are supported.
++Version 0 files were produced by
++.B lzip
++1.3 and older.
++Such files aren't common but may be found from file archives
++as a few source packages were released in this format.
++People might have old personal files in this format too.
++Decompression support for the format version 0 was removed in
++.B lzip
++1.18.
++.IP ""
++.B lzip
++1.4 and later create files in the format version 1.
++The sync flush marker extension to the format version 1 was added in
++.B lzip
++1.6.
++This extension is rarely used and isn't supported by
++.B xz
++(diagnosed as corrupt input).
++.TP
+ .B raw
+ Compress or uncompress a raw stream (no headers).
+ This is meant for advanced users only.

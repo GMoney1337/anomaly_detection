@@ -1,0 +1,13 @@
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+index 1f019167..0e4d464f 100644
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -1001,7 +1001,7 @@ if(NOT SANDBOX_FOUND AND ENABLE_SANDBOX MATCHES "^ON$|^landlock$")
+         #include <linux/landlock.h>
+         #include <sys/syscall.h>
+         #include <sys/prctl.h>
+-.
++
+         void my_sandbox(void)
+         {
+             (void)prctl(PR_SET_NO_NEW_PRIVS, 1, 0, 0, 0);

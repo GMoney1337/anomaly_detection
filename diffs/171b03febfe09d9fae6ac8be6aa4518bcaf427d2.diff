@@ -1,0 +1,42 @@
+diff --git a/po/.gitignore b/po/.gitignore
+index 5db2e666..d2017292 100644
+--- a/po/.gitignore
++++ b/po/.gitignore
+@@ -1,15 +1,31 @@
++# autopoint
++Makefile.in.in
++Makevars.template
++Rules-quot
+ boldquot.sed
+ en@boldquot.header
+ en@quot.header
+ insert-header.sin
+-Makefile
++quot.sed
++remove-potcdate.sin
++
++# configure
+ Makefile.in
+-Makefile.in.in
+-Makevars.template
++Makefile
+ POTFILES
+-quot.sed
++
++# intermediate files (make)
++stamp-poT
++xz.po
++xz.1po
++xz.2po
++*.new.po
++
++# make
+ remove-potcdate.sed
+-remove-potcdate.sin
+-Rules-quot
++xz.mo
+ stamp-po
++*.gmo
++
++# cached templates (make)
+ xz.pot

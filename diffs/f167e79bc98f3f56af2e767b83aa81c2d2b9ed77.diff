@@ -1,0 +1,12 @@
+diff --git a/THANKS b/THANKS
+index db13bdb5..69f18cc9 100644
+--- a/THANKS
++++ b/THANKS
+@@ -130,6 +130,7 @@ has been important. :-) In alphabetical order:
+   - Torsten Rupp
+   - Stephen Sachs
+   - Jukka Salmi
++  - Agostino Sarubbo
+   - Alexandre Sauvé
+   - Benno Schulenberg
+   - Andreas Schwab

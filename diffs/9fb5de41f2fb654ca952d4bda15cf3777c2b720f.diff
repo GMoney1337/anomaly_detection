@@ -1,0 +1,26 @@
+diff --git a/src/scripts/xzdiff.in b/src/scripts/xzdiff.in
+index c17d78b2..72249d3a 100644
+--- a/src/scripts/xzdiff.in
++++ b/src/scripts/xzdiff.in
+@@ -194,7 +194,7 @@ elif test $# -eq 2; then
+     esac;;
+   esac
+ else
+-  printf '%s\n' "$0: Invalid number of operands; try \`${0##*/} --help' for help" >&2
++  printf '%s\n' "$0: Invalid number of operands; try '${0##*/} --help' for help" >&2
+   exit 2
+ fi
+ 
+diff --git a/src/scripts/xzgrep.in b/src/scripts/xzgrep.in
+index 490e47d7..c98fb30d 100644
+--- a/src/scripts/xzgrep.in
++++ b/src/scripts/xzgrep.in
+@@ -156,7 +156,7 @@ done
+ eval "set -- $operands "'${1+"$@"}'
+ 
+ if test $have_pat -eq 0; then
+-  case ${1?"Missing pattern; try \`${0##*/} --help' for help"} in
++  case ${1?"Missing pattern; try '${0##*/} --help' for help"} in
+   (*\'*)
+     grep="$grep -e '"$(printf '%sX\n' "$1" | LC_ALL=C sed "$escape");;
+   (*)

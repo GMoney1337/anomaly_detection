@@ -1,0 +1,10 @@
+diff --git a/tests/test_files.sh b/tests/test_files.sh
+index 4eb97969..2fa83825 100755
+--- a/tests/test_files.sh
++++ b/tests/test_files.sh
+@@ -1,4 +1,4 @@
+-#/bin/sh
++#!/bin/sh
+ 
+ ###############################################################################
+ #

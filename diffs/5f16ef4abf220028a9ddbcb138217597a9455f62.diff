@@ -1,0 +1,131 @@
+diff --git a/src/liblzma/Makefile.am b/src/liblzma/Makefile.am
+index 5490ba02..6d5753b1 100644
+--- a/src/liblzma/Makefile.am
++++ b/src/liblzma/Makefile.am
+@@ -70,7 +70,7 @@ endif
+ # Remove ordinals from the generated .def file. People must link by name,
+ # not by ordinal, because no one is going to track the ordinal numbers.
+ liblzma.def: liblzma.la liblzma.def.in
+-	$(SED) 's/ \+@ *[0-9]\+//' liblzma.def.in > liblzma.def
++	sed 's/ \+@ *[0-9]\+//' liblzma.def.in > liblzma.def
+ 
+ # Creating liblzma.def.in is a side effect of linking the library.
+ liblzma.def.in: liblzma.la
+diff --git a/src/scripts/Makefile.am b/src/scripts/Makefile.am
+index 8580ee5b..86f27388 100644
+--- a/src/scripts/Makefile.am
++++ b/src/scripts/Makefile.am
+@@ -10,42 +10,42 @@ dist_man_MANS = xzdiff.1 xzgrep.1 xzmore.1 xzless.1
+ 
+ install-exec-hook:
+ 	cd $(DESTDIR)$(bindir) && \
+-	target=`echo xzdiff | $(SED) '$(transform)'` && \
++	target=`echo xzdiff | sed '$(transform)'` && \
+ 	for name in xzcmp lzdiff lzcmp; do \
+-		link=`echo $$name | $(SED) '$(transform)'` && \
++		link=`echo $$name | sed '$(transform)'` && \
+ 		rm -f $$link && \
+ 		$(LN_S) $$target $$link; \
+ 	done && \
+-	target=`echo xzgrep | $(SED) '$(transform)'` && \
++	target=`echo xzgrep | sed '$(transform)'` && \
+ 	for name in xzegrep xzfgrep lzgrep lzegrep lzfgrep; do \
+-		link=`echo $$name | $(SED) '$(transform)'` && \
++		link=`echo $$name | sed '$(transform)'` && \
+ 		rm -f $$link && \
+ 		$(LN_S) $$target $$link; \
+ 	done && \
+ 	for name in xzmore xzless; do \
+-		target=`echo $$name | $(SED) '$(transform)'` && \
+-		link=`echo $$name | $(SED) 's/xz/lz/;$(transform)'` && \
++		target=`echo $$name | sed '$(transform)'` && \
++		link=`echo $$name | sed 's/xz/lz/;$(transform)'` && \
+ 		rm -f $$link && \
+ 		$(LN_S) $$target $$link; \
+ 	done
+ 
+ install-data-hook:
+ 	cd $(DESTDIR)$(mandir)/man1 && \
+-	target=`echo xzdiff | $(SED) '$(transform)'` && \
++	target=`echo xzdiff | sed '$(transform)'` && \
+ 	for name in xzcmp lzdiff lzcmp; do \
+-		link=`echo $$name | $(SED) '$(transform)'` && \
++		link=`echo $$name | sed '$(transform)'` && \
+ 		rm -f $$link.1 && \
+ 		$(LN_S) $$target.1 $$link.1; \
+ 	done && \
+-	target=`echo xzgrep | $(SED) '$(transform)'` && \
++	target=`echo xzgrep | sed '$(transform)'` && \
+ 	for name in xzegrep xzfgrep lzgrep lzegrep lzfgrep; do \
+-		link=`echo $$name | $(SED) '$(transform)'` && \
++		link=`echo $$name | sed '$(transform)'` && \
+ 		rm -f $$link.1 && \
+ 		$(LN_S) $$target.1 $$link.1; \
+ 	done && \
+ 	for name in xzmore xzless; do \
+-		target=`echo $$name | $(SED) '$(transform)'` && \
+-		link=`echo $$name | $(SED) 's/xz/lz/;$(transform)'` && \
++		target=`echo $$name | sed '$(transform)'` && \
++		link=`echo $$name | sed 's/xz/lz/;$(transform)'` && \
+ 		rm -f $$link.1 && \
+ 		$(LN_S) $$target.1 $$link.1; \
+ 	done
+@@ -54,12 +54,12 @@ uninstall-hook:
+ 	cd $(DESTDIR)$(bindir) && \
+ 	for name in xzcmp lzdiff lzcmp xzegrep xzfgrep \
+ 			lzgrep lzegrep lzfgrep lzmore lzless; do \
+-		link=`echo $$name | $(SED) '$(transform)'` && \
++		link=`echo $$name | sed '$(transform)'` && \
+ 		rm -f $$link; \
+ 	done
+ 	cd $(DESTDIR)$(mandir)/man1 && \
+ 	for name in xzcmp lzdiff lzcmp xzegrep xzfgrep \
+ 			lzgrep lzegrep lzfgrep lzmore lzless; do \
+-		link=`echo $$name | $(SED) '$(transform)'` && \
++		link=`echo $$name | sed '$(transform)'` && \
+ 		rm -f $$link.1; \
+ 	done
+diff --git a/src/xz/Makefile.am b/src/xz/Makefile.am
+index ba64d72b..8716752f 100644
+--- a/src/xz/Makefile.am
++++ b/src/xz/Makefile.am
+@@ -64,9 +64,9 @@ xzlinks = unxz xzcat lzma unlzma lzcat
+ 
+ install-exec-hook:
+ 	cd $(DESTDIR)$(bindir) && \
+-	target=`echo xz | $(SED) '$(transform)'`$(EXEEXT) && \
++	target=`echo xz | sed '$(transform)'`$(EXEEXT) && \
+ 	for name in $(xzlinks); do \
+-		link=`echo $$name | $(SED) '$(transform)'` && \
++		link=`echo $$name | sed '$(transform)'` && \
+ 		rm -f $$link && \
+ 		$(LN_S) $$target $$link; \
+ 	done
+@@ -74,6 +74,6 @@ install-exec-hook:
+ uninstall-hook:
+ 	cd $(DESTDIR)$(bindir) && \
+ 	for name in $(xzlinks); do \
+-		link=`echo $$name | $(SED) '$(transform)'` && \
++		link=`echo $$name | sed '$(transform)'` && \
+ 		rm -f $$link; \
+ 	done
+diff --git a/src/xzdec/Makefile.am b/src/xzdec/Makefile.am
+index 25517f0e..aaa5b5f6 100644
+--- a/src/xzdec/Makefile.am
++++ b/src/xzdec/Makefile.am
+@@ -50,12 +50,12 @@ dist_man_MANS = xzdec.1
+ 
+ install-data-hook:
+ 	cd $(DESTDIR)$(mandir)/man1 && \
+-	target=`echo xzdec | $(SED) '$(transform)'` && \
+-	link=`echo lzmadec | $(SED) '$(transform)'` && \
++	target=`echo xzdec | sed '$(transform)'` && \
++	link=`echo lzmadec | sed '$(transform)'` && \
+ 	rm -f $$link.1 && \
+ 	$(LN_S) $$target.1 $$link.1
+ 
+ uninstall-hook:
+ 	cd $(DESTDIR)$(mandir)/man1 && \
+-	link=`echo lzmadec | $(SED) '$(transform)'` && \
++	link=`echo lzmadec | sed '$(transform)'` && \
+ 	rm -f $$link.1

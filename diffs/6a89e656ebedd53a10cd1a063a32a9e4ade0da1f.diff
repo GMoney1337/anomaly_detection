@@ -1,0 +1,36 @@
+diff --git a/src/common/tuklib_mbstr.h b/src/common/tuklib_mbstr.h
+index 9f358355..dde9305f 100644
+--- a/src/common/tuklib_mbstr.h
++++ b/src/common/tuklib_mbstr.h
+@@ -1,6 +1,6 @@
+ ///////////////////////////////////////////////////////////////////////////////
+ //
+-/// \file       tuklib_mstr.h
++/// \file       tuklib_mbstr.h
+ /// \brief      Utility functions for handling multibyte strings
+ ///
+ /// If not enough multibyte string support is available in the C library,
+diff --git a/src/common/tuklib_mbstr_fw.c b/src/common/tuklib_mbstr_fw.c
+index 978a3fe1..af80dc16 100644
+--- a/src/common/tuklib_mbstr_fw.c
++++ b/src/common/tuklib_mbstr_fw.c
+@@ -1,6 +1,6 @@
+ ///////////////////////////////////////////////////////////////////////////////
+ //
+-/// \file       tuklib_mstr_fw.c
++/// \file       tuklib_mbstr_fw.c
+ /// \brief      Get the field width for printf() e.g. to align table columns
+ //
+ //  Author:     Lasse Collin
+diff --git a/src/common/tuklib_mbstr_width.c b/src/common/tuklib_mbstr_width.c
+index 2eab2341..69d159e0 100644
+--- a/src/common/tuklib_mbstr_width.c
++++ b/src/common/tuklib_mbstr_width.c
+@@ -1,6 +1,6 @@
+ ///////////////////////////////////////////////////////////////////////////////
+ //
+-/// \file       tuklib_mstr_width.c
++/// \file       tuklib_mbstr_width.c
+ /// \brief      Calculate width of a multibyte string
+ //
+ //  Author:     Lasse Collin

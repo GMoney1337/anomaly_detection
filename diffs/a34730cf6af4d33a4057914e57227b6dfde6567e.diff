@@ -1,0 +1,77 @@
+diff --git a/src/liblzma/common/Makefile.inc b/src/liblzma/common/Makefile.inc
+index 81d751ee..f154f82f 100644
+--- a/src/liblzma/common/Makefile.inc
++++ b/src/liblzma/common/Makefile.inc
+@@ -38,6 +38,7 @@ liblzma_la_SOURCES += \
+ 	common/index_encoder.h \
+ 	common/stream_buffer_encoder.c \
+ 	common/stream_encoder.c \
++	common/stream_encoder.h \
+ 	common/stream_flags_encoder.c \
+ 	common/vli_encoder.c
+ endif
+diff --git a/src/liblzma/common/stream_encoder.c b/src/liblzma/common/stream_encoder.c
+index b7d5cbf3..97a7a23a 100644
+--- a/src/liblzma/common/stream_encoder.c
++++ b/src/liblzma/common/stream_encoder.c
+@@ -10,6 +10,7 @@
+ //
+ ///////////////////////////////////////////////////////////////////////////////
+ 
++#include "stream_encoder.h"
+ #include "block_encoder.h"
+ #include "index_encoder.h"
+ 
+@@ -261,11 +262,11 @@ stream_encoder_update(lzma_coder *coder, lzma_allocator *allocator,
+ }
+ 
+ 
+-static lzma_ret
+-stream_encoder_init(lzma_next_coder *next, lzma_allocator *allocator,
++extern lzma_ret
++lzma_stream_encoder_init(lzma_next_coder *next, lzma_allocator *allocator,
+ 		const lzma_filter *filters, lzma_check check)
+ {
+-	lzma_next_coder_init(&stream_encoder_init, next, allocator);
++	lzma_next_coder_init(&lzma_stream_encoder_init, next, allocator);
+ 
+ 	if (filters == NULL)
+ 		return LZMA_PROG_ERROR;
+@@ -319,7 +320,7 @@ extern LZMA_API(lzma_ret)
+ lzma_stream_encoder(lzma_stream *strm,
+ 		const lzma_filter *filters, lzma_check check)
+ {
+-	lzma_next_strm_init(stream_encoder_init, strm, filters, check);
++	lzma_next_strm_init(lzma_stream_encoder_init, strm, filters, check);
+ 
+ 	strm->internal->supported_actions[LZMA_RUN] = true;
+ 	strm->internal->supported_actions[LZMA_SYNC_FLUSH] = true;
+diff --git a/src/liblzma/common/stream_encoder.h b/src/liblzma/common/stream_encoder.h
+new file mode 100644
+index 00000000..46a7aed7
+--- /dev/null
++++ b/src/liblzma/common/stream_encoder.h
+@@ -0,0 +1,23 @@
++///////////////////////////////////////////////////////////////////////////////
++//
++/// \file       stream_encoder.h
++/// \brief      Encodes .xz Streams
++//
++//  Author:     Lasse Collin
++//
++//  This file has been put into the public domain.
++//  You can do whatever you want with this file.
++//
++///////////////////////////////////////////////////////////////////////////////
++
++#ifndef LZMA_STREAM_ENCODER_H
++#define LZMA_STREAM_ENCODER_H
++
++#include "common.h"
++
++
++extern lzma_ret lzma_stream_encoder_init(
++		lzma_next_coder *next, lzma_allocator *allocator,
++		const lzma_filter *filters, lzma_check check);
++
++#endif

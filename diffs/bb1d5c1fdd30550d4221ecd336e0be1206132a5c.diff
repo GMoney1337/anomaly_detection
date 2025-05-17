@@ -1,0 +1,27 @@
+diff --git a/tests/files/README b/tests/files/README
+index 18c4d583..1e14378a 100644
+--- a/tests/files/README
++++ b/tests/files/README
+@@ -246,6 +246,13 @@
+     properties in the third LZMA2 chunk.
+ 
+     bad-1-lzma2-9.xz has LZMA2 stream that is truncated at the end of
+-    a LZMA2 chunk and has no end marker. The uncompressed size of the
+-    partial LZMA2 stream exceeds the value stored in the Block Header.
++    a LZMA2 chunk (no end marker). The uncompressed size of the partial
++    LZMA2 stream exceeds the value stored in the Block Header.
++
++    bad-1-lzma2-10.xz has LZMA2 stream that, from point of view of a
++    LZMA2 decoder, extends past the end of Block (and even the end of
++    the file). Uncompressed Size in Block Header is bigger than the
++    invalid LZMA2 stream may produce (even if a decoder reads until
++    the end of the file). The Check type is None to nullify certain
++    simple size-based sanity checks in a Block decoder.
+ 
+diff --git a/tests/files/bad-1-lzma2-10.xz b/tests/files/bad-1-lzma2-10.xz
+new file mode 100644
+index 00000000..246515ea
+Binary files /dev/null and b/tests/files/bad-1-lzma2-10.xz differ
+diff --git a/tests/files/bad-1-lzma2-9.xz b/tests/files/bad-1-lzma2-9.xz
+index cf191010..0553905a 100644
+Binary files a/tests/files/bad-1-lzma2-9.xz and b/tests/files/bad-1-lzma2-9.xz differ

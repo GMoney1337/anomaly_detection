@@ -1,0 +1,84 @@
+diff --git a/src/common/common_w32res.rc b/src/common/common_w32res.rc
+index c7a6b13d..ad9e1653 100644
+--- a/src/common/common_w32res.rc
++++ b/src/common/common_w32res.rc
+@@ -1,3 +1,10 @@
++/*
++ * Author: Lasse Collin
++ *
++ * This file has been put into the public domain.
++ * You can do whatever you want with this file.
++ */
++
+ #include <winresrc.h>
+ #include "config.h"
+ #define LZMA_H_INTERNAL
+@@ -25,7 +32,7 @@ VS_VERSION_INFO VERSIONINFO
+   FILESUBTYPE 0x0L
+ BEGIN
+     BLOCK "StringFileInfo"
+-    BEGIN 
++    BEGIN
+         BLOCK "040904b0"
+         BEGIN
+             VALUE "Comments", MY_COMMENTS
+diff --git a/src/liblzma/liblzma.pc.in b/src/liblzma/liblzma.pc.in
+index df31c386..eb3f6c75 100644
+--- a/src/liblzma/liblzma.pc.in
++++ b/src/liblzma/liblzma.pc.in
+@@ -1,3 +1,10 @@
++#
++# Author: Lasse Collin
++#
++# This file has been put into the public domain.
++# You can do whatever you want with this file.
++#
++
+ prefix=@prefix@
+ exec_prefix=@exec_prefix@
+ libdir=@libdir@
+diff --git a/src/liblzma/liblzma_w32res.rc b/src/liblzma/liblzma_w32res.rc
+index 00516364..d4d8159c 100644
+--- a/src/liblzma/liblzma_w32res.rc
++++ b/src/liblzma/liblzma_w32res.rc
+@@ -1,3 +1,10 @@
++/*
++ * Author: Lasse Collin
++ *
++ * This file has been put into the public domain.
++ * You can do whatever you want with this file.
++ */
++
+ #define MY_TYPE VFT_DLL
+ #define MY_NAME "liblzma"
+ #define MY_SUFFIX ".dll"
+diff --git a/src/xz/xz_w32res.rc b/src/xz/xz_w32res.rc
+index c8fd9e60..bad30202 100644
+--- a/src/xz/xz_w32res.rc
++++ b/src/xz/xz_w32res.rc
+@@ -1,3 +1,10 @@
++/*
++ * Author: Lasse Collin
++ *
++ * This file has been put into the public domain.
++ * You can do whatever you want with this file.
++ */
++
+ #define MY_TYPE VFT_APP
+ #define MY_NAME "xz"
+ #define MY_SUFFIX ".exe"
+diff --git a/src/xzdec/xzdec_w32res.rc b/src/xzdec/xzdec_w32res.rc
+index 84f4e478..626f26ce 100644
+--- a/src/xzdec/xzdec_w32res.rc
++++ b/src/xzdec/xzdec_w32res.rc
+@@ -1,3 +1,10 @@
++/*
++ * Author: Lasse Collin
++ *
++ * This file has been put into the public domain.
++ * You can do whatever you want with this file.
++ */
++
+ #define MY_TYPE VFT_APP
+ #define MY_NAME "xzdec"
+ #define MY_SUFFIX ".exe"

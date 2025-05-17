@@ -1,0 +1,54 @@
+diff --git a/src/liblzma/api/lzma/base.h b/src/liblzma/api/lzma/base.h
+index 7a31a420..a6005acc 100644
+--- a/src/liblzma/api/lzma/base.h
++++ b/src/liblzma/api/lzma/base.h
+@@ -644,11 +644,16 @@ extern LZMA_API(uint64_t) lzma_memlimit_get(const lzma_stream *strm)
+  * This function is supported only when *strm has been initialized with
+  * a function that takes a memlimit argument.
+  *
++ * liblzma 5.2.3 and earlier has a bug where memlimit value of 0 causes
++ * this function to do nothing (leaving the limit unchanged) and still
++ * return LZMA_OK. Later versions treat 0 as if 1 had been specified (so
++ * lzma_memlimit_get() will return 1 even if you specify 0 here).
++ *
+  * \return      - LZMA_OK: New memory usage limit successfully set.
+  *              - LZMA_MEMLIMIT_ERROR: The new limit is too small.
+  *                The limit was not changed.
+  *              - LZMA_PROG_ERROR: Invalid arguments, e.g. *strm doesn't
+- *                support memory usage limit or memlimit was zero.
++ *                support memory usage limit.
+  */
+ extern LZMA_API(lzma_ret) lzma_memlimit_set(
+ 		lzma_stream *strm, uint64_t memlimit) lzma_nothrow;
+diff --git a/src/liblzma/common/auto_decoder.c b/src/liblzma/common/auto_decoder.c
+index 479b150f..6895c7cc 100644
+--- a/src/liblzma/common/auto_decoder.c
++++ b/src/liblzma/common/auto_decoder.c
+@@ -139,7 +139,10 @@ auto_decoder_memconfig(void *coder_ptr, uint64_t *memusage,
+ 		// the current memory usage.
+ 		*memusage = LZMA_MEMUSAGE_BASE;
+ 		*old_memlimit = coder->memlimit;
++
+ 		ret = LZMA_OK;
++		if (new_memlimit != 0 && new_memlimit < *memusage)
++			ret = LZMA_MEMLIMIT_ERROR;
+ 	}
+ 
+ 	if (ret == LZMA_OK && new_memlimit != 0)
+diff --git a/src/liblzma/common/common.c b/src/liblzma/common/common.c
+index 28aa2b71..57e3f8eb 100644
+--- a/src/liblzma/common/common.c
++++ b/src/liblzma/common/common.c
+@@ -435,8 +435,10 @@ lzma_memlimit_set(lzma_stream *strm, uint64_t new_memlimit)
+ 			|| strm->internal->next.memconfig == NULL)
+ 		return LZMA_PROG_ERROR;
+ 
+-	if (new_memlimit != 0 && new_memlimit < LZMA_MEMUSAGE_BASE)
+-		return LZMA_MEMLIMIT_ERROR;
++	// Zero is a special value that cannot be used as an actual limit.
++	// If 0 was specified, use 1 instead.
++	if (new_memlimit == 0)
++		new_memlimit = 1;
+ 
+ 	return strm->internal->next.memconfig(strm->internal->next.coder,
+ 			&memusage, &old_memlimit, new_memlimit);

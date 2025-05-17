@@ -1,0 +1,13 @@
+diff --git a/src/scripts/xzmore.1 b/src/scripts/xzmore.1
+index 8099be35..afe89b8c 100644
+--- a/src/scripts/xzmore.1
++++ b/src/scripts/xzmore.1
+@@ -55,7 +55,7 @@ is provided for backward compatibility with LZMA Utils.
+ If
+ .B PAGER
+ is set,
+-it's value is used as the pager instead of
++its value is used as the pager instead of
+ .BR more (1).
+ .
+ .SH "SEE ALSO"

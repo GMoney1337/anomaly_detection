@@ -1,0 +1,35 @@
+diff --git a/src/xz/coder.c b/src/xz/coder.c
+index d26ae6e9..5bca958f 100644
+--- a/src/xz/coder.c
++++ b/src/xz/coder.c
+@@ -1000,6 +1000,15 @@ coder_run(const char *filename)
+ 				mytime_set_start_time();
+ 
+ 				// Initialize the progress indicator.
++				//
++				// NOTE: When reading from stdin, fstat()
++				// isn't called on it and thus src_st.st_size
++				// is zero. If stdin pointed to a regular
++				// file, it would still be possible to know
++				// the file size but then we would also need
++				// to take into account the current reading
++				// position since with stdin it isn't
++				// necessarily at the beginning of the file.
+ 				const bool is_passthru = init_ret
+ 						== CODER_INIT_PASSTHRU;
+ 				const uint64_t in_size
+diff --git a/src/xz/file_io.c b/src/xz/file_io.c
+index 61857029..a5841b37 100644
+--- a/src/xz/file_io.c
++++ b/src/xz/file_io.c
+@@ -768,6 +768,10 @@ io_open_src(const char *src_name)
+ 	// a statically allocated structure.
+ 	static file_pair pair;
+ 
++	// This implicitly also initializes src_st.st_size to zero
++	// which is expected to be <= 0 by default. fstat() isn't
++	// called when reading from standard input but src_st.st_size
++	// is still read.
+ 	pair = (file_pair){
+ 		.src_name = src_name,
+ 		.dest_name = NULL,

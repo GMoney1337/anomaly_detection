@@ -1,0 +1,12 @@
+diff --git a/THANKS b/THANKS
+index 650c7665..4e82d8fb 100644
+--- a/THANKS
++++ b/THANKS
+@@ -13,6 +13,7 @@ In alphabetical order:
+   - Per Øyvind Karlsen
+   - Ville Koskinen
+   - Stephan Kulow
++  - Andraž 'ruskie' Levstik
+   - Jim Meyering
+   - Igor Pavlov
+   - Mikko Pouru

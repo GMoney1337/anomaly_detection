@@ -1,0 +1,203 @@
+diff --git a/windows/Makefile b/windows/Makefile
+index f053ee2e..d164a8ab 100644
+--- a/windows/Makefile
++++ b/windows/Makefile
+@@ -27,10 +27,12 @@
+ 
+ ifdef W64
+ CC = x86_64-pc-mingw32-gcc
++WINDRES = x86_64-pc-mingw32-windres
+ AR = x86_64-pc-mingw32-ar
+ STRIP = x86_64-pc-mingw32-strip
+ else
+ CC = mingw32-gcc
++WINDRES = windres
+ AR = ar
+ STRIP = strip
+ endif
+@@ -66,10 +68,12 @@ STATIC_CPPFLAGS = -DLZMA_API_STATIC
+ ifdef WINE
+ ifdef W64
+ CC := wine c:/MinGW64/bin/x86_64-pc-mingw32-gcc
++WINDRES := wine c:/MinGW64/bin/x86_64-pc-mingw32-windres
+ AR := wine c:/MinGW64/bin/x86_64-pc-mingw32-ar
+ STRIP := wine c:/MinGW64/bin/x86_64-pc-mingw32-strip
+ else
+ CC := wine c:/MinGW/bin/gcc
++WINDRES := wine c:/MinGW/bin/windres
+ AR := wine c:/MinGW/bin/ar
+ STRIP := wine c:/MinGW/bin/strip
+ endif
+@@ -102,6 +106,9 @@ pkg: all
+ 	$(CP) ../src/liblzma/api/lzma.h pkg/include
+ 	$(CP) ../src/liblzma/api/lzma/*.h pkg/include/lzma
+ 
++%_rc.o: %.rc
++	$(WINDRES) $< $@
++
+ 
+ ###############
+ # liblzma.dll #
+@@ -185,7 +192,7 @@ endif
+ 
+ LIBLZMA_OBJS_C = $(LIBLZMA_SRCS_C:.c=.o)
+ LIBLZMA_OBJS_ASM = $(LIBLZMA_SRCS_ASM:.S=.o)
+-LIBLZMA_OBJS = $(LIBLZMA_OBJS_C) $(LIBLZMA_OBJS_ASM)
++LIBLZMA_OBJS = $(LIBLZMA_OBJS_C) $(LIBLZMA_OBJS_ASM) liblzma_rc.o
+ 
+ LIBLZMA_OBJS_STATIC_C = $(LIBLZMA_SRCS_C:.c=-static.o)
+ LIBLZMA_OBJS_STATIC_ASM = $(LIBLZMA_SRCS_ASM:.S=-static.o)
+@@ -232,25 +239,25 @@ xzdec: xzdec-dynamic.exe lzmadec-dynamic.exe xzdec.exe lzmadec.exe
+ 
+ XZDEC_SRCS = ../src/xzdec/xzdec.c
+ 
+-xzdec-dynamic.exe: liblzma.dll $(XZDEC_SRCS)
+-	$(CC) $(ALL_CPPFLAGS) $(ALL_CFLAGS) $(XZDEC_SRCS) -o $@ liblzma.a
++xzdec-dynamic.exe: liblzma.dll $(XZDEC_SRCS) xzdec_rc.o
++	$(CC) $(ALL_CPPFLAGS) $(ALL_CFLAGS) $(XZDEC_SRCS) xzdec_rc.o -o $@ liblzma.a
+ 	$(STRIP) --strip-all $@
+ 
+-lzmadec-dynamic.exe: liblzma.dll $(XZDEC_SRCS)
+-	$(CC) $(ALL_CPPFLAGS) -DLZMADEC $(ALL_CFLAGS) $(XZDEC_SRCS) -o $@ liblzma.a
++lzmadec-dynamic.exe: liblzma.dll $(XZDEC_SRCS) lzmadec_rc.o
++	$(CC) $(ALL_CPPFLAGS) -DLZMADEC $(ALL_CFLAGS) $(XZDEC_SRCS) lzmadec_rc.o -o $@ liblzma.a
+ 	$(STRIP) --strip-all $@
+ 
+-xzdec.exe: liblzma_static.lib $(XZDEC_SRCS)
+-	$(CC) $(STATIC_CPPFLAGS) $(ALL_CPPFLAGS) $(ALL_CFLAGS) $(XZDEC_SRCS) -o $@ liblzma_static.lib
++xzdec.exe: liblzma_static.lib $(XZDEC_SRCS) xzdec_rc.o
++	$(CC) $(STATIC_CPPFLAGS) $(ALL_CPPFLAGS) $(ALL_CFLAGS) $(XZDEC_SRCS) xzdec_rc.o -o $@ liblzma_static.lib
+ 	$(STRIP) --strip-all $@
+ 
+-lzmadec.exe: liblzma_static.lib $(XZDEC_SRCS)
+-	$(CC) $(STATIC_CPPFLAGS) $(ALL_CPPFLAGS) -DLZMADEC $(ALL_CFLAGS) $(XZDEC_SRCS) -o $@ liblzma_static.lib
++lzmadec.exe: liblzma_static.lib $(XZDEC_SRCS) lzmadec_rc.o
++	$(CC) $(STATIC_CPPFLAGS) $(ALL_CPPFLAGS) -DLZMADEC $(ALL_CFLAGS) $(XZDEC_SRCS) lzmadec_rc.o -o $@ liblzma_static.lib
+ 	$(STRIP) --strip-all $@
+ 
+ .PHONY: xzdec-clean
+ xzdec-clean:
+-	-$(RM) xzdec-dynamic.exe lzmadec-dynamic.exe xzdec.exe lzmadec.exe
++	-$(RM) xzdec-dynamic.exe lzmadec-dynamic.exe xzdec.exe lzmadec.exe xzdec_rc.o lzmadec_rc.o
+ 
+ 
+ ##########
+@@ -285,17 +292,17 @@ $(XZ_SRCS_FIXED): %-fixed.c: %.c
+ $(XZ_OBJS): %.o: %-fixed.c
+ 	$(CC) $(ALL_CPPFLAGS) $(ALL_CFLAGS) -c -o $@ $<
+ 
+-xz-dynamic.exe: liblzma.dll $(XZ_OBJS)
+-	$(CC) $(ALL_CFLAGS) $(XZ_OBJS) -o $@ liblzma.a
++xz-dynamic.exe: liblzma.dll $(XZ_OBJS) xz_rc.o
++	$(CC) $(ALL_CFLAGS) $(XZ_OBJS) xz_rc.o -o $@ liblzma.a
+ 	$(STRIP) --strip-all $@
+ 
+ $(XZ_OBJS_STATIC): %-static.o: %-fixed.c
+ 	$(CC) $(STATIC_CPPFLAGS) $(ALL_CPPFLAGS) $(ALL_CFLAGS) -c -o $@ $<
+ 
+-xz.exe: liblzma_static.lib $(XZ_OBJS_STATIC)
+-	$(CC) $(ALL_CFLAGS) $(XZ_OBJS_STATIC) -o $@ liblzma_static.lib
++xz.exe: liblzma_static.lib $(XZ_OBJS_STATIC) xz_rc.o
++	$(CC) $(ALL_CFLAGS) $(XZ_OBJS_STATIC) xz_rc.o -o $@ liblzma_static.lib
+ 	$(STRIP) --strip-all $@
+ 
+ .PHONY: xz-clean
+ xz-clean:
+-	-$(RM) $(XZ_OBJS) $(XZ_OBJS_STATIC) $(XZ_SRCS_FIXED) xz-dynamic.exe xz.exe
++	-$(RM) $(XZ_OBJS) $(XZ_OBJS_STATIC) $(XZ_SRCS_FIXED) xz_rc.o xz-dynamic.exe xz.exe
+diff --git a/windows/common.rc b/windows/common.rc
+new file mode 100644
+index 00000000..18bc6c13
+--- /dev/null
++++ b/windows/common.rc
+@@ -0,0 +1,46 @@
++#include <winresrc.h>
++#include "config.h"
++
++#define MY_VER_MAJOR 4
++#define MY_VER_MINOR 999
++#define MY_VER_PATCH 8
++#ifndef MY_VER_BUILD
++# define MY_VER_BUILD 0
++#endif
++#define MY_VERSION MY_VER_MAJOR,MY_VER_MINOR,MY_VER_PATCH,MY_VER_BUILD
++
++#define MY_FILENAME    MY_NAME MY_SUFFIX
++#define MY_COMPANY     "Lasse Collin and Igor Pavlov"
++#define MY_COPYRIGHT   "Copyright by " MY_COMPANY
++#define MY_COMMENTS    "http://tukaani.org/xz/"
++
++LANGUAGE LANG_ENGLISH, SUBLANG_ENGLISH_US
++VS_VERSION_INFO VERSIONINFO
++  FILEVERSION MY_VERSION
++  PRODUCTVERSION MY_VERSION
++  FILEFLAGSMASK VS_FFI_FILEFLAGSMASK
++  FILEFLAGS 0
++  FILEOS VOS_NT_WINDOWS32
++  FILETYPE MY_TYPE
++  FILESUBTYPE 0x0L
++BEGIN
++    BLOCK "StringFileInfo"
++    BEGIN 
++        BLOCK "040904b0"
++        BEGIN
++            VALUE "Comments", MY_COMMENTS
++            VALUE "CompanyName", MY_COMPANY
++            VALUE "FileDescription", MY_DESC
++            VALUE "FileVersion", PACKAGE_VERSION
++            VALUE "InternalName", MY_NAME
++            VALUE "LegalCopyright", MY_COPYRIGHT
++            VALUE "OriginalFilename", MY_FILENAME
++            VALUE "ProductName", PACKAGE_NAME
++            VALUE "ProductVersion", PACKAGE_VERSION
++        END
++    END
++    BLOCK "VarFileInfo"
++    BEGIN
++        VALUE "Translation", 0x409, 1200
++    END
++END
+diff --git a/windows/liblzma.rc b/windows/liblzma.rc
+new file mode 100644
+index 00000000..3d41ae18
+--- /dev/null
++++ b/windows/liblzma.rc
+@@ -0,0 +1,5 @@
++#define MY_TYPE VFT_DLL
++#define MY_NAME "liblzma"
++#define MY_SUFFIX ".dll"
++#define MY_DESC "liblzma data compression library"
++#include "common.rc"
+diff --git a/windows/lzmadec.rc b/windows/lzmadec.rc
+new file mode 100644
+index 00000000..d965d007
+--- /dev/null
++++ b/windows/lzmadec.rc
+@@ -0,0 +1,5 @@
++#define MY_TYPE VFT_APP
++#define MY_NAME "lzmadec"
++#define MY_SUFFIX ".exe"
++#define MY_DESC "lzmadec uncompression tool for .lzma files"
++#include "common.rc"
+diff --git a/windows/xz.rc b/windows/xz.rc
+new file mode 100644
+index 00000000..5ab33c84
+--- /dev/null
++++ b/windows/xz.rc
+@@ -0,0 +1,5 @@
++#define MY_TYPE VFT_APP
++#define MY_NAME "xz"
++#define MY_SUFFIX ".exe"
++#define MY_DESC "xz data compression tool for .xz and .lzma files"
++#include "common.rc"
+diff --git a/windows/xzdec.rc b/windows/xzdec.rc
+new file mode 100644
+index 00000000..33138b64
+--- /dev/null
++++ b/windows/xzdec.rc
+@@ -0,0 +1,5 @@
++#define MY_TYPE VFT_APP
++#define MY_NAME "xzdec"
++#define MY_SUFFIX ".exe"
++#define MY_DESC "xzdec uncompression tool for .xz files"
++#include "common.rc"

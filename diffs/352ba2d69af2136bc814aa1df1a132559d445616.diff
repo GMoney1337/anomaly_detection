@@ -1,0 +1,15 @@
+diff --git a/src/common/common_w32res.rc b/src/common/common_w32res.rc
+index a70de343..d05d22e7 100644
+--- a/src/common/common_w32res.rc
++++ b/src/common/common_w32res.rc
+@@ -6,7 +6,9 @@
+  */
+ 
+ #include <winresrc.h>
+-#include "config.h"
++#ifdef HAVE_CONFIG_H
++# include "config.h"
++#endif
+ #define LZMA_H_INTERNAL
+ #define LZMA_H_INTERNAL_RC
+ #include "lzma/version.h"

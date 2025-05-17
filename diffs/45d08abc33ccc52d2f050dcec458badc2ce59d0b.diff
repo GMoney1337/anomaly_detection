@@ -1,0 +1,25 @@
+diff --git a/AUTHORS b/AUTHORS
+index 5eff238a..218e7a38 100644
+--- a/AUTHORS
++++ b/AUTHORS
+@@ -24,7 +24,7 @@ Authors of XZ Utils
+     by Michał Górny.
+ 
+     Architecture-specific CRC optimizations were contributed by
+-    Ilya Kurdyukov, Hans Jansen, and Chenxi Mao.
++    Ilya Kurdyukov, Hans Jansen, Chenxi Mao, and Xi Ruoyao.
+ 
+     Other authors:
+       - Jonathan Nieder
+diff --git a/THANKS b/THANKS
+index 7ce17501..aef78eb1 100644
+--- a/THANKS
++++ b/THANKS
+@@ -182,6 +182,7 @@ has been important. :-) In alphabetical order:
+   - Lars Wirzenius
+   - Pilorz Wojciech
+   - Chien Wong
++  - Xi Ruoyao
+   - Ryan Young
+   - Andreas Zieringer
+ 

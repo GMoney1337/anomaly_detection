@@ -1,0 +1,22 @@
+diff --git a/po4a/it.po b/po4a/it.po
+index 2f881ed3..6f66ca51 100644
+--- a/po4a/it.po
++++ b/po4a/it.po
+@@ -1960,7 +1960,7 @@ msgstr "ARM"
+ #: ../src/xz/xz.1
+ #, no-wrap
+ msgid "ARM-Thumb"
+-msgstr ""
++msgstr "ARM-Thumb"
+ 
+ #. type: tbl table
+ #: ../src/xz/xz.1
+@@ -2002,7 +2002,7 @@ msgstr "16"
+ #: ../src/xz/xz.1
+ #, no-wrap
+ msgid "Itanium"
+-msgstr ""
++msgstr "Itanium"
+ 
+ #. type: tbl table
+ #: ../src/xz/xz.1

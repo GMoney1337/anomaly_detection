@@ -1,0 +1,83 @@
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+index 01c73cd5..c4f10594 100644
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -154,13 +154,11 @@ if(NOT WIN32 AND NOT DEFINED HAVE_CLOCK_GETTIME)
+     endif()
+     if(HAVE_CLOCK_GETTIME)
+         # Check if CLOCK_MONOTONIC is available for clock_gettime().
+-        check_symbol_exists(CLOCK_MONOTONIC time.h HAVE_DECL_CLOCK_MONOTONIC)
++        check_symbol_exists(CLOCK_MONOTONIC time.h HAVE_CLOCK_MONOTONIC)
+ 
+-        # HAVE_DECL_CLOCK_MONOTONIC should always be defined to 0 or 1
+-        # when clock_gettime is available.
+         add_compile_definitions(
+             HAVE_CLOCK_GETTIME
+-            HAVE_DECL_CLOCK_MONOTONIC=$<BOOL:"${HAVE_DECL_CLOCK_MONOTONIC}">
++            HAVE_CLOCK_MONOTONIC
+         )
+     endif()
+ endif()
+@@ -184,7 +182,7 @@ else()
+     add_compile_definitions(MYTHREAD_POSIX)
+ 
+     # Check if pthread_condattr_setclock() exists to use CLOCK_MONOTONIC.
+-    if(HAVE_DECL_CLOCK_MONOTONIC)
++    if(HAVE_CLOCK_MONOTONIC)
+         list(INSERT CMAKE_REQUIRED_LIBRARIES 0 "${CMAKE_THREAD_LIBS_INIT}")
+         check_symbol_exists(pthread_condattr_setclock pthread.h
+                             HAVE_PTHREAD_CONDATTR_SETCLOCK)
+diff --git a/configure.ac b/configure.ac
+index 7c77215b..a16031b5 100644
+--- a/configure.ac
++++ b/configure.ac
+@@ -638,7 +638,10 @@ case $enable_threads in
+ 		CFLAGS="$CFLAGS $PTHREAD_CFLAGS"
+ 		AC_SEARCH_LIBS([clock_gettime], [rt])
+ 		AC_CHECK_FUNCS([clock_gettime pthread_condattr_setclock])
+-		AC_CHECK_DECLS([CLOCK_MONOTONIC], [], [], [[#include <time.h>]])
++		AC_CHECK_DECL([CLOCK_MONOTONIC], [AC_DEFINE(
++			[HAVE_CLOCK_MONOTONIC], [1], [Define to 1 if
++			CLOCK_MONOTONIC is declared in <time.h>])], [],
++			[[#include <time.h>]])
+ 		CFLAGS=$OLD_CFLAGS
+ 		;;
+ 	win95)
+diff --git a/src/common/mythread.h b/src/common/mythread.h
+index 41382183..9be90d4e 100644
+--- a/src/common/mythread.h
++++ b/src/common/mythread.h
+@@ -219,8 +219,8 @@ static inline int
+ mythread_cond_init(mythread_cond *mycond)
+ {
+ #ifdef HAVE_CLOCK_GETTIME
+-	// NOTE: HAVE_DECL_CLOCK_MONOTONIC is always defined to 0 or 1.
+-#	if defined(HAVE_PTHREAD_CONDATTR_SETCLOCK) && HAVE_DECL_CLOCK_MONOTONIC
++#	if defined(HAVE_PTHREAD_CONDATTR_SETCLOCK) && \
++		defined(HAVE_CLOCK_MONOTONIC)
+ 	struct timespec ts;
+ 	pthread_condattr_t condattr;
+ 
+diff --git a/src/xz/mytime.c b/src/xz/mytime.c
+index 70444001..a81c88af 100644
+--- a/src/xz/mytime.c
++++ b/src/xz/mytime.c
+@@ -12,7 +12,7 @@
+ 
+ #include "private.h"
+ 
+-#if !(defined(HAVE_CLOCK_GETTIME) && HAVE_DECL_CLOCK_MONOTONIC)
++#if !(defined(HAVE_CLOCK_GETTIME) && defined(HAVE_CLOCK_MONOTONIC))
+ #	include <sys/time.h>
+ #endif
+ 
+@@ -28,8 +28,7 @@ static uint64_t next_flush;
+ static uint64_t
+ mytime_now(void)
+ {
+-	// NOTE: HAVE_DECL_CLOCK_MONOTONIC is always defined to 0 or 1.
+-#if defined(HAVE_CLOCK_GETTIME) && HAVE_DECL_CLOCK_MONOTONIC
++#if defined(HAVE_CLOCK_GETTIME) && defined(HAVE_CLOCK_MONOTONIC)
+ 	// If CLOCK_MONOTONIC was available at compile time but for some
+ 	// reason isn't at runtime, fallback to CLOCK_REALTIME which
+ 	// according to POSIX is mandatory for all implementations.

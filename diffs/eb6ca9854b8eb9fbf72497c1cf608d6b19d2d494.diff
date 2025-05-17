@@ -1,0 +1,18 @@
+diff --git a/src/xz/xz.1 b/src/xz/xz.1
+index 696a2f49..e64d36a3 100644
+--- a/src/xz/xz.1
++++ b/src/xz/xz.1
+@@ -12,9 +12,10 @@ xz, unxz, xzcat, lzma, unlzma, lzcat \- Compress or decompress .xz and .lzma fil
+ .
+ .SH SYNOPSIS
+ .B xz
+-.RI [ option ]...
+-.RI [ file ]...
+-.PP
++.RI [ option... ]
++.RI [ file... ]
++.
++.SH COMMAND ALIASES
+ .B unxz
+ is equivalent to
+ .BR "xz \-\-decompress" .

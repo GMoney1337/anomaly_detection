@@ -1,0 +1,986 @@
+diff --git a/doc/liblzma-advanced.txt b/doc/liblzma-advanced.txt
+deleted file mode 100644
+index 6e1c9834..00000000
+--- a/doc/liblzma-advanced.txt
++++ /dev/null
+@@ -1,324 +0,0 @@
+-
+-Advanced features of liblzma
+-----------------------------
+-
+-0. Introduction
+-
+-    Most developers need only the basic features of liblzma. These
+-    features allow single-threaded encoding and decoding of .lzma files
+-    in streamed mode.
+-
+-    In some cases developers want more. The .lzma file format is
+-    designed to allow multi-threaded encoding and decoding and limited
+-    random-access reading. These features are possible in non-streamed
+-    mode and limitedly also in streamed mode.
+-
+-    To take advange of these features, the application needs a custom
+-    .lzma file format handler. liblzma provides a set of tools to ease
+-    this task, but it's still quite a bit of work to get a good custom
+-    .lzma handler done.
+-
+-
+-1. Where to begin
+-
+-    Start by reading the .lzma file format specification. Understanding
+-    the basics of the .lzma file structure is required to implement a
+-    custom .lzma file handler and to understand the rest of this document.
+-
+-
+-2. The basic components
+-
+-2.1. Stream Header and tail
+-
+-    Stream Header begins the .lzma Stream and Stream tail ends it. Stream
+-    Header is defined in the file format specification, but Stream tail
+-    isn't (thus I write "tail" with a lower-case letter). Stream tail is
+-    simply the Stream Flags and the Footer Magic Bytes fields together.
+-    It was done this way in liblzma, because the Block coders take care
+-    of the rest of the stuff in the Stream Footer.
+-
+-    For now, the size of Stream Header is fixed to 11 bytes. The header
+-    <lzma/stream_flags.h> defines LZMA_STREAM_HEADER_SIZE, which you
+-    should use instead of a hardcoded number. Similarly, Stream tail
+-    is fixed to 3 bytes, and there is a constant LZMA_STREAM_TAIL_SIZE.
+-
+-    It is possible, that a future version of the .lzma format will have
+-    variable-sized Stream Header and tail. As of writing, this seems so
+-    unlikely though, that it was considered simplest to just use a
+-    constant instead of providing a functions to get and store the sizes
+-    of the Stream Header and tail.
+-
+-
+-2.x. Stream tail
+-
+-    For now, the size of Stream tail is fixed to 3 bytes. The header
+-    <lzma/stream_flags.h> defines LZMA_STREAM_TAIL_SIZE, which you
+-    should use instead of a hardcoded number.
+-
+-
+-3. Keeping track of size information
+-
+-    The lzma_info_* functions found from <lzma/info.h> should ease the
+-    task of keeping track of sizes of the Blocks and also the Stream
+-    as a whole. Using these functions is strongly recommended, because
+-    there are surprisingly many situations where an error can occur,
+-    and these functions check for possible errors every time some new
+-    information becomes available.
+-
+-    If you find lzma_info_* functions lacking something that you would
+-    find useful, please contact the author.
+-
+-
+-3.1. Start offset of the Stream
+-
+-    If you are storing the .lzma Stream inside anothe file format, or
+-    for some other reason are placing the .lzma Stream to somewhere
+-    else than to the beginning of the file, you should tell the starting
+-    offset of the Stream using lzma_info_start_offset_set().
+-
+-    The start offset of the Stream is used for two distinct purporses.
+-    First, knowing the start offset of the Stream allows
+-    lzma_info_alignment_get() to correctly calculate the alignment of
+-    every Block. This information is given to the Block encoder, which
+-    will calculate the size of Header Padding so that Compressed Data
+-    is alignment at an optimal offset.
+-
+-    Another use for start offset of the Stream is in random-access
+-    reading. If you set the start offset of the Stream, lzma_info_locate()
+-    will be able to calculate the offset relative to the beginning of the
+-    file containing the Stream (instead of offset relative to the
+-    beginning of the Stream).
+-
+-
+-3.2. Size of Stream Header
+-
+-    While the size of Stream Header is constant (11 bytes) in the current
+-    version of the .lzma file format, this may change in future.
+-
+-
+-3.3. Size of Header Metadata Block
+-
+-    This information is needed when doing random-access reading, and
+-    to verify the value of this field stored in Footer Metadata Block.
+-
+-
+-3.4. Total Size of the Data Blocks
+-
+-
+-3.5. Uncompressed Size of Data Blocks
+-
+-
+-3.6. Index
+-
+-
+-
+-
+-x. Alignment
+-
+-    There are a few slightly different types of alignment issues when
+-    working with .lzma files.
+-
+-    The .lzma format doesn't strictly require any kind of alignment.
+-    However, if the encoder carefully optimizes the alignment in all
+-    situations, it can improve compression ratio, speed of the encoder
+-    and decoder, and slightly help if the files get damaged and need
+-    recovery.
+-
+-    Alignment has the most significant effect compression ratio FIXME
+-
+-
+-x.1. Compression ratio
+-
+-    Some filters take advantage of the alignment of the input data.
+-    To get the best compression ratio, make sure that you feed these
+-    filters correctly aligned data.
+-
+-    Some filters (e.g. LZMA) don't necessarily mind too much if the
+-    input doesn't match the preferred alignment. With these filters
+-    the penalty in compression ratio depends on the specific type of
+-    data being compressed.
+-
+-    Other filters (e.g. PowerPC executable filter) won't work at all
+-    with data that is improperly aligned. While the data can still
+-    be de-filtered back to its original form, the benefit of the
+-    filtering (better compression ratio) is completely lost, because
+-    these filters expect certain patterns at properly aligned offsets.
+-    The compression ratio may even worse with incorrectly aligned input
+-    than without the filter.
+-
+-
+-x.1.1. Inter-filter alignment
+-
+-    When there are multiple filters chained, checking the alignment can
+-    be useful not only with the input of the first filter and output of
+-    the last filter, but also between the filters.
+-
+-    Inter-filter alignment important especially with the Subblock filter.
+-
+-
+-x.1.2. Further compression with external tools
+-
+-    This is relatively rare situation in practice, but still worth
+-    understanding.
+-
+-    Let's say that there are several SPARC executables, which are each
+-    filtered to separate .lzma files using only the SPARC filter. If
+-    Uncompressed Size is written to the Block Header, the size of Block
+-    Header may vary between the .lzma files. If no Padding is used in
+-    the Block Header to correct the alignment, the starting offset of
+-    the Compressed Data field will be differently aligned in different
+-    .lzma files.
+-
+-    All these .lzma files are archived into a single .tar archive. Due
+-    to nature of the .tar format, every file is aligned inside the
+-    archive to an offset that is a multiple of 512 bytes.
+-
+-    The .tar archive is compressed into a new .lzma file using the LZMA
+-    filter with options, that prefer input alignment of four bytes. Now
+-    if the independent .lzma files don't have the same alignment of
+-    the Compressed Data fields, the LZMA filter will be unable to take
+-    advantage of the input alignment between the files in the .tar
+-    archive, which reduces compression ratio.
+-
+-    Thus, even if you have only single Block per file, it can be good for
+-    compression ratio to align the Compressed Data to optimal offset.
+-
+-
+-x.2. Speed
+-
+-    Most modern computers are faster when multi-byte data is located
+-    at aligned offsets in RAM. Proper alignment of the Compressed Data
+-    fields can slightly increase the speed of some filters.
+-
+-
+-x.3. Recovery
+-
+-    Aligning every Block Header to start at an offset with big enough
+-    alignment may ease or at least speed up recovery of broken files.
+-
+-
+-y. Typical usage cases
+-
+-y.x. Parsing the Stream backwards
+-
+-    You may need to parse the Stream backwards if you need to get
+-    information such as the sizes of the Stream, Index, or Extra.
+-    The basic procedure to do this follows.
+-
+-    Locate the end of the Stream. If the Stream is stored as is in a
+-    standalone .lzma file, simply seek to the end of the file and start
+-    reading backwards using appropriate buffer size. The file format
+-    specification allows arbitrary amount of Footer Padding (zero or more
+-    NUL bytes), which you skip before trying to decode the Stream tail.
+-
+-    Once you have located the end of the Stream (a non-NULL byte), make
+-    sure you have at least the last LZMA_STREAM_TAIL_SIZE bytes of the
+-    Stream in a buffer. If there isn't enough bytes left from the file,
+-    the file is too small to contain a valid Stream. Decode the Stream
+-    tail using lzma_stream_tail_decoder(). Store the offset of the first
+-    byte of the Stream tail; you will need it later.
+-
+-    You may now want to do some internal verifications e.g. if the Check
+-    type is supported by the liblzma build you are using.
+-
+-    Decode the Backward Size field with lzma_vli_reverse_decode(). The
+-    field is at maximum of LZMA_VLI_BYTES_MAX bytes long. Check that
+-    Backward Size is not zero. Store the offset of the first byte of
+-    the Backward Size; you will need it later.
+-
+-    Now you know the Total Size of the last Block of the Stream. It's the
+-    value of Backward Size plus the size of the Backward Size field. Note
+-    that you cannot use lzma_vli_size() to calculate the size since there
+-    might be padding; you need to use the real observed size of the
+-    Backward Size field.
+-
+-    At this point, the operation continues differently for Single-Block
+-    and Multi-Block Streams.
+-
+-
+-y.x.1. Single-Block Stream
+-
+-    There might be Uncompressed Size field present in the Stream Footer.
+-    You cannot know it for sure unless you have already parsed the Block
+-    Header earlier. For security reasons, you probably want to try to
+-    decode the Uncompressed Size field, but you must not indicate any
+-    error if decoding fails. Later you can give the decoded Uncompressed
+-    Size to Block decoder if Uncopmressed Size isn't otherwise known;
+-    this prevents it from producing too much output in case of (possibly
+-    intentionally) corrupt file.
+-
+-    Calculate the start offset of the Stream:
+-
+-        backward_offset - backward_size - LZMA_STREAM_HEADER_SIZE
+-
+-    backward_offset is the offset of the first byte of the Backward Size
+-    field. Remember to check for integer overflows, which can occur with
+-    invalid input files.
+-
+-    Seek to the beginning of the Stream. Decode the Stream Header using
+-    lzma_stream_header_decoder(). Verify that the decoded Stream Flags
+-    match the values found from Stream tail. You can use the
+-    lzma_stream_flags_is_equal() macro for this.
+-
+-    Decode the Block Header. Verify that it isn't a Metadata Block, since
+-    Single-Block Streams cannot have Metadata. If Uncompressed Size is
+-    present in the Block Header, the value you tried to decode from the
+-    Stream Footer must be ignored, since Uncompressed Size wasn't actually
+-    present there. If Block Header doesn't have Uncompressed Size, and
+-    decoding the Uncompressed Size field from the Stream Footer failed,
+-    the file is corrupt.
+-
+-    If you were only looking for the Uncompressed Size of the Stream,
+-    you now got that information, and you can stop processing the Stream.
+-
+-    To decode the Block, the same instructions apply as described in
+-    FIXME. However, because you have some extra known information decoded
+-    from the Stream Footer, you should give this information to the Block
+-    decoder so that it can verify it while decoding:
+-      - If Uncompressed Size is not present in the Block Header, set
+-        lzma_options_block.uncompressed_size to the value you decoded
+-        from the Stream Footer.
+-      - Always set lzma_options_block.total_size to backward_size +
+-        size_of_backward_size (you calculated this sum earlier already).
+-
+-
+-y.x.2. Multi-Block Stream
+-
+-    Calculate the start offset of the Footer Metadata Block:
+-
+-        backward_offset - backward_size
+-
+-    backward_offset is the offset of the first byte of the Backward Size
+-    field. Remember to check for integer overflows, which can occur with
+-    broken input files.
+-
+-    Decode the Block Header. Verify that it is a Metadata Block. Set
+-    lzma_options_block.total_size to backward_size + size_of_backward_size
+-    (you calculated this sum earlier already). Then decode the Footer
+-    Metadata Block.
+-
+-    Store the decoded Footer Metadata to lzma_info structure using
+-    lzma_info_set_metadata(). Set also the offset of the Backward Size
+-    field using lzma_info_size_set(). Then you can get the start offset
+-    of the Stream using lzma_info_size_get(). Note that any of these steps
+-    may fail so don't omit error checking.
+-
+-    Seek to the beginning of the Stream. Decode the Stream Header using
+-    lzma_stream_header_decoder(). Verify that the decoded Stream Flags
+-    match the values found from Stream tail. You can use the
+-    lzma_stream_flags_is_equal() macro for this.
+-
+-    If you were only looking for the Uncompressed Size of the Stream,
+-    it's possible that you already have it now. If Uncompressed Size (or
+-    whatever information you were looking for) isn't available yet,
+-    continue by decoding also the Header Metadata Block. (If some
+-    information is missing, the Header Metadata Block has to be present.)
+-
+-    Decoding the Data Blocks goes the same way as described in FIXME.
+-
+-
+-y.x.3. Variations
+-
+-    If you know the offset of the beginning of the Stream, you may want
+-    to parse the Stream Header before parsing the Stream tail.
+-
+diff --git a/doc/liblzma-hacking.txt b/doc/liblzma-hacking.txt
+deleted file mode 100644
+index 64390bcb..00000000
+--- a/doc/liblzma-hacking.txt
++++ /dev/null
+@@ -1,112 +0,0 @@
+-
+-Hacking liblzma
+----------------
+-
+-0. Preface
+-
+-    This document gives some overall information about the internals of
+-    liblzma, which should make it easier to start reading and modifying
+-    the code.
+-
+-
+-1. Programming language
+-
+-    liblzma was written in C99. If you use GCC, this means that you need
+-    at least GCC 3.x.x. GCC 2 isn't and won't be supported.
+-
+-    Some GCC-specific extensions are used *conditionally*. They aren't
+-    required to build a full-featured library. Don't make the code rely
+-    on any non-standard compiler extensions or even C99 features that
+-    aren't portable between almost-C99 compatible compilers (for example
+-    non-static inlines).
+-
+-    The public API headers are in C89. This is to avoid frustrating those
+-    who maintain programs, which are strictly in C89 or C++.
+-
+-    An assumption about sizeof(size_t) is made. If this assumption is
+-    wrong, some porting is probably needed:
+-
+-        sizeof(uint32_t) <= sizeof(size_t) <= sizeof(uint64_t)
+-
+-
+-2. Internal vs. external API
+-
+-
+-
+-        Input                         Output
+-          v     Application             ^
+-          |     liblzma public API      |
+-          |     Stream coder            |
+-          |     Block coder             |
+-          |     Filter coder            |
+-          |     ...                     |
+-          v     Filter coder            ^
+-
+-
+-        Application
+-          `-- liblzma public API
+-                `-- Stream coder
+-                      |-- Stream info handler
+-                      |-- Stream Header coder
+-                      |-- Block Header coder
+-                      |     `-- Filter Flags coder
+-                      |-- Metadata coder
+-                      |     `-- Block coder
+-                      |           `-- Filter 0
+-                      |                 `-- Filter 1
+-                      |                     ...
+-                      |-- Data Block coder
+-                      |     `-- Filter 0
+-                      |           `-- Filter 1
+-                      |               ...
+-                      `-- Stream tail coder
+-
+-
+-
+-x. Designing new filters
+-
+-    All filters must be designed so that the decoder cannot consume
+-    arbitrary amount input without producing any decoded output. Failing
+-    to follow this rule makes liblzma vulnerable to DoS attacks if
+-    untrusted files are decoded (usually they are untrusted).
+-
+-    An example should clarify the reason behind this requirement: There
+-    are two filters in the chain. The decoder of the first filter produces
+-    huge amount of output (many gigabytes or more) with a few bytes of
+-    input, which gets passed to the decoder of the second filter. If the
+-    data passed to the second filter is interpreted as something that
+-    produces no output (e.g. padding), the filter chain as a whole
+-    produces no output and consumes no input for a long period of time.
+-
+-    The above problem was present in the first versions of the Subblock
+-    filter. A tiny .lzma file could have taken several years to decode
+-    while it wouldn't produce any output at all. The problem was fixed
+-    by adding limits for number of consecutive Padding bytes, and requiring
+-    that some decoded output must be produced between Set Subfilter and
+-    Unset Subfilter.
+-
+-
+-x. Implementing new filters
+-
+-    If the filter supports embedding End of Payload Marker, make sure that
+-    when your filter detects End of Payload Marker,
+-      - the usage of End of Payload Marker is actually allowed (i.e. End
+-        of Input isn't used); and
+-      - it also checks that there is no more input coming from the next
+-        filter in the chain.
+-
+-    The second requirement is slightly tricky. It's possible that the next
+-    filter hasn't returned LZMA_STREAM_END yet. It may even need a few
+-    bytes more input before it will do so. You need to give it as much
+-    input as it needs, and verify that it doesn't produce any output.
+-
+-    Don't call the next filter in the chain after it has returned
+-    LZMA_STREAM_END (except in encoder if action == LZMA_SYNC_FLUSH).
+-    It will result undefined behavior.
+-
+-    Be pedantic. If the input data isn't exactly valid, reject it.
+-
+-    At the moment, liblzma isn't modular. You will need to edit several
+-    files in src/liblzma/common to include support for a new filter. grep
+-    for LZMA_FILTER_LZMA to locate the files needing changes.
+-
+diff --git a/doc/liblzma-intro.txt b/doc/liblzma-intro.txt
+deleted file mode 100644
+index 52c4d920..00000000
+--- a/doc/liblzma-intro.txt
++++ /dev/null
+@@ -1,194 +0,0 @@
+-
+-Introduction to liblzma
+------------------------
+-
+-Writing applications to work with liblzma
+-
+-    liblzma API is split in several subheaders to improve readability and
+-    maintainance. The subheaders must not be #included directly. lzma.h
+-    requires that certain integer types and macros are available when
+-    the header is #included. On systems that have inttypes.h that conforms
+-    to C99, the following will work:
+-
+-        #include <sys/types.h>
+-        #include <inttypes.h>
+-        #include <lzma.h>
+-
+-    Those who have used zlib should find liblzma's API easy to use.
+-    To developers who haven't used zlib before, I recommend learning
+-    zlib first, because zlib has excellent documentation.
+-
+-    While the API is similar to that of zlib, there are some major
+-    differences, which are summarized below.
+-
+-    For basic stream encoding, zlib has three functions (deflateInit(),
+-    deflate(), and deflateEnd()). Similarly, there are three functions
+-    for stream decoding (inflateInit(), inflate(), and inflateEnd()).
+-    liblzma has only single coding and ending function. Thus, to
+-    encode one may use, for example, lzma_stream_encoder_single(),
+-    lzma_code(), and lzma_end(). Simlarly for decoding, one may
+-    use lzma_auto_decoder(), lzma_code(), and lzma_end().
+-
+-    zlib has deflateReset() and inflateReset() to reset the stream
+-    structure without reallocating all the memory. In liblzma, all
+-    coder initialization functions are like zlib's reset functions:
+-    the first-time initializations are done with the same functions
+-    as the reinitializations (resetting).
+-
+-    To make all this work, liblzma needs to know when lzma_stream
+-    doesn't already point to an allocated and initialized coder.
+-    This is achieved by initializing lzma_stream structure with
+-    LZMA_STREAM_INIT (static initialization) or LZMA_STREAM_INIT_VAR
+-    (for exampple when new lzma_stream has been allocated with malloc()).
+-    This initialization should be done exactly once per lzma_stream
+-    structure to avoid leaking memory. Calling lzma_end() will leave
+-    lzma_stream into a state comparable to the state achieved with
+-    LZMA_STREAM_INIT and LZMA_STREAM_INIT_VAR.
+-
+-    Example probably clarifies a lot. With zlib, compression goes
+-    roughly like this:
+-
+-        z_stream strm;
+-        deflateInit(&strm, level);
+-        deflate(&strm, Z_RUN);
+-        deflate(&strm, Z_RUN);
+-        ...
+-        deflate(&strm, Z_FINISH);
+-        deflateEnd(&strm) or deflateReset(&strm)
+-
+-    With liblzma, it's slightly different:
+-
+-        lzma_stream strm = LZMA_STREAM_INIT;
+-        lzma_stream_encoder_single(&strm, &options);
+-        lzma_code(&strm, LZMA_RUN);
+-        lzma_code(&strm, LZMA_RUN);
+-        ...
+-        lzma_code(&strm, LZMA_FINISH);
+-        lzma_end(&strm) or reinitialize for new coding work
+-
+-     Reinitialization in the last step can be any function that can
+-     initialize lzma_stream; it doesn't need to be the same function
+-     that was used for the previous initialization. If it is the same
+-     function, liblzma will usually be able to re-use most of the
+-     existing memory allocations (depends on how much the initialization
+-     options change). If you reinitialize with different function,
+-     liblzma will automatically free the memory of the previous coder.
+-
+-
+-File formats
+-
+-    liblzma supports multiple container formats for the compressed data.
+-    Different initialization functions initialize the lzma_stream to
+-    process different container formats. See the details from the public
+-    header files.
+-
+-    The following functions are the most commonly used:
+-
+-      - lzma_stream_encoder_single(): Encodes Single-Block Stream; this
+-        the recommended format for most purporses.
+-
+-      - lzma_alone_encoder(): Useful if you need to encode into the
+-        legacy LZMA_Alone format.
+-
+-      - lzma_auto_decoder(): Decoder that automatically detects the
+-        file format; recommended when you decode compressed files on
+-        disk, because this way compatibility with the legacy LZMA_Alone
+-        format is transparent.
+-
+-      - lzma_stream_decoder(): Decoder for Single- and Multi-Block
+-        Streams; this is good if you want to accept only .lzma Streams.
+-
+-
+-Filters
+-
+-    liblzma supports multiple filters (algorithm implementations). The new
+-    .lzma format supports filter-chain having up to seven filters. In the
+-    filter chain, the output of one filter is input of the next filter in
+-    the chain. The legacy LZMA_Alone format supports only one filter, and
+-    that must always be LZMA.
+-
+-        General-purporse compression:
+-
+-            LZMA        The main algorithm of liblzma (surprise!)
+-
+-        Branch/Call/Jump filters for executables:
+-
+-            x86         This filter is known as BCJ in 7-Zip
+-            IA64        IA-64 (Itanium)
+-            PowerPC     Big endian PowerPC
+-            ARM
+-            ARM-Thumb
+-            SPARC
+-
+-        Other filters:
+-
+-            Copy        Dummy filter that simply copies all the data
+-                        from input to output.
+-
+-            Subblock    Multi-purporse filter, that can
+-                          - embed End of Payload Marker if the previous
+-                            filter in the chain doesn't support it; and
+-                          - apply Subfilters, which filter only part
+-                            of the same compressed Block in the Stream.
+-
+-    Branch/Call/Jump filters never change the size of the data. They
+-    should usually be used as a pre-filter for some compression filter
+-    like LZMA.
+-
+-
+-Integrity checks
+-
+-    The .lzma Stream format uses CRC32 as the integrity check for
+-    different file format headers. It is possible to omit CRC32 from
+-    the Block Headers, but not from Stream Header. This is the reason
+-    why CRC32 code cannot be disabled when building liblzma (in addition,
+-    the LZMA encoder uses CRC32 for hashing, so that's another reason).
+-
+-    The integrity check of the actual data is calculated from the
+-    uncompressed data. This check can be CRC32, CRC64, or SHA256.
+-    It can also be omitted completely, although that usually is not
+-    a good thing to do. There are free IDs left, so support for new
+-    checks algorithms can be added later.
+-
+-
+-API and ABI stability
+-
+-    The API and ABI of liblzma isn't stable yet, although no huge
+-    changes should happen. One potential place for change is the
+-    lzma_options_subblock structure.
+-
+-    In the 4.42.0alpha phase, the shared library version number won't
+-    be updated even if ABI breaks. I don't want to track the ABI changes
+-    yet. Just rebuild everything when you upgrade liblzma until we get
+-    to the beta stage.
+-
+-
+-Size of the library
+-
+-    While liblzma isn't huge, it is quite far from the smallest possible
+-    LZMA implementation: full liblzma binary (with support for all
+-    filters and other features) is way over 100 KiB, but the plain raw
+-    LZMA decoder is only 5-10 KiB.
+-
+-    To decrease the size of the library, you can omit parts of the library
+-    by passing certain options to the `configure' script. Disabling
+-    everything but the decoders of the require filters will usually give
+-    you a small enough library, but if you need a decoder for example
+-    embedded in the operating system kernel, the code from liblzma probably
+-    isn't suitable as is.
+-
+-    If you need a minimal implementation supporting .lzma Streams, you
+-    may need to do partial rewrite. liblzma uses stateful API like zlib.
+-    That increases the size of the library. Using callback API or even
+-    simpler buffer-to-buffer API would allow smaller implementation.
+-
+-    LZMA SDK contains smaller LZMA decoder written in ANSI-C than
+-    liblzma, so you may want to take a look at that code. However,
+-    it doesn't (at least not yet) support the new .lzma Stream format.
+-
+-
+-Documentation
+-
+-    There's no other documentation than the public headers and this
+-    text yet. Real docs will be written some day, I hope.
+-
+diff --git a/doc/liblzma-security.txt b/doc/liblzma-security.txt
+deleted file mode 100644
+index 55bc57bc..00000000
+--- a/doc/liblzma-security.txt
++++ /dev/null
+@@ -1,219 +0,0 @@
+-
+-Using liblzma securely
+-----------------------
+-
+-0. Introduction
+-
+-    This document discusses how to use liblzma securely. There are issues
+-    that don't apply to zlib or libbzip2, so reading this document is
+-    strongly recommended even for those who are very familiar with zlib
+-    or libbzip2.
+-
+-    While making liblzma itself as secure as possible is essential, it's
+-    out of scope of this document.
+-
+-
+-1. Memory usage
+-
+-    The memory usage of liblzma varies a lot.
+-
+-
+-1.1. Problem sources
+-
+-1.1.1. Block coder
+-
+-    The memory requirements of Block encoder depend on the used filters
+-    and their settings. The memory requirements of the Block decoder
+-    depend on the which filters and with which filter settings the Block
+-    was encoded. Usually the memory requirements of a decoder are equal
+-    or less than the requirements of the encoder with the same settings.
+-
+-    While the typical memory requirements to decode a Block is from a few
+-    hundred kilobytes to tens of megabytes, a maliciously constructed
+-    files can require a lot more RAM to decode. With the current filters,
+-    the maximum amount is about 7 GiB. If you use multi-threaded decoding,
+-    every Block can require this amount of RAM, thus a four-threaded
+-    decoder could suddenly try to allocate 28 GiB of RAM.
+-
+-    If you don't limit the maximum memory usage in any way, and there are
+-    no resource limits set on the operating system side, one malicious
+-    input file can run the system out of memory, or at least make it swap
+-    badly for a long time. This is exceptionally bad on servers e.g.
+-    email server doing virus scanning on incoming messages.
+-
+-
+-1.1.2. Metadata decoder
+-
+-    Multi-Block .lzma files contain at least one Metadata Block.
+-    Externally the Metadata Blocks are similar to Data Blocks, so all
+-    the issues mentioned about memory usage of Data Blocks applies to
+-    Metadata Blocks too.
+-
+-    The uncompressed content of Metadata Blocks contain information about
+-    the Stream as a whole, and optionally some Extra Records. The
+-    information about the Stream is kept in liblzma's internal data
+-    structures in RAM. Extra Records can contain arbitrary data. They are
+-    not interpreted by liblzma, but liblzma will provide them to the
+-    application in uninterpreted form if the application wishes so.
+-
+-    Usually the Uncompressed Size of a Metadata Block is small. Even on
+-    extreme cases, it shouldn't be much bigger than a few megabytes. Once
+-    the Metadata has been parsed into native data structures in liblzma,
+-    it usually takes a little more memory than in the encoded form. For
+-    all normal files, this is no problem, since the resulting memory usage
+-    won't be too much.
+-
+-    The problem is that a maliciously constructed Metadata Block can
+-    contain huge amount of "information", which liblzma will try to store
+-    in its internal data structures. This may cause liblzma to allocate
+-    all the available RAM unless some kind of resource usage limits are
+-    applied.
+-
+-    Note that the Extra Records in Metadata are always parsed but, but
+-    memory is allocated for them only if the application has requested
+-    liblzma to provide the Extra Records to the application.
+-
+-
+-1.2. Solutions
+-
+-    If you need to decode files from untrusted sources (most people do),
+-    you must limit the memory usage to avoid denial of service (DoS)
+-    conditions caused by malicious input files.
+-
+-    The first step is to find out how much memory you are allowed consume
+-    at maximum. This may be a hardcoded constant or derived from the
+-    available RAM; whatever is appropriate in the application.
+-
+-    The simplest solution is to use setrlimit() if the kernel supports
+-    RLIMIT_AS, which limits the memory usage of the whole process.
+-    For more portable and fine-grained limiting, you can use
+-    memory limiter functions found from <lzma/memlimit.h>.
+-
+-
+-1.2.1. Encoder
+-
+-    lzma_memory_usage() will give you a rough estimate about the memory
+-    usage of the given filter chain. To dramatically simplify the internal
+-    implementation, this function doesn't take into account all the small
+-    helper data structures needed in various places; only the structures
+-    with significant memory usage are taken into account. Still, the
+-    accuracy of this function should be well within a mebibyte.
+-
+-    The Subblock filter is a special case. If a Subfilter has been
+-    specified, it isn't taken into account when lzma_memory_usage()
+-    calculates the memory usage. You need to calculate the memory usage
+-    of the Subfilter separately.
+-
+-    Keeping track of Blocks in a Multi-Block Stream takes a few dozen
+-    bytes of RAM per Block (size of the lzma_index structure plus overhead
+-    of malloc()). It isn't a good idea to put tens of thousands of Blocks
+-    into a Stream unless you have a very good reason to do so (compressed
+-    dictionary could be an example of such situation).
+-
+-    Also keep the number and sizes of Extra Records sane. If you produce
+-    the list of Extra Records automatically from some untrusted source,
+-    you should not only validate the content of these Records, but also
+-    their memory usage.
+-
+-
+-1.2.2. Decoder
+-
+-    A single-threaded decoder should simply use a memory limiter and
+-    indicate an error if it runs out of memory.
+-
+-    Memory-limiting with multi-threaded decoding is tricky. The simple
+-    solution is to divide the maximum allowed memory usage with the
+-    maximum allowed threads, and give each Block decoder their own
+-    independent lzma_memory_limiter. The drawback is that if one Block
+-    needs notably more RAM than any other Block, the decoder will run out
+-    of memory when in reality there would be plenty of free RAM.
+-
+-    An attractive alternative would be using shared lzma_memory_limiter.
+-    Depending on the application and the expected type of input, this may
+-    either be the best solution or a source of hard-to-repeat problems.
+-    Consider the following requirements:
+-      - You use a maximum of n threads.
+-      - x(i) is the decoder memory requirements of the Block number i
+-        in an expected input Stream.
+-      - The memory limiter is set to higher value than the sum of n
+-        highest values x(i).
+-
+-    (If you are better at explaining the above conditions, please
+-    contribute your improved version.)
+-
+-    If the above conditions aren't met, it is possible that the decoding
+-    will fail unpredictably. That is, on the same machine using the same
+-    settings, the decoding may sometimes succeed and sometimes fail. This
+-    is because sometimes threads may run so that the Blocks with highest
+-    memory usage are tried to be decoded at the same time.
+-
+-    Most .lzma files have all the Blocks encoded with identical settings,
+-    or at least the memory usage won't vary dramatically. That's why most
+-    multi-threaded decoders probably want to use the simple "separate
+-    lzma_memory_limiter for each thread" solution, possibly falling back
+-    to single-threaded mode in case the per-thread memory limits aren't
+-    enough in multi-threaded mode.
+-
+-FIXME: Memory usage of Stream info.
+-
+-[
+-
+-]
+-
+-
+-2. Huge uncompressed output
+-
+-2.1. Data Blocks
+-
+-    Decoding a tiny .lzma file can produce huge amount of uncompressed
+-    output. There is an example file of 45 bytes, which decodes to 64 PiB
+-    (that's 2^56 bytes). Uncompressing such a file to disk is likely to
+-    fill even a bigger disk array. If the data is written to a pipe, it
+-    may not fill the disk, but would still take very long time to finish.
+-
+-    To avoid denial of service conditions caused by huge amount of
+-    uncompressed output, applications using liblzma should use some method
+-    to limit the amount of output produced. The exact method depends on
+-    the application.
+-
+-    All valid .lzma Streams make it possible to find out the uncompressed
+-    size of the Stream without actually uncompressing the data. This
+-    information is available in at least one of the Metadata Blocks.
+-    Once the uncompressed size is parsed, the decoder can verify that
+-    it doesn't exceed certain limits (e.g. available disk space).
+-
+-    When the uncompressed size is known, the decoder can actively keep
+-    track of the amount of output produced so far, and that it doesn't
+-    exceed the known uncompressed size. If it does exceed, the file is
+-    known to be corrupt and an error should be indicated without
+-    continuing to decode the rest of the file.
+-
+-    Unfortunately, finding the uncompressed size beforehand is often
+-    possible only in non-streamed mode, because the needed information
+-    could be in the Footer Metdata Block, which (obviously) is at the
+-    end of the Stream. In purely streamed mode decoding, one may need to
+-    use some rough arbitrary limits to prevent the problems described in
+-    the beginning of this section.
+-
+-
+-2.2. Metadata
+-
+-    Metadata is stored in Metadata Blocks, which are very similar to
+-    Data Blocks. Thus, the uncompressed size can be huge just like with
+-    Data Blocks. The difference is, that the contents of Metadata Blocks
+-    aren't given to the application as is, but parsed by liblzma. Still,
+-    reading through a huge Metadata can take very long time, effectively
+-    creating a denial of service like piping decoded a Data Block to
+-    another process would do.
+-
+-    At first it would seem that using a memory limiter would prevent
+-    this issue as a side effect. But it does so only if the application
+-    requests liblzma to allocate the Extra Records and provide them to
+-    the application. If Extra Records aren't requested, they aren't
+-    allocated either. Still, the Extra Records are being read through
+-    to validate that the Metadata is in proper format.
+-
+-    The solution is to limit the Uncompressed Size of a Metadata Block
+-    to some relatively large value. This will make liblzma to give an
+-    error when the given limit is reached.
+-
+diff --git a/doc/lzma-intro.txt b/doc/lzma-intro.txt
+deleted file mode 100644
+index bde8a059..00000000
+--- a/doc/lzma-intro.txt
++++ /dev/null
+@@ -1,107 +0,0 @@
+-
+-Introduction to the lzma command line tool
+-------------------------------------------
+-
+-Overview
+-
+-    The lzma command line tool is similar to gzip and bzip2, but for
+-    compressing and uncompressing .lzma files.
+-
+-
+-Supported file formats
+-
+-    By default, the tool creates files in the new .lzma format. This can
+-    be overriden with --format=FMT command line option. Use --format=alone
+-    to create files in the old LZMA_Alone format.
+-
+-    By default, the tool uncompresses both the new .lzma format and
+-    LZMA_Alone format. This is to make it transparent to switch from
+-    the old LZMA_Alone format to the new .lzma format. Since both
+-    formats use the same filename suffix, average user should never
+-    notice which format was used.
+-
+-
+-Differences to gzip and bzip2
+-
+-  Standard input and output
+-
+-    Both gzip and bzip2 refuse to write compressed data to a terminal and
+-    read compressed data from a terminal. With gzip (but not with bzip2),
+-    this can be overriden with the `--force' option. lzma follows the
+-    behavior of gzip here.
+-
+-  Usage of LZMA_OPT environment variable
+-
+-    gzip and bzip2 read GZIP and BZIP2 environment variables at startup.
+-    These variables may contain extra command line options.
+-
+-    gzip and bzip2 allow passing not only options, but also end-of-options
+-    indicator (`--') and filenames via the environment variable. No quoting
+-    is supported with the filenames.
+-
+-    Here are examples with gzip. bzip2 behaves identically.
+-
+-        bash$ echo asdf > 'foo bar'
+-        bash$ GZIP='"foo bar"' gzip
+-        gzip: "foo: No such file or directory
+-        gzip: bar": No such file or directory
+-
+-        bash$ GZIP=-- gzip --help
+-        gzip: --help: No such file or directory
+-
+-    lzma silently ignores all non-option arguments given via the
+-    environment variable LZMA_OPT. Like on the command line, everything
+-    after `--' is taken as non-options, and thus ignored in LZMA_OPT.
+-
+-        bash$ LZMA_OPT='--help' lzma --version     # Displays help
+-        bash$ LZMA_OPT='-- --help' lzma --version  # Displays version
+-
+-
+-Filter chain presets
+-
+-    Like in gzip and bzip2, lzma supports numbered presets from 1 to 9
+-    where 1 is the fastest and 9 the best compression. 1 and 2 are for
+-    fast compressing with small memory usage, 3 to 6 for good compression
+-    ratio with medium memory usage, and 7 to 9 for excellent compression
+-    ratio with higher memory requirements. The default is 7 if memory
+-    usage limit allows.
+-
+-    In future, there will probably be an option like --preset=NAME, which
+-    will contain more special presets for specific file types.
+-
+-    It's also possible that there will be some heuristics to select good
+-    filters. For example, the tool could detect when a .tar archive is
+-    being compressed, and enable x86 filter only for those files in the
+-    .tar archive that are ELF or PE executables for x86.
+-
+-
+-Specifying custom filter chains
+-
+-    Custom filter chains are specified by using long options with the name
+-    of the filters in correct order. For example, to pass the input data to
+-    the x86 filter and the output of that to the LZMA filter, the following
+-    command will do:
+-
+-        lzma --x86 --lzma filename
+-
+-    Some filters accept options, which are specified as a comma-separated
+-    list of key=value pairs:
+-
+-        lzma --delta=distance=4 --lzma=dict=4Mi,lc=8,lp=2 filename
+-
+-
+-Memory usage control
+-
+-    By default, the command line tool limits memory usage to 1/3 of the
+-    available physical RAM. If no preset or custom filter chain has been
+-    given, the default preset will be used. If the memory limit is too
+-    low for the default preset, the tool will silently switch to lower
+-    preset.
+-
+-    When a preset or a custom filter chain has been specified and the
+-    memory limit is too low, an error message is displayed and no files
+-    are processed.
+-
+-    If the decoder hits the memory usage limit, an error is displayed and
+-    no more files are processed.
+-

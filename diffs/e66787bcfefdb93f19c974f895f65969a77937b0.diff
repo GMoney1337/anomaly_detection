@@ -1,0 +1,156 @@
+diff --git a/windows/vs2013/liblzma_dll.vcxproj b/windows/vs2013/liblzma_dll.vcxproj
+index 2bf3e411..1651a93b 100644
+--- a/windows/vs2013/liblzma_dll.vcxproj
++++ b/windows/vs2013/liblzma_dll.vcxproj
+@@ -137,6 +137,7 @@
+     </Link>
+     <ResourceCompile>
+       <AdditionalIncludeDirectories>./;../../src/liblzma/common;../../src/common;../../src/liblzma/api;</AdditionalIncludeDirectories>
++      <PreprocessorDefinitions>HAVE_CONFIG_H</PreprocessorDefinitions>
+     </ResourceCompile>
+   </ItemDefinitionGroup>
+   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+@@ -154,6 +155,7 @@
+     </Link>
+     <ResourceCompile>
+       <AdditionalIncludeDirectories>./;../../src/liblzma/common;../../src/common;../../src/liblzma/api;</AdditionalIncludeDirectories>
++      <PreprocessorDefinitions>HAVE_CONFIG_H</PreprocessorDefinitions>
+     </ResourceCompile>
+   </ItemDefinitionGroup>
+   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
+@@ -173,6 +175,7 @@
+     </Link>
+     <ResourceCompile>
+       <AdditionalIncludeDirectories>./;../../src/liblzma/common;../../src/common;../../src/liblzma/api;</AdditionalIncludeDirectories>
++      <PreprocessorDefinitions>HAVE_CONFIG_H</PreprocessorDefinitions>
+     </ResourceCompile>
+   </ItemDefinitionGroup>
+   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+@@ -191,6 +194,7 @@
+     </Link>
+     <ResourceCompile>
+       <AdditionalIncludeDirectories>./;../../src/liblzma/common;../../src/common;../../src/liblzma/api;</AdditionalIncludeDirectories>
++      <PreprocessorDefinitions>HAVE_CONFIG_H</PreprocessorDefinitions>
+     </ResourceCompile>
+   </ItemDefinitionGroup>
+   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='ReleaseMT|Win32'">
+@@ -210,6 +214,7 @@
+     </Link>
+     <ResourceCompile>
+       <AdditionalIncludeDirectories>./;../../src/liblzma/common;../../src/common;../../src/liblzma/api;</AdditionalIncludeDirectories>
++      <PreprocessorDefinitions>HAVE_CONFIG_H</PreprocessorDefinitions>
+     </ResourceCompile>
+   </ItemDefinitionGroup>
+   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='ReleaseMT|x64'">
+@@ -228,6 +233,7 @@
+     </Link>
+     <ResourceCompile>
+       <AdditionalIncludeDirectories>./;../../src/liblzma/common;../../src/common;../../src/liblzma/api;</AdditionalIncludeDirectories>
++      <PreprocessorDefinitions>HAVE_CONFIG_H</PreprocessorDefinitions>
+     </ResourceCompile>
+   </ItemDefinitionGroup>
+   <ItemGroup>
+diff --git a/windows/vs2017/liblzma_dll.vcxproj b/windows/vs2017/liblzma_dll.vcxproj
+index 77960146..4f182d74 100644
+--- a/windows/vs2017/liblzma_dll.vcxproj
++++ b/windows/vs2017/liblzma_dll.vcxproj
+@@ -137,6 +137,7 @@
+     </Link>
+     <ResourceCompile>
+       <AdditionalIncludeDirectories>./;../../src/liblzma/common;../../src/common;../../src/liblzma/api;</AdditionalIncludeDirectories>
++      <PreprocessorDefinitions>HAVE_CONFIG_H</PreprocessorDefinitions>
+     </ResourceCompile>
+   </ItemDefinitionGroup>
+   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+@@ -154,6 +155,7 @@
+     </Link>
+     <ResourceCompile>
+       <AdditionalIncludeDirectories>./;../../src/liblzma/common;../../src/common;../../src/liblzma/api;</AdditionalIncludeDirectories>
++      <PreprocessorDefinitions>HAVE_CONFIG_H</PreprocessorDefinitions>
+     </ResourceCompile>
+   </ItemDefinitionGroup>
+   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
+@@ -173,6 +175,7 @@
+     </Link>
+     <ResourceCompile>
+       <AdditionalIncludeDirectories>./;../../src/liblzma/common;../../src/common;../../src/liblzma/api;</AdditionalIncludeDirectories>
++      <PreprocessorDefinitions>HAVE_CONFIG_H</PreprocessorDefinitions>
+     </ResourceCompile>
+   </ItemDefinitionGroup>
+   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+@@ -191,6 +194,7 @@
+     </Link>
+     <ResourceCompile>
+       <AdditionalIncludeDirectories>./;../../src/liblzma/common;../../src/common;../../src/liblzma/api;</AdditionalIncludeDirectories>
++      <PreprocessorDefinitions>HAVE_CONFIG_H</PreprocessorDefinitions>
+     </ResourceCompile>
+   </ItemDefinitionGroup>
+   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='ReleaseMT|Win32'">
+@@ -210,6 +214,7 @@
+     </Link>
+     <ResourceCompile>
+       <AdditionalIncludeDirectories>./;../../src/liblzma/common;../../src/common;../../src/liblzma/api;</AdditionalIncludeDirectories>
++      <PreprocessorDefinitions>HAVE_CONFIG_H</PreprocessorDefinitions>
+     </ResourceCompile>
+   </ItemDefinitionGroup>
+   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='ReleaseMT|x64'">
+@@ -228,6 +233,7 @@
+     </Link>
+     <ResourceCompile>
+       <AdditionalIncludeDirectories>./;../../src/liblzma/common;../../src/common;../../src/liblzma/api;</AdditionalIncludeDirectories>
++      <PreprocessorDefinitions>HAVE_CONFIG_H</PreprocessorDefinitions>
+     </ResourceCompile>
+   </ItemDefinitionGroup>
+   <ItemGroup>
+diff --git a/windows/vs2019/liblzma_dll.vcxproj b/windows/vs2019/liblzma_dll.vcxproj
+index 0492e11c..dad2725d 100644
+--- a/windows/vs2019/liblzma_dll.vcxproj
++++ b/windows/vs2019/liblzma_dll.vcxproj
+@@ -138,6 +138,7 @@
+     </Link>
+     <ResourceCompile>
+       <AdditionalIncludeDirectories>./;../../src/liblzma/common;../../src/common;../../src/liblzma/api;</AdditionalIncludeDirectories>
++      <PreprocessorDefinitions>HAVE_CONFIG_H</PreprocessorDefinitions>
+     </ResourceCompile>
+   </ItemDefinitionGroup>
+   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+@@ -155,6 +156,7 @@
+     </Link>
+     <ResourceCompile>
+       <AdditionalIncludeDirectories>./;../../src/liblzma/common;../../src/common;../../src/liblzma/api;</AdditionalIncludeDirectories>
++      <PreprocessorDefinitions>HAVE_CONFIG_H</PreprocessorDefinitions>
+     </ResourceCompile>
+   </ItemDefinitionGroup>
+   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
+@@ -174,6 +176,7 @@
+     </Link>
+     <ResourceCompile>
+       <AdditionalIncludeDirectories>./;../../src/liblzma/common;../../src/common;../../src/liblzma/api;</AdditionalIncludeDirectories>
++      <PreprocessorDefinitions>HAVE_CONFIG_H</PreprocessorDefinitions>
+     </ResourceCompile>
+   </ItemDefinitionGroup>
+   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+@@ -192,6 +195,7 @@
+     </Link>
+     <ResourceCompile>
+       <AdditionalIncludeDirectories>./;../../src/liblzma/common;../../src/common;../../src/liblzma/api;</AdditionalIncludeDirectories>
++      <PreprocessorDefinitions>HAVE_CONFIG_H</PreprocessorDefinitions>
+     </ResourceCompile>
+   </ItemDefinitionGroup>
+   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='ReleaseMT|Win32'">
+@@ -211,6 +215,7 @@
+     </Link>
+     <ResourceCompile>
+       <AdditionalIncludeDirectories>./;../../src/liblzma/common;../../src/common;../../src/liblzma/api;</AdditionalIncludeDirectories>
++      <PreprocessorDefinitions>HAVE_CONFIG_H</PreprocessorDefinitions>
+     </ResourceCompile>
+   </ItemDefinitionGroup>
+   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='ReleaseMT|x64'">
+@@ -229,6 +234,7 @@
+     </Link>
+     <ResourceCompile>
+       <AdditionalIncludeDirectories>./;../../src/liblzma/common;../../src/common;../../src/liblzma/api;</AdditionalIncludeDirectories>
++      <PreprocessorDefinitions>HAVE_CONFIG_H</PreprocessorDefinitions>
+     </ResourceCompile>
+   </ItemDefinitionGroup>
+   <ItemGroup>

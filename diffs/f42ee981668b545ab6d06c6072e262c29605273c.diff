@@ -1,0 +1,1009 @@
+diff --git a/configure.ac b/configure.ac
+index ad43e4fb..b1961eca 100644
+--- a/configure.ac
++++ b/configure.ac
+@@ -31,6 +31,13 @@ echo "System type:"
+ # This is needed to know if assembler optimizations can be used.
+ AC_CANONICAL_HOST
+ 
++# We do some special things on Windows (32-bit or 64-bit) builds.
++case $host_os in
++	mingw* | cygwin*) is_w32=yes ;;
++	*)                is_w32=no ;;
++esac
++AM_CONDITIONAL([COND_W32], [test "$is_w32" = yes])
++
+ 
+ echo
+ echo "Configure options:"
+@@ -436,6 +443,12 @@ dnl lines can be replaced with these:
+ dnl LT_INIT([win32-dll])
+ dnl LT_LANG([Windows Resource])
+ 
++# This is a bit wrong since it is possible to request that only some libs
++# are built as shared. Using that feature isn't so common though, and this
++# breaks only on Windows (at least for now) if the user enables only some
++# libs as shared.
++AM_CONDITIONAL([COND_SHARED], [test "x$enable_shared" != xno])
++
+ 
+ ###############################################################################
+ # Checks for libraries.
+@@ -544,9 +557,16 @@ lc_CPUCORES
+ if test "x$GCC" = xyes ; then
+ 	echo
+ 	echo "GCC extensions:"
+-	gl_VISIBILITY
+-	if test -n "$CFLAG_VISIBILITY" ; then
+-		AM_CFLAGS="$AM_CFLAGS $CFLAG_VISIBILITY"
++
++	# Avoid checking for visibility support on Windows, because the test
++	# may succeed even though visibility isn't supported. Windows has
++	# a different way to export only the required symbols from the
++	# libraries.
++	if test "$is_w32" = no; then
++		gl_VISIBILITY
++		if test -n "$CFLAG_VISIBILITY" ; then
++			AM_CFLAGS="$AM_CFLAGS $CFLAG_VISIBILITY"
++		fi
+ 	fi
+ 
+ 	# Enable as much warnings as possible. These commented warnings won't
+@@ -627,14 +647,6 @@ AC_CONFIG_FILES([
+ 	src/liblzma/liblzma.pc
+ 	src/liblzma/Makefile
+ 	src/liblzma/api/Makefile
+-	src/liblzma/common/Makefile
+-	src/liblzma/check/Makefile
+-	src/liblzma/rangecoder/Makefile
+-	src/liblzma/lz/Makefile
+-	src/liblzma/lzma/Makefile
+-	src/liblzma/subblock/Makefile
+-	src/liblzma/delta/Makefile
+-	src/liblzma/simple/Makefile
+ 	src/xz/Makefile
+ 	src/xzdec/Makefile
+ 	src/scripts/Makefile
+diff --git a/src/liblzma/Makefile.am b/src/liblzma/Makefile.am
+index defed167..5490ba02 100644
+--- a/src/liblzma/Makefile.am
++++ b/src/liblzma/Makefile.am
+@@ -5,45 +5,90 @@
+ ## You can do whatever you want with this file.
+ ##
+ 
+-SUBDIRS = api common check
++SUBDIRS = api
++
++EXTRA_DIST =
++CLEANFILES =
++doc_DATA =
+ 
+ lib_LTLIBRARIES = liblzma.la
+ liblzma_la_SOURCES =
++liblzma_la_CPPFLAGS = \
++	-I$(top_srcdir)/src/liblzma/api \
++	-I$(top_srcdir)/src/liblzma/common \
++	-I$(top_srcdir)/src/liblzma/check \
++	-I$(top_srcdir)/src/liblzma/lz \
++	-I$(top_srcdir)/src/liblzma/rangecoder \
++	-I$(top_srcdir)/src/liblzma/lzma \
++	-I$(top_srcdir)/src/liblzma/subblock \
++	-I$(top_srcdir)/src/liblzma/delta \
++	-I$(top_srcdir)/src/liblzma/simple \
++	-I$(top_srcdir)/src/common
+ liblzma_la_LDFLAGS = -no-undefined -version-info 0:0:0
+ 
+-liblzma_la_LIBADD = \
+-	common/libcommon.la \
+-	check/libcheck.la
++include $(srcdir)/common/Makefile.inc
++include $(srcdir)/check/Makefile.inc
+ 
+ if COND_FILTER_LZ
+-SUBDIRS += lz
+-liblzma_la_LIBADD += lz/liblz.la
++include $(srcdir)/lz/Makefile.inc
+ endif
+ 
+ if COND_FILTER_LZMA1
+-SUBDIRS += lzma rangecoder
+-liblzma_la_LIBADD += \
+-	lzma/liblzma2.la \
+-	rangecoder/librangecoder.la
++include $(srcdir)/lzma/Makefile.inc
++include $(srcdir)/rangecoder/Makefile.inc
+ endif
+ 
+ if COND_FILTER_SUBBLOCK
+-SUBDIRS += subblock
+-liblzma_la_LIBADD += subblock/libsubblock.la
++include $(srcdir)/subblock/Makefile.inc
+ endif
+ 
+ if COND_FILTER_DELTA
+-SUBDIRS += delta
+-liblzma_la_LIBADD += delta/libdelta.la
++include $(srcdir)/delta/Makefile.inc
+ endif
+ 
+ if COND_FILTER_SIMPLE
+-SUBDIRS += simple
+-liblzma_la_LIBADD += simple/libsimple.la
++include $(srcdir)/simple/Makefile.inc
++endif
++
++
++## Windows-specific stuff
++
++# Windows resource compiler support. libtool knows what to do with .rc
++# files, but Automake (<= 1.11 at least) doesn't know.
++#
++# We want the resource file only in shared liblzma. To avoid linking it into
++# static liblzma, we overwrite the static object file with an object file
++# compiled from empty input. Note that GNU-specific features are OK here,
++# because on Windows we are compiled with the GNU toolchain.
++.rc.lo:
++	$(LIBTOOL) --mode=compile $(RC) $(DEFS) $(DEFAULT_INCLUDES) \
++		$(INCLUDES) $(liblzma_la_CPPFLAGS) $(CPPFLAGS) $(RCFLAGS) \
++		-i $< -o $@
++	echo > empty.c
++	$(COMPILE) -c empty.c -o $(*D)/$(*F).o
++
++# Remove ordinals from the generated .def file. People must link by name,
++# not by ordinal, because no one is going to track the ordinal numbers.
++liblzma.def: liblzma.la liblzma.def.in
++	$(SED) 's/ \+@ *[0-9]\+//' liblzma.def.in > liblzma.def
++
++# Creating liblzma.def.in is a side effect of linking the library.
++liblzma.def.in: liblzma.la
++
++if COND_W32
++CLEANFILES += liblzma.def liblzma.def.in empty.c
++liblzma_la_SOURCES += liblzma_w32res.rc
++liblzma_la_LDFLAGS += -Xlinker --output-def -Xlinker liblzma.def.in
++
++## liblzma.def.in is created only when building shared liblzma, so don't
++## try to create liblzma.def when not building shared liblzma.
++if COND_SHARED
++doc_DATA += liblzma.def
++endif
+ endif
+ 
+ 
+ ## pkg-config
+ pkgconfigdir = $(libdir)/pkgconfig
+ pkgconfig_DATA = liblzma.pc
+-EXTRA_DIST = liblzma.pc.in
++EXTRA_DIST += liblzma.pc.in
+diff --git a/src/liblzma/check/Makefile.am b/src/liblzma/check/Makefile.am
+deleted file mode 100644
+index abd598aa..00000000
+--- a/src/liblzma/check/Makefile.am
++++ /dev/null
+@@ -1,47 +0,0 @@
+-##
+-## Author: Lasse Collin
+-##
+-## This file has been put into the public domain.
+-## You can do whatever you want with this file.
+-##
+-
+-EXTRA_DIST = crc32_tablegen.c crc64_tablegen.c
+-
+-noinst_LTLIBRARIES = libcheck.la
+-libcheck_la_SOURCES = \
+-	check.c \
+-	check.h \
+-	crc_macros.h
+-libcheck_la_CPPFLAGS = \
+-	-I$(top_srcdir)/src/liblzma/api \
+-	-I$(top_srcdir)/src/liblzma/common
+-
+-if COND_CHECK_CRC32
+-if COND_SMALL
+-libcheck_la_SOURCES += crc32_small.c
+-else
+-libcheck_la_SOURCES += crc32_table.c crc32_table_le.h crc32_table_be.h
+-if COND_ASM_X86
+-libcheck_la_SOURCES += crc32_x86.S
+-else
+-libcheck_la_SOURCES += crc32_fast.c
+-endif
+-endif
+-endif
+-
+-if COND_CHECK_CRC64
+-if COND_SMALL
+-libcheck_la_SOURCES += crc64_small.c
+-else
+-libcheck_la_SOURCES += crc64_table.c crc64_table_le.h crc64_table_be.h
+-if COND_ASM_X86
+-libcheck_la_SOURCES += crc64_x86.S
+-else
+-libcheck_la_SOURCES += crc64_fast.c
+-endif
+-endif
+-endif
+-
+-if COND_CHECK_SHA256
+-libcheck_la_SOURCES += sha256.c
+-endif
+diff --git a/src/liblzma/check/Makefile.inc b/src/liblzma/check/Makefile.inc
+new file mode 100644
+index 00000000..e4067a9c
+--- /dev/null
++++ b/src/liblzma/check/Makefile.inc
+@@ -0,0 +1,51 @@
++##
++## Author: Lasse Collin
++##
++## This file has been put into the public domain.
++## You can do whatever you want with this file.
++##
++
++EXTRA_DIST += \
++	check/crc32_tablegen.c \
++	check/crc64_tablegen.c
++
++liblzma_la_SOURCES += \
++	check/check.c \
++	check/check.h \
++	check/crc_macros.h
++
++if COND_CHECK_CRC32
++if COND_SMALL
++liblzma_la_SOURCES += check/crc32_small.c
++else
++liblzma_la_SOURCES += \
++	check/crc32_table.c \
++	check/crc32_table_le.h \
++	check/crc32_table_be.h
++if COND_ASM_X86
++liblzma_la_SOURCES += check/crc32_x86.S
++else
++liblzma_la_SOURCES += check/crc32_fast.c
++endif
++endif
++endif
++
++if COND_CHECK_CRC64
++if COND_SMALL
++liblzma_la_SOURCES += check/crc64_small.c
++else
++liblzma_la_SOURCES += \
++	check/crc64_table.c \
++	check/crc64_table_le.h \
++	check/crc64_table_be.h
++if COND_ASM_X86
++liblzma_la_SOURCES += check/crc64_x86.S
++else
++liblzma_la_SOURCES += check/crc64_fast.c
++endif
++endif
++endif
++
++if COND_CHECK_SHA256
++liblzma_la_SOURCES += check/sha256.c
++endif
+diff --git a/src/liblzma/common/Makefile.am b/src/liblzma/common/Makefile.am
+deleted file mode 100644
+index 0509f1e6..00000000
+--- a/src/liblzma/common/Makefile.am
++++ /dev/null
+@@ -1,78 +0,0 @@
+-##
+-## Author: Lasse Collin
+-##
+-## This file has been put into the public domain.
+-## You can do whatever you want with this file.
+-##
+-
+-noinst_LTLIBRARIES = libcommon.la
+-libcommon_la_CPPFLAGS = \
+-	-I$(top_srcdir)/src/liblzma/api \
+-	-I$(top_srcdir)/src/liblzma/check \
+-	-I$(top_srcdir)/src/liblzma/rangecoder \
+-	-I$(top_srcdir)/src/liblzma/lz \
+-	-I$(top_srcdir)/src/liblzma/lzma \
+-	-I$(top_srcdir)/src/liblzma/subblock \
+-	-I$(top_srcdir)/src/liblzma/delta \
+-	-I$(top_srcdir)/src/liblzma/simple
+-
+-libcommon_la_SOURCES = \
+-	common.c \
+-	common.h \
+-	bsr.h \
+-	block_util.c \
+-	easy_preset.c \
+-	easy_preset.h \
+-	filter_common.c \
+-	filter_common.h \
+-	index.c \
+-	index.h \
+-	stream_flags_common.c \
+-	stream_flags_common.h \
+-	vli_size.c
+-
+-if COND_MAIN_ENCODER
+-libcommon_la_SOURCES += \
+-	alone_encoder.c \
+-	block_buffer_encoder.c \
+-	block_encoder.c \
+-	block_encoder.h \
+-	block_header_encoder.c \
+-	easy_buffer_encoder.c \
+-	easy_encoder.c \
+-	easy_encoder_memusage.c \
+-	filter_buffer_encoder.c \
+-	filter_encoder.c \
+-	filter_encoder.h \
+-	filter_flags_encoder.c \
+-	index_encoder.c \
+-	index_encoder.h \
+-	stream_buffer_encoder.c \
+-	stream_encoder.c \
+-	stream_encoder.h \
+-	stream_flags_encoder.c \
+-	vli_encoder.c
+-endif
+-
+-if COND_MAIN_DECODER
+-libcommon_la_SOURCES += \
+-	alone_decoder.c \
+-	alone_decoder.h \
+-	auto_decoder.c \
+-	block_buffer_decoder.c \
+-	block_decoder.c \
+-	block_decoder.h \
+-	block_header_decoder.c \
+-	easy_decoder_memusage.c \
+-	filter_buffer_decoder.c \
+-	filter_decoder.c \
+-	filter_decoder.h \
+-	filter_flags_decoder.c \
+-	index_decoder.c \
+-	index_hash.c \
+-	stream_buffer_decoder.c \
+-	stream_decoder.c \
+-	stream_decoder.h \
+-	stream_flags_decoder.c \
+-	vli_decoder.c
+-endif
+diff --git a/src/liblzma/common/Makefile.inc b/src/liblzma/common/Makefile.inc
+new file mode 100644
+index 00000000..aaaeee93
+--- /dev/null
++++ b/src/liblzma/common/Makefile.inc
+@@ -0,0 +1,67 @@
++##
++## Author: Lasse Collin
++##
++## This file has been put into the public domain.
++## You can do whatever you want with this file.
++##
++
++liblzma_la_SOURCES += \
++	common/common.c \
++	common/common.h \
++	common/bsr.h \
++	common/block_util.c \
++	common/easy_preset.c \
++	common/easy_preset.h \
++	common/filter_common.c \
++	common/filter_common.h \
++	common/index.c \
++	common/index.h \
++	common/stream_flags_common.c \
++	common/stream_flags_common.h \
++	common/vli_size.c
++
++if COND_MAIN_ENCODER
++liblzma_la_SOURCES += \
++	common/alone_encoder.c \
++	common/block_buffer_encoder.c \
++	common/block_encoder.c \
++	common/block_encoder.h \
++	common/block_header_encoder.c \
++	common/easy_buffer_encoder.c \
++	common/easy_encoder.c \
++	common/easy_encoder_memusage.c \
++	common/filter_buffer_encoder.c \
++	common/filter_encoder.c \
++	common/filter_encoder.h \
++	common/filter_flags_encoder.c \
++	common/index_encoder.c \
++	common/index_encoder.h \
++	common/stream_buffer_encoder.c \
++	common/stream_encoder.c \
++	common/stream_encoder.h \
++	common/stream_flags_encoder.c \
++	common/vli_encoder.c
++endif
++
++if COND_MAIN_DECODER
++liblzma_la_SOURCES += \
++	common/alone_decoder.c \
++	common/alone_decoder.h \
++	common/auto_decoder.c \
++	common/block_buffer_decoder.c \
++	common/block_decoder.c \
++	common/block_decoder.h \
++	common/block_header_decoder.c \
++	common/easy_decoder_memusage.c \
++	common/filter_buffer_decoder.c \
++	common/filter_decoder.c \
++	common/filter_decoder.h \
++	common/filter_flags_decoder.c \
++	common/index_decoder.c \
++	common/index_hash.c \
++	common/stream_buffer_decoder.c \
++	common/stream_decoder.c \
++	common/stream_decoder.h \
++	common/stream_flags_decoder.c \
++	common/vli_decoder.c
++endif
+diff --git a/src/liblzma/common/common.h b/src/liblzma/common/common.h
+index 1fd778b0..d794cb30 100644
+--- a/src/liblzma/common/common.h
++++ b/src/liblzma/common/common.h
+@@ -13,12 +13,16 @@
+ #ifndef LZMA_COMMON_H
+ #define LZMA_COMMON_H
+ 
+-#include "../../common/sysdefs.h"
+-#include "../../common/mythread.h"
+-#include "../../common/integer.h"
+-
+-#if defined(DLL_EXPORT) && (defined(_WIN32) || defined(__CYGWIN__))
+-#	define LZMA_API_EXPORT __declspec(dllexport)
++#include "sysdefs.h"
++#include "mythread.h"
++#include "integer.h"
++
++#if defined(_WIN32) || defined(__CYGWIN__)
++#	ifdef DLL_EXPORT
++#		define LZMA_API_EXPORT __declspec(dllexport)
++#	else
++#		define LZMA_API_EXPORT
++#	endif
+ // Don't use ifdef or defined() below.
+ #elif HAVE_VISIBILITY
+ #	define LZMA_API_EXPORT __attribute__((__visibility__("default")))
+diff --git a/src/liblzma/delta/Makefile.am b/src/liblzma/delta/Makefile.am
+deleted file mode 100644
+index 2b98ec4b..00000000
+--- a/src/liblzma/delta/Makefile.am
++++ /dev/null
+@@ -1,28 +0,0 @@
+-##
+-## Author: Lasse Collin
+-##
+-## This file has been put into the public domain.
+-## You can do whatever you want with this file.
+-##
+-
+-noinst_LTLIBRARIES = libdelta.la
+-libdelta_la_CPPFLAGS = \
+-	-I$(top_srcdir)/src/liblzma/api \
+-	-I$(top_srcdir)/src/liblzma/common
+-
+-libdelta_la_SOURCES = \
+-	delta_common.c \
+-	delta_common.h \
+-	delta_private.h
+-
+-if COND_ENCODER_DELTA
+-libdelta_la_SOURCES += \
+-	delta_encoder.c \
+-	delta_encoder.h
+-endif
+-
+-if COND_DECODER_DELTA
+-libdelta_la_SOURCES += \
+-	delta_decoder.c \
+-	delta_decoder.h
+-endif
+diff --git a/src/liblzma/delta/Makefile.inc b/src/liblzma/delta/Makefile.inc
+new file mode 100644
+index 00000000..c7739b44
+--- /dev/null
++++ b/src/liblzma/delta/Makefile.inc
+@@ -0,0 +1,23 @@
++##
++## Author: Lasse Collin
++##
++## This file has been put into the public domain.
++## You can do whatever you want with this file.
++##
++
++liblzma_la_SOURCES += \
++	delta/delta_common.c \
++	delta/delta_common.h \
++	delta/delta_private.h
++
++if COND_ENCODER_DELTA
++liblzma_la_SOURCES += \
++	delta/delta_encoder.c \
++	delta/delta_encoder.h
++endif
++
++if COND_DECODER_DELTA
++liblzma_la_SOURCES += \
++	delta/delta_decoder.c \
++	delta/delta_decoder.h
++endif
+diff --git a/src/liblzma/lz/Makefile.am b/src/liblzma/lz/Makefile.am
+deleted file mode 100644
+index c3312626..00000000
+--- a/src/liblzma/lz/Makefile.am
++++ /dev/null
+@@ -1,29 +0,0 @@
+-##
+-## Author: Lasse Collin
+-##
+-## This file has been put into the public domain.
+-## You can do whatever you want with this file.
+-##
+-
+-noinst_LTLIBRARIES = liblz.la
+-liblz_la_CPPFLAGS = \
+-	-I$(top_srcdir)/src/liblzma/api \
+-	-I$(top_srcdir)/src/liblzma/common \
+-	-I$(top_srcdir)/src/liblzma/check
+-liblz_la_SOURCES =
+-
+-
+-if COND_ENCODER_LZ
+-liblz_la_SOURCES += \
+-	lz_encoder.c \
+-	lz_encoder.h \
+-	lz_encoder_hash.h \
+-	lz_encoder_mf.c
+-endif
+-
+-
+-if COND_DECODER_LZ
+-liblz_la_SOURCES += \
+-	lz_decoder.c \
+-	lz_decoder.h
+-endif
+diff --git a/src/liblzma/lz/Makefile.inc b/src/liblzma/lz/Makefile.inc
+new file mode 100644
+index 00000000..470d59c0
+--- /dev/null
++++ b/src/liblzma/lz/Makefile.inc
+@@ -0,0 +1,21 @@
++##
++## Author: Lasse Collin
++##
++## This file has been put into the public domain.
++## You can do whatever you want with this file.
++##
++
++if COND_ENCODER_LZ
++liblzma_la_SOURCES += \
++	lz/lz_encoder.c \
++	lz/lz_encoder.h \
++	lz/lz_encoder_hash.h \
++	lz/lz_encoder_mf.c
++endif
++
++
++if COND_DECODER_LZ
++liblzma_la_SOURCES += \
++	lz/lz_decoder.c \
++	lz/lz_decoder.h
++endif
+diff --git a/src/liblzma/lzma/Makefile.am b/src/liblzma/lzma/Makefile.am
+deleted file mode 100644
+index 1afe0677..00000000
+--- a/src/liblzma/lzma/Makefile.am
++++ /dev/null
+@@ -1,51 +0,0 @@
+-##
+-## Author: Lasse Collin
+-##
+-## This file has been put into the public domain.
+-## You can do whatever you want with this file.
+-##
+-
+-EXTRA_DIST = fastpos_tablegen.c
+-
+-## Using liblzma2 since liblzma is already used for the final library.
+-noinst_LTLIBRARIES = liblzma2.la
+-liblzma2_la_CPPFLAGS = \
+-	-I$(top_srcdir)/src/liblzma/api \
+-	-I$(top_srcdir)/src/liblzma/common \
+-	-I$(top_srcdir)/src/liblzma/lz \
+-	-I$(top_srcdir)/src/liblzma/rangecoder
+-
+-liblzma2_la_SOURCES = lzma_common.h
+-
+-if COND_ENCODER_LZMA1
+-liblzma2_la_SOURCES += \
+-	fastpos.h \
+-	lzma_encoder.h \
+-	lzma_encoder.c \
+-	lzma_encoder_presets.c \
+-	lzma_encoder_private.h \
+-	lzma_encoder_optimum_fast.c \
+-	lzma_encoder_optimum_normal.c
+-
+-if !COND_SMALL
+-liblzma2_la_SOURCES += fastpos_table.c
+-endif
+-endif
+-
+-if COND_DECODER_LZMA1
+-liblzma2_la_SOURCES += \
+-	lzma_decoder.c \
+-	lzma_decoder.h
+-endif
+-
+-if COND_ENCODER_LZMA2
+-liblzma2_la_SOURCES += \
+-	lzma2_encoder.c \
+-	lzma2_encoder.h
+-endif
+-
+-if COND_DECODER_LZMA2
+-liblzma2_la_SOURCES += \
+-	lzma2_decoder.c \
+-	lzma2_decoder.h
+-endif
+diff --git a/src/liblzma/lzma/Makefile.inc b/src/liblzma/lzma/Makefile.inc
+new file mode 100644
+index 00000000..7fc4d172
+--- /dev/null
++++ b/src/liblzma/lzma/Makefile.inc
+@@ -0,0 +1,43 @@
++##
++## Author: Lasse Collin
++##
++## This file has been put into the public domain.
++## You can do whatever you want with this file.
++##
++
++EXTRA_DIST += lzma/fastpos_tablegen.c
++
++liblzma_la_SOURCES += lzma/lzma_common.h
++
++if COND_ENCODER_LZMA1
++liblzma_la_SOURCES += \
++	lzma/fastpos.h \
++	lzma/lzma_encoder.h \
++	lzma/lzma_encoder.c \
++	lzma/lzma_encoder_presets.c \
++	lzma/lzma_encoder_private.h \
++	lzma/lzma_encoder_optimum_fast.c \
++	lzma/lzma_encoder_optimum_normal.c
++
++if !COND_SMALL
++liblzma_la_SOURCES += lzma/fastpos_table.c
++endif
++endif
++
++if COND_DECODER_LZMA1
++liblzma_la_SOURCES += \
++	lzma/lzma_decoder.c \
++	lzma/lzma_decoder.h
++endif
++
++if COND_ENCODER_LZMA2
++liblzma_la_SOURCES += \
++	lzma/lzma2_encoder.c \
++	lzma/lzma2_encoder.h
++endif
++
++if COND_DECODER_LZMA2
++liblzma_la_SOURCES += \
++	lzma/lzma2_decoder.c \
++	lzma/lzma2_decoder.h
++endif
+diff --git a/src/liblzma/rangecoder/Makefile.am b/src/liblzma/rangecoder/Makefile.am
+deleted file mode 100644
+index d4897773..00000000
+--- a/src/liblzma/rangecoder/Makefile.am
++++ /dev/null
+@@ -1,26 +0,0 @@
+-##
+-## Author: Lasse Collin
+-##
+-## This file has been put into the public domain.
+-## You can do whatever you want with this file.
+-##
+-
+-EXTRA_DIST = price_tablegen.c
+-
+-noinst_LTLIBRARIES = librangecoder.la
+-
+-librangecoder_la_SOURCES = range_common.h
+-librangecoder_la_CPPFLAGS = \
+-	-I$(top_srcdir)/src/liblzma/api \
+-	-I$(top_srcdir)/src/liblzma/common
+-
+-if COND_ENCODER_LZMA1
+-librangecoder_la_SOURCES += \
+-	range_encoder.h \
+-	price.h \
+-	price_table.c
+-endif
+-
+-if COND_DECODER_LZMA1
+-librangecoder_la_SOURCES += range_decoder.h
+-endif
+diff --git a/src/liblzma/rangecoder/Makefile.inc b/src/liblzma/rangecoder/Makefile.inc
+new file mode 100644
+index 00000000..d8a597a2
+--- /dev/null
++++ b/src/liblzma/rangecoder/Makefile.inc
+@@ -0,0 +1,21 @@
++##
++## Author: Lasse Collin
++##
++## This file has been put into the public domain.
++## You can do whatever you want with this file.
++##
++
++EXTRA_DIST += rangecoder/price_tablegen.c
++
++liblzma_la_SOURCES += rangecoder/range_common.h
++
++if COND_ENCODER_LZMA1
++liblzma_la_SOURCES += \
++	rangecoder/range_encoder.h \
++	rangecoder/price.h \
++	rangecoder/price_table.c
++endif
++
++if COND_DECODER_LZMA1
++liblzma_la_SOURCES += rangecoder/range_decoder.h
++endif
+diff --git a/src/liblzma/simple/Makefile.am b/src/liblzma/simple/Makefile.am
+deleted file mode 100644
+index 9b1a719e..00000000
+--- a/src/liblzma/simple/Makefile.am
++++ /dev/null
+@@ -1,51 +0,0 @@
+-##
+-## Author: Lasse Collin
+-##
+-## This file has been put into the public domain.
+-## You can do whatever you want with this file.
+-##
+-
+-noinst_LTLIBRARIES = libsimple.la
+-libsimple_la_CPPFLAGS = \
+-	-I$(top_srcdir)/src/liblzma/api \
+-	-I$(top_srcdir)/src/liblzma/common
+-libsimple_la_SOURCES = \
+-	simple_coder.c \
+-	simple_coder.h \
+-	simple_private.h
+-
+-if COND_ENCODER_SIMPLE
+-libsimple_la_SOURCES += \
+-	simple_encoder.c \
+-	simple_encoder.h
+-endif
+-
+-if COND_DECODER_SIMPLE
+-libsimple_la_SOURCES += \
+-	simple_decoder.c \
+-	simple_decoder.h
+-endif
+-
+-if COND_FILTER_X86
+-libsimple_la_SOURCES += x86.c
+-endif
+-
+-if COND_FILTER_POWERPC
+-libsimple_la_SOURCES += powerpc.c
+-endif
+-
+-if COND_FILTER_IA64
+-libsimple_la_SOURCES += ia64.c
+-endif
+-
+-if COND_FILTER_ARM
+-libsimple_la_SOURCES += arm.c
+-endif
+-
+-if COND_FILTER_ARMTHUMB
+-libsimple_la_SOURCES += armthumb.c
+-endif
+-
+-if COND_FILTER_SPARC
+-libsimple_la_SOURCES += sparc.c
+-endif
+diff --git a/src/liblzma/simple/Makefile.inc b/src/liblzma/simple/Makefile.inc
+new file mode 100644
+index 00000000..8a5e2d7f
+--- /dev/null
++++ b/src/liblzma/simple/Makefile.inc
+@@ -0,0 +1,47 @@
++##
++## Author: Lasse Collin
++##
++## This file has been put into the public domain.
++## You can do whatever you want with this file.
++##
++
++liblzma_la_SOURCES += \
++	simple/simple_coder.c \
++	simple/simple_coder.h \
++	simple/simple_private.h
++
++if COND_ENCODER_SIMPLE
++liblzma_la_SOURCES += \
++	simple/simple_encoder.c \
++	simple/simple_encoder.h
++endif
++
++if COND_DECODER_SIMPLE
++liblzma_la_SOURCES += \
++	simple/simple_decoder.c \
++	simple/simple_decoder.h
++endif
++
++if COND_FILTER_X86
++liblzma_la_SOURCES += simple/x86.c
++endif
++
++if COND_FILTER_POWERPC
++liblzma_la_SOURCES += simple/powerpc.c
++endif
++
++if COND_FILTER_IA64
++liblzma_la_SOURCES += simple/ia64.c
++endif
++
++if COND_FILTER_ARM
++liblzma_la_SOURCES += simple/arm.c
++endif
++
++if COND_FILTER_ARMTHUMB
++liblzma_la_SOURCES += simple/armthumb.c
++endif
++
++if COND_FILTER_SPARC
++liblzma_la_SOURCES += simple/sparc.c
++endif
+diff --git a/src/liblzma/subblock/Makefile.am b/src/liblzma/subblock/Makefile.am
+deleted file mode 100644
+index 4375a9ee..00000000
+--- a/src/liblzma/subblock/Makefile.am
++++ /dev/null
+@@ -1,26 +0,0 @@
+-##
+-## Author: Lasse Collin
+-##
+-## This file has been put into the public domain.
+-## You can do whatever you want with this file.
+-##
+-
+-noinst_LTLIBRARIES = libsubblock.la
+-libsubblock_la_SOURCES =
+-libsubblock_la_CPPFLAGS = \
+-	-I$(top_srcdir)/src/liblzma/api \
+-	-I$(top_srcdir)/src/liblzma/common
+-
+-if COND_ENCODER_SUBBLOCK
+-libsubblock_la_SOURCES += \
+-	subblock_encoder.c \
+-	subblock_encoder.h
+-endif
+-
+-if COND_DECODER_SUBBLOCK
+-libsubblock_la_SOURCES += \
+-	subblock_decoder.c \
+-	subblock_decoder.h \
+-	subblock_decoder_helper.c \
+-	subblock_decoder_helper.h
+-endif
+diff --git a/src/liblzma/subblock/Makefile.inc b/src/liblzma/subblock/Makefile.inc
+new file mode 100644
+index 00000000..a4710cc5
+--- /dev/null
++++ b/src/liblzma/subblock/Makefile.inc
+@@ -0,0 +1,20 @@
++##
++## Author: Lasse Collin
++##
++## This file has been put into the public domain.
++## You can do whatever you want with this file.
++##
++
++if COND_ENCODER_SUBBLOCK
++liblzma_la_SOURCES += \
++	subblock/subblock_encoder.c \
++	subblock/subblock_encoder.h
++endif
++
++if COND_DECODER_SUBBLOCK
++liblzma_la_SOURCES += \
++	subblock/subblock_decoder.c \
++	subblock/subblock_decoder.h \
++	subblock/subblock_decoder_helper.c \
++	subblock/subblock_decoder_helper.h
++endif
+diff --git a/src/xz/Makefile.am b/src/xz/Makefile.am
+index a9b2f690..ba64d72b 100644
+--- a/src/xz/Makefile.am
++++ b/src/xz/Makefile.am
+@@ -30,12 +30,15 @@ xz_SOURCES = \
+ 	util.c \
+ 	util.h
+ 
++if COND_W32
++xz_SOURCES += xz_w32res.rc
++endif
++
+ xz_CPPFLAGS = \
+ 	-DLOCALEDIR=\"$(localedir)\" \
+ 	-I$(top_srcdir)/src/common \
+ 	-I$(top_srcdir)/src/liblzma/api \
+ 	-I$(top_builddir)/lib \
+-	-I$(top_srcdir)/lib \
+ 	$(STATIC_CPPFLAGS)
+ 
+ xz_LDFLAGS = $(STATIC_LDFLAGS)
+@@ -49,6 +52,12 @@ endif
+ xz_LDADD += $(LTLIBINTL)
+ 
+ 
++# Windows resource compiler support
++.rc.o:
++	$(RC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) \
++		$(xz_CPPFLAGS) $(CPPFLAGS) $(RCFLAGS) -i $< -o $@
++
++
+ ## Create symlinks for unxz and xzcat for convenience. Create symlinks also
+ ## for lzma, unlzma, and lzcat for compatibility with LZMA Utils 4.32.x.
+ xzlinks = unxz xzcat lzma unlzma lzcat
+diff --git a/src/xzdec/Makefile.am b/src/xzdec/Makefile.am
+index bdcc12bb..25517f0e 100644
+--- a/src/xzdec/Makefile.am
++++ b/src/xzdec/Makefile.am
+@@ -5,9 +5,21 @@
+ ## You can do whatever you want with this file.
+ ##
+ 
++# Windows resource compiler support. It's fine to use xz_CPPFLAGS
++# also for lzmadec.
++.rc.o:
++	$(RC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) \
++		$(xzdec_CPPFLAGS) $(CPPFLAGS) $(RCFLAGS) -i $< -o $@
++
++
+ bin_PROGRAMS = xzdec lzmadec
+ 
+ xzdec_SOURCES = xzdec.c
++
++if COND_W32
++xzdec_SOURCES += xzdec_w32res.rc
++endif
++
+ xzdec_CPPFLAGS = \
+ 	-I$(top_srcdir)/src/common \
+ 	-I$(top_srcdir)/src/liblzma/api \
+@@ -23,11 +35,17 @@ endif
+ xzdec_LDADD += $(LTLIBINTL)
+ 
+ 
+-lzmadec_SOURCES = $(xzdec_SOURCES)
++lzmadec_SOURCES = xzdec.c
++
++if COND_W32
++lzmadec_SOURCES += lzmadec_w32res.rc
++endif
++
+ lzmadec_CPPFLAGS = $(xzdec_CPPFLAGS) -DLZMADEC
+ lzmadec_LDFLAGS = $(xzdec_LDFLAGS)
+ lzmadec_LDADD = $(xzdec_LDADD)
+ 
++
+ dist_man_MANS = xzdec.1
+ 
+ install-data-hook:

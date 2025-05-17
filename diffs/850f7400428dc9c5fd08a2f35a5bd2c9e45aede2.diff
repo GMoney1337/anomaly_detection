@@ -1,0 +1,137 @@
+diff --git a/debug/known_sizes.c b/debug/known_sizes.c
+index 75ac813c..643f8407 100644
+--- a/debug/known_sizes.c
++++ b/debug/known_sizes.c
+@@ -50,7 +50,7 @@ main(void)
+ 	lzma_options_lzma opt_lzma;
+ 	if (lzma_lzma_preset(&opt_lzma, 1))
+ 		return 1;
+-	
++
+ 	lzma_filter filters[] = {
+ 		{
+ 			.id = LZMA_FILTER_LZMA2,
+diff --git a/extra/scanlzma/scanlzma.c b/extra/scanlzma/scanlzma.c
+index 3612f9df..5c3b25be 100644
+--- a/extra/scanlzma/scanlzma.c
++++ b/extra/scanlzma/scanlzma.c
+@@ -64,11 +64,11 @@ int main(int argc, char *argv[]) {
+ 		ret = fread(buf, BUFSIZE, 1, stdin);
+ 		if (ret != 1)
+ 			break;
+-		
++
+ 		/* Scan for signature. */
+ 		for (i = 0; i<BUFSIZE-23; i++) {
+ 			if (find_lzma_header(buf+i) && numlzma-- <= 0) {
+-				fwrite(buf+i, (BUFSIZE-i), 1, stdout); 
++				fwrite(buf+i, (BUFSIZE-i), 1, stdout);
+ 				for (;;) {
+ 					int ch;
+ 					ch = getchar();
+@@ -76,7 +76,6 @@ int main(int argc, char *argv[]) {
+ 						exit(0);
+ 					putchar(ch);
+ 				}
+-					
+ 			}
+ 		}
+ 		blocks++;
+diff --git a/src/liblzma/check/crc32_tablegen.c b/src/liblzma/check/crc32_tablegen.c
+index d0c41caa..fbcbf474 100644
+--- a/src/liblzma/check/crc32_tablegen.c
++++ b/src/liblzma/check/crc32_tablegen.c
+@@ -70,7 +70,7 @@ print_crc32_table(void)
+ 			printf("0x%08" PRIX32, crc32_table[s][b]);
+ 
+ 			if (b != 255)
+-				printf(", ");
++				printf(",%s", (b+1) % 4 == 0 ? "" : " ");
+ 		}
+ 
+ 		if (s == 7)
+diff --git a/src/liblzma/check/crc64_tablegen.c b/src/liblzma/check/crc64_tablegen.c
+index b20086f8..a0fa4ab2 100644
+--- a/src/liblzma/check/crc64_tablegen.c
++++ b/src/liblzma/check/crc64_tablegen.c
+@@ -71,7 +71,7 @@ print_crc64_table(void)
+ 					crc64_table[s][b]);
+ 
+ 			if (b != 255)
+-				printf(", ");
++				printf(",%s", (b+1) % 2 == 0 ? "" : " ");
+ 		}
+ 
+ 		if (s == 3)
+diff --git a/src/scripts/lzdiff.1 b/src/scripts/lzdiff.1
+index 7d15f8b8..17bb855a 100644
+--- a/src/scripts/lzdiff.1
++++ b/src/scripts/lzdiff.1
+@@ -9,7 +9,7 @@ lzcmp, lzdiff \- compare LZMA compressed files
+ .RI [ diff_options "] " file1 " [" file2 ]
+ .SH DESCRIPTION
+ .B  lzcmp
+-and 
++and
+ .B zdiff
+ are used to invoke the
+ .BR cmp (1)
+@@ -27,7 +27,7 @@ If two files are specified, then they are uncompressed if necessary and fed to
+ .B cmp
+ or
+ .BR diff "."
+-The exit status from 
++The exit status from
+ .B cmp
+ or
+ .B diff
+diff --git a/src/scripts/lzmore.1 b/src/scripts/lzmore.1
+index 77207261..d92f95d3 100644
+--- a/src/scripts/lzmore.1
++++ b/src/scripts/lzmore.1
+@@ -28,12 +28,12 @@ is used as the
+ .BR PAGER .
+ .TP
+ .BR e " or " q
+-When the prompt --More--(Next file: 
++When the prompt --More--(Next file:
+ .IR file )
+ is printed, this command causes lzmore to exit.
+ .TP
+ .B s
+-When the prompt --More--(Next file: 
++When the prompt --More--(Next file:
+ .IR file )
+ is printed, this command causes zmore to skip the next file and continue.
+ .PP
+@@ -41,7 +41,7 @@ For list of keyboard commands supported while actually viewing the
+ content of a file, refer to manual of the pager you use, usually
+ .BR more (1)
+ or
+-.BR less (1). 
++.BR less (1).
+ .SH AUTHORS
+ This manual page was ripped from
+ .BR zmore (1)
+diff --git a/tests/test_compress.sh b/tests/test_compress.sh
+index 9a3f25d8..975c1f15 100755
+--- a/tests/test_compress.sh
++++ b/tests/test_compress.sh
+@@ -111,7 +111,7 @@ do
+ #		--subblock=size=8,rle=4 \
+ #		--subblock=size=8,rle=8 \
+ #		--subblock=size=4096,rle=12 \
+-#	
++#
+ 	for ARGS in \
+ 		--delta=dist=1 \
+ 		--delta=dist=4 \
+@@ -124,7 +124,7 @@ do
+ 		--sparc
+ 	do
+ 		test_xz $ARGS --lzma2=dict=64KiB,nice=32,mode=fast
+-		
++
+ 		# Disabled until Subblock format is stable.
+ 		# test_xz --subblock $ARGS --lzma2=dict=64KiB,nice=32,mode=fast
+ 	done

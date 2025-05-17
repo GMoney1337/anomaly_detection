@@ -1,0 +1,29 @@
+diff --git a/dos/Makefile b/dos/Makefile
+index f8ba4372..cd20c1b2 100644
+--- a/dos/Makefile
++++ b/dos/Makefile
+@@ -50,8 +50,8 @@ SRCS_C = \
+ 	../src/common/tuklib_physmem.c \
+ 	../src/common/tuklib_progname.c \
+ 	../src/liblzma/check/check.c \
+-	../src/liblzma/check/crc32_table.c \
+-	../src/liblzma/check/crc64_table.c \
++	../src/liblzma/check/crc32_fast.c \
++	../src/liblzma/check/crc64_fast.c \
+ 	../src/liblzma/check/sha256.c \
+ 	../src/liblzma/common/alone_decoder.c \
+ 	../src/liblzma/common/alone_encoder.c \
+diff --git a/dos/config.h b/dos/config.h
+index 415cd5a8..4bab00e1 100644
+--- a/dos/config.h
++++ b/dos/config.h
+@@ -12,6 +12,9 @@
+ /* Define to 1 if sha256 integrity check is enabled. */
+ #define HAVE_CHECK_SHA256 1
+ 
++/* Define to 1 if the 32-bit x86 CRC assembly files are used. */
++#define HAVE_CRC_X86_ASM 1
++
+ /* Define to 1 if any of HAVE_DECODER_foo have been defined. */
+ #define HAVE_DECODERS 1
+ 

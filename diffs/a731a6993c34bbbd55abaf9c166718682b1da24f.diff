@@ -1,0 +1,13 @@
+diff --git a/src/xz/coder.c b/src/xz/coder.c
+index f22d8a44..0d03dc10 100644
+--- a/src/xz/coder.c
++++ b/src/xz/coder.c
+@@ -735,7 +735,7 @@ coder_set_compression_settings(void)
+ 		if (r->filters == NULL)
+ 			continue;
+ 
+-		lzma_filter *filter_lzma = &(r->filters[r->lzma_idx]);
++		lzma_filter *filter_lzma = &r->filters[r->lzma_idx];
+ 		lzma_options_lzma *opt = filter_lzma->options;
+ 
+ 		// The first index is the default filter chain. The message

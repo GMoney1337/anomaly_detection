@@ -1,0 +1,47 @@
+diff --git a/src/xz/file_io.c b/src/xz/file_io.c
+index 97d6b401..8c83269b 100644
+--- a/src/xz/file_io.c
++++ b/src/xz/file_io.c
+@@ -1390,6 +1390,19 @@ io_write_buf(file_pair *pair, const uint8_t *buf, size_t size)
+ 			}
+ #endif
+ 
++#if defined(_WIN32) && !defined(__CYGWIN__)
++			// On native Windows, broken pipe is reported as
++			// EINVAL. Don't show an error message in this case.
++			// Try: xz -dc bigfile.xz | head -n1
++			if (errno == EINVAL
++					&& pair->dest_fd == STDOUT_FILENO) {
++				// Emulate SIGPIPE by setting user_abort here.
++				user_abort = true;
++				set_exit_status(E_ERROR);
++				return true;
++			}
++#endif
++
+ 			// Handle broken pipe specially. gzip and bzip2
+ 			// don't print anything on SIGPIPE. In addition,
+ 			// gzip --quiet uses exit status 2 (warning) on
+diff --git a/src/xzdec/xzdec.c b/src/xzdec/xzdec.c
+index 84134213..96e24444 100644
+--- a/src/xzdec/xzdec.c
++++ b/src/xzdec/xzdec.c
+@@ -230,8 +230,17 @@ uncompress(lzma_stream *strm, FILE *file, const char *filename)
+ 				// Wouldn't be a surprise if writing to stderr
+ 				// would fail too but at least try to show an
+ 				// error message.
+-				my_errorf("Cannot write to standard output: "
++#if defined(_WIN32) && !defined(__CYGWIN__)
++				// On native Windows, broken pipe is reported
++				// as EINVAL. Don't show an error message
++				// in this case.
++				if (errno != EINVAL)
++#endif
++				{
++					my_errorf("Cannot write to "
++						"standard output: "
+ 						"%s", strerror(errno));
++				}
+ 				exit(EXIT_FAILURE);
+ 			}
+ 

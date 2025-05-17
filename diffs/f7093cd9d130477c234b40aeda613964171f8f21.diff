@@ -1,0 +1,45 @@
+diff --git a/src/xz/file_io.c b/src/xz/file_io.c
+index a181b531..767c819a 100644
+--- a/src/xz/file_io.c
++++ b/src/xz/file_io.c
+@@ -1157,8 +1157,7 @@ io_fix_src_pos(file_pair *pair, size_t rewind_size)
+ extern size_t
+ io_read(file_pair *pair, io_buf *buf, size_t size)
+ {
+-	// We use small buffers here.
+-	assert(size < SSIZE_MAX);
++	assert(size <= IO_BUFFER_SIZE);
+ 
+ 	size_t pos = 0;
+ 
+@@ -1285,7 +1284,7 @@ is_sparse(const io_buf *buf)
+ static bool
+ io_write_buf(file_pair *pair, const uint8_t *buf, size_t size)
+ {
+-	assert(size < SSIZE_MAX);
++	assert(size <= IO_BUFFER_SIZE);
+ 
+ 	while (size > 0) {
+ 		const ssize_t amount = write(pair->dest_fd, buf, size);
+diff --git a/src/xz/file_io.h b/src/xz/file_io.h
+index 8a9e3363..6992efa4 100644
+--- a/src/xz/file_io.h
++++ b/src/xz/file_io.h
+@@ -118,7 +118,7 @@ extern void io_close(file_pair *pair, bool success);
+ ///
+ /// \param      pair    File pair having the source file open for reading
+ /// \param      buf     Destination buffer to hold the read data
+-/// \param      size    Size of the buffer; assumed be smaller than SSIZE_MAX
++/// \param      size    Size of the buffer; must be at most IO_BUFFER_SIZE
+ ///
+ /// \return     On success, number of bytes read is returned. On end of
+ ///             file zero is returned and pair->src_eof set to true.
+@@ -172,7 +172,7 @@ extern bool io_pread(file_pair *pair, io_buf *buf, size_t size, uint64_t pos);
+ ///
+ /// \param      pair    File pair having the destination file open for writing
+ /// \param      buf     Buffer containing the data to be written
+-/// \param      size    Size of the buffer; assumed be smaller than SSIZE_MAX
++/// \param      size    Size of the buffer; must be at most IO_BUFFER_SIZE
+ ///
+ /// \return     On success, zero is returned. On error, -1 is returned
+ ///             and error message printed.

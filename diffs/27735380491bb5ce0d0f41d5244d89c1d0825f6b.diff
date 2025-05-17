@@ -1,0 +1,26 @@
+diff --git a/src/liblzma/check/crc_clmul.c b/src/liblzma/check/crc_clmul.c
+index 6ebb1232..404adb82 100644
+--- a/src/liblzma/check/crc_clmul.c
++++ b/src/liblzma/check/crc_clmul.c
+@@ -28,7 +28,6 @@
+ //
+ ///////////////////////////////////////////////////////////////////////////////
+ 
+-#include "common.h"
+ #include "crc_common.h"
+ #include <immintrin.h>
+ 
+diff --git a/src/liblzma/check/crc_common.h b/src/liblzma/check/crc_common.h
+index 37535f4b..0dd4faec 100644
+--- a/src/liblzma/check/crc_common.h
++++ b/src/liblzma/check/crc_common.h
+@@ -16,6 +16,9 @@
+ #ifndef LZMA_CRC_COMMON_H
+ #define LZMA_CRC_COMMON_H
+ 
++#include "common.h"
++
++
+ #ifdef WORDS_BIGENDIAN
+ #	define A(x) ((x) >> 24)
+ #	define B(x) (((x) >> 16) & 0xFF)

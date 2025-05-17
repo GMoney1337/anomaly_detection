@@ -1,0 +1,86 @@
+diff --git a/doc/lzma-file-format.txt b/doc/lzma-file-format.txt
+index 21fcb19f..015b0fae 100644
+--- a/doc/lzma-file-format.txt
++++ b/doc/lzma-file-format.txt
+@@ -40,7 +40,7 @@ The .lzma File Format
+ 
+ 0.2. Changes
+ 
+-        Last modified: 2009-05-01 11:15+0300
++        Last modified: 2011-04-12 11:55+0300
+ 
+ 
+ 1. File Format
+@@ -161,6 +161,6 @@ The .lzma File Format
+         XZ Utils - The next generation of LZMA Utils
+         http://tukaani.org/xz/
+ 
+-        The .xz file format - The successor of the the .lzma format
++        The .xz file format - The successor of the .lzma format
+         http://tukaani.org/xz/xz-file-format.txt
+ 
+diff --git a/src/liblzma/common/alone_encoder.c b/src/liblzma/common/alone_encoder.c
+index d8c0170f..7f616557 100644
+--- a/src/liblzma/common/alone_encoder.c
++++ b/src/liblzma/common/alone_encoder.c
+@@ -103,7 +103,7 @@ alone_encoder_init(lzma_next_coder *next, lzma_allocator *allocator,
+ 	if (options->dict_size < LZMA_DICT_SIZE_MIN)
+ 		return LZMA_OPTIONS_ERROR;
+ 
+-	// Round up to to the next 2^n or 2^n + 2^(n - 1) depending on which
++	// Round up to the next 2^n or 2^n + 2^(n - 1) depending on which
+ 	// one is the next unless it is UINT32_MAX. While the header would
+ 	// allow any 32-bit integer, we do this to keep the decoder of liblzma
+ 	// accepting the resulting files.
+diff --git a/src/liblzma/lzma/lzma2_encoder.c b/src/liblzma/lzma/lzma2_encoder.c
+index 28442c32..7f6bc63b 100644
+--- a/src/liblzma/lzma/lzma2_encoder.c
++++ b/src/liblzma/lzma/lzma2_encoder.c
+@@ -374,7 +374,7 @@ lzma_lzma2_props_encode(const void *options, uint8_t *out)
+ 	const lzma_options_lzma *const opt = options;
+ 	uint32_t d = my_max(opt->dict_size, LZMA_DICT_SIZE_MIN);
+ 
+-	// Round up to to the next 2^n - 1 or 2^n + 2^(n - 1) - 1 depending
++	// Round up to the next 2^n - 1 or 2^n + 2^(n - 1) - 1 depending
+ 	// on which one is the next:
+ 	--d;
+ 	d |= d >> 2;
+diff --git a/src/xz/file_io.c b/src/xz/file_io.c
+index 5555891b..370b61b7 100644
+--- a/src/xz/file_io.c
++++ b/src/xz/file_io.c
+@@ -53,7 +53,7 @@ static bool io_write_buf(file_pair *pair, const uint8_t *buf, size_t size);
+ extern void
+ io_init(void)
+ {
+-	// Make sure that stdin, stdout, and and stderr are connected to
++	// Make sure that stdin, stdout, and stderr are connected to
+ 	// a valid file descriptor. Exit immediately with exit code ERROR
+ 	// if we cannot make the file descriptors valid. Maybe we should
+ 	// print an error message, but our stderr could be screwed anyway.
+diff --git a/src/xz/xz.1 b/src/xz/xz.1
+index ef89f406..f4680f49 100644
+--- a/src/xz/xz.1
++++ b/src/xz/xz.1
+@@ -898,7 +898,7 @@ This is equivalent to specifying \fB\-\-memlimit\-compress=\fIlimit
+ \fB\-\-memlimit\-decompress=\fIlimit\fR.
+ .TP
+ .B \-\-no\-adjust
+-Display an error and exit if the compression settings exceed the
++Display an error and exit if the compression settings exceed
+ the memory usage limit.
+ The default is to adjust the settings downwards so
+ that the memory usage limit is not exceeded.
+diff --git a/windows/INSTALL-Windows.txt b/windows/INSTALL-Windows.txt
+index 5515708f..bb4a4d66 100644
+--- a/windows/INSTALL-Windows.txt
++++ b/windows/INSTALL-Windows.txt
+@@ -133,7 +133,7 @@ Building XZ Utils
+ Using a snapshot from the Git repository
+ 
+     To use a snapshot, the build system files need to be generated with
+-    autogen.sh or "autoreconf -fi" before trying to build using the the
++    autogen.sh or "autoreconf -fi" before trying to build using the
+     above build instructions. You can install the relevant extra packages
+     from MinGW or use Cygwin or use e.g. a GNU/Linux system to create a
+     source package with the required build system files.

@@ -1,0 +1,12 @@
+diff --git a/src/liblzma/common/common.c b/src/liblzma/common/common.c
+index edce90cd..2f185e49 100644
+--- a/src/liblzma/common/common.c
++++ b/src/liblzma/common/common.c
+@@ -161,6 +161,7 @@ lzma_strm_init(lzma_stream *strm)
+ 	strm->internal->supported_actions[LZMA_FULL_FLUSH] = false;
+ 	strm->internal->supported_actions[LZMA_FINISH] = false;
+ 	strm->internal->sequence = ISEQ_RUN;
++	strm->internal->allow_buf_error = false;
+ 
+ 	strm->total_in = 0;
+ 	strm->total_out = 0;

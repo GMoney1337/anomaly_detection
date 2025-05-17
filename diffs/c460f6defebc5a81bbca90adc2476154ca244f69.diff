@@ -1,0 +1,13 @@
+diff --git a/src/liblzma/lz/lz_encoder_hash.h b/src/liblzma/lz/lz_encoder_hash.h
+index 342a333d..f238f9d9 100644
+--- a/src/liblzma/lz/lz_encoder_hash.h
++++ b/src/liblzma/lz/lz_encoder_hash.h
+@@ -39,7 +39,7 @@
+ // Endianness doesn't matter in hash_2_calc() (no effect on the output).
+ #ifdef TUKLIB_FAST_UNALIGNED_ACCESS
+ #	define hash_2_calc() \
+-		const uint32_t hash_value = *(const uint16_t *)(cur)
++		const uint32_t hash_value = unaligned_read16ne(cur)
+ #else
+ #	define hash_2_calc() \
+ 		const uint32_t hash_value \

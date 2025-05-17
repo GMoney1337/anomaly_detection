@@ -1,0 +1,13 @@
+diff --git a/.gitignore b/.gitignore
+index 2804cfd9..f0b11aa9 100644
+--- a/.gitignore
++++ b/.gitignore
+@@ -37,6 +37,8 @@ build-aux/test-driver
+ 
+ coverage
+ 
++/doc/html
++
+ /src/liblzma/liblzma.pc
+ /src/lzmainfo/lzmainfo
+ /src/xz/xz

@@ -1,0 +1,33 @@
+diff --git a/tests/files/README b/tests/files/README
+index 8f761709..84c9415c 100644
+--- a/tests/files/README
++++ b/tests/files/README
+@@ -45,12 +45,6 @@
+     concatenated as is. Fully decoding this file requires that the decoder
+     supports decoding concatenated files.
+ 
+-    good-single-none-empty_1.lzma is an empty file with implicit Copy
+-    filter and no integrity Check.
+-
+-    good-single-none-empty_2.lzma is an empty file with implicit Copy
+-    filter and CRC32 as Check.
+-
+     good-single-subblock_implicit.lzma uses implicit Subblock filter.
+ 
+     good-single-lzma.lzma is LZMA compressed file with EOPM.
+@@ -58,6 +52,15 @@
+     good-single-subblock-lzma.lzma has basic combination of Subblock and
+     LZMA filters.
+ 
++    good-single-none-empty_1.lzma is an empty file with implicit Copy
++    filter and no integrity Check.
++
++    good-single-none-empty_2.lzma is an empty file with implicit Copy
++    filter and CRC32 as Check.
++
++    good-single-lzma-empty.lzma is an empty file with LZMA filter and no
++    integrity Check.
++
+     good-single-subblock_rle.lzma takes advantage of Subblock filter's
+     run-length encoding.
+ 

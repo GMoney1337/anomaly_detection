@@ -1,0 +1,43 @@
+diff --git a/src/liblzma/Makefile.am b/src/liblzma/Makefile.am
+index 3720532f..43d0289e 100644
+--- a/src/liblzma/Makefile.am
++++ b/src/liblzma/Makefile.am
+@@ -24,7 +24,7 @@ liblzma_la_CPPFLAGS = \
+ 	-I$(top_srcdir)/src/liblzma/simple \
+ 	-I$(top_srcdir)/src/common \
+ 	-DTUKLIB_SYMBOL_PREFIX=lzma_
+-liblzma_la_LDFLAGS = -no-undefined -version-info 5:99:0
++liblzma_la_LDFLAGS = -no-undefined -version-info 7:0:2
+ 
+ EXTRA_DIST += liblzma.map validate_map.sh
+ if COND_SYMVERS
+diff --git a/src/liblzma/api/lzma/version.h b/src/liblzma/api/lzma/version.h
+index 7fce70ee..d9614da7 100644
+--- a/src/liblzma/api/lzma/version.h
++++ b/src/liblzma/api/lzma/version.h
+@@ -21,9 +21,9 @@
+  * Version number split into components
+  */
+ #define LZMA_VERSION_MAJOR 5
+-#define LZMA_VERSION_MINOR 1
+-#define LZMA_VERSION_PATCH 4
+-#define LZMA_VERSION_STABILITY LZMA_VERSION_STABILITY_BETA
++#define LZMA_VERSION_MINOR 2
++#define LZMA_VERSION_PATCH 0
++#define LZMA_VERSION_STABILITY LZMA_VERSION_STABILITY_STABLE
+ 
+ #ifndef LZMA_VERSION_COMMIT
+ #	define LZMA_VERSION_COMMIT ""
+diff --git a/src/liblzma/liblzma.map b/src/liblzma/liblzma.map
+index 774831d8..f53a4ea3 100644
+--- a/src/liblzma/liblzma.map
++++ b/src/liblzma/liblzma.map
+@@ -95,7 +95,7 @@ global:
+ 	lzma_vli_size;
+ };
+ 
+-XZ_5.1.4beta {
++XZ_5.2 {
+ global:
+ 	lzma_block_uncomp_encode;
+ 	lzma_cputhreads;

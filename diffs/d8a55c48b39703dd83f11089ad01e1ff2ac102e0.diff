@@ -1,0 +1,2326 @@
+diff --git a/configure.ac b/configure.ac
+index af317e93..e93e806e 100644
+--- a/configure.ac
++++ b/configure.ac
+@@ -73,7 +73,7 @@ fi
+ # Filters #
+ ###########
+ 
+-m4_define([SUPPORTED_FILTERS], [lzma1,lzma2,subblock,delta,x86,powerpc,ia64,arm,armthumb,sparc])dnl
++m4_define([SUPPORTED_FILTERS], [lzma1,lzma2,delta,x86,powerpc,ia64,arm,armthumb,sparc])dnl
+ m4_define([SIMPLE_FILTERS], [x86,powerpc,ia64,arm,armthumb,sparc])
+ m4_define([LZ_FILTERS], [lzma1,lzma2])
+ 
+@@ -89,7 +89,7 @@ AC_ARG_ENABLE([encoders], AC_HELP_STRING([--enable-encoders=LIST],
+ 		Available encoders:]
+ 			m4_translit(m4_defn([SUPPORTED_FILTERS]), [,], [ ])),
+ 	[], [enable_encoders=SUPPORTED_FILTERS])
+-enable_encoders=`echo "$enable_encoders" | sed 's/,subblock//; s/,/ /g'`
++enable_encoders=`echo "$enable_encoders" | sed 's/,/ /g'`
+ if test "x$enable_encoders" = xno || test "x$enable_encoders" = x; then
+ 	AC_MSG_RESULT([(none)])
+ else
+@@ -118,7 +118,7 @@ AC_ARG_ENABLE([decoders], AC_HELP_STRING([--enable-decoders=LIST],
+ 		[Comma-separated list of decoders to build. Default=all.
+ 		Available decoders are the same as available encoders.]),
+ 	[], [enable_decoders=SUPPORTED_FILTERS])
+-enable_decoders=`echo "$enable_decoders" | sed 's/,subblock//; s/,/ /g'`
++enable_decoders=`echo "$enable_decoders" | sed 's/,/ /g'`
+ if test "x$enable_decoders" = xno || test "x$enable_decoders" = x; then
+ 	AC_MSG_RESULT([(none)])
+ else
+diff --git a/src/liblzma/Makefile.am b/src/liblzma/Makefile.am
+index a4d2c1e6..f6c572b2 100644
+--- a/src/liblzma/Makefile.am
++++ b/src/liblzma/Makefile.am
+@@ -20,7 +20,6 @@ liblzma_la_CPPFLAGS = \
+ 	-I$(top_srcdir)/src/liblzma/lz \
+ 	-I$(top_srcdir)/src/liblzma/rangecoder \
+ 	-I$(top_srcdir)/src/liblzma/lzma \
+-	-I$(top_srcdir)/src/liblzma/subblock \
+ 	-I$(top_srcdir)/src/liblzma/delta \
+ 	-I$(top_srcdir)/src/liblzma/simple \
+ 	-I$(top_srcdir)/src/common \
+@@ -39,10 +38,6 @@ include $(srcdir)/lzma/Makefile.inc
+ include $(srcdir)/rangecoder/Makefile.inc
+ endif
+ 
+-if COND_FILTER_SUBBLOCK
+-include $(srcdir)/subblock/Makefile.inc
+-endif
+-
+ if COND_FILTER_DELTA
+ include $(srcdir)/delta/Makefile.inc
+ endif
+diff --git a/src/liblzma/api/Makefile.am b/src/liblzma/api/Makefile.am
+index 4536b0ac..e016de58 100644
+--- a/src/liblzma/api/Makefile.am
++++ b/src/liblzma/api/Makefile.am
+@@ -19,6 +19,5 @@ nobase_include_HEADERS = \
+ 	lzma/index_hash.h \
+ 	lzma/lzma.h \
+ 	lzma/stream_flags.h \
+-	lzma/subblock.h \
+ 	lzma/version.h \
+ 	lzma/vli.h
+diff --git a/src/liblzma/api/lzma.h b/src/liblzma/api/lzma.h
+index 84279211..fb593a35 100644
+--- a/src/liblzma/api/lzma.h
++++ b/src/liblzma/api/lzma.h
+@@ -284,7 +284,6 @@ extern "C" {
+ 
+ /* Filters */
+ #include "lzma/filter.h"
+-#include "lzma/subblock.h"
+ #include "lzma/bcj.h"
+ #include "lzma/delta.h"
+ #include "lzma/lzma.h"
+diff --git a/src/liblzma/api/lzma/subblock.h b/src/liblzma/api/lzma/subblock.h
+deleted file mode 100644
+index 4ffb0498..00000000
+--- a/src/liblzma/api/lzma/subblock.h
++++ /dev/null
+@@ -1,200 +0,0 @@
+-/**
+- * \file        lzma/subblock.h
+- * \brief       Subblock filter
+- */
+-
+-/*
+- * Author: Lasse Collin
+- *
+- * This file has been put into the public domain.
+- * You can do whatever you want with this file.
+- *
+- * See ../lzma.h for information about liblzma as a whole.
+- */
+-
+-#ifndef LZMA_H_INTERNAL
+-#	error Never include this file directly. Use <lzma.h> instead.
+-#endif
+-
+-
+-/**
+- * \brief       Filter ID
+- *
+- * Filter ID of the Subblock filter. This is used as lzma_filter.id.
+- */
+-#define LZMA_FILTER_SUBBLOCK    LZMA_VLI_C(0x01)
+-
+-
+-/**
+- * \brief       Subfilter mode
+- *
+- * See lzma_options_subblock.subfilter_mode for details.
+- */
+-typedef enum {
+-	LZMA_SUBFILTER_NONE,
+-		/**<
+-		 * No Subfilter is in use.
+-		 */
+-
+-	LZMA_SUBFILTER_SET,
+-		/**<
+-		 * New Subfilter has been requested to be initialized.
+-		 */
+-
+-	LZMA_SUBFILTER_RUN,
+-		/**<
+-		 * Subfilter is active.
+-		 */
+-
+-	LZMA_SUBFILTER_FINISH
+-		/**<
+-		 * Subfilter has been requested to be finished.
+-		 */
+-} lzma_subfilter_mode;
+-
+-
+-/**
+- * \brief       Options for the Subblock filter
+- *
+- * Specifying options for the Subblock filter is optional: if the pointer
+- * options is NULL, no subfilters are allowed and the default value is used
+- * for subblock_data_size.
+- */
+-typedef struct {
+-	/* Options for encoder and decoder */
+-
+-	/**
+-	 * \brief       Allowing subfilters
+-	 *
+-	 * If this true, subfilters are allowed.
+-	 *
+-	 * In the encoder, if this is set to false, subfilter_mode and
+-	 * subfilter_options are completely ignored.
+-	 */
+-	lzma_bool allow_subfilters;
+-
+-	/* Options for encoder only */
+-
+-	/**
+-	 * \brief       Alignment
+-	 *
+-	 * The Subblock filter encapsulates the input data into Subblocks.
+-	 * Each Subblock has a header which takes a few bytes of space.
+-	 * When the output of the Subblock encoder is fed to another filter
+-	 * that takes advantage of the alignment of the input data (e.g. LZMA),
+-	 * the Subblock filter can add padding to keep the actual data parts
+-	 * in the Subblocks aligned correctly.
+-	 *
+-	 * The alignment should be a positive integer. Subblock filter will
+-	 * add enough padding between Subblocks so that this is true for
+-	 * every payload byte:
+-	 * input_offset % alignment == output_offset % alignment
+-	 *
+-	 * The Subblock filter assumes that the first output byte will be
+-	 * written to a position in the output stream that is properly
+-	 * aligned. This requirement is automatically met when the start
+-	 * offset of the Stream or Block is correctly told to Block or
+-	 * Stream encoder.
+-	 */
+-	uint32_t alignment;
+-#	define LZMA_SUBBLOCK_ALIGNMENT_MIN 1
+-#	define LZMA_SUBBLOCK_ALIGNMENT_MAX 32
+-#	define LZMA_SUBBLOCK_ALIGNMENT_DEFAULT 4
+-
+-	/**
+-	 * \brief       Size of the Subblock Data part of each Subblock
+-	 *
+-	 * This value is re-read every time a new Subblock is started.
+-	 *
+-	 * Bigger values
+-	 *   - save a few bytes of space;
+-	 *   - increase latency in the encoder (but no effect for decoding);
+-	 *   - decrease memory locality (increased cache pollution) in the
+-	 *     encoder (no effect in decoding).
+-	 */
+-	uint32_t subblock_data_size;
+-#	define LZMA_SUBBLOCK_DATA_SIZE_MIN 1
+-#	define LZMA_SUBBLOCK_DATA_SIZE_MAX (UINT32_C(1) << 28)
+-#	define LZMA_SUBBLOCK_DATA_SIZE_DEFAULT 4096
+-
+-	/**
+-	 * \brief       Run-length encoder remote control
+-	 *
+-	 * The Subblock filter has an internal run-length encoder (RLE). It
+-	 * can be useful when the data includes byte sequences that repeat
+-	 * very many times. The RLE can be used also when a Subfilter is
+-	 * in use; the RLE will be applied to the output of the Subfilter.
+-	 *
+-	 * Note that in contrast to traditional RLE, this RLE is intended to
+-	 * be used only when there's a lot of data to be repeated. If the
+-	 * input data has e.g. 500 bytes of NULs now and then, this RLE
+-	 * is probably useless, because plain LZMA should provide better
+-	 * results.
+-	 *
+-	 * Due to above reasons, it was decided to keep the implementation
+-	 * of the RLE very simple. When the rle variable is non-zero, it
+-	 * subblock_data_size must be a multiple of rle. Once the Subblock
+-	 * encoder has got subblock_data_size bytes of input, it will check
+-	 * if the whole buffer of the last subblock_data_size can be
+-	 * represented with repeats of chunks having size of rle bytes.
+-	 *
+-	 * If there are consecutive identical buffers of subblock_data_size
+-	 * bytes, they will be encoded using a single repeat entry if
+-	 * possible.
+-	 *
+-	 * If need arises, more advanced RLE can be implemented later
+-	 * without breaking API or ABI.
+-	 */
+-	uint32_t rle;
+-#	define LZMA_SUBBLOCK_RLE_OFF 0
+-#	define LZMA_SUBBLOCK_RLE_MIN 1
+-#	define LZMA_SUBBLOCK_RLE_MAX 256
+-
+-	/**
+-	 * \brief       Subfilter remote control
+-	 *
+-	 * When the Subblock filter is initialized, this variable must be
+-	 * LZMA_SUBFILTER_NONE or LZMA_SUBFILTER_SET.
+-	 *
+-	 * When subfilter_mode is LZMA_SUBFILTER_NONE, the application may
+-	 * put Subfilter options to subfilter_options structure, and then
+-	 * set subfilter_mode to LZMA_SUBFILTER_SET. No new input data will
+-	 * be read until the Subfilter has been enabled. Once the Subfilter
+-	 * has been enabled, liblzma will set subfilter_mode to
+-	 * LZMA_SUBFILTER_RUN.
+-	 *
+-	 * When subfilter_mode is LZMA_SUBFILTER_RUN, the application may
+-	 * set subfilter_mode to LZMA_SUBFILTER_FINISH. All the input
+-	 * currently available will be encoded before unsetting the
+-	 * Subfilter. Application must not change the amount of available
+-	 * input until the Subfilter has finished. Once the Subfilter has
+-	 * finished, liblzma will set subfilter_mode to LZMA_SUBFILTER_NONE.
+-	 *
+-	 * If the intent is to have Subfilter enabled to the very end of
+-	 * the data, it is not needed to separately disable Subfilter with
+-	 * LZMA_SUBFILTER_FINISH. Using LZMA_FINISH as the second argument
+-	 * of lzma_code() will make the Subblock encoder to disable the
+-	 * Subfilter once all the data has been ran through the Subfilter.
+-	 *
+-	 * After the first call with LZMA_SYNC_FLUSH or LZMA_FINISH, the
+-	 * application must not change subfilter_mode until LZMA_STREAM_END.
+-	 * Setting LZMA_SUBFILTER_SET/LZMA_SUBFILTER_FINISH and
+-	 * LZMA_SYNC_FLUSH/LZMA_FINISH _at the same time_ is fine.
+-	 *
+-	 * \note        This variable is ignored if allow_subfilters is false.
+-	 */
+-	lzma_subfilter_mode subfilter_mode;
+-
+-	/**
+-	 * \brief       Subfilter and its options
+-	 *
+-	 * When no Subfilter is used, the data is copied as is into Subblocks.
+-	 * Setting a Subfilter allows encoding some parts of the data with
+-	 * an additional filter. It is possible to many different Subfilters
+-	 * in the same Block, although only one can be used at once.
+-	 *
+-	 * \note        This variable is ignored if allow_subfilters is false.
+-	 */
+-	lzma_filter subfilter_options;
+-
+-} lzma_options_subblock;
+diff --git a/src/liblzma/common/common.h b/src/liblzma/common/common.h
+index 7b7fbb11..3a85168f 100644
+--- a/src/liblzma/common/common.h
++++ b/src/liblzma/common/common.h
+@@ -60,12 +60,6 @@
+ #define LZMA_FILTER_RESERVED_START (LZMA_VLI_C(1) << 62)
+ 
+ 
+-/// Internal helper filter used by Subblock decoder. It is mapped to an
+-/// otherwise invalid Filter ID, which is impossible to get from any input
+-/// file (even if malicious file).
+-#define LZMA_FILTER_SUBBLOCK_HELPER LZMA_VLI_C(0x7000000000000001)
+-
+-
+ /// Supported flags that can be passed to lzma_stream_decoder()
+ /// or lzma_auto_decoder().
+ #define LZMA_SUPPORTED_FLAGS \
+diff --git a/src/liblzma/common/filter_common.c b/src/liblzma/common/filter_common.c
+index 2322d7de..b157c628 100644
+--- a/src/liblzma/common/filter_common.c
++++ b/src/liblzma/common/filter_common.c
+@@ -52,15 +52,6 @@ static const struct {
+ 		.changes_size = true,
+ 	},
+ #endif
+-#if defined(HAVE_ENCODER_SUBBLOCK) || defined(HAVE_DECODER_SUBBLOCK)
+-	{
+-		.id = LZMA_FILTER_SUBBLOCK,
+-		.options_size = sizeof(lzma_options_subblock),
+-		.non_last_ok = true,
+-		.last_ok = true,
+-		.changes_size = true,
+-	},
+-#endif
+ #ifdef HAVE_DECODER_X86
+ 	{
+ 		.id = LZMA_FILTER_X86,
+diff --git a/src/liblzma/common/filter_decoder.c b/src/liblzma/common/filter_decoder.c
+index 95f77b76..1ebbe2af 100644
+--- a/src/liblzma/common/filter_decoder.c
++++ b/src/liblzma/common/filter_decoder.c
+@@ -14,8 +14,6 @@
+ #include "filter_common.h"
+ #include "lzma_decoder.h"
+ #include "lzma2_decoder.h"
+-#include "subblock_decoder.h"
+-#include "subblock_decoder_helper.h"
+ #include "simple_decoder.h"
+ #include "delta_decoder.h"
+ 
+@@ -60,20 +58,6 @@ static const lzma_filter_decoder decoders[] = {
+ 		.props_decode = &lzma_lzma2_props_decode,
+ 	},
+ #endif
+-#ifdef HAVE_DECODER_SUBBLOCK
+-	{
+-		.id = LZMA_FILTER_SUBBLOCK,
+-		.init = &lzma_subblock_decoder_init,
+-// 		.memusage = &lzma_subblock_decoder_memusage,
+-		.props_decode = NULL,
+-	},
+-	{
+-		.id = LZMA_FILTER_SUBBLOCK_HELPER,
+-		.init = &lzma_subblock_decoder_helper_init,
+-		.memusage = NULL,
+-		.props_decode = NULL,
+-	},
+-#endif
+ #ifdef HAVE_DECODER_X86
+ 	{
+ 		.id = LZMA_FILTER_X86,
+diff --git a/src/liblzma/common/filter_encoder.c b/src/liblzma/common/filter_encoder.c
+index ab3d3af1..436d2cc6 100644
+--- a/src/liblzma/common/filter_encoder.c
++++ b/src/liblzma/common/filter_encoder.c
+@@ -14,7 +14,6 @@
+ #include "filter_common.h"
+ #include "lzma_encoder.h"
+ #include "lzma2_encoder.h"
+-#include "subblock_encoder.h"
+ #include "simple_encoder.h"
+ #include "delta_encoder.h"
+ 
+@@ -77,17 +76,6 @@ static const lzma_filter_encoder encoders[] = {
+ 		.props_encode = &lzma_lzma2_props_encode,
+ 	},
+ #endif
+-#ifdef HAVE_ENCODER_SUBBLOCK
+-	{
+-		.id = LZMA_FILTER_SUBBLOCK,
+-		.init = &lzma_subblock_encoder_init,
+-// 		.memusage = &lzma_subblock_encoder_memusage,
+-		.chunk_size = NULL,
+-		.props_size_get = NULL,
+-		.props_size_fixed = 0,
+-		.props_encode = NULL,
+-	},
+-#endif
+ #ifdef HAVE_ENCODER_X86
+ 	{
+ 		.id = LZMA_FILTER_X86,
+diff --git a/src/liblzma/subblock/Makefile.inc b/src/liblzma/subblock/Makefile.inc
+deleted file mode 100644
+index a4710cc5..00000000
+--- a/src/liblzma/subblock/Makefile.inc
++++ /dev/null
+@@ -1,20 +0,0 @@
+-##
+-## Author: Lasse Collin
+-##
+-## This file has been put into the public domain.
+-## You can do whatever you want with this file.
+-##
+-
+-if COND_ENCODER_SUBBLOCK
+-liblzma_la_SOURCES += \
+-	subblock/subblock_encoder.c \
+-	subblock/subblock_encoder.h
+-endif
+-
+-if COND_DECODER_SUBBLOCK
+-liblzma_la_SOURCES += \
+-	subblock/subblock_decoder.c \
+-	subblock/subblock_decoder.h \
+-	subblock/subblock_decoder_helper.c \
+-	subblock/subblock_decoder_helper.h
+-endif
+diff --git a/src/liblzma/subblock/subblock_decoder.c b/src/liblzma/subblock/subblock_decoder.c
+deleted file mode 100644
+index e055cee3..00000000
+--- a/src/liblzma/subblock/subblock_decoder.c
++++ /dev/null
+@@ -1,630 +0,0 @@
+-///////////////////////////////////////////////////////////////////////////////
+-//
+-/// \file       subblock_decoder.c
+-/// \brief      Decoder of the Subblock filter
+-//
+-//  Author:     Lasse Collin
+-//
+-//  This file has been put into the public domain.
+-//  You can do whatever you want with this file.
+-//
+-///////////////////////////////////////////////////////////////////////////////
+-
+-#include "subblock_decoder.h"
+-#include "subblock_decoder_helper.h"
+-#include "filter_decoder.h"
+-
+-
+-/// Maximum number of consecutive Subblocks with Subblock Type Padding
+-#define PADDING_MAX 31
+-
+-
+-struct lzma_coder_s {
+-	lzma_next_coder next;
+-
+-	enum {
+-		// These require that there is at least one input
+-		// byte available.
+-		SEQ_FLAGS,
+-		SEQ_FILTER_FLAGS,
+-		SEQ_FILTER_END,
+-		SEQ_REPEAT_COUNT_1,
+-		SEQ_REPEAT_COUNT_2,
+-		SEQ_REPEAT_COUNT_3,
+-		SEQ_REPEAT_SIZE,
+-		SEQ_REPEAT_READ_DATA,
+-		SEQ_SIZE_1,
+-		SEQ_SIZE_2,
+-		SEQ_SIZE_3, // This must be right before SEQ_DATA.
+-
+-		// These don't require any input to be available.
+-		SEQ_DATA,
+-		SEQ_REPEAT_FAST,
+-		SEQ_REPEAT_NORMAL,
+-	} sequence;
+-
+-	/// Number of bytes left in the current Subblock Data field.
+-	size_t size;
+-
+-	/// Number of consecutive Subblocks with Subblock Type Padding
+-	uint32_t padding;
+-
+-	/// True when .next.code() has returned LZMA_STREAM_END.
+-	bool next_finished;
+-
+-	/// True when the Subblock decoder has detected End of Payload Marker.
+-	/// This may become true before next_finished becomes true.
+-	bool this_finished;
+-
+-	/// True if Subfilters are allowed.
+-	bool allow_subfilters;
+-
+-	/// Indicates if at least one byte of decoded output has been
+-	/// produced after enabling Subfilter.
+-	bool got_output_with_subfilter;
+-
+-	/// Possible subfilter
+-	lzma_next_coder subfilter;
+-
+-	/// Filter Flags decoder is needed to parse the ID and Properties
+-	/// of the subfilter.
+-	lzma_next_coder filter_flags_decoder;
+-
+-	/// The filter_flags_decoder stores its results here.
+-	lzma_filter filter_flags;
+-
+-	/// Options for the Subblock decoder helper. This is used to tell
+-	/// the helper when it should return LZMA_STREAM_END to the subfilter.
+-	lzma_options_subblock_helper helper;
+-
+-	struct {
+-		/// How many times buffer should be repeated
+-		size_t count;
+-
+-		/// Size of the buffer
+-		size_t size;
+-
+-		/// Position in the buffer
+-		size_t pos;
+-
+-		/// Buffer to hold the data to be repeated
+-		uint8_t buffer[LZMA_SUBBLOCK_RLE_MAX];
+-	} repeat;
+-
+-	/// Temporary buffer needed when the Subblock filter is not the last
+-	/// filter in the chain. The output of the next filter is first
+-	/// decoded into buffer[], which is then used as input for the actual
+-	/// Subblock decoder.
+-	struct {
+-		size_t pos;
+-		size_t size;
+-		uint8_t buffer[LZMA_BUFFER_SIZE];
+-	} temp;
+-};
+-
+-
+-/// Values of valid Subblock Flags
+-enum {
+-	FLAG_PADDING,
+-	FLAG_EOPM,
+-	FLAG_DATA,
+-	FLAG_REPEAT,
+-	FLAG_SET_SUBFILTER,
+-	FLAG_END_SUBFILTER,
+-};
+-
+-
+-/// Calls the subfilter and updates coder->uncompressed_size.
+-static lzma_ret
+-subfilter_decode(lzma_coder *coder, lzma_allocator *allocator,
+-		const uint8_t *in, size_t *in_pos,
+-		size_t in_size, uint8_t *restrict out,
+-		size_t *restrict out_pos, size_t out_size, lzma_action action)
+-{
+-	assert(coder->subfilter.code != NULL);
+-
+-	// Call the subfilter.
+-	const lzma_ret ret = coder->subfilter.code(
+-			coder->subfilter.coder, allocator,
+-			in, in_pos, in_size, out, out_pos, out_size, action);
+-
+-	return ret;
+-}
+-
+-
+-static lzma_ret
+-decode_buffer(lzma_coder *coder, lzma_allocator *allocator,
+-		const uint8_t *in, size_t *in_pos,
+-		size_t in_size, uint8_t *restrict out,
+-		size_t *restrict out_pos, size_t out_size, lzma_action action)
+-{
+-	while (*out_pos < out_size && (*in_pos < in_size
+-			|| coder->sequence >= SEQ_DATA))
+-	switch (coder->sequence) {
+-	case SEQ_FLAGS: {
+-		// Do the correct action depending on the Subblock Type.
+-		switch (in[*in_pos] >> 4) {
+-		case FLAG_PADDING:
+-			// Only check that reserved bits are zero.
+-			if (++coder->padding > PADDING_MAX
+-					|| in[*in_pos] & 0x0F)
+-				return LZMA_DATA_ERROR;
+-			++*in_pos;
+-			break;
+-
+-		case FLAG_EOPM:
+-			// There must be no Padding before EOPM.
+-			if (coder->padding != 0)
+-				return LZMA_DATA_ERROR;
+-
+-			// Check that reserved bits are zero.
+-			if (in[*in_pos] & 0x0F)
+-				return LZMA_DATA_ERROR;
+-
+-			// There must be no Subfilter enabled.
+-			if (coder->subfilter.code != NULL)
+-				return LZMA_DATA_ERROR;
+-
+-			++*in_pos;
+-			return LZMA_STREAM_END;
+-
+-		case FLAG_DATA:
+-			// First four bits of the Subblock Data size.
+-			coder->size = in[*in_pos] & 0x0F;
+-			++*in_pos;
+-			coder->got_output_with_subfilter = true;
+-			coder->sequence = SEQ_SIZE_1;
+-			break;
+-
+-		case FLAG_REPEAT:
+-			// First four bits of the Repeat Count. We use
+-			// coder->size as a temporary place for it.
+-			coder->size = in[*in_pos] & 0x0F;
+-			++*in_pos;
+-			coder->got_output_with_subfilter = true;
+-			coder->sequence = SEQ_REPEAT_COUNT_1;
+-			break;
+-
+-		case FLAG_SET_SUBFILTER: {
+-			if (coder->padding != 0 || (in[*in_pos] & 0x0F)
+-					|| coder->subfilter.code != NULL
+-					|| !coder->allow_subfilters)
+-				return LZMA_DATA_ERROR;
+-
+-			assert(coder->filter_flags.options == NULL);
+-			abort();
+-// 			return_if_error(lzma_filter_flags_decoder_init(
+-// 					&coder->filter_flags_decoder,
+-// 					allocator, &coder->filter_flags));
+-
+-			coder->got_output_with_subfilter = false;
+-
+-			++*in_pos;
+-			coder->sequence = SEQ_FILTER_FLAGS;
+-			break;
+-		}
+-
+-		case FLAG_END_SUBFILTER: {
+-			if (coder->padding != 0 || (in[*in_pos] & 0x0F)
+-					|| coder->subfilter.code == NULL
+-					|| !coder->got_output_with_subfilter)
+-				return LZMA_DATA_ERROR;
+-
+-			// Tell the helper filter to indicate End of Input
+-			// to our subfilter.
+-			coder->helper.end_was_reached = true;
+-
+-			size_t dummy = 0;
+-			const lzma_ret ret = subfilter_decode(coder, allocator,
+-					NULL, &dummy, 0, out, out_pos,out_size,
+-					action);
+-
+-			// If we didn't reach the end of the subfilter's output
+-			// yet, return to the application. On the next call we
+-			// will get to this same switch-case again, because we
+-			// haven't updated *in_pos yet.
+-			if (ret != LZMA_STREAM_END)
+-				return ret;
+-
+-			// Free Subfilter's memory. This is a bit debatable,
+-			// since we could avoid some malloc()/free() calls
+-			// if the same Subfilter gets used soon again. But
+-			// if Subfilter isn't used again, we could leave
+-			// a memory-hogging filter dangling until someone
+-			// frees Subblock filter itself.
+-			lzma_next_end(&coder->subfilter, allocator);
+-
+-			// Free memory used for subfilter options. This is
+-			// safe, because we don't support any Subfilter that
+-			// would allow pointers in the options structure.
+-			lzma_free(coder->filter_flags.options, allocator);
+-			coder->filter_flags.options = NULL;
+-
+-			++*in_pos;
+-
+-			break;
+-		}
+-
+-		default:
+-			return LZMA_DATA_ERROR;
+-		}
+-
+-		break;
+-	}
+-
+-	case SEQ_FILTER_FLAGS: {
+-		const lzma_ret ret = coder->filter_flags_decoder.code(
+-				coder->filter_flags_decoder.coder, allocator,
+-				in, in_pos, in_size, NULL, NULL, 0, LZMA_RUN);
+-		if (ret != LZMA_STREAM_END)
+-			return ret == LZMA_OPTIONS_ERROR
+-					? LZMA_DATA_ERROR : ret;
+-
+-		// Don't free the filter_flags_decoder. It doesn't take much
+-		// memory and we may need it again.
+-
+-		// Initialize the Subfilter. Subblock and Copy filters are
+-		// not allowed.
+-		if (coder->filter_flags.id == LZMA_FILTER_SUBBLOCK)
+-			return LZMA_DATA_ERROR;
+-
+-		coder->helper.end_was_reached = false;
+-
+-		lzma_filter filters[3] = {
+-			{
+-				.id = coder->filter_flags.id,
+-				.options = coder->filter_flags.options,
+-			}, {
+-				.id = LZMA_FILTER_SUBBLOCK_HELPER,
+-				.options = &coder->helper,
+-			}, {
+-				.id = LZMA_VLI_UNKNOWN,
+-				.options = NULL,
+-			}
+-		};
+-
+-		// Optimization: We know that LZMA uses End of Payload Marker
+-		// (not End of Input), so we can omit the helper filter.
+-		if (filters[0].id == LZMA_FILTER_LZMA1)
+-			filters[1].id = LZMA_VLI_UNKNOWN;
+-
+-		return_if_error(lzma_raw_decoder_init(
+-				&coder->subfilter, allocator, filters));
+-
+-		coder->sequence = SEQ_FLAGS;
+-		break;
+-	}
+-
+-	case SEQ_FILTER_END:
+-		// We are in the beginning of a Subblock. The next Subblock
+-		// whose type is not Padding, must indicate end of Subfilter.
+-		if (in[*in_pos] == (FLAG_PADDING << 4)) {
+-			++*in_pos;
+-			break;
+-		}
+-
+-		if (in[*in_pos] != (FLAG_END_SUBFILTER << 4))
+-			return LZMA_DATA_ERROR;
+-
+-		coder->sequence = SEQ_FLAGS;
+-		break;
+-
+-	case SEQ_REPEAT_COUNT_1:
+-	case SEQ_SIZE_1:
+-		// We use the same code to parse
+-		//  - the Size (28 bits) in Subblocks of type Data; and
+-		//  - the Repeat count (28 bits) in Subblocks of type
+-		//    Repeating Data.
+-		coder->size |= (size_t)(in[*in_pos]) << 4;
+-		++*in_pos;
+-		++coder->sequence;
+-		break;
+-
+-	case SEQ_REPEAT_COUNT_2:
+-	case SEQ_SIZE_2:
+-		coder->size |= (size_t)(in[*in_pos]) << 12;
+-		++*in_pos;
+-		++coder->sequence;
+-		break;
+-
+-	case SEQ_REPEAT_COUNT_3:
+-	case SEQ_SIZE_3:
+-		coder->size |= (size_t)(in[*in_pos]) << 20;
+-		++*in_pos;
+-
+-		// The real value is the stored value plus one.
+-		++coder->size;
+-
+-		// This moves to SEQ_REPEAT_SIZE or SEQ_DATA. That's why
+-		// SEQ_DATA must be right after SEQ_SIZE_3 in coder->sequence.
+-		++coder->sequence;
+-		break;
+-
+-	case SEQ_REPEAT_SIZE:
+-		// Move the Repeat Count to the correct variable and parse
+-		// the Size of the Data to be repeated.
+-		coder->repeat.count = coder->size;
+-		coder->repeat.size = (size_t)(in[*in_pos]) + 1;
+-		coder->repeat.pos = 0;
+-
+-		// The size of the Data field must be bigger than the number
+-		// of Padding bytes before this Subblock.
+-		if (coder->repeat.size <= coder->padding)
+-			return LZMA_DATA_ERROR;
+-
+-		++*in_pos;
+-		coder->padding = 0;
+-		coder->sequence = SEQ_REPEAT_READ_DATA;
+-		break;
+-
+-	case SEQ_REPEAT_READ_DATA: {
+-		// Fill coder->repeat.buffer[].
+-		const size_t in_avail = in_size - *in_pos;
+-		const size_t out_avail
+-				= coder->repeat.size - coder->repeat.pos;
+-		const size_t copy_size = MIN(in_avail, out_avail);
+-
+-		memcpy(coder->repeat.buffer + coder->repeat.pos,
+-				in + *in_pos, copy_size);
+-		*in_pos += copy_size;
+-		coder->repeat.pos += copy_size;
+-
+-		if (coder->repeat.pos == coder->repeat.size) {
+-			coder->repeat.pos = 0;
+-
+-			if (coder->repeat.size == 1
+-					&& coder->subfilter.code == NULL)
+-				coder->sequence = SEQ_REPEAT_FAST;
+-			else
+-				coder->sequence = SEQ_REPEAT_NORMAL;
+-		}
+-
+-		break;
+-	}
+-
+-	case SEQ_DATA: {
+-		// The size of the Data field must be bigger than the number
+-		// of Padding bytes before this Subblock.
+-		assert(coder->size > 0);
+-		if (coder->size <= coder->padding)
+-			return LZMA_DATA_ERROR;
+-
+-		coder->padding = 0;
+-
+-		// Limit the amount of input to match the available
+-		// Subblock Data size.
+-		size_t in_limit;
+-		if (in_size - *in_pos > coder->size)
+-			in_limit = *in_pos + coder->size;
+-		else
+-			in_limit = in_size;
+-
+-		if (coder->subfilter.code == NULL) {
+-			const size_t copy_size = lzma_bufcpy(
+-					in, in_pos, in_limit,
+-					out, out_pos, out_size);
+-
+-			coder->size -= copy_size;
+-		} else {
+-			const size_t in_start = *in_pos;
+-			const lzma_ret ret = subfilter_decode(
+-					coder, allocator,
+-					in, in_pos, in_limit,
+-					out, out_pos, out_size,
+-					action);
+-
+-			// Update the number of unprocessed bytes left in
+-			// this Subblock. This assert() is true because
+-			// in_limit prevents *in_pos getting too big.
+-			assert(*in_pos - in_start <= coder->size);
+-			coder->size -= *in_pos - in_start;
+-
+-			if (ret == LZMA_STREAM_END) {
+-				// End of Subfilter can occur only at
+-				// a Subblock boundary.
+-				if (coder->size != 0)
+-					return LZMA_DATA_ERROR;
+-
+-				// We need a Subblock with Unset
+-				// Subfilter before more data.
+-				coder->sequence = SEQ_FILTER_END;
+-				break;
+-			}
+-
+-			if (ret != LZMA_OK)
+-				return ret;
+-		}
+-
+-		// If we couldn't process the whole Subblock Data yet, return.
+-		if (coder->size > 0)
+-			return LZMA_OK;
+-
+-		coder->sequence = SEQ_FLAGS;
+-		break;
+-	}
+-
+-	case SEQ_REPEAT_FAST: {
+-		// Optimization for cases when there is only one byte to
+-		// repeat and no Subfilter.
+-		const size_t out_avail = out_size - *out_pos;
+-		const size_t copy_size = MIN(coder->repeat.count, out_avail);
+-
+-		memset(out + *out_pos, coder->repeat.buffer[0], copy_size);
+-
+-		*out_pos += copy_size;
+-		coder->repeat.count -= copy_size;
+-
+-		if (coder->repeat.count != 0)
+-			return LZMA_OK;
+-
+-		coder->sequence = SEQ_FLAGS;
+-		break;
+-	}
+-
+-	case SEQ_REPEAT_NORMAL:
+-		do {
+-			// Cycle the repeat buffer if needed.
+-			if (coder->repeat.pos == coder->repeat.size) {
+-				if (--coder->repeat.count == 0) {
+-					coder->sequence = SEQ_FLAGS;
+-					break;
+-				}
+-
+-				coder->repeat.pos = 0;
+-			}
+-
+-			if (coder->subfilter.code == NULL) {
+-				lzma_bufcpy(coder->repeat.buffer,
+-						&coder->repeat.pos,
+-						coder->repeat.size,
+-						out, out_pos, out_size);
+-			} else {
+-				const lzma_ret ret = subfilter_decode(
+-						coder, allocator,
+-						coder->repeat.buffer,
+-						&coder->repeat.pos,
+-						coder->repeat.size,
+-						out, out_pos, out_size,
+-						action);
+-
+-				if (ret == LZMA_STREAM_END) {
+-					// End of Subfilter can occur only at
+-					// a Subblock boundary.
+-					if (coder->repeat.pos
+-							!= coder->repeat.size
+-							|| --coder->repeat
+-								.count != 0)
+-						return LZMA_DATA_ERROR;
+-
+-					// We need a Subblock with Unset
+-					// Subfilter before more data.
+-					coder->sequence = SEQ_FILTER_END;
+-					break;
+-
+-				} else if (ret != LZMA_OK) {
+-					return ret;
+-				}
+-			}
+-		} while (*out_pos < out_size);
+-
+-		break;
+-
+-	default:
+-		return LZMA_PROG_ERROR;
+-	}
+-
+-	return LZMA_OK;
+-}
+-
+-
+-static lzma_ret
+-subblock_decode(lzma_coder *coder, lzma_allocator *allocator,
+-		const uint8_t *restrict in, size_t *restrict in_pos,
+-		size_t in_size, uint8_t *restrict out,
+-		size_t *restrict out_pos, size_t out_size, lzma_action action)
+-{
+-	if (coder->next.code == NULL)
+-		return decode_buffer(coder, allocator, in, in_pos, in_size,
+-				out, out_pos, out_size, action);
+-
+-	while (*out_pos < out_size) {
+-		if (!coder->next_finished
+-				&& coder->temp.pos == coder->temp.size) {
+-			coder->temp.pos = 0;
+-			coder->temp.size = 0;
+-
+-			const lzma_ret ret = coder->next.code(
+-					coder->next.coder,
+-					allocator, in, in_pos, in_size,
+-					coder->temp.buffer, &coder->temp.size,
+-					LZMA_BUFFER_SIZE, action);
+-
+-			if (ret == LZMA_STREAM_END)
+-				coder->next_finished = true;
+-			else if (coder->temp.size == 0 || ret != LZMA_OK)
+-				return ret;
+-		}
+-
+-		if (coder->this_finished) {
+-			if (coder->temp.pos != coder->temp.size)
+-				return LZMA_DATA_ERROR;
+-
+-			if (coder->next_finished)
+-				return LZMA_STREAM_END;
+-
+-			return LZMA_OK;
+-		}
+-
+-		const lzma_ret ret = decode_buffer(coder, allocator,
+-				coder->temp.buffer, &coder->temp.pos,
+-				coder->temp.size,
+-				out, out_pos, out_size, action);
+-
+-		if (ret == LZMA_STREAM_END)
+-			// The next coder in the chain hasn't finished
+-			// yet. If the input data is valid, there
+-			// must be no more output coming, but the
+-			// next coder may still need a litle more
+-			// input to detect End of Payload Marker.
+-			coder->this_finished = true;
+-		else if (ret != LZMA_OK)
+-			return ret;
+-		else if (coder->next_finished && *out_pos < out_size)
+-			return LZMA_DATA_ERROR;
+-	}
+-
+-	return LZMA_OK;
+-}
+-
+-
+-static void
+-subblock_decoder_end(lzma_coder *coder, lzma_allocator *allocator)
+-{
+-	lzma_next_end(&coder->next, allocator);
+-	lzma_next_end(&coder->subfilter, allocator);
+-	lzma_next_end(&coder->filter_flags_decoder, allocator);
+-	lzma_free(coder->filter_flags.options, allocator);
+-	lzma_free(coder, allocator);
+-	return;
+-}
+-
+-
+-extern lzma_ret
+-lzma_subblock_decoder_init(lzma_next_coder *next, lzma_allocator *allocator,
+-		const lzma_filter_info *filters)
+-{
+-	if (next->coder == NULL) {
+-		next->coder = lzma_alloc(sizeof(lzma_coder), allocator);
+-		if (next->coder == NULL)
+-			return LZMA_MEM_ERROR;
+-
+-		next->code = &subblock_decode;
+-		next->end = &subblock_decoder_end;
+-
+-		next->coder->next = LZMA_NEXT_CODER_INIT;
+-		next->coder->subfilter = LZMA_NEXT_CODER_INIT;
+-		next->coder->filter_flags_decoder = LZMA_NEXT_CODER_INIT;
+-
+-	} else {
+-		lzma_next_end(&next->coder->subfilter, allocator);
+-		lzma_free(next->coder->filter_flags.options, allocator);
+-	}
+-
+-	next->coder->filter_flags.options = NULL;
+-
+-	next->coder->sequence = SEQ_FLAGS;
+-	next->coder->padding = 0;
+-	next->coder->next_finished = false;
+-	next->coder->this_finished = false;
+-	next->coder->temp.pos = 0;
+-	next->coder->temp.size = 0;
+-
+-	if (filters[0].options != NULL)
+-		next->coder->allow_subfilters = ((lzma_options_subblock *)(
+-				filters[0].options))->allow_subfilters;
+-	else
+-		next->coder->allow_subfilters = false;
+-
+-	return lzma_next_filter_init(
+-			&next->coder->next, allocator, filters + 1);
+-}
+diff --git a/src/liblzma/subblock/subblock_decoder.h b/src/liblzma/subblock/subblock_decoder.h
+deleted file mode 100644
+index d1030b2b..00000000
+--- a/src/liblzma/subblock/subblock_decoder.h
++++ /dev/null
+@@ -1,22 +0,0 @@
+-///////////////////////////////////////////////////////////////////////////////
+-//
+-/// \file       subblock_decoder.h
+-/// \brief      Decoder of the Subblock filter
+-//
+-//  Author:     Lasse Collin
+-//
+-//  This file has been put into the public domain.
+-//  You can do whatever you want with this file.
+-//
+-///////////////////////////////////////////////////////////////////////////////
+-
+-#ifndef LZMA_SUBBLOCK_DECODER_H
+-#define LZMA_SUBBLOCK_DECODER_H
+-
+-#include "common.h"
+-
+-
+-extern lzma_ret lzma_subblock_decoder_init(lzma_next_coder *next,
+-		lzma_allocator *allocator, const lzma_filter_info *filters);
+-
+-#endif
+diff --git a/src/liblzma/subblock/subblock_decoder_helper.c b/src/liblzma/subblock/subblock_decoder_helper.c
+deleted file mode 100644
+index 2a864edd..00000000
+--- a/src/liblzma/subblock/subblock_decoder_helper.c
++++ /dev/null
+@@ -1,70 +0,0 @@
+-///////////////////////////////////////////////////////////////////////////////
+-//
+-/// \file       subblock_decoder_helper.c
+-/// \brief      Helper filter for the Subblock decoder
+-///
+-/// This filter is used to indicate End of Input for subfilters needing it.
+-//
+-//  Author:     Lasse Collin
+-//
+-//  This file has been put into the public domain.
+-//  You can do whatever you want with this file.
+-//
+-///////////////////////////////////////////////////////////////////////////////
+-
+-#include "subblock_decoder_helper.h"
+-
+-
+-struct lzma_coder_s {
+-	const lzma_options_subblock_helper *options;
+-};
+-
+-
+-static lzma_ret
+-helper_decode(lzma_coder *coder,
+-		lzma_allocator *allocator lzma_attribute((unused)),
+-		const uint8_t *restrict in, size_t *restrict in_pos,
+-		size_t in_size, uint8_t *restrict out,
+-		size_t *restrict out_pos, size_t out_size,
+-		lzma_action action lzma_attribute((unused)))
+-{
+-	// If end_was_reached is true, we cannot have any input.
+-	assert(!coder->options->end_was_reached || *in_pos == in_size);
+-
+-	// We can safely copy as much as possible, because we are never
+-	// given more data than a single Subblock Data field.
+-	lzma_bufcpy(in, in_pos, in_size, out, out_pos, out_size);
+-
+-	// Return LZMA_STREAM_END when instructed so by the Subblock decoder.
+-	return coder->options->end_was_reached ? LZMA_STREAM_END : LZMA_OK;
+-}
+-
+-
+-static void
+-helper_end(lzma_coder *coder, lzma_allocator *allocator)
+-{
+-	lzma_free(coder, allocator);
+-	return;
+-}
+-
+-
+-extern lzma_ret
+-lzma_subblock_decoder_helper_init(lzma_next_coder *next,
+-		lzma_allocator *allocator, const lzma_filter_info *filters)
+-{
+-	// This is always the last filter in the chain.
+-	assert(filters[1].init == NULL);
+-
+-	if (next->coder == NULL) {
+-		next->coder = lzma_alloc(sizeof(lzma_coder), allocator);
+-		if (next->coder == NULL)
+-			return LZMA_MEM_ERROR;
+-
+-		next->code = &helper_decode;
+-		next->end = &helper_end;
+-	}
+-
+-	next->coder->options = filters[0].options;
+-
+-	return LZMA_OK;
+-}
+diff --git a/src/liblzma/subblock/subblock_decoder_helper.h b/src/liblzma/subblock/subblock_decoder_helper.h
+deleted file mode 100644
+index 18dcbb39..00000000
+--- a/src/liblzma/subblock/subblock_decoder_helper.h
++++ /dev/null
+@@ -1,29 +0,0 @@
+-///////////////////////////////////////////////////////////////////////////////
+-//
+-/// \file       subblock_decoder_helper.h
+-/// \brief      Helper filter for the Subblock decoder
+-///
+-/// This filter is used to indicate End of Input for subfilters needing it.
+-//
+-//  Author:     Lasse Collin
+-//
+-//  This file has been put into the public domain.
+-//  You can do whatever you want with this file.
+-//
+-///////////////////////////////////////////////////////////////////////////////
+-
+-#ifndef LZMA_SUBBLOCK_DECODER_HELPER_H
+-#define LZMA_SUBBLOCK_DECODER_HELPER_H
+-
+-#include "common.h"
+-
+-
+-typedef struct {
+-	bool end_was_reached;
+-} lzma_options_subblock_helper;
+-
+-
+-extern lzma_ret lzma_subblock_decoder_helper_init(lzma_next_coder *next,
+-		lzma_allocator *allocator, const lzma_filter_info *filters);
+-
+-#endif
+diff --git a/src/liblzma/subblock/subblock_encoder.c b/src/liblzma/subblock/subblock_encoder.c
+deleted file mode 100644
+index 4f71f99c..00000000
+--- a/src/liblzma/subblock/subblock_encoder.c
++++ /dev/null
+@@ -1,984 +0,0 @@
+-///////////////////////////////////////////////////////////////////////////////
+-//
+-/// \file       subblock_encoder.c
+-/// \brief      Encoder of the Subblock filter
+-//
+-//  Author:     Lasse Collin
+-//
+-//  This file has been put into the public domain.
+-//  You can do whatever you want with this file.
+-//
+-///////////////////////////////////////////////////////////////////////////////
+-
+-#include "subblock_encoder.h"
+-#include "filter_encoder.h"
+-
+-
+-/// Maximum number of repeats that a single Repeating Data can indicate.
+-/// This is directly from the file format specification.
+-#define REPEAT_COUNT_MAX (1U << 28)
+-
+-/// Number of bytes the data chunk (not including the header part) must be
+-/// before we care about alignment. This is somewhat arbitrary. It just
+-/// doesn't make sense to waste bytes for alignment when the data chunk
+-/// is very small.
+-#define MIN_CHUNK_SIZE_FOR_ALIGN 4
+-
+-/// Number of bytes of the header part of Subblock Type `Data'. This is
+-/// used as the `skew' argument for subblock_align().
+-#define ALIGN_SKEW_DATA 4
+-
+-/// Like above but for Repeating Data.
+-#define ALIGN_SKEW_REPEATING_DATA 5
+-
+-/// Writes one byte to output buffer and updates the alignment counter.
+-#define write_byte(b) \
+-do { \
+-	assert(*out_pos < out_size); \
+-	out[*out_pos] = b; \
+-	++*out_pos; \
+-	++coder->alignment.out_pos; \
+-} while (0)
+-
+-
+-struct lzma_coder_s {
+-	lzma_next_coder next;
+-	bool next_finished;
+-
+-	enum {
+-		SEQ_FILL,
+-		SEQ_FLUSH,
+-		SEQ_RLE_COUNT_0,
+-		SEQ_RLE_COUNT_1,
+-		SEQ_RLE_COUNT_2,
+-		SEQ_RLE_COUNT_3,
+-		SEQ_RLE_SIZE,
+-		SEQ_RLE_DATA,
+-		SEQ_DATA_SIZE_0,
+-		SEQ_DATA_SIZE_1,
+-		SEQ_DATA_SIZE_2,
+-		SEQ_DATA_SIZE_3,
+-		SEQ_DATA,
+-		SEQ_SUBFILTER_INIT,
+-		SEQ_SUBFILTER_FLAGS,
+-	} sequence;
+-
+-	/// Pointer to the options given by the application. This is used
+-	/// for two-way communication with the application.
+-	lzma_options_subblock *options;
+-
+-	/// Position in various arrays.
+-	size_t pos;
+-
+-	/// Holds subblock.size - 1 or rle.size - 1 when encoding size
+-	/// of Data or Repeat Count.
+-	uint32_t tmp;
+-
+-	struct {
+-		/// This is a copy of options->alignment, or
+-		/// LZMA_SUBBLOCK_ALIGNMENT_DEFAULT if options is NULL.
+-		uint32_t multiple;
+-
+-		/// Number of input bytes which we have processed and started
+-		/// writing out. 32-bit integer is enough since we care only
+-		/// about the lowest bits when fixing alignment.
+-		uint32_t in_pos;
+-
+-		/// Number of bytes written out.
+-		uint32_t out_pos;
+-	} alignment;
+-
+-	struct {
+-		/// Pointer to allocated buffer holding the Data field
+-		/// of Subblock Type "Data".
+-		uint8_t *data;
+-
+-		/// Number of bytes in the buffer.
+-		size_t size;
+-
+-		/// Allocated size of the buffer.
+-		size_t limit;
+-
+-		/// Number of input bytes that we have already read but
+-		/// not yet started writing out. This can be different
+-		/// to `size' when using Subfilter. That's why we track
+-		/// in_pending separately for RLE (see below).
+-		uint32_t in_pending;
+-	} subblock;
+-
+-	struct {
+-		/// Buffer to hold the data that may be coded with
+-		/// Subblock Type `Repeating Data'.
+-		uint8_t buffer[LZMA_SUBBLOCK_RLE_MAX];
+-
+-		/// Number of bytes in buffer[].
+-		size_t size;
+-
+-		/// Number of times the first `size' bytes of buffer[]
+-		/// will be repeated.
+-		uint64_t count;
+-
+-		/// Like subblock.in_pending above, but for RLE.
+-		uint32_t in_pending;
+-	} rle;
+-
+-	struct {
+-		enum {
+-			SUB_NONE,
+-			SUB_SET,
+-			SUB_RUN,
+-			SUB_FLUSH,
+-			SUB_FINISH,
+-			SUB_END_MARKER,
+-		} mode;
+-
+-		/// This is a copy of options->allow_subfilters. We use
+-		/// this to verify that the application doesn't change
+-		/// the value of allow_subfilters.
+-		bool allow;
+-
+-		/// When this is true, application is not allowed to modify
+-		/// options->subblock_mode. We may still modify it here.
+-		bool mode_locked;
+-
+-		/// True if we have encoded at least one byte of data with
+-		/// the Subfilter.
+-		bool got_input;
+-
+-		/// Track the amount of input available once
+-		/// LZMA_SUBFILTER_FINISH has been enabled.
+-		/// This is needed for sanity checking (kind
+-		/// of duplicating what common/code.c does).
+-		size_t in_avail;
+-
+-		/// Buffer for the Filter Flags field written after
+-		/// the `Set Subfilter' indicator.
+-		uint8_t *flags;
+-
+-		/// Size of Filter Flags field.
+-		uint32_t flags_size;
+-
+-		/// Pointers to Subfilter.
+-		lzma_next_coder subcoder;
+-
+-	} subfilter;
+-
+-	/// Temporary buffer used when we are not the last filter in the chain.
+-	struct {
+-		size_t pos;
+-		size_t size;
+-		uint8_t buffer[LZMA_BUFFER_SIZE];
+-	} temp;
+-};
+-
+-
+-/// \brief      Aligns the output buffer
+-///
+-/// Aligns the output buffer so that after skew bytes the output position is
+-/// a multiple of coder->alignment.multiple.
+-static bool
+-subblock_align(lzma_coder *coder, uint8_t *restrict out,
+-		size_t *restrict out_pos, size_t out_size,
+-		size_t chunk_size, uint32_t skew)
+-{
+-	assert(*out_pos < out_size);
+-
+-	// Fix the alignment only if it makes sense at least a little.
+-	if (chunk_size >= MIN_CHUNK_SIZE_FOR_ALIGN) {
+-		const uint32_t target = coder->alignment.in_pos
+-				% coder->alignment.multiple;
+-
+-		while ((coder->alignment.out_pos + skew)
+-				% coder->alignment.multiple != target) {
+-			// Zero indicates padding.
+-			write_byte(0x00);
+-
+-			// Check if output buffer got full and indicate it to
+-			// the caller.
+-			if (*out_pos == out_size)
+-				return true;
+-		}
+-	}
+-
+-	// Output buffer is not full.
+-	return false;
+-}
+-
+-
+-/// \brief      Checks if buffer contains repeated data
+-///
+-/// \param      needle      Buffer containing a single repeat chunk
+-/// \param      needle_size Size of needle in bytes
+-/// \param      buf         Buffer to search for repeated needles
+-/// \param      buf_chunks  Buffer size is buf_chunks * needle_size.
+-///
+-/// \return     True if the whole buf is filled with repeated needles.
+-///
+-static bool
+-is_repeating(const uint8_t *restrict needle, size_t needle_size,
+-		const uint8_t *restrict buf, size_t buf_chunks)
+-{
+-	while (buf_chunks-- != 0) {
+-		if (memcmp(buf, needle, needle_size) != 0)
+-			return false;
+-
+-		buf += needle_size;
+-	}
+-
+-	return true;
+-}
+-
+-
+-/// \brief      Optimizes the repeating style and updates coder->sequence
+-static void
+-subblock_rle_flush(lzma_coder *coder)
+-{
+-	// The Subblock decoder can use memset() when the size of the data
+-	// being repeated is one byte, so we check if the RLE buffer is
+-	// filled with a single repeating byte.
+-	if (coder->rle.size > 1) {
+-		const uint8_t b = coder->rle.buffer[0];
+-		size_t i = 0;
+-		while (true) {
+-			if (coder->rle.buffer[i] != b)
+-				break;
+-
+-			if (++i == coder->rle.size) {
+-				// TODO Integer overflow check maybe,
+-				// although this needs at least 2**63 bytes
+-				// of input until it gets triggered...
+-				coder->rle.count *= coder->rle.size;
+-				coder->rle.size = 1;
+-				break;
+-			}
+-		}
+-	}
+-
+-	if (coder->rle.count == 1) {
+-		// The buffer should be repeated only once. It is
+-		// waste of space to use Repeating Data. Instead,
+-		// write a regular Data Subblock. See SEQ_RLE_COUNT_0
+-		// in subblock_buffer() for more info.
+-		coder->tmp = coder->rle.size - 1;
+-	} else if (coder->rle.count > REPEAT_COUNT_MAX) {
+-		// There's so much to repeat that it doesn't fit into
+-		// 28-bit integer. We will write two or more Subblocks
+-		// of type Repeating Data.
+-		coder->tmp = REPEAT_COUNT_MAX - 1;
+-	} else {
+-		coder->tmp = coder->rle.count - 1;
+-	}
+-
+-	coder->sequence = SEQ_RLE_COUNT_0;
+-
+-	return;
+-}
+-
+-
+-/// \brief      Resizes coder->subblock.data for a new size limit
+-static lzma_ret
+-subblock_data_size(lzma_coder *coder, lzma_allocator *allocator,
+-		size_t new_limit)
+-{
+-	// Verify that the new limit is valid.
+-	if (new_limit < LZMA_SUBBLOCK_DATA_SIZE_MIN
+-			|| new_limit > LZMA_SUBBLOCK_DATA_SIZE_MAX)
+-		return LZMA_OPTIONS_ERROR;
+-
+-	// Ff the new limit is different than the previous one, we need
+-	// to reallocate the data buffer.
+-	if (new_limit != coder->subblock.limit) {
+-		lzma_free(coder->subblock.data, allocator);
+-		coder->subblock.data = lzma_alloc(new_limit, allocator);
+-		if (coder->subblock.data == NULL)
+-			return LZMA_MEM_ERROR;
+-	}
+-
+-	coder->subblock.limit = new_limit;
+-
+-	return LZMA_OK;
+-}
+-
+-
+-static lzma_ret
+-subblock_buffer(lzma_coder *coder, lzma_allocator *allocator,
+-		const uint8_t *restrict in, size_t *restrict in_pos,
+-		size_t in_size, uint8_t *restrict out,
+-		size_t *restrict out_pos, size_t out_size, lzma_action action)
+-{
+-	// Changing allow_subfilter is not allowed.
+-	if (coder->options != NULL && coder->subfilter.allow
+-			!= coder->options->allow_subfilters)
+-		return LZMA_PROG_ERROR;
+-
+-	// Check if we need to do something special with the Subfilter.
+-	if (coder->subfilter.allow) {
+-		assert(coder->options != NULL);
+-
+-		// See if subfilter_mode has been changed.
+-		switch (coder->options->subfilter_mode) {
+-		case LZMA_SUBFILTER_NONE:
+-			if (coder->subfilter.mode != SUB_NONE)
+-				return LZMA_PROG_ERROR;
+-			break;
+-
+-		case LZMA_SUBFILTER_SET:
+-			if (coder->subfilter.mode_locked
+-					|| coder->subfilter.mode != SUB_NONE)
+-				return LZMA_PROG_ERROR;
+-
+-			coder->subfilter.mode = SUB_SET;
+-			coder->subfilter.got_input = false;
+-
+-			if (coder->sequence == SEQ_FILL)
+-				coder->sequence = SEQ_FLUSH;
+-
+-			break;
+-
+-		case LZMA_SUBFILTER_RUN:
+-			if (coder->subfilter.mode != SUB_RUN)
+-				return LZMA_PROG_ERROR;
+-
+-			break;
+-
+-		case LZMA_SUBFILTER_FINISH: {
+-			const size_t in_avail = in_size - *in_pos;
+-
+-			if (coder->subfilter.mode == SUB_RUN) {
+-				if (coder->subfilter.mode_locked)
+-					return LZMA_PROG_ERROR;
+-
+-				coder->subfilter.mode = SUB_FINISH;
+-				coder->subfilter.in_avail = in_avail;
+-
+-			} else if (coder->subfilter.mode != SUB_FINISH
+-					|| coder->subfilter.in_avail
+-						!= in_avail) {
+-				return LZMA_PROG_ERROR;
+-			}
+-
+-			break;
+-		}
+-
+-		default:
+-			return LZMA_OPTIONS_ERROR;
+-		}
+-
+-		// If we are sync-flushing or finishing, the application may
+-		// no longer change subfilter_mode. Note that this check is
+-		// done after checking the new subfilter_mode above; this
+-		// way the application may e.g. set LZMA_SUBFILTER_SET and
+-		// LZMA_SYNC_FLUSH at the same time, but it cannot modify
+-		// subfilter_mode on the later lzma_code() calls before
+-		// we have returned LZMA_STREAM_END.
+-		if (action != LZMA_RUN)
+-			coder->subfilter.mode_locked = true;
+-	}
+-
+-	// Main loop
+-	while (*out_pos < out_size)
+-	switch (coder->sequence) {
+-	case SEQ_FILL:
+-		// Grab the new Subblock Data Size and reallocate the buffer.
+-		if (coder->subblock.size == 0 && coder->options != NULL
+-				&& coder->options->subblock_data_size
+-					!= coder->subblock.limit)
+-			return_if_error(subblock_data_size(coder,
+-					allocator, coder->options
+-						->subblock_data_size));
+-
+-		if (coder->subfilter.mode == SUB_NONE) {
+-			assert(coder->subfilter.subcoder.code == NULL);
+-
+-			// No Subfilter is enabled, just copy the data as is.
+-			coder->subblock.in_pending += lzma_bufcpy(
+-					in, in_pos, in_size,
+-					coder->subblock.data,
+-					&coder->subblock.size,
+-					coder->subblock.limit);
+-
+-			// If we ran out of input before the whole buffer
+-			// was filled, return to application.
+-			if (coder->subblock.size < coder->subblock.limit
+-					&& action == LZMA_RUN)
+-				return LZMA_OK;
+-
+-		} else {
+-			assert(coder->options->subfilter_mode
+-					!= LZMA_SUBFILTER_SET);
+-
+-			// Using LZMA_FINISH automatically toggles
+-			// LZMA_SUBFILTER_FINISH.
+-			//
+-			// NOTE: It is possible that application had set
+-			// LZMA_SUBFILTER_SET and LZMA_FINISH at the same
+-			// time. In that case it is possible that we will
+-			// cycle to LZMA_SUBFILTER_RUN, LZMA_SUBFILTER_FINISH,
+-			// and back to LZMA_SUBFILTER_NONE in a single
+-			// Subblock encoder function call.
+-			if (action == LZMA_FINISH) {
+-				coder->options->subfilter_mode
+-						= LZMA_SUBFILTER_FINISH;
+-				coder->subfilter.mode = SUB_FINISH;
+-			}
+-
+-			const size_t in_start = *in_pos;
+-
+-			const lzma_ret ret = coder->subfilter.subcoder.code(
+-					coder->subfilter.subcoder.coder,
+-					allocator, in, in_pos, in_size,
+-					coder->subblock.data,
+-					&coder->subblock.size,
+-					coder->subblock.limit,
+-					coder->subfilter.mode == SUB_FINISH
+-						? LZMA_FINISH : action);
+-
+-			const size_t in_used = *in_pos - in_start;
+-			coder->subblock.in_pending += in_used;
+-			if (in_used > 0)
+-				coder->subfilter.got_input = true;
+-
+-			coder->subfilter.in_avail = in_size - *in_pos;
+-
+-			if (ret == LZMA_STREAM_END) {
+-				// All currently available input must have
+-				// been processed.
+-				assert(*in_pos == in_size);
+-
+-				// Flush now. Even if coder->subblock.size
+-				// happened to be zero, we still need to go
+-				// to SEQ_FLUSH to possibly finish RLE or
+-				// write the Subfilter Unset indicator.
+-				coder->sequence = SEQ_FLUSH;
+-
+-				if (coder->subfilter.mode == SUB_RUN) {
+-					// Flushing with Subfilter enabled.
+-					assert(action == LZMA_SYNC_FLUSH);
+-					coder->subfilter.mode = SUB_FLUSH;
+-					break;
+-				}
+-
+-				// Subfilter finished its job.
+-				assert(coder->subfilter.mode == SUB_FINISH
+-						|| action == LZMA_FINISH);
+-
+-				// At least one byte of input must have been
+-				// encoded with the Subfilter. This is
+-				// required by the file format specification.
+-				if (!coder->subfilter.got_input)
+-					return LZMA_PROG_ERROR;
+-
+-				// We don't strictly need to do this, but
+-				// doing it sounds like a good idea, because
+-				// otherwise the Subfilter's memory could be
+-				// left allocated for long time, and would
+-				// just waste memory.
+-				lzma_next_end(&coder->subfilter.subcoder,
+-						allocator);
+-
+-				// We need to flush the currently buffered
+-				// data and write Unset Subfilter marker.
+-				// Note that we cannot set
+-				// coder->options->subfilter_mode to
+-				// LZMA_SUBFILTER_NONE yet, because we
+-				// haven't written the Unset Subfilter
+-				// marker yet.
+-				coder->subfilter.mode = SUB_END_MARKER;
+-				coder->sequence = SEQ_FLUSH;
+-				break;
+-			}
+-
+-			// Return if we couldn't fill the buffer or
+-			// if an error occurred.
+-			if (coder->subblock.size < coder->subblock.limit
+-					|| ret != LZMA_OK)
+-				return ret;
+-		}
+-
+-		coder->sequence = SEQ_FLUSH;
+-
+-		// SEQ_FILL doesn't produce any output so falling through
+-		// to SEQ_FLUSH is safe.
+-		assert(*out_pos < out_size);
+-
+-	// Fall through
+-
+-	case SEQ_FLUSH:
+-		if (coder->options != NULL) {
+-			// Update the alignment variable.
+-			coder->alignment.multiple = coder->options->alignment;
+-			if (coder->alignment.multiple
+-					< LZMA_SUBBLOCK_ALIGNMENT_MIN
+-					|| coder->alignment.multiple
+-					> LZMA_SUBBLOCK_ALIGNMENT_MAX)
+-				return LZMA_OPTIONS_ERROR;
+-
+-			// Run-length encoder
+-			//
+-			// First check if there is some data pending and we
+-			// have an obvious need to flush it immediately.
+-			if (coder->rle.count > 0
+-					&& (coder->rle.size
+-							!= coder->options->rle
+-						|| coder->subblock.size
+-							% coder->rle.size)) {
+-				subblock_rle_flush(coder);
+-				break;
+-			}
+-
+-			// Grab the (possibly new) RLE chunk size and
+-			// validate it.
+-			coder->rle.size = coder->options->rle;
+-			if (coder->rle.size > LZMA_SUBBLOCK_RLE_MAX)
+-				return LZMA_OPTIONS_ERROR;
+-
+-			if (coder->subblock.size != 0
+-					&& coder->rle.size
+-						!= LZMA_SUBBLOCK_RLE_OFF
+-					&& coder->subblock.size
+-						% coder->rle.size == 0) {
+-
+-				// Initialize coder->rle.buffer if we don't
+-				// have RLE already running.
+-				if (coder->rle.count == 0)
+-					memcpy(coder->rle.buffer,
+-							coder->subblock.data,
+-							coder->rle.size);
+-
+-				// Test if coder->subblock.data is repeating.
+-				// If coder->rle.count would overflow, we
+-				// force flushing. Forced flushing shouldn't
+-				// really happen in real-world situations.
+-				const size_t count = coder->subblock.size
+-						/ coder->rle.size;
+-				if (UINT64_MAX - count > coder->rle.count
+-						&& is_repeating(
+-							coder->rle.buffer,
+-							coder->rle.size,
+-							coder->subblock.data,
+-							count)) {
+-					coder->rle.count += count;
+-					coder->rle.in_pending += coder
+-							->subblock.in_pending;
+-					coder->subblock.in_pending = 0;
+-					coder->subblock.size = 0;
+-
+-				} else if (coder->rle.count > 0) {
+-					// It's not repeating or at least not
+-					// with the same byte sequence as the
+-					// earlier Subblock Data buffers. We
+-					// have some data pending in the RLE
+-					// buffer already, so do a flush.
+-					// Once flushed, we will check again
+-					// if the Subblock Data happens to
+-					// contain a different repeating
+-					// sequence.
+-					subblock_rle_flush(coder);
+-					break;
+-				}
+-			}
+-		}
+-
+-		// If we now have some data left in coder->subblock, the RLE
+-		// buffer is empty and we must write a regular Subblock Data.
+-		if (coder->subblock.size > 0) {
+-			assert(coder->rle.count == 0);
+-			coder->tmp = coder->subblock.size - 1;
+-			coder->sequence = SEQ_DATA_SIZE_0;
+-			break;
+-		}
+-
+-		// Check if we should enable Subfilter.
+-		if (coder->subfilter.mode == SUB_SET) {
+-			if (coder->rle.count > 0)
+-				subblock_rle_flush(coder);
+-			else
+-				coder->sequence = SEQ_SUBFILTER_INIT;
+-			break;
+-		}
+-
+-		// Check if we have just finished Subfiltering.
+-		if (coder->subfilter.mode == SUB_END_MARKER) {
+-			if (coder->rle.count > 0) {
+-				subblock_rle_flush(coder);
+-				break;
+-			}
+-
+-			coder->options->subfilter_mode = LZMA_SUBFILTER_NONE;
+-			coder->subfilter.mode = SUB_NONE;
+-
+-			write_byte(0x50);
+-			if (*out_pos == out_size)
+-				return LZMA_OK;
+-		}
+-
+-		// Check if we have already written everything.
+-		if (action != LZMA_RUN && *in_pos == in_size
+-				&& (coder->subfilter.mode == SUB_NONE
+-				|| coder->subfilter.mode == SUB_FLUSH)) {
+-			if (coder->rle.count > 0) {
+-				subblock_rle_flush(coder);
+-				break;
+-			}
+-
+-			if (action == LZMA_SYNC_FLUSH) {
+-				if (coder->subfilter.mode == SUB_FLUSH)
+-					coder->subfilter.mode = SUB_RUN;
+-
+-				coder->subfilter.mode_locked = false;
+-				coder->sequence = SEQ_FILL;
+-
+-			} else {
+-				assert(action == LZMA_FINISH);
+-
+-				// Write EOPM.
+-				// NOTE: No need to use write_byte() here
+-				// since we are finishing.
+-				out[*out_pos] = 0x10;
+-				++*out_pos;
+-			}
+-
+-			return LZMA_STREAM_END;
+-		}
+-
+-		// Otherwise we have more work to do.
+-		coder->sequence = SEQ_FILL;
+-		break;
+-
+-	case SEQ_RLE_COUNT_0:
+-		assert(coder->rle.count > 0);
+-
+-		if (coder->rle.count == 1) {
+-			// The buffer should be repeated only once. Fix
+-			// the alignment and write the first byte of
+-			// Subblock Type `Data'.
+-			if (subblock_align(coder, out, out_pos, out_size,
+-					coder->rle.size, ALIGN_SKEW_DATA))
+-				return LZMA_OK;
+-
+-			write_byte(0x20 | (coder->tmp & 0x0F));
+-
+-		} else {
+-			// We have something to actually repeat, which should
+-			// mean that it takes less space with run-length
+-			// encoding.
+-			if (subblock_align(coder, out, out_pos, out_size,
+-						coder->rle.size,
+-						ALIGN_SKEW_REPEATING_DATA))
+-				return LZMA_OK;
+-
+-			write_byte(0x30 | (coder->tmp & 0x0F));
+-		}
+-
+-		// NOTE: If we have to write more than one Repeating Data
+-		// due to rle.count > REPEAT_COUNT_MAX, the subsequent
+-		// Repeating Data Subblocks may get wrong alignment, because
+-		// we add rle.in_pending to alignment.in_pos at once instead
+-		// of adding only as much as this particular Repeating Data
+-		// consumed input data. Correct alignment is always restored
+-		// after all the required Repeating Data Subblocks have been
+-		// written. This problem occurs in such a weird cases that
+-		// it's not worth fixing.
+-		coder->alignment.out_pos += coder->rle.size;
+-		coder->alignment.in_pos += coder->rle.in_pending;
+-		coder->rle.in_pending = 0;
+-
+-		coder->sequence = SEQ_RLE_COUNT_1;
+-		break;
+-
+-	case SEQ_RLE_COUNT_1:
+-		write_byte(coder->tmp >> 4);
+-		coder->sequence = SEQ_RLE_COUNT_2;
+-		break;
+-
+-	case SEQ_RLE_COUNT_2:
+-		write_byte(coder->tmp >> 12);
+-		coder->sequence = SEQ_RLE_COUNT_3;
+-		break;
+-
+-	case SEQ_RLE_COUNT_3:
+-		write_byte(coder->tmp >> 20);
+-
+-		// Again, see if we are writing regular Data or Repeating Data.
+-		// In the former case, we skip SEQ_RLE_SIZE.
+-		if (coder->rle.count == 1)
+-			coder->sequence = SEQ_RLE_DATA;
+-		else
+-			coder->sequence = SEQ_RLE_SIZE;
+-
+-		if (coder->rle.count > REPEAT_COUNT_MAX)
+-			coder->rle.count -= REPEAT_COUNT_MAX;
+-		else
+-			coder->rle.count = 0;
+-
+-		break;
+-
+-	case SEQ_RLE_SIZE:
+-		assert(coder->rle.size >= LZMA_SUBBLOCK_RLE_MIN);
+-		assert(coder->rle.size <= LZMA_SUBBLOCK_RLE_MAX);
+-		write_byte(coder->rle.size - 1);
+-		coder->sequence = SEQ_RLE_DATA;
+-		break;
+-
+-	case SEQ_RLE_DATA:
+-		lzma_bufcpy(coder->rle.buffer, &coder->pos, coder->rle.size,
+-				out, out_pos, out_size);
+-		if (coder->pos < coder->rle.size)
+-			return LZMA_OK;
+-
+-		coder->pos = 0;
+-		coder->sequence = SEQ_FLUSH;
+-		break;
+-
+-	case SEQ_DATA_SIZE_0:
+-		// We need four bytes for the Size field.
+-		if (subblock_align(coder, out, out_pos, out_size,
+-				coder->subblock.size, ALIGN_SKEW_DATA))
+-			return LZMA_OK;
+-
+-		coder->alignment.out_pos += coder->subblock.size;
+-		coder->alignment.in_pos += coder->subblock.in_pending;
+-		coder->subblock.in_pending = 0;
+-
+-		write_byte(0x20 | (coder->tmp & 0x0F));
+-		coder->sequence = SEQ_DATA_SIZE_1;
+-		break;
+-
+-	case SEQ_DATA_SIZE_1:
+-		write_byte(coder->tmp >> 4);
+-		coder->sequence = SEQ_DATA_SIZE_2;
+-		break;
+-
+-	case SEQ_DATA_SIZE_2:
+-		write_byte(coder->tmp >> 12);
+-		coder->sequence = SEQ_DATA_SIZE_3;
+-		break;
+-
+-	case SEQ_DATA_SIZE_3:
+-		write_byte(coder->tmp >> 20);
+-		coder->sequence = SEQ_DATA;
+-		break;
+-
+-	case SEQ_DATA:
+-		lzma_bufcpy(coder->subblock.data, &coder->pos,
+-				coder->subblock.size, out, out_pos, out_size);
+-		if (coder->pos < coder->subblock.size)
+-			return LZMA_OK;
+-
+-		coder->subblock.size = 0;
+-		coder->pos = 0;
+-		coder->sequence = SEQ_FLUSH;
+-		break;
+-
+-	case SEQ_SUBFILTER_INIT: {
+-		assert(coder->subblock.size == 0);
+-		assert(coder->subblock.in_pending == 0);
+-		assert(coder->rle.count == 0);
+-		assert(coder->rle.in_pending == 0);
+-		assert(coder->subfilter.mode == SUB_SET);
+-		assert(coder->options != NULL);
+-
+-		// There must be a filter specified.
+-		if (coder->options->subfilter_options.id == LZMA_VLI_UNKNOWN)
+-			return LZMA_OPTIONS_ERROR;
+-
+-		// Initialize a raw encoder to work as a Subfilter.
+-		lzma_filter options[2];
+-		options[0] = coder->options->subfilter_options;
+-		options[1].id = LZMA_VLI_UNKNOWN;
+-
+-		return_if_error(lzma_raw_encoder_init(
+-				&coder->subfilter.subcoder, allocator,
+-				options));
+-
+-		// Encode the Filter Flags field into a buffer. This should
+-		// never fail since we have already successfully initialized
+-		// the Subfilter itself. Check it still, and return
+-		// LZMA_PROG_ERROR instead of whatever the ret would say.
+-		lzma_ret ret = lzma_filter_flags_size(
+-				&coder->subfilter.flags_size, options);
+-		assert(ret == LZMA_OK);
+-		if (ret != LZMA_OK)
+-			return LZMA_PROG_ERROR;
+-
+-		coder->subfilter.flags = lzma_alloc(
+-				coder->subfilter.flags_size, allocator);
+-		if (coder->subfilter.flags == NULL)
+-			return LZMA_MEM_ERROR;
+-
+-		// Now we have a big-enough buffer. Encode the Filter Flags.
+-		// Like above, this should never fail.
+-		size_t dummy = 0;
+-		ret = lzma_filter_flags_encode(options, coder->subfilter.flags,
+-				&dummy, coder->subfilter.flags_size);
+-		assert(ret == LZMA_OK);
+-		assert(dummy == coder->subfilter.flags_size);
+-		if (ret != LZMA_OK || dummy != coder->subfilter.flags_size)
+-			return LZMA_PROG_ERROR;
+-
+-		// Write a Subblock indicating a new Subfilter.
+-		write_byte(0x40);
+-
+-		coder->options->subfilter_mode = LZMA_SUBFILTER_RUN;
+-		coder->subfilter.mode = SUB_RUN;
+-		coder->alignment.out_pos += coder->subfilter.flags_size;
+-		coder->sequence = SEQ_SUBFILTER_FLAGS;
+-
+-		// It is safe to fall through because SEQ_SUBFILTER_FLAGS
+-		// uses lzma_bufcpy() which doesn't write unless there is
+-		// output space.
+-	}
+-
+-	// Fall through
+-
+-	case SEQ_SUBFILTER_FLAGS:
+-		// Copy the Filter Flags to the output stream.
+-		lzma_bufcpy(coder->subfilter.flags, &coder->pos,
+-				coder->subfilter.flags_size,
+-				out, out_pos, out_size);
+-		if (coder->pos < coder->subfilter.flags_size)
+-			return LZMA_OK;
+-
+-		lzma_free(coder->subfilter.flags, allocator);
+-		coder->subfilter.flags = NULL;
+-
+-		coder->pos = 0;
+-		coder->sequence = SEQ_FILL;
+-		break;
+-
+-	default:
+-		return LZMA_PROG_ERROR;
+-	}
+-
+-	return LZMA_OK;
+-}
+-
+-
+-static lzma_ret
+-subblock_encode(lzma_coder *coder, lzma_allocator *allocator,
+-		const uint8_t *restrict in, size_t *restrict in_pos,
+-		size_t in_size, uint8_t *restrict out,
+-		size_t *restrict out_pos, size_t out_size, lzma_action action)
+-{
+-	if (coder->next.code == NULL)
+-		return subblock_buffer(coder, allocator, in, in_pos, in_size,
+-				out, out_pos, out_size, action);
+-
+-	while (*out_pos < out_size
+-			&& (*in_pos < in_size || action != LZMA_RUN)) {
+-		if (!coder->next_finished
+-				&& coder->temp.pos == coder->temp.size) {
+-			coder->temp.pos = 0;
+-			coder->temp.size = 0;
+-
+-			const lzma_ret ret = coder->next.code(coder->next.coder,
+-					allocator, in, in_pos, in_size,
+-					coder->temp.buffer, &coder->temp.size,
+-					LZMA_BUFFER_SIZE, action);
+-			if (ret == LZMA_STREAM_END) {
+-				assert(action != LZMA_RUN);
+-				coder->next_finished = true;
+-			} else if (coder->temp.size == 0 || ret != LZMA_OK) {
+-				return ret;
+-			}
+-		}
+-
+-		const lzma_ret ret = subblock_buffer(coder, allocator,
+-				coder->temp.buffer, &coder->temp.pos,
+-				coder->temp.size, out, out_pos, out_size,
+-				coder->next_finished ? LZMA_FINISH : LZMA_RUN);
+-		if (ret == LZMA_STREAM_END) {
+-			assert(action != LZMA_RUN);
+-			assert(coder->next_finished);
+-			return LZMA_STREAM_END;
+-		}
+-
+-		if (ret != LZMA_OK)
+-			return ret;
+-	}
+-
+-	return LZMA_OK;
+-}
+-
+-
+-static void
+-subblock_encoder_end(lzma_coder *coder, lzma_allocator *allocator)
+-{
+-	lzma_next_end(&coder->next, allocator);
+-	lzma_next_end(&coder->subfilter.subcoder, allocator);
+-	lzma_free(coder->subblock.data, allocator);
+-	lzma_free(coder->subfilter.flags, allocator);
+-	lzma_free(coder, allocator);
+-	return;
+-}
+-
+-
+-extern lzma_ret
+-lzma_subblock_encoder_init(lzma_next_coder *next, lzma_allocator *allocator,
+-		const lzma_filter_info *filters)
+-{
+-	if (next->coder == NULL) {
+-		next->coder = lzma_alloc(sizeof(lzma_coder), allocator);
+-		if (next->coder == NULL)
+-			return LZMA_MEM_ERROR;
+-
+-		next->code = &subblock_encode;
+-		next->end = &subblock_encoder_end;
+-
+-		next->coder->next = LZMA_NEXT_CODER_INIT;
+-		next->coder->subblock.data = NULL;
+-		next->coder->subblock.limit = 0;
+-		next->coder->subfilter.subcoder = LZMA_NEXT_CODER_INIT;
+-	} else {
+-		lzma_next_end(&next->coder->subfilter.subcoder,
+-				allocator);
+-		lzma_free(next->coder->subfilter.flags, allocator);
+-	}
+-
+-	next->coder->subfilter.flags = NULL;
+-
+-	next->coder->next_finished = false;
+-	next->coder->sequence = SEQ_FILL;
+-	next->coder->options = filters[0].options;
+-	next->coder->pos = 0;
+-
+-	next->coder->alignment.in_pos = 0;
+-	next->coder->alignment.out_pos = 0;
+-	next->coder->subblock.size = 0;
+-	next->coder->subblock.in_pending = 0;
+-	next->coder->rle.count = 0;
+-	next->coder->rle.in_pending = 0;
+-	next->coder->subfilter.mode = SUB_NONE;
+-	next->coder->subfilter.mode_locked = false;
+-
+-	next->coder->temp.pos = 0;
+-	next->coder->temp.size = 0;
+-
+-	// Grab some values from the options structure if it is available.
+-	size_t subblock_size_limit;
+-	if (next->coder->options != NULL) {
+-		if (next->coder->options->alignment
+-					< LZMA_SUBBLOCK_ALIGNMENT_MIN
+-				|| next->coder->options->alignment
+-					> LZMA_SUBBLOCK_ALIGNMENT_MAX) {
+-			subblock_encoder_end(next->coder, allocator);
+-			return LZMA_OPTIONS_ERROR;
+-		}
+-		next->coder->alignment.multiple
+-				= next->coder->options->alignment;
+-		next->coder->subfilter.allow
+-				= next->coder->options->allow_subfilters;
+-		subblock_size_limit = next->coder->options->subblock_data_size;
+-	} else {
+-		next->coder->alignment.multiple
+-				= LZMA_SUBBLOCK_ALIGNMENT_DEFAULT;
+-		next->coder->subfilter.allow = false;
+-		subblock_size_limit = LZMA_SUBBLOCK_DATA_SIZE_DEFAULT;
+-	}
+-
+-	return_if_error(subblock_data_size(next->coder, allocator,
+-				subblock_size_limit));
+-
+-	return lzma_next_filter_init(
+-			&next->coder->next, allocator, filters + 1);
+-}
+diff --git a/src/liblzma/subblock/subblock_encoder.h b/src/liblzma/subblock/subblock_encoder.h
+deleted file mode 100644
+index ddbfe64b..00000000
+--- a/src/liblzma/subblock/subblock_encoder.h
++++ /dev/null
+@@ -1,21 +0,0 @@
+-///////////////////////////////////////////////////////////////////////////////
+-//
+-/// \file       subblock_encoder.h
+-/// \brief      Encoder of the Subblock filter
+-//
+-//  Author:     Lasse Collin
+-//
+-//  This file has been put into the public domain.
+-//  You can do whatever you want with this file.
+-//
+-///////////////////////////////////////////////////////////////////////////////
+-
+-#ifndef LZMA_SUBBLOCK_ENCODER_H
+-#define LZMA_SUBBLOCK_ENCODER_H
+-
+-#include "common.h"
+-
+-extern lzma_ret lzma_subblock_encoder_init(lzma_next_coder *next,
+-		lzma_allocator *allocator, const lzma_filter_info *filters);
+-
+-#endif
+diff --git a/src/xz/args.c b/src/xz/args.c
+index f37f8024..fdd63b44 100644
+--- a/src/xz/args.c
++++ b/src/xz/args.c
+@@ -32,8 +32,7 @@ static void
+ parse_real(args_info *args, int argc, char **argv)
+ {
+ 	enum {
+-		OPT_SUBBLOCK = INT_MIN,
+-		OPT_X86,
++		OPT_X86 = INT_MIN,
+ 		OPT_POWERPC,
+ 		OPT_IA64,
+ 		OPT_ARM,
+@@ -92,7 +91,6 @@ parse_real(args_info *args, int argc, char **argv)
+ 		{ "armthumb",     optional_argument, NULL,  OPT_ARMTHUMB },
+ 		{ "sparc",        optional_argument, NULL,  OPT_SPARC },
+ 		{ "delta",        optional_argument, NULL,  OPT_DELTA },
+-		{ "subblock",     optional_argument, NULL,  OPT_SUBBLOCK },
+ 
+ 		// Other options
+ 		{ "quiet",        no_argument,       NULL,  'q' },
+@@ -234,11 +232,6 @@ parse_real(args_info *args, int argc, char **argv)
+ 
+ 		// Filter setup
+ 
+-		case OPT_SUBBLOCK:
+-			coder_add_filter(LZMA_FILTER_SUBBLOCK,
+-					options_subblock(optarg));
+-			break;
+-
+ 		case OPT_X86:
+ 			coder_add_filter(LZMA_FILTER_X86,
+ 					options_bcj(optarg));
+diff --git a/src/xz/options.c b/src/xz/options.c
+index 00b34a83..7186f24c 100644
+--- a/src/xz/options.c
++++ b/src/xz/options.c
+@@ -139,67 +139,6 @@ parse_options(const char *str, const option_map *opts,
+ }
+ 
+ 
+-//////////////
+-// Subblock //
+-//////////////
+-
+-enum {
+-	OPT_SIZE,
+-	OPT_RLE,
+-	OPT_ALIGN,
+-};
+-
+-
+-static void
+-set_subblock(void *options, uint32_t key, uint64_t value,
+-		const char *valuestr lzma_attribute((unused)))
+-{
+-	lzma_options_subblock *opt = options;
+-
+-	switch (key) {
+-	case OPT_SIZE:
+-		opt->subblock_data_size = value;
+-		break;
+-
+-	case OPT_RLE:
+-		opt->rle = value;
+-		break;
+-
+-	case OPT_ALIGN:
+-		opt->alignment = value;
+-		break;
+-	}
+-}
+-
+-
+-extern lzma_options_subblock *
+-options_subblock(const char *str)
+-{
+-	static const option_map opts[] = {
+-		{ "size", NULL,   LZMA_SUBBLOCK_DATA_SIZE_MIN,
+-		                  LZMA_SUBBLOCK_DATA_SIZE_MAX },
+-		{ "rle",  NULL,   LZMA_SUBBLOCK_RLE_OFF,
+-		                  LZMA_SUBBLOCK_RLE_MAX },
+-		{ "align",NULL,   LZMA_SUBBLOCK_ALIGNMENT_MIN,
+-		                  LZMA_SUBBLOCK_ALIGNMENT_MAX },
+-		{ NULL,   NULL,   0, 0 }
+-	};
+-
+-	lzma_options_subblock *options
+-			= xmalloc(sizeof(lzma_options_subblock));
+-	*options = (lzma_options_subblock){
+-		.allow_subfilters = false,
+-		.alignment = LZMA_SUBBLOCK_ALIGNMENT_DEFAULT,
+-		.subblock_data_size = LZMA_SUBBLOCK_DATA_SIZE_DEFAULT,
+-		.rle = LZMA_SUBBLOCK_RLE_OFF,
+-	};
+-
+-	parse_options(str, opts, &set_subblock, options);
+-
+-	return options;
+-}
+-
+-
+ ///////////
+ // Delta //
+ ///////////
+diff --git a/src/xz/options.h b/src/xz/options.h
+index e7389c8e..61ec8d58 100644
+--- a/src/xz/options.h
++++ b/src/xz/options.h
+@@ -10,13 +10,6 @@
+ //
+ ///////////////////////////////////////////////////////////////////////////////
+ 
+-/// \brief      Parser for Subblock options
+-///
+-/// \return     Pointer to allocated options structure.
+-///             Doesn't return on error.
+-extern lzma_options_subblock *options_subblock(const char *str);
+-
+-
+ /// \brief      Parser for Delta options
+ ///
+ /// \return     Pointer to allocated options structure.

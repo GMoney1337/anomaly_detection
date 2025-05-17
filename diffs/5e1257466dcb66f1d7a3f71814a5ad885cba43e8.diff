@@ -1,0 +1,75 @@
+diff --git a/src/xz/main.c b/src/xz/main.c
+index 8a6cde63..868d2888 100644
+--- a/src/xz/main.c
++++ b/src/xz/main.c
+@@ -277,7 +277,7 @@ main(int argc, char **argv)
+ 			}
+ 
+ 			// Replace the "-" with a special pointer, which is
+-			// recognized by process_file() and other things.
++			// recognized by coder_run() and other things.
+ 			// This way error messages get a proper filename
+ 			// string and the code still knows that it is
+ 			// handling the special case of stdin.
+@@ -285,7 +285,7 @@ main(int argc, char **argv)
+ 		}
+ 
+ 		// Do the actual compression or uncompression.
+-		process_file(args.arg_names[i]);
++		coder_run(args.arg_names[i]);
+ 	}
+ 
+ 	// If --files or --files0 was used, process the filenames from the
+@@ -301,7 +301,7 @@ main(int argc, char **argv)
+ 
+ 			// read_name() doesn't return empty names.
+ 			assert(name[0] != '\0');
+-			process_file(name);
++			coder_run(name);
+ 		}
+ 
+ 		if (args.files_name != stdin_filename)
+diff --git a/src/xz/process.c b/src/xz/process.c
+index 0731ad94..1c904343 100644
+--- a/src/xz/process.c
++++ b/src/xz/process.c
+@@ -317,7 +317,7 @@ coder_init(void)
+ 
+ 
+ static bool
+-coder_run(file_pair *pair)
++coder_main(file_pair *pair)
+ {
+ 	// Buffers to hold input and output data.
+ 	uint8_t in_buf[IO_BUFFER_SIZE];
+@@ -464,7 +464,7 @@ coder_run(file_pair *pair)
+ 
+ 
+ extern void
+-process_file(const char *filename)
++coder_run(const char *filename)
+ {
+ 	// First try initializing the coder. If it fails, it's useless to try
+ 	// opening the file. Check also for user_abort just in case if we had
+@@ -478,7 +478,7 @@ process_file(const char *filename)
+ 		return;
+ 
+ 	// Do the actual coding.
+-	const bool success = coder_run(pair);
++	const bool success = coder_main(pair);
+ 
+ 	// Close the file pair. It needs to know if coding was successful to
+ 	// know if the source or target file should be unlinked.
+diff --git a/src/xz/process.h b/src/xz/process.h
+index 0a805e2c..aa8a4d83 100644
+--- a/src/xz/process.h
++++ b/src/xz/process.h
+@@ -53,6 +53,5 @@ extern void coder_add_filter(lzma_vli id, void *options);
+ ///
+ extern void coder_set_compression_settings(void);
+ 
+-extern void process_init(void);
+-
+-extern void process_file(const char *filename);
++/// Compress or decompress the given file
++extern void coder_run(const char *filename);

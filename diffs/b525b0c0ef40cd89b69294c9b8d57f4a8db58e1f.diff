@@ -1,0 +1,12 @@
+diff --git a/THANKS b/THANKS
+index 272ab0d4..0aac106b 100644
+--- a/THANKS
++++ b/THANKS
+@@ -100,6 +100,7 @@ has been important. :-) In alphabetical order:
+   - Stuart Shelton
+   - Sebastian Andrzej Siewior
+   - Brad Smith
++  - Bruce Stark
+   - Pippijn van Steenhoven
+   - Jonathan Stott
+   - Dan Stromberg

@@ -1,0 +1,767 @@
+diff --git a/src/liblzma/api/lzma/filter.h b/src/liblzma/api/lzma/filter.h
+index c4bc69d3..01393dd4 100644
+--- a/src/liblzma/api/lzma/filter.h
++++ b/src/liblzma/api/lzma/filter.h
+@@ -197,6 +197,36 @@ extern LZMA_API(lzma_ret) lzma_raw_decoder(
+ 		lzma_nothrow lzma_attr_warn_unused_result;
+ 
+ 
++/**
++ * \brief       Update the filter chain in the encoder
++ *
++ * This function is for advanced users only. This function has two slightly
++ * different purposes:
++ *
++ *  - After LZMA_FULL_FLUSH when using Stream encoder: Set a new filter
++ *    chain, which will be used starting from the next Block.
++ *
++ *  - After LZMA_SYNC_FLUSH using Raw, Block, or Stream encoder: Change
++ *    the filter-specific options in the middle of encoding. The actual
++ *    filters in the chain (Filter IDs) cannot be changed. In the future,
++ *    it might become possible to change the filter options without
++ *    using LZMA_SYNC_FLUSH.
++ *
++ * While rarely useful, this function may be called also when no data has
++ * been compressed yet. In that case, this function will behave as if
++ * LZMA_FULL_FLUSH (Stream encoder) or LZMA_SYNC_FLUSH (Raw or Block
++ * encoder) had been used right before calling this function.
++ *
++ * \return      - LZMA_OK
++ *              - LZMA_MEM_ERROR
++ *              - LZMA_MEMLIMIT_ERROR
++ *              - LZMA_OPTIONS_ERROR
++ *              - LZMA_PROG_ERROR
++ */
++extern LZMA_API(lzma_ret) lzma_filters_update(
++		lzma_stream *strm, const lzma_filter *filters);
++
++
+ /**
+  * \brief       Single-call raw encoder
+  *
+diff --git a/src/liblzma/api/lzma/lzma.h b/src/liblzma/api/lzma/lzma.h
+index 28ebbb14..989425e3 100644
+--- a/src/liblzma/api/lzma/lzma.h
++++ b/src/liblzma/api/lzma/lzma.h
+@@ -298,19 +298,6 @@ typedef struct {
+ #	define LZMA_PB_MAX      4
+ #	define LZMA_PB_DEFAULT  2
+ 
+-	/**
+-	 * \brief       Indicate if the options structure is persistent
+-	 *
+-	 * If this is true, the application must keep this options structure
+-	 * available after the LZMA2 encoder has been initialized. With
+-	 * persistent structure it is possible to change some encoder options
+-	 * in the middle of the encoding process without resetting the encoder.
+-	 *
+-	 * This option is used only by LZMA2. LZMA1 ignores this and it is
+-	 * safe to not initialize this when encoding with LZMA1.
+-	 */
+-	lzma_bool persistent;
+-
+ 	/** Compression mode */
+ 	lzma_mode mode;
+ 
+diff --git a/src/liblzma/common/block_encoder.c b/src/liblzma/common/block_encoder.c
+index 567889aa..ca515235 100644
+--- a/src/liblzma/common/block_encoder.c
++++ b/src/liblzma/common/block_encoder.c
+@@ -142,6 +142,19 @@ block_encoder_end(lzma_coder *coder, lzma_allocator *allocator)
+ }
+ 
+ 
++static lzma_ret
++block_encoder_update(lzma_coder *coder, lzma_allocator *allocator,
++		const lzma_filter *filters lzma_attribute((unused)),
++		const lzma_filter *reversed_filters)
++{
++	if (coder->sequence != SEQ_CODE)
++		return LZMA_PROG_ERROR;
++
++	return lzma_next_filter_update(
++			&coder->next, allocator, reversed_filters);
++}
++
++
+ extern lzma_ret
+ lzma_block_encoder_init(lzma_next_coder *next, lzma_allocator *allocator,
+ 		lzma_block *block)
+@@ -167,6 +180,7 @@ lzma_block_encoder_init(lzma_next_coder *next, lzma_allocator *allocator,
+ 
+ 		next->code = &block_encode;
+ 		next->end = &block_encoder_end;
++		next->update = &block_encoder_update;
+ 		next->coder->next = LZMA_NEXT_CODER_INIT;
+ 	}
+ 
+diff --git a/src/liblzma/common/common.c b/src/liblzma/common/common.c
+index 3bdf3252..edce90cd 100644
+--- a/src/liblzma/common/common.c
++++ b/src/liblzma/common/common.c
+@@ -92,12 +92,30 @@ lzma_next_filter_init(lzma_next_coder *next, lzma_allocator *allocator,
+ 		const lzma_filter_info *filters)
+ {
+ 	lzma_next_coder_init(filters[0].init, next, allocator);
+-
++	next->id = filters[0].id;
+ 	return filters[0].init == NULL
+ 			? LZMA_OK : filters[0].init(next, allocator, filters);
+ }
+ 
+ 
++extern lzma_ret
++lzma_next_filter_update(lzma_next_coder *next, lzma_allocator *allocator,
++		const lzma_filter *reversed_filters)
++{
++	// Check that the application isn't trying to change the Filter ID.
++	// End of filters is indicated with LZMA_VLI_UNKNOWN in both
++	// reversed_filters[0].id and next->id.
++	if (reversed_filters[0].id != next->id)
++		return LZMA_PROG_ERROR;
++
++	if (reversed_filters[0].id == LZMA_VLI_UNKNOWN)
++		return LZMA_OK;
++
++	assert(next->update != NULL);
++	return next->update(next->coder, allocator, NULL, reversed_filters);
++}
++
++
+ extern void
+ lzma_next_end(lzma_next_coder *next, lzma_allocator *allocator)
+ {
+diff --git a/src/liblzma/common/common.h b/src/liblzma/common/common.h
+index 81f51421..6551e39f 100644
+--- a/src/liblzma/common/common.h
++++ b/src/liblzma/common/common.h
+@@ -109,6 +109,10 @@ typedef void (*lzma_end_function)(
+ /// an array of lzma_filter_info structures. This array is used with
+ /// lzma_next_filter_init to initialize the filter chain.
+ struct lzma_filter_info_s {
++	/// Filter ID. This is used only by the encoder
++	/// with lzma_filters_update().
++	lzma_vli id;
++
+ 	/// Pointer to function used to initialize the filter.
+ 	/// This is NULL to indicate end of array.
+ 	lzma_init_function init;
+@@ -123,6 +127,10 @@ struct lzma_next_coder_s {
+ 	/// Pointer to coder-specific data
+ 	lzma_coder *coder;
+ 
++	/// Filter ID. This is LZMA_VLI_UNKNOWN when this structure doesn't
++	/// point to a filter coder.
++	lzma_vli id;
++
+ 	/// "Pointer" to init function. This is never called here.
+ 	/// We need only to detect if we are initializing a coder
+ 	/// that was allocated earlier. See lzma_next_coder_init and
+@@ -145,6 +153,12 @@ struct lzma_next_coder_s {
+ 	/// If new_memlimit == 0, the limit is not changed.
+ 	lzma_ret (*memconfig)(lzma_coder *coder, uint64_t *memusage,
+ 			uint64_t *old_memlimit, uint64_t new_memlimit);
++
++	/// Update the filter-specific options or the whole filter chain
++	/// in the encoder.
++	lzma_ret (*update)(lzma_coder *coder, lzma_allocator *allocator,
++			const lzma_filter *filters,
++			const lzma_filter *reversed_filters);
+ };
+ 
+ 
+@@ -153,10 +167,12 @@ struct lzma_next_coder_s {
+ 	(lzma_next_coder){ \
+ 		.coder = NULL, \
+ 		.init = (uintptr_t)(NULL), \
++		.id = LZMA_VLI_UNKNOWN, \
+ 		.code = NULL, \
+ 		.end = NULL, \
+ 		.get_check = NULL, \
+ 		.memconfig = NULL, \
++		.update = NULL, \
+ 	}
+ 
+ 
+@@ -212,6 +228,12 @@ extern lzma_ret lzma_strm_init(lzma_stream *strm);
+ extern lzma_ret lzma_next_filter_init(lzma_next_coder *next,
+ 		lzma_allocator *allocator, const lzma_filter_info *filters);
+ 
++/// Update the next filter in the chain, if any. This checks that
++/// the application is not trying to change the Filter IDs.
++extern lzma_ret lzma_next_filter_update(
++		lzma_next_coder *next, lzma_allocator *allocator,
++		const lzma_filter *reversed_filters);
++
+ /// Frees the memory allocated for next->coder either using next->end or,
+ /// if next->end is NULL, using lzma_free.
+ extern void lzma_next_end(lzma_next_coder *next, lzma_allocator *allocator);
+diff --git a/src/liblzma/common/easy_encoder.c b/src/liblzma/common/easy_encoder.c
+index 5e2641c9..d13ccd73 100644
+--- a/src/liblzma/common/easy_encoder.c
++++ b/src/liblzma/common/easy_encoder.c
+@@ -14,67 +14,12 @@
+ #include "stream_encoder.h"
+ 
+ 
+-struct lzma_coder_s {
+-	lzma_next_coder stream_encoder;
+-	lzma_options_easy opt_easy;
+-};
+-
+-
+-static lzma_ret
+-easy_encode(lzma_coder *coder, lzma_allocator *allocator,
+-		const uint8_t *restrict in, size_t *restrict in_pos,
+-		size_t in_size, uint8_t *restrict out,
+-		size_t *restrict out_pos, size_t out_size, lzma_action action)
+-{
+-	return coder->stream_encoder.code(
+-			coder->stream_encoder.coder, allocator,
+-			in, in_pos, in_size, out, out_pos, out_size, action);
+-}
+-
+-
+-static void
+-easy_encoder_end(lzma_coder *coder, lzma_allocator *allocator)
+-{
+-	lzma_next_end(&coder->stream_encoder, allocator);
+-	lzma_free(coder, allocator);
+-	return;
+-}
+-
+-
+-static lzma_ret
+-easy_encoder_init(lzma_next_coder *next, lzma_allocator *allocator,
+-		uint32_t preset, lzma_check check)
+-{
+-	lzma_next_coder_init(&easy_encoder_init, next, allocator);
+-
+-	if (next->coder == NULL) {
+-		next->coder = lzma_alloc(sizeof(lzma_coder), allocator);
+-		if (next->coder == NULL)
+-			return LZMA_MEM_ERROR;
+-
+-		next->code = &easy_encode;
+-		next->end = &easy_encoder_end;
+-
+-		next->coder->stream_encoder = LZMA_NEXT_CODER_INIT;
+-	}
+-
+-	if (lzma_easy_preset(&next->coder->opt_easy, preset))
+-		return LZMA_OPTIONS_ERROR;
+-
+-	return lzma_stream_encoder_init(&next->coder->stream_encoder,
+-			allocator, next->coder->opt_easy.filters, check);
+-}
+-
+-
+ extern LZMA_API(lzma_ret)
+ lzma_easy_encoder(lzma_stream *strm, uint32_t preset, lzma_check check)
+ {
+-	lzma_next_strm_init(easy_encoder_init, strm, preset, check);
+-
+-	strm->internal->supported_actions[LZMA_RUN] = true;
+-	strm->internal->supported_actions[LZMA_SYNC_FLUSH] = true;
+-	strm->internal->supported_actions[LZMA_FULL_FLUSH] = true;
+-	strm->internal->supported_actions[LZMA_FINISH] = true;
++	lzma_options_easy opt_easy;
++	if (lzma_easy_preset(&opt_easy, preset))
++		return LZMA_OPTIONS_ERROR;
+ 
+-	return LZMA_OK;
++	return lzma_stream_encoder(strm, opt_easy.filters, check);
+ }
+diff --git a/src/liblzma/common/filter_common.c b/src/liblzma/common/filter_common.c
+index 055093f7..2322d7de 100644
+--- a/src/liblzma/common/filter_common.c
++++ b/src/liblzma/common/filter_common.c
+@@ -270,6 +270,7 @@ lzma_raw_coder_init(lzma_next_coder *next, lzma_allocator *allocator,
+ 			if (fc == NULL || fc->init == NULL)
+ 				return LZMA_OPTIONS_ERROR;
+ 
++			filters[j].id = options[i].id;
+ 			filters[j].init = fc->init;
+ 			filters[j].options = options[i].options;
+ 		}
+@@ -280,12 +281,14 @@ lzma_raw_coder_init(lzma_next_coder *next, lzma_allocator *allocator,
+ 			if (fc == NULL || fc->init == NULL)
+ 				return LZMA_OPTIONS_ERROR;
+ 
++			filters[i].id = options[i].id;
+ 			filters[i].init = fc->init;
+ 			filters[i].options = options[i].options;
+ 		}
+ 	}
+ 
+ 	// Terminate the array.
++	filters[count].id = LZMA_VLI_UNKNOWN;
+ 	filters[count].init = NULL;
+ 
+ 	// Initialize the filters.
+diff --git a/src/liblzma/common/filter_encoder.c b/src/liblzma/common/filter_encoder.c
+index d6fb82e5..3b0493fe 100644
+--- a/src/liblzma/common/filter_encoder.c
++++ b/src/liblzma/common/filter_encoder.c
+@@ -180,6 +180,33 @@ lzma_filter_encoder_is_supported(lzma_vli id)
+ }
+ 
+ 
++extern LZMA_API(lzma_ret)
++lzma_filters_update(lzma_stream *strm, const lzma_filter *filters)
++{
++	if (strm->internal->next.update == NULL)
++		return LZMA_PROG_ERROR;
++
++	// Validate the filter chain.
++	if (lzma_raw_encoder_memusage(filters) == UINT64_MAX)
++		return LZMA_OPTIONS_ERROR;
++
++	// The actual filter chain in the encoder is reversed. Some things
++	// still want the normal order chain, so we provide both.
++	size_t count = 1;
++	while (filters[count].id != LZMA_VLI_UNKNOWN)
++		++count;
++
++	lzma_filter reversed_filters[LZMA_FILTERS_MAX + 1];
++	for (size_t i = 0; i < count; ++i)
++		reversed_filters[count - i - 1] = filters[i];
++
++	reversed_filters[count].id = LZMA_VLI_UNKNOWN;
++
++	return strm->internal->next.update(strm->internal->next.coder,
++			strm->allocator, filters, reversed_filters);
++}
++
++
+ extern lzma_ret
+ lzma_raw_encoder_init(lzma_next_coder *next, lzma_allocator *allocator,
+ 		const lzma_filter *options)
+diff --git a/src/liblzma/common/filter_encoder.h b/src/liblzma/common/filter_encoder.h
+index 5b65cd30..a978932d 100644
+--- a/src/liblzma/common/filter_encoder.h
++++ b/src/liblzma/common/filter_encoder.h
+@@ -22,6 +22,6 @@ extern lzma_vli lzma_chunk_size(const lzma_filter *filters);
+ 
+ extern lzma_ret lzma_raw_encoder_init(
+ 		lzma_next_coder *next, lzma_allocator *allocator,
+-		const lzma_filter *options);
++		const lzma_filter *filters);
+ 
+ #endif
+diff --git a/src/liblzma/common/stream_encoder.c b/src/liblzma/common/stream_encoder.c
+index 292efc82..705ec0eb 100644
+--- a/src/liblzma/common/stream_encoder.c
++++ b/src/liblzma/common/stream_encoder.c
+@@ -25,12 +25,20 @@ struct lzma_coder_s {
+ 		SEQ_STREAM_FOOTER,
+ 	} sequence;
+ 
++	/// True if Block encoder has been initialized by
++	/// lzma_stream_encoder_init() or stream_encoder_update()
++	/// and thus doesn't need to be initialized in stream_encode().
++	bool block_encoder_is_initialized;
++
+ 	/// Block
+ 	lzma_next_coder block_encoder;
+ 
+ 	/// Options for the Block encoder
+ 	lzma_block block_options;
+ 
++	/// The filter chain currently in use
++	lzma_filter filters[LZMA_FILTERS_MAX + 1];
++
+ 	/// Index encoder. This is separate from Block encoder, because this
+ 	/// doesn't take much memory, and when encoding multiple Streams
+ 	/// with the same encoding options we avoid reallocating memory.
+@@ -117,12 +125,16 @@ stream_encode(lzma_coder *coder, lzma_allocator *allocator,
+ 			break;
+ 		}
+ 
+-		// Initialize the Block encoder except if this is the first
+-		// Block, because stream_encoder_init() has already
+-		// initialized it.
+-		if (lzma_index_count(coder->index) != 0)
++		// Initialize the Block encoder unless it was already
++		// initialized by lzma_stream_encoder_init() or
++		// stream_encoder_update().
++		if (!coder->block_encoder_is_initialized)
+ 			return_if_error(block_encoder_init(coder, allocator));
+ 
++		// Make it false so that we don't skip the initialization
++		// with the next Block.
++		coder->block_encoder_is_initialized = false;
++
+ 		// Encode the Block Header. This shouldn't fail since we have
+ 		// already initialized the Block encoder.
+ 		if (lzma_block_header_encode(&coder->block_options,
+@@ -202,11 +214,54 @@ stream_encoder_end(lzma_coder *coder, lzma_allocator *allocator)
+ 	lzma_next_end(&coder->block_encoder, allocator);
+ 	lzma_next_end(&coder->index_encoder, allocator);
+ 	lzma_index_end(coder->index, allocator);
++
++	for (size_t i = 0; coder->filters[i].id != LZMA_VLI_UNKNOWN; ++i)
++		lzma_free(coder->filters[i].options, allocator);
++
+ 	lzma_free(coder, allocator);
+ 	return;
+ }
+ 
+ 
++static lzma_ret
++stream_encoder_update(lzma_coder *coder, lzma_allocator *allocator,
++		const lzma_filter *filters,
++		const lzma_filter *reversed_filters)
++{
++	if (coder->sequence <= SEQ_BLOCK_INIT) {
++		// There is no incomplete Block waiting to be finished,
++		// thus we can change the whole filter chain. Start by
++		// trying to initialize the Block encoder with the new
++		// chain. This way we detect if the chain is valid.
++		coder->block_encoder_is_initialized = false;
++		coder->block_options.filters = (lzma_filter *)(filters);
++		const lzma_ret ret = block_encoder_init(coder, allocator);
++		coder->block_options.filters = coder->filters;
++		if (ret != LZMA_OK)
++			return ret;
++
++		coder->block_encoder_is_initialized = true;
++
++	} else if (coder->sequence <= SEQ_BLOCK_ENCODE) {
++		// We are in the middle of a Block. Try to update only
++		// the filter-specific options.
++		return_if_error(coder->block_encoder.update(
++				coder->block_encoder.coder, allocator,
++				filters, reversed_filters));
++	} else {
++		// Trying to update the filter chain when we are already
++		// encoding Index or Stream Footer.
++		return LZMA_PROG_ERROR;
++	}
++
++	// Free the copy of the old chain and make a copy of the new chain.
++	for (size_t i = 0; coder->filters[i].id != LZMA_VLI_UNKNOWN; ++i)
++		lzma_free(coder->filters[i].options, allocator);
++
++	return lzma_filters_copy(filters, coder->filters, allocator);
++}
++
++
+ extern lzma_ret
+ lzma_stream_encoder_init(lzma_next_coder *next, lzma_allocator *allocator,
+ 		const lzma_filter *filters, lzma_check check)
+@@ -223,6 +278,7 @@ lzma_stream_encoder_init(lzma_next_coder *next, lzma_allocator *allocator,
+ 
+ 		next->code = &stream_encode;
+ 		next->end = &stream_encoder_end;
++		next->update = &stream_encoder_update;
+ 
+ 		next->coder->block_encoder = LZMA_NEXT_CODER_INIT;
+ 		next->coder->index_encoder = LZMA_NEXT_CODER_INIT;
+@@ -233,7 +289,7 @@ lzma_stream_encoder_init(lzma_next_coder *next, lzma_allocator *allocator,
+ 	next->coder->sequence = SEQ_STREAM_HEADER;
+ 	next->coder->block_options.version = 0;
+ 	next->coder->block_options.check = check;
+-	next->coder->block_options.filters = (lzma_filter *)(filters);
++	next->coder->filters[0].id = LZMA_VLI_UNKNOWN;
+ 
+ 	// Initialize the Index
+ 	next->coder->index = lzma_index_init(next->coder->index, allocator);
+@@ -251,11 +307,11 @@ lzma_stream_encoder_init(lzma_next_coder *next, lzma_allocator *allocator,
+ 	next->coder->buffer_pos = 0;
+ 	next->coder->buffer_size = LZMA_STREAM_HEADER_SIZE;
+ 
+-	// Initialize the Block encoder. This way we detect if the given
+-	// filters are supported by the current liblzma build, and the
+-	// application doesn't need to keep the filters structure available
+-	// unless it is going to use LZMA_FULL_FLUSH.
+-	return block_encoder_init(next->coder, allocator);
++	// Initialize the Block encoder. This way we detect unsupported
++	// filter chains when initializing the Stream encoder instead of
++	// giving an error after Stream Header has already written out.
++	return stream_encoder_update(
++			next->coder, allocator, filters, NULL);
+ }
+ 
+ 
+diff --git a/src/liblzma/delta/delta_common.c b/src/liblzma/delta/delta_common.c
+index 6d55ff65..930ad215 100644
+--- a/src/liblzma/delta/delta_common.c
++++ b/src/liblzma/delta/delta_common.c
+@@ -25,7 +25,7 @@ delta_coder_end(lzma_coder *coder, lzma_allocator *allocator)
+ 
+ extern lzma_ret
+ lzma_delta_coder_init(lzma_next_coder *next, lzma_allocator *allocator,
+-		const lzma_filter_info *filters, lzma_code_function code)
++		const lzma_filter_info *filters)
+ {
+ 	// Allocate memory for the decoder if needed.
+ 	if (next->coder == NULL) {
+@@ -38,9 +38,6 @@ lzma_delta_coder_init(lzma_next_coder *next, lzma_allocator *allocator,
+ 		next->coder->next = LZMA_NEXT_CODER_INIT;
+ 	}
+ 
+-	// Coding function is different for encoder and decoder.
+-	next->code = code;
+-
+ 	// Validate the options.
+ 	if (lzma_delta_coder_memusage(filters[0].options) == UINT64_MAX)
+ 		return LZMA_OPTIONS_ERROR;
+diff --git a/src/liblzma/delta/delta_decoder.c b/src/liblzma/delta/delta_decoder.c
+index 2ddf163d..2cf60d5b 100644
+--- a/src/liblzma/delta/delta_decoder.c
++++ b/src/liblzma/delta/delta_decoder.c
+@@ -50,7 +50,8 @@ extern lzma_ret
+ lzma_delta_decoder_init(lzma_next_coder *next, lzma_allocator *allocator,
+ 		const lzma_filter_info *filters)
+ {
+-	return lzma_delta_coder_init(next, allocator, filters, &delta_decode);
++	next->code = &delta_decode;
++	return lzma_delta_coder_init(next, allocator, filters);
+ }
+ 
+ 
+diff --git a/src/liblzma/delta/delta_encoder.c b/src/liblzma/delta/delta_encoder.c
+index 0244673e..80d0d176 100644
+--- a/src/liblzma/delta/delta_encoder.c
++++ b/src/liblzma/delta/delta_encoder.c
+@@ -83,11 +83,26 @@ delta_encode(lzma_coder *coder, lzma_allocator *allocator,
+ }
+ 
+ 
++static lzma_ret
++delta_encoder_update(lzma_coder *coder, lzma_allocator *allocator,
++		const lzma_filter *filters_null lzma_attribute((unused)),
++		const lzma_filter *reversed_filters)
++{
++	// Delta doesn't and will never support changing the options in
++	// the middle of encoding. If the app tries to change them, we
++	// simply ignore them.
++	return lzma_next_filter_update(
++			&coder->next, allocator, reversed_filters + 1);
++}
++
++
+ extern lzma_ret
+ lzma_delta_encoder_init(lzma_next_coder *next, lzma_allocator *allocator,
+ 		const lzma_filter_info *filters)
+ {
+-	return lzma_delta_coder_init(next, allocator, filters, &delta_encode);
++	next->code = &delta_encode;
++	next->update = &delta_encoder_update;
++	return lzma_delta_coder_init(next, allocator, filters);
+ }
+ 
+ 
+diff --git a/src/liblzma/delta/delta_private.h b/src/liblzma/delta/delta_private.h
+index 69be82e2..62b7fed8 100644
+--- a/src/liblzma/delta/delta_private.h
++++ b/src/liblzma/delta/delta_private.h
+@@ -32,6 +32,6 @@ struct lzma_coder_s {
+ 
+ extern lzma_ret lzma_delta_coder_init(
+ 		lzma_next_coder *next, lzma_allocator *allocator,
+-		const lzma_filter_info *filters, lzma_code_function code);
++		const lzma_filter_info *filters);
+ 
+ #endif
+diff --git a/src/liblzma/lz/lz_encoder.c b/src/liblzma/lz/lz_encoder.c
+index 0e7b7d1d..bf6327d8 100644
+--- a/src/liblzma/lz/lz_encoder.c
++++ b/src/liblzma/lz/lz_encoder.c
+@@ -475,6 +475,22 @@ lz_encoder_end(lzma_coder *coder, lzma_allocator *allocator)
+ }
+ 
+ 
++static lzma_ret
++lz_encoder_update(lzma_coder *coder, lzma_allocator *allocator,
++		const lzma_filter *filters_null lzma_attribute((unused)),
++		const lzma_filter *reversed_filters)
++{
++	if (coder->lz.options_update == NULL)
++		return LZMA_PROG_ERROR;
++
++	return_if_error(coder->lz.options_update(
++			coder->lz.coder, reversed_filters));
++
++	return lzma_next_filter_update(
++			&coder->next, allocator, reversed_filters + 1);
++}
++
++
+ extern lzma_ret
+ lzma_lz_encoder_init(lzma_next_coder *next, lzma_allocator *allocator,
+ 		const lzma_filter_info *filters,
+@@ -495,6 +511,7 @@ lzma_lz_encoder_init(lzma_next_coder *next, lzma_allocator *allocator,
+ 
+ 		next->code = &lz_encode;
+ 		next->end = &lz_encoder_end;
++		next->update = &lz_encoder_update;
+ 
+ 		next->coder->lz.coder = NULL;
+ 		next->coder->lz.code = NULL;
+diff --git a/src/liblzma/lz/lz_encoder.h b/src/liblzma/lz/lz_encoder.h
+index e7d3f875..401185ef 100644
+--- a/src/liblzma/lz/lz_encoder.h
++++ b/src/liblzma/lz/lz_encoder.h
+@@ -201,6 +201,10 @@ typedef struct {
+ 	/// Free allocated resources
+ 	void (*end)(lzma_coder *coder, lzma_allocator *allocator);
+ 
++	/// Update the options in the middle of the encoding.
++	lzma_ret (*options_update)(lzma_coder *coder,
++			const lzma_filter *filter);
++
+ } lzma_lz_encoder;
+ 
+ 
+diff --git a/src/liblzma/lzma/lzma2_encoder.c b/src/liblzma/lzma/lzma2_encoder.c
+index 8db81368..aa3216cc 100644
+--- a/src/liblzma/lzma/lzma2_encoder.c
++++ b/src/liblzma/lzma/lzma2_encoder.c
+@@ -29,10 +29,6 @@ struct lzma_coder_s {
+ 	/// LZMA encoder
+ 	lzma_coder *lzma;
+ 
+-	/// If this is not NULL, we will check new options from this
+-	/// structure when starting a new chunk.
+-	const lzma_options_lzma *opt_new;
+-
+ 	/// LZMA options currently in use.
+ 	lzma_options_lzma opt_cur;
+ 
+@@ -155,25 +151,6 @@ lzma2_encode(lzma_coder *restrict coder, lzma_mf *restrict mf,
+ 					? LZMA_OK : LZMA_STREAM_END;
+ 		}
+ 
+-		// Look if there are new options. At least for now,
+-		// only lc/lp/pb can be changed.
+-		if (coder->opt_new != NULL
+-				&& (coder->opt_cur.lc != coder->opt_new->lc
+-				|| coder->opt_cur.lp != coder->opt_new->lp
+-				|| coder->opt_cur.pb != coder->opt_new->pb)) {
+-			// Options have been changed, copy them to opt_cur.
+-			// These get validated as part of
+-			// lzma_lzma_encoder_reset() below.
+-			coder->opt_cur.lc = coder->opt_new->lc;
+-			coder->opt_cur.lp = coder->opt_new->lp;
+-			coder->opt_cur.pb = coder->opt_new->pb;
+-
+-			// We need to write the new options and reset
+-			// the encoder state.
+-			coder->need_properties = true;
+-			coder->need_state_reset = true;
+-		}
+-
+ 		if (coder->need_state_reset)
+ 			return_if_error(lzma_lzma_encoder_reset(
+ 					coder->lzma, &coder->opt_cur));
+@@ -293,6 +270,39 @@ lzma2_encoder_end(lzma_coder *coder, lzma_allocator *allocator)
+ }
+ 
+ 
++static lzma_ret
++lzma2_encoder_options_update(lzma_coder *coder, const lzma_filter *filter)
++{
++	// New options can be set only when there is no incomplete chunk.
++        // This is the case at the beginning of the raw stream and right
++        // after LZMA_SYNC_FLUSH.
++        if (filter->options == NULL || coder->sequence != SEQ_INIT)
++		return LZMA_PROG_ERROR;
++
++	// Look if there are new options. At least for now,
++	// only lc/lp/pb can be changed.
++	const lzma_options_lzma *opt = filter->options;
++	if (coder->opt_cur.lc != opt->lc || coder->opt_cur.lp != opt->lp
++			|| coder->opt_cur.pb != opt->pb) {
++		// Validate the options.
++		if (opt->lc > LZMA_LCLP_MAX || opt->lp > LZMA_LCLP_MAX
++				|| opt->lc + opt->lp > LZMA_LCLP_MAX
++				|| opt->pb > LZMA_PB_MAX)
++			return LZMA_OPTIONS_ERROR;
++
++		// The new options will be used when the encoder starts
++		// a new LZMA2 chunk.
++		coder->opt_cur.lc = opt->lc;
++		coder->opt_cur.lp = opt->lp;
++		coder->opt_cur.pb = opt->pb;
++		coder->need_properties = true;
++		coder->need_state_reset = true;
++	}
++
++	return LZMA_OK;
++}
++
++
+ static lzma_ret
+ lzma2_encoder_init(lzma_lz_encoder *lz, lzma_allocator *allocator,
+ 		const void *options, lzma_lz_options *lz_options)
+@@ -307,13 +317,12 @@ lzma2_encoder_init(lzma_lz_encoder *lz, lzma_allocator *allocator,
+ 
+ 		lz->code = &lzma2_encode;
+ 		lz->end = &lzma2_encoder_end;
++		lz->options_update = &lzma2_encoder_options_update;
+ 
+ 		lz->coder->lzma = NULL;
+ 	}
+ 
+ 	lz->coder->opt_cur = *(const lzma_options_lzma *)(options);
+-	lz->coder->opt_new = lz->coder->opt_cur.persistent
+-				? options : NULL;
+ 
+ 	lz->coder->sequence = SEQ_INIT;
+ 	lz->coder->need_properties = true;
+diff --git a/src/liblzma/lzma/lzma_encoder_presets.c b/src/liblzma/lzma/lzma_encoder_presets.c
+index 68900a9b..c4c9c146 100644
+--- a/src/liblzma/lzma/lzma_encoder_presets.c
++++ b/src/liblzma/lzma/lzma_encoder_presets.c
+@@ -33,7 +33,6 @@ lzma_lzma_preset(lzma_options_lzma *options, uint32_t preset)
+ 	options->lp = LZMA_LP_DEFAULT;
+ 	options->pb = LZMA_PB_DEFAULT;
+ 
+-	options->persistent = false;
+ 	options->mode = level <= 2 ? LZMA_MODE_FAST : LZMA_MODE_NORMAL;
+ 
+ 	options->nice_len = level == 0 ? 8 : level <= 5 ? 32 : 64;
+diff --git a/src/liblzma/simple/simple_coder.c b/src/liblzma/simple/simple_coder.c
+index 497949a3..52c5ca6d 100644
+--- a/src/liblzma/simple/simple_coder.c
++++ b/src/liblzma/simple/simple_coder.c
+@@ -210,6 +210,17 @@ simple_coder_end(lzma_coder *coder, lzma_allocator *allocator)
+ }
+ 
+ 
++static lzma_ret
++simple_coder_update(lzma_coder *coder, lzma_allocator *allocator,
++		const lzma_filter *filters_null lzma_attribute((unused)),
++		const lzma_filter *reversed_filters)
++{
++	// No update support, just call the next filter in the chain.
++	return lzma_next_filter_update(
++			&coder->next, allocator, reversed_filters + 1);
++}
++
++
+ extern lzma_ret
+ lzma_simple_coder_init(lzma_next_coder *next, lzma_allocator *allocator,
+ 		const lzma_filter_info *filters,
+@@ -231,6 +242,7 @@ lzma_simple_coder_init(lzma_next_coder *next, lzma_allocator *allocator,
+ 
+ 		next->code = &simple_code;
+ 		next->end = &simple_coder_end;
++		next->update = &simple_coder_update;
+ 
+ 		next->coder->next = LZMA_NEXT_CODER_INIT;
+ 		next->coder->filter = filter;
+diff --git a/src/xz/options.c b/src/xz/options.c
+index 6fdf3a26..00b34a83 100644
+--- a/src/xz/options.c
++++ b/src/xz/options.c
+@@ -414,7 +414,6 @@ options_lzma(const char *str)
+ 		.lc = LZMA_LC_DEFAULT,
+ 		.lp = LZMA_LP_DEFAULT,
+ 		.pb = LZMA_PB_DEFAULT,
+-		.persistent = false,
+ 		.mode = LZMA_MODE_NORMAL,
+ 		.nice_len = 64,
+ 		.mf = LZMA_MF_BT4,

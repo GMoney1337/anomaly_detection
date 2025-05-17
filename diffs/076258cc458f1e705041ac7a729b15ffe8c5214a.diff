@@ -1,0 +1,39 @@
+diff --git a/m4/tuklib_physmem.m4 b/m4/tuklib_physmem.m4
+index 12499256..ea02208f 100644
+--- a/m4/tuklib_physmem.m4
++++ b/m4/tuklib_physmem.m4
+@@ -53,7 +53,8 @@ AC_CACHE_CHECK([how to detect the amount of physical memory],
+ # a non-compilable text instead of #error to generate an error.
+ AC_COMPILE_IFELSE([AC_LANG_SOURCE([[
+ #if defined(_WIN32) || defined(__CYGWIN__) || defined(__OS2__) \
+-		|| defined(__DJGPP__) || defined(__VMS)
++		|| defined(__DJGPP__) || defined(__VMS) \
++		|| defined(AMIGA) || defined(__AROS__)
+ int main(void) { return 0; }
+ #else
+ compile error
+diff --git a/src/common/tuklib_physmem.c b/src/common/tuklib_physmem.c
+index 623b6e70..3cc7d12a 100644
+--- a/src/common/tuklib_physmem.c
++++ b/src/common/tuklib_physmem.c
+@@ -33,6 +33,10 @@
+ #	include <syidef.h>
+ #	include <ssdef.h>
+ 
++#elif defined(AMIGA) || defined(__AROS__)
++#	define __USE_INLINE__
++#	include <proto/exec.h>
++
+ // AIX
+ #elif defined(TUKLIB_PHYSMEM_AIX)
+ #	include <sys/systemcfg.h>
+@@ -119,6 +123,9 @@ tuklib_physmem(void)
+ 	if (LIB$GETSYI(&val, &vms_mem, 0, 0, 0, 0) == SS$_NORMAL)
+ 		ret = (uint64_t)vms_mem * 8192;
+ 
++#elif defined(AMIGA) || defined(__AROS__)
++	ret = AvailMem(MEMF_TOTAL);
++
+ #elif defined(TUKLIB_PHYSMEM_AIX)
+ 	ret = _system_configuration.physmem;
+ 

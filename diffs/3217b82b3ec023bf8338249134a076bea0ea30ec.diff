@@ -1,0 +1,28 @@
+diff --git a/src/liblzma/common/string_conversion.c b/src/liblzma/common/string_conversion.c
+index 370857f0..ae13ac46 100644
+--- a/src/liblzma/common/string_conversion.c
++++ b/src/liblzma/common/string_conversion.c
+@@ -217,8 +217,8 @@ typedef struct {
+ 	uint16_t offset;
+ 
+ 	union {
+-// NVHPC has problems with unions that contain pointers that are not the first
+-// members
++		// NVHPC has problems with unions that contain pointers that
++		// are not the first members, so keep "map" at the top.
+ 		const name_value_map *map;
+ 
+ 		struct {
+diff --git a/src/liblzma/delta/delta_decoder.c b/src/liblzma/delta/delta_decoder.c
+index 142fe6de..9f0d49ca 100644
+--- a/src/liblzma/delta/delta_decoder.c
++++ b/src/liblzma/delta/delta_decoder.c
+@@ -25,6 +25,8 @@ decode_buffer(lzma_delta_coder *coder, uint8_t *buffer, size_t size)
+ }
+ 
+ 
++// For an unknown reason NVIDIA HPC Compiler needs this pragma
++// to produce working code.
+ #ifdef __NVCOMPILER
+ #	pragma routine novector
+ #endif

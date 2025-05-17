@@ -1,0 +1,13 @@
+diff --git a/configure.ac b/configure.ac
+index 7a22bf21..3df43486 100644
+--- a/configure.ac
++++ b/configure.ac
+@@ -609,7 +609,7 @@ AM_CONDITIONAL([COND_SHARED], [test "x$enable_shared" != xno])
+ 
+ echo
+ echo "Initializing gettext:"
+-AM_GNU_GETTEXT_VERSION([0.18])
++AM_GNU_GETTEXT_VERSION([0.19])
+ AM_GNU_GETTEXT([external])
+ 
+ 

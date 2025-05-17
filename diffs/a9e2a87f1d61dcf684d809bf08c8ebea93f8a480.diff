@@ -1,0 +1,13 @@
+diff --git a/src/scripts/xzgrep.1 b/src/scripts/xzgrep.1
+index fad1ad2d..2a515e49 100644
+--- a/src/scripts/xzgrep.1
++++ b/src/scripts/xzgrep.1
+@@ -14,7 +14,7 @@ xzgrep \- search compressed files for a regular expression
+ .RI [ grep_options ]
+ .RB [ \-e ]
+ .I pattern
+-.IR file " ..."
++.RI [ file... ]
+ .br
+ .B xzegrep
+ \&...

@@ -1,0 +1,63 @@
+diff --git a/src/liblzma/api/lzma/filter.h b/src/liblzma/api/lzma/filter.h
+index 8c859314..04825c65 100644
+--- a/src/liblzma/api/lzma/filter.h
++++ b/src/liblzma/api/lzma/filter.h
+@@ -108,7 +108,9 @@ extern LZMA_API(lzma_bool) lzma_filter_decoder_is_supported(lzma_vli id)
+  * need to be initialized by the caller in any way.
+  *
+  * If an error occurs, memory possibly already allocated by this function
+- * is always freed.
++ * is always freed. liblzma versions older than 5.2.7 may modify the dest
++ * array and leave its contents in an undefined state if an error occurs.
++ * liblzma 5.2.7 and newer only modify the dest array when returning LZMA_OK.
+  *
+  * \return      - LZMA_OK
+  *              - LZMA_MEM_ERROR
+diff --git a/src/liblzma/common/filter_common.c b/src/liblzma/common/filter_common.c
+index 9ad5d5d8..590be730 100644
+--- a/src/liblzma/common/filter_common.c
++++ b/src/liblzma/common/filter_common.c
+@@ -122,12 +122,16 @@ static const struct {
+ 
+ 
+ extern LZMA_API(lzma_ret)
+-lzma_filters_copy(const lzma_filter *src, lzma_filter *dest,
++lzma_filters_copy(const lzma_filter *src, lzma_filter *real_dest,
+ 		const lzma_allocator *allocator)
+ {
+-	if (src == NULL || dest == NULL)
++	if (src == NULL || real_dest == NULL)
+ 		return LZMA_PROG_ERROR;
+ 
++	// Use a temporary destination so that the real destination
++	// will never be modied if an error occurs.
++	lzma_filter dest[LZMA_FILTERS_MAX + 1];
++
+ 	lzma_ret ret;
+ 	size_t i;
+ 	for (i = 0; src[i].id != LZMA_VLI_UNKNOWN; ++i) {
+@@ -173,18 +177,20 @@ lzma_filters_copy(const lzma_filter *src, lzma_filter *dest,
+ 	}
+ 
+ 	// Terminate the filter array.
+-	assert(i <= LZMA_FILTERS_MAX + 1);
++	assert(i < LZMA_FILTERS_MAX + 1);
+ 	dest[i].id = LZMA_VLI_UNKNOWN;
+ 	dest[i].options = NULL;
+ 
++	// Copy it to the caller-supplied array now that we know that
++	// no errors occurred.
++	memcpy(real_dest, dest, (i + 1) * sizeof(lzma_filter));
++
+ 	return LZMA_OK;
+ 
+ error:
+ 	// Free the options which we have already allocated.
+-	while (i-- > 0) {
++	while (i-- > 0)
+ 		lzma_free(dest[i].options, allocator);
+-		dest[i].options = NULL;
+-	}
+ 
+ 	return ret;
+ }

@@ -1,0 +1,79 @@
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+index 886d3879..8557c65b 100644
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -503,13 +503,13 @@ endif()
+ # Checks #
+ ##########
+ 
+-set(ADDITIONAL_SUPPORTED_CHECKS crc64 sha256)
++set(SUPPORTED_CHECKS crc32 crc64 sha256)
+ 
+-set(ADDITIONAL_CHECK_TYPES "${ADDITIONAL_SUPPORTED_CHECKS}" CACHE STRING
+-    "Additional check types to support (crc32 is always built)")
++set(XZ_CHECKS "${SUPPORTED_CHECKS}" CACHE STRING
++    "Check types to support (crc32 is always built)")
+ 
+-foreach(CHECK IN LISTS ADDITIONAL_CHECK_TYPES)
+-    if(NOT CHECK IN_LIST ADDITIONAL_SUPPORTED_CHECKS)
++foreach(CHECK IN LISTS XZ_CHECKS)
++    if(NOT CHECK IN_LIST SUPPORTED_CHECKS)
+         message(FATAL_ERROR "'${CHECK}' is not a supported check type")
+     endif()
+ endforeach()
+@@ -530,7 +530,7 @@ else()
+     endif()
+ endif()
+ 
+-if("crc64" IN_LIST ADDITIONAL_CHECK_TYPES)
++if("crc64" IN_LIST XZ_CHECKS)
+     add_compile_definitions("HAVE_CHECK_CRC64")
+ 
+     if(XZ_SMALL)
+@@ -550,7 +550,7 @@ if("crc64" IN_LIST ADDITIONAL_CHECK_TYPES)
+     endif()
+ endif()
+ 
+-if("sha256" IN_LIST ADDITIONAL_CHECK_TYPES)
++if("sha256" IN_LIST XZ_CHECKS)
+     add_compile_definitions("HAVE_CHECK_SHA256")
+     target_sources(liblzma PRIVATE src/liblzma/check/sha256.c)
+ endif()
+diff --git a/tests/tests.cmake b/tests/tests.cmake
+index 9778baee..1b30ddd4 100644
+--- a/tests/tests.cmake
++++ b/tests/tests.cmake
+@@ -108,17 +108,16 @@ if(BUILD_TESTING)
+         set(HAVE_ALL_DECODERS OFF)
+     endif()
+ 
+-    set(ADDITIONAL_SUPPORTED_CHECKS_SORTED "${ADDITIONAL_SUPPORTED_CHECKS}")
+-    list(SORT ADDITIONAL_SUPPORTED_CHECKS_SORTED)
++    set(SUPPORTED_CHECKS_SORTED "${SUPPORTED_CHECKS}")
++    list(SORT SUPPORTED_CHECKS_SORTED)
+ 
+-    set(ADDITIONAL_CHECK_TYPES_SORTED "${ADDITIONAL_CHECK_TYPES}")
+-    list(SORT ADDITIONAL_CHECK_TYPES_SORTED)
++    set(XZ_CHECKS_SORTED "${XZ_CHECKS}")
++    list(SORT XZ_CHECKS_SORTED)
+ 
+-    if("${ADDITIONAL_SUPPORTED_CHECKS_SORTED}" STREQUAL
+-        "${ADDITIONAL_CHECK_TYPES_SORTED}")
+-        set(HAVE_ALL_CHECK_TYPES ON)
++    if("${SUPPORTED_CHECKS_SORTED}" STREQUAL "${XZ_CHECKS_SORTED}")
++        set(HAVE_ALL_CHECKS ON)
+     else()
+-        set(HAVE_ALL_CHECK_TYPES OFF)
++        set(HAVE_ALL_CHECKS OFF)
+     endif()
+ 
+     # test_scripts.sh only needs LZMA2 decoder and CRC32.
+@@ -178,7 +177,7 @@ if(BUILD_TESTING)
+ 
+     # test_files.sh decompresses files that use different filters and
+     # check types so run it only if support for all of them has been enabled.
+-    if(UNIX AND HAVE_ALL_DECODERS AND HAVE_ALL_CHECK_TYPES AND XZ_LZIP_DECODER)
++    if(UNIX AND HAVE_ALL_DECODERS AND HAVE_ALL_CHECKS AND XZ_LZIP_DECODER)
+         # test_files.sh doesn't make any temporary files but it
+         # must not be run at the top-level build directory because
+         # it checks if ../config.h exists. We don't want to read

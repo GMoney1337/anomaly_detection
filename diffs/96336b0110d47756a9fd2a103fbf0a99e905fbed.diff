@@ -1,0 +1,12 @@
+diff --git a/THANKS b/THANKS
+index 89c592c1..ef058adc 100644
+--- a/THANKS
++++ b/THANKS
+@@ -35,6 +35,7 @@ has been important. :-) In alphabetical order:
+   - Antoine Cœur
+   - Felix Collin
+   - Ryan Colyer
++  - Marcus Comstedt
+   - Gabi Davar
+   - İhsan Doğan
+   - Chris Donawa

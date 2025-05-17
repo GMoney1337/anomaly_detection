@@ -1,0 +1,15 @@
+diff --git a/INSTALL b/INSTALL
+index cb7f9bf5..fece4b74 100644
+--- a/INSTALL
++++ b/INSTALL
+@@ -122,6 +122,10 @@ XZ Utils Installation
+     This can be worked around by passing gl_cv_cc_visibility=no
+     as an argument to the configure script.
+ 
++    test_scripts.sh in "make check" may fail if good enough tools are
++    missing from PATH (/usr/xpg4/bin or /usr/xpg6/bin). See sections
++    4.5 and 3.2 for more information.
++
+ 
+ 1.2.6. Tru64
+ 

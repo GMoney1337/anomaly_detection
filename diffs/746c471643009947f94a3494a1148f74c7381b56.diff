@@ -1,0 +1,14 @@
+diff --git a/src/liblzma/rangecoder/range_decoder.h b/src/liblzma/rangecoder/range_decoder.h
+index a7dc5363..6cd0d892 100644
+--- a/src/liblzma/rangecoder/range_decoder.h
++++ b/src/liblzma/rangecoder/range_decoder.h
+@@ -609,9 +609,6 @@ do { \
+ 		"movzw	2(%[probs_base], %q[symbol], 4), %[t0]\n\t" \
+ 		"lea	(%q[symbol], %q[symbol]), %[symbol]\n\t" \
+ 		"cmovae	%[t0], %[prob" #b "]\n\t" \
+-	) \
+-	last_only( \
+-		/*"lea	(%q[symbol], %q[symbol]), %[symbol]\n\t"*/ \
+ 	) \
+ 		\
+ 		"lea	%c[bit_model_offset](%q[prob" #a "]), %[t0]\n\t" \

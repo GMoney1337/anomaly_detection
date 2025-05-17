@@ -1,0 +1,12 @@
+diff --git a/tests/test_bcj_exact_size.c b/tests/test_bcj_exact_size.c
+index cbd93405..4a11a9c6 100644
+--- a/tests/test_bcj_exact_size.c
++++ b/tests/test_bcj_exact_size.c
+@@ -65,6 +65,7 @@ decompress(void)
+ 		if (ret == LZMA_STREAM_END) {
+ 			expect(strm.total_in == compressed_size);
+ 			expect(strm.total_out == sizeof(in));
++			lzma_end(&strm);
+ 			return;
+ 		}
+ 

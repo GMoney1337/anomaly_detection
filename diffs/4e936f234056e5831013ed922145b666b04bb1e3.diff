@@ -1,0 +1,24 @@
+diff --git a/src/xzdec/xzdec.c b/src/xzdec/xzdec.c
+index a75ea42a..49d47bb2 100644
+--- a/src/xzdec/xzdec.c
++++ b/src/xzdec/xzdec.c
+@@ -391,6 +391,9 @@ error:
+ int
+ main(int argc, char **argv)
+ {
++	// Initialize progname which we will be used in error messages.
++	tuklib_progname_init(argv);
++
+ #ifdef HAVE_PLEDGE
+ 	// OpenBSD's pledge(2) sandbox.
+ 	// Initially enable the sandbox slightly more relaxed so that
+@@ -416,9 +419,6 @@ main(int argc, char **argv)
+ 	(void)prctl(PR_SET_NO_NEW_PRIVS, 1, 0, 0, 0);
+ #endif
+ 
+-	// Initialize progname which we will be used in error messages.
+-	tuklib_progname_init(argv);
+-
+ 	// Parse the command line options.
+ 	parse_options(argc, argv);
+ 

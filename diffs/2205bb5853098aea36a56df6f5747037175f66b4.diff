@@ -1,0 +1,12 @@
+diff --git a/THANKS b/THANKS
+index db8ded64..05d20bdf 100644
+--- a/THANKS
++++ b/THANKS
+@@ -67,6 +67,7 @@ has been important. :-) In alphabetical order:
+   - Andre Noll
+   - Peter O'Gorman
+   - Peter Pallinger
++  - Rui Paulo
+   - Igor Pavlov
+   - Diego Elio Pettenò
+   - Elbert Pol

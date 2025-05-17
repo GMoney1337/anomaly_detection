@@ -1,0 +1,66 @@
+diff --git a/src/liblzma/check/crc32_fast.c b/src/liblzma/check/crc32_fast.c
+index 3c7cb95f..6184e2b7 100644
+--- a/src/liblzma/check/crc32_fast.c
++++ b/src/liblzma/check/crc32_fast.c
+@@ -2,7 +2,7 @@
+ 
+ ///////////////////////////////////////////////////////////////////////////////
+ //
+-/// \file       crc32.c
++/// \file       crc32_fast.c
+ /// \brief      CRC32 calculation
+ //
+ //  Authors:    Lasse Collin
+diff --git a/src/liblzma/check/crc64_fast.c b/src/liblzma/check/crc64_fast.c
+index e382bc7e..792d0f94 100644
+--- a/src/liblzma/check/crc64_fast.c
++++ b/src/liblzma/check/crc64_fast.c
+@@ -2,7 +2,7 @@
+ 
+ ///////////////////////////////////////////////////////////////////////////////
+ //
+-/// \file       crc64.c
++/// \file       crc64_fast.c
+ /// \brief      CRC64 calculation
+ //
+ //  Authors:    Lasse Collin
+diff --git a/src/liblzma/common/outqueue.h b/src/liblzma/common/outqueue.h
+index 25f07197..0e4e9141 100644
+--- a/src/liblzma/common/outqueue.h
++++ b/src/liblzma/common/outqueue.h
+@@ -188,6 +188,7 @@ extern bool lzma_outq_is_readable(const lzma_outq *outq);
+ /// \brief      Read finished data
+ ///
+ /// \param      outq            Pointer to an output queue
++/// \param      allocator       lzma_allocator for custom allocator functions
+ /// \param      out             Beginning of the output buffer
+ /// \param      out_pos         The next byte will be written to
+ ///                             out[*out_pos].
+diff --git a/src/xz/list.c b/src/xz/list.c
+index 6a71d01e..210f23ad 100644
+--- a/src/xz/list.c
++++ b/src/xz/list.c
+@@ -655,6 +655,8 @@ parse_check_value(file_pair *pair, const lzma_index_iter *iter)
+ ///                     be printed.
+ /// \param      bhi     Pointer to structure where to store the information
+ ///                     about the Block Header field.
++/// \param      xfi     Pointer to structure where to store the information
++///                     about the entire .xz file.
+ ///
+ /// \return     False on success, true on error. If an error occurs,
+ ///             the error message is printed too so the caller doesn't
+diff --git a/src/xz/message.h b/src/xz/message.h
+index 3f6e1835..5f0af7f7 100644
+--- a/src/xz/message.h
++++ b/src/xz/message.h
+@@ -144,6 +144,10 @@ extern void message_filename(const char *src_name);
+ /// given *strm becomes invalid.
+ ///
+ /// \param      strm      Pointer to lzma_stream used for the coding.
++/// \param      is_passthru
++///                       If true, we are copying input to output without
++///                       encoding or decoding, and thus cannot use
++///                       lzma_get_progress().
+ /// \param      in_size   Size of the input file, or zero if unknown.
+ ///
+ extern void message_progress_start(lzma_stream *strm,

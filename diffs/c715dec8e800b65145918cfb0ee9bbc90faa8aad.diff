@@ -1,0 +1,13 @@
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+index 62ddc02a..f02d08b3 100644
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -1704,7 +1704,7 @@ if(HAVE_DECODERS AND (NOT MSVC OR MSVC_VERSION GREATER_EQUAL 1900))
+ 
+         if(SANDBOX_COMPILE_DEFINITION)
+             target_compile_definitions("${XZDEC}" PRIVATE
+-                                    "${SANDBOX_COMPILE_DEFINITION}")
++                                       "${SANDBOX_COMPILE_DEFINITION}")
+         endif()
+ 
+         tuklib_progname("${XZDEC}")

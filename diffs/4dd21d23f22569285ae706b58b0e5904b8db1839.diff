@@ -1,0 +1,12 @@
+diff --git a/src/xz/args.c b/src/xz/args.c
+index 98a9711f..32ab7785 100644
+--- a/src/xz/args.c
++++ b/src/xz/args.c
+@@ -55,7 +55,6 @@ parse_real(args_info *args, int argc, char **argv)
+ 		{ "uncompress",     no_argument,       NULL,  'd' },
+ 		{ "test",           no_argument,       NULL,  't' },
+ 		{ "list",           no_argument,       NULL,  'l' },
+-		{ "info",           no_argument,       NULL,  'l' },
+ 
+ 		// Operation modifiers
+ 		{ "keep",           no_argument,       NULL,  'k' },

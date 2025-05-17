@@ -1,0 +1,12 @@
+diff --git a/tests/test_index.c b/tests/test_index.c
+index 2c006045..105abb16 100644
+--- a/tests/test_index.c
++++ b/tests/test_index.c
+@@ -1,6 +1,6 @@
+ ///////////////////////////////////////////////////////////////////////////////
+ //
+-/// \file       test_inndex.c
++/// \file       test_index.c
+ /// \brief      Tests functions handling the lzma_index structure
+ //
+ //  Copyright (C) 2007 Lasse Collin

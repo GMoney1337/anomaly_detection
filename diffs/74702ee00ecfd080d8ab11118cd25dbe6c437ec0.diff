@@ -1,0 +1,163 @@
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+index 107a8f89..f47eb369 100644
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -221,6 +221,12 @@ if(MSVC)
+     set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} /MANIFEST:NO")
+ endif()
+ 
++# Dependencies for all Windows resource files:
++set(W32RES_DEPENDENCIES
++    "${CMAKE_CURRENT_SOURCE_DIR}/src/common/common_w32res.rc"
++    "${CMAKE_CURRENT_SOURCE_DIR}/src/common/w32_application.manifest"
++)
++
+ # Definitions common to all targets:
+ add_compile_definitions(
+     # Package info:
+@@ -1394,7 +1400,7 @@ if(WIN32 OR CYGWIN)
+         target_sources(liblzma PRIVATE src/liblzma/liblzma_w32res.rc)
+ 
+         set_source_files_properties(src/liblzma/liblzma_w32res.rc PROPERTIES
+-            OBJECT_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/src/common/common_w32res.rc"
++            OBJECT_DEPENDS "${W32RES_DEPENDENCIES}"
+         )
+ 
+         # Export the public API symbols with __declspec(dllexport).
+@@ -1875,7 +1881,7 @@ if(HAVE_DECODERS)
+             target_sources("${XZDEC}" PRIVATE "src/xzdec/${XZDEC}_w32res.rc")
+             set_source_files_properties(
+                 "src/xzdec/${XZDEC}_w32res.rc" PROPERTIES
+-                OBJECT_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/src/common/common_w32res.rc"
++                OBJECT_DEPENDS "${W32RES_DEPENDENCIES}"
+             )
+         endif()
+ 
+@@ -1943,7 +1949,7 @@ if(XZ_TOOL_LZMAINFO AND HAVE_DECODERS)
+         # Add the Windows resource file for lzmainfo.exe.
+         target_sources(lzmainfo PRIVATE src/lzmainfo/lzmainfo_w32res.rc)
+         set_source_files_properties(src/lzmainfo/lzmainfo_w32res.rc PROPERTIES
+-            OBJECT_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/src/common/common_w32res.rc"
++            OBJECT_DEPENDS "${W32RES_DEPENDENCIES}"
+         )
+     endif()
+ 
+@@ -2056,7 +2062,7 @@ this many MiB of RAM if xz cannot determine the amount at runtime")
+         # Add the Windows resource file for xz.exe.
+         target_sources(xz PRIVATE src/xz/xz_w32res.rc)
+         set_source_files_properties(src/xz/xz_w32res.rc PROPERTIES
+-            OBJECT_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/src/common/common_w32res.rc"
++            OBJECT_DEPENDS "${W32RES_DEPENDENCIES}"
+         )
+     endif()
+ 
+diff --git a/tests/Makefile.am b/tests/Makefile.am
+index d85328dd..15dc16a8 100644
+--- a/tests/Makefile.am
++++ b/tests/Makefile.am
+@@ -7,6 +7,7 @@ EXTRA_DIST = \
+ 	tests.cmake \
+ 	tuktest.h \
+ 	tests.h \
++	tests_w32res.rc \
+ 	test_files.sh \
+ 	test_compress.sh \
+ 	test_compress_generated_abc \
+@@ -25,6 +26,15 @@ LDADD = $(top_builddir)/src/liblzma/liblzma.la
+ 
+ LDADD += $(LTLIBINTL)
+ 
++# Windows resource compiler support
++.rc.o:
++	$(RC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) \
++		$(AM_CPPFLAGS) $(CPPFLAGS) $(RCFLAGS) -i $< -o $@
++
++if COND_W32
++LDADD += tests_w32res.o
++endif
++
+ check_PROGRAMS = \
+ 	create_compress_files \
+ 	test_check \
+diff --git a/tests/tests.cmake b/tests/tests.cmake
+index 297fcaf9..9302a5e4 100644
+--- a/tests/tests.cmake
++++ b/tests/tests.cmake
+@@ -16,6 +16,36 @@
+ include(CTest)
+ 
+ if(BUILD_TESTING)
++    ################################
++    # Windows Application Manifest #
++    ################################
++
++    # On Windows (but not on Cygwin or MSYS2) we want to add the
++    # application manifest to the test programs so that they are
++    # run in the same configuration as the programs that are installed.
++    # The same object file can be used for all test programs.
++    add_library(tests_w32res OBJECT)
++
++    # CMake requires that even an object library must have at least once
++    # source file. Give it a header file that results in no output files.
++    target_sources(tests_w32res PRIVATE tests/tests.h)
++
++    # The Ninja Generator requires setting the linker language since it
++    # cannot guess the programming language of a header file.
++    set_target_properties(tests_w32res PROPERTIES LINKER_LANGUAGE C)
++
++    target_include_directories(tests_w32res PRIVATE src/common
++        src/common
++        src/liblzma/api
++    )
++
++    if(WIN32)
++        target_sources(tests_w32res PRIVATE tests/tests_w32res.rc)
++        set_source_files_properties(tests/tests_w32res.rc PROPERTIES
++            OBJECT_DEPENDS "${W32RES_DEPENDENCIES}"
++        )
++    endif()
++
+     #################
+     # liblzma tests #
+     #################
+@@ -54,7 +84,7 @@ if(BUILD_TESTING)
+             src/liblzma
+         )
+ 
+-        target_link_libraries("${TEST}" PRIVATE liblzma)
++        target_link_libraries("${TEST}" PRIVATE liblzma tests_w32res)
+ 
+         # Put the test programs into their own subdirectory so they don't
+         # pollute the top-level dir which might contain xz and xzdec.
+@@ -155,6 +185,7 @@ if(BUILD_TESTING)
+         file(MAKE_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/test_compress")
+ 
+         add_executable(create_compress_files tests/create_compress_files.c)
++        target_link_libraries(create_compress_files PRIVATE tests_w32res)
+         target_include_directories(create_compress_files PRIVATE src/common)
+         set_target_properties(create_compress_files PROPERTIES
+                               RUNTIME_OUTPUT_DIRECTORY test_compress)
+diff --git a/tests/tests_w32res.rc b/tests/tests_w32res.rc
+new file mode 100644
+index 00000000..0b6c5250
+--- /dev/null
++++ b/tests/tests_w32res.rc
+@@ -0,0 +1,18 @@
++/* SPDX-License-Identifier: 0BSD */
++
++/*
++ * Author: Lasse Collin
++ */
++
++/*
++ * It's silly to add version info to test programs but GNU windres fails
++ * if there are no resources to build, which happens with Autotools on
++ * Cygwin and MSYS2 because otherwise one more Automake conditional would
++ * be needed.
++ */
++
++#define MY_TYPE VFT_APP
++#define MY_NAME "test"
++#define MY_SUFFIX ".exe"
++#define MY_DESC "Test program"
++#include "common_w32res.rc"

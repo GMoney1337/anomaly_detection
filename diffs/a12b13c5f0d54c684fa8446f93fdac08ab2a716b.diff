@@ -1,0 +1,28 @@
+diff --git a/src/liblzma/check/crc32_table.c b/src/liblzma/check/crc32_table.c
+index 368874eb..b11762ae 100644
+--- a/src/liblzma/check/crc32_table.c
++++ b/src/liblzma/check/crc32_table.c
+@@ -12,6 +12,9 @@
+ 
+ #include "common.h"
+ 
++// Having the declaration here silences clang -Wmissing-variable-declarations.
++extern const uint32_t lzma_crc32_table[8][256];
++
+ #ifdef WORDS_BIGENDIAN
+ #	include "crc32_table_be.h"
+ #else
+diff --git a/src/liblzma/check/crc64_table.c b/src/liblzma/check/crc64_table.c
+index 1fbcd947..7560eb0a 100644
+--- a/src/liblzma/check/crc64_table.c
++++ b/src/liblzma/check/crc64_table.c
+@@ -12,6 +12,9 @@
+ 
+ #include "common.h"
+ 
++// Having the declaration here silences clang -Wmissing-variable-declarations.
++extern const uint64_t lzma_crc64_table[4][256];
++
+ #ifdef WORDS_BIGENDIAN
+ #	include "crc64_table_be.h"
+ #else

@@ -1,0 +1,40 @@
+diff --git a/windows/vs2013/liblzma.vcxproj b/windows/vs2013/liblzma.vcxproj
+index 66330022..dfd7975e 100644
+--- a/windows/vs2013/liblzma.vcxproj
++++ b/windows/vs2013/liblzma.vcxproj
+@@ -229,6 +229,7 @@
+     <ClCompile Include="..\..\src\liblzma\common\easy_encoder.c" />
+     <ClCompile Include="..\..\src\liblzma\common\easy_encoder_memusage.c" />
+     <ClCompile Include="..\..\src\liblzma\common\easy_preset.c" />
++    <ClCompile Include="..\..\src\liblzma\common\file_info.c" />
+     <ClCompile Include="..\..\src\liblzma\common\filter_buffer_decoder.c" />
+     <ClCompile Include="..\..\src\liblzma\common\filter_buffer_encoder.c" />
+     <ClCompile Include="..\..\src\liblzma\common\filter_common.c" />
+@@ -318,6 +319,7 @@
+     <ClInclude Include="..\..\src\liblzma\common\filter_decoder.h" />
+     <ClInclude Include="..\..\src\liblzma\common\filter_encoder.h" />
+     <ClInclude Include="..\..\src\liblzma\common\index.h" />
++    <ClInclude Include="..\..\src\liblzma\common\index_decoder.h" />
+     <ClInclude Include="..\..\src\liblzma\common\index_encoder.h" />
+     <ClInclude Include="..\..\src\liblzma\common\memcmplen.h" />
+     <ClInclude Include="..\..\src\liblzma\common\outqueue.h" />
+diff --git a/windows/vs2013/liblzma_dll.vcxproj b/windows/vs2013/liblzma_dll.vcxproj
+index 264394c1..96b8e50d 100644
+--- a/windows/vs2013/liblzma_dll.vcxproj
++++ b/windows/vs2013/liblzma_dll.vcxproj
+@@ -255,6 +255,7 @@
+     <ClCompile Include="..\..\src\liblzma\common\easy_encoder.c" />
+     <ClCompile Include="..\..\src\liblzma\common\easy_encoder_memusage.c" />
+     <ClCompile Include="..\..\src\liblzma\common\easy_preset.c" />
++    <ClCompile Include="..\..\src\liblzma\common\file_info.c" />
+     <ClCompile Include="..\..\src\liblzma\common\filter_buffer_decoder.c" />
+     <ClCompile Include="..\..\src\liblzma\common\filter_buffer_encoder.c" />
+     <ClCompile Include="..\..\src\liblzma\common\filter_common.c" />
+@@ -344,6 +345,7 @@
+     <ClInclude Include="..\..\src\liblzma\common\filter_decoder.h" />
+     <ClInclude Include="..\..\src\liblzma\common\filter_encoder.h" />
+     <ClInclude Include="..\..\src\liblzma\common\index.h" />
++    <ClInclude Include="..\..\src\liblzma\common\index_decoder.h" />
+     <ClInclude Include="..\..\src\liblzma\common\index_encoder.h" />
+     <ClInclude Include="..\..\src\liblzma\common\memcmplen.h" />
+     <ClInclude Include="..\..\src\liblzma\common\outqueue.h" />

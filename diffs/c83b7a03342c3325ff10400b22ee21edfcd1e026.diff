@@ -1,0 +1,13 @@
+diff --git a/src/xz/Makefile.am b/src/xz/Makefile.am
+index 2c6e6f54..0890aad7 100644
+--- a/src/xz/Makefile.am
++++ b/src/xz/Makefile.am
+@@ -38,7 +38,7 @@ xz_SOURCES = \
+ 	../common/tuklib_mbstr_fw.c
+ 
+ if COND_MAIN_DECODER
+-xz_SOURCES = \
++xz_SOURCES += \
+ 	list.c \
+ 	list.h
+ endif

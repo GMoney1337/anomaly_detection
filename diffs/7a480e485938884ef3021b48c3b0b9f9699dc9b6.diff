@@ -1,0 +1,62 @@
+diff --git a/src/xz/coder.c b/src/xz/coder.c
+index 316f5609..b470e586 100644
+--- a/src/xz/coder.c
++++ b/src/xz/coder.c
+@@ -594,6 +594,7 @@ coder_normal(file_pair *pair)
+ 
+ 			if (ret == LZMA_STREAM_END) {
+ 				if (opt_single_stream) {
++					io_fix_src_pos(pair, strm.avail_in);
+ 					success = true;
+ 					break;
+ 				}
+diff --git a/src/xz/file_io.c b/src/xz/file_io.c
+index 370b61b7..f9807a69 100644
+--- a/src/xz/file_io.c
++++ b/src/xz/file_io.c
+@@ -840,6 +840,21 @@ io_close(file_pair *pair, bool success)
+ }
+ 
+ 
++extern void
++io_fix_src_pos(file_pair *pair, size_t rewind_size)
++{
++	assert(rewind_size <= IO_BUFFER_SIZE);
++
++	if (rewind_size > 0) {
++		// This doesn't need to work on unseekable file descriptors,
++		// so just ignore possible errors.
++		(void)lseek(pair->src_fd, -(off_t)(rewind_size), SEEK_CUR);
++	}
++
++	return;
++}
++
++
+ extern size_t
+ io_read(file_pair *pair, io_buf *buf_union, size_t size)
+ {
+diff --git a/src/xz/file_io.h b/src/xz/file_io.h
+index 967da868..ef639324 100644
+--- a/src/xz/file_io.h
++++ b/src/xz/file_io.h
+@@ -102,6 +102,19 @@ extern void io_close(file_pair *pair, bool success);
+ extern size_t io_read(file_pair *pair, io_buf *buf, size_t size);
+ 
+ 
++/// \brief      Fix the position in src_fd
++///
++/// This is used when --single-thream has been specified and decompression
++/// is successful. If the input file descriptor supports seeking, this
++/// function fixes the input position to point to the next byte after the
++/// decompressed stream.
++///
++/// \param      pair        File pair having the source file open for reading
++/// \param      rewind_size How many bytes of extra have been read i.e.
++///                         how much to seek backwards.
++extern void io_fix_src_pos(file_pair *pair, size_t rewind_size);
++
++
+ /// \brief      Read from source file from given offset to a buffer
+ ///
+ /// This is remotely similar to standard pread(). This uses lseek() though,

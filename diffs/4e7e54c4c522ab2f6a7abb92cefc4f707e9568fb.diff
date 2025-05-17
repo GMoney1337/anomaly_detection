@@ -1,0 +1,295 @@
+diff --git a/configure.ac b/configure.ac
+index e0b394a5..514408e8 100644
+--- a/configure.ac
++++ b/configure.ac
+@@ -392,10 +392,21 @@ AC_CHECK_HEADERS([assert.h errno.h byteswap.h sys/param.h sys/sysctl.h],
+ # Checks for typedefs, structures, and compiler characteristics.
+ ###############################################################################
+ 
+-AC_HEADER_STDBOOL
+ AC_C_INLINE
+ AC_C_RESTRICT
+ 
++AC_HEADER_STDBOOL
++
++AC_TYPE_UINT8_T
++AC_TYPE_INT32_T
++AC_TYPE_UINT32_T
++AC_TYPE_INT64_T
++AC_TYPE_UINT64_T
++AC_TYPE_UINTPTR_T
++
++AC_CHECK_SIZEOF([unsigned long])
++AC_CHECK_SIZEOF([size_t])
++
+ # The command line tool can copy high resolution timestamps if such
+ # information is availabe in struct stat. Otherwise one second accuracy
+ # is used. Most systems seem to have st_xtim but BSDs have st_xtimespec.
+diff --git a/doc/liblzma-intro.txt b/doc/liblzma-intro.txt
+index 9cbd63a9..52c4d920 100644
+--- a/doc/liblzma-intro.txt
++++ b/doc/liblzma-intro.txt
+@@ -5,8 +5,14 @@ Introduction to liblzma
+ Writing applications to work with liblzma
+ 
+     liblzma API is split in several subheaders to improve readability and
+-    maintainance. The subheaders must not be #included directly; simply
+-    use `#include <lzma.h>' instead.
++    maintainance. The subheaders must not be #included directly. lzma.h
++    requires that certain integer types and macros are available when
++    the header is #included. On systems that have inttypes.h that conforms
++    to C99, the following will work:
++
++        #include <sys/types.h>
++        #include <inttypes.h>
++        #include <lzma.h>
+ 
+     Those who have used zlib should find liblzma's API easy to use.
+     To developers who haven't used zlib before, I recommend learning
+diff --git a/src/common/sysdefs.h b/src/common/sysdefs.h
+index b4ba8a56..7b69504c 100644
+--- a/src/common/sysdefs.h
++++ b/src/common/sysdefs.h
+@@ -31,7 +31,62 @@
+ #	include <config.h>
+ #endif
+ 
+-#include "lzma.h"
++#include <sys/types.h>
++
++#ifdef HAVE_INTTYPES_H
++#	include <inttypes.h>
++#endif
++
++#ifdef HAVE_LIMITS_H
++#	include <limits.h>
++#endif
++
++// Be more compatible with systems that have non-conforming inttypes.h.
++// We assume that int is 32-bit and that long is either 32-bit or 64-bit.
++// Full Autoconf test could be more correct, but this should work well enough.
++#ifndef UINT32_C
++#	define UINT32_C(n) n ## U
++#endif
++#ifndef UINT32_MAX
++#	define UINT32_MAX UINT32_C(4294967295)
++#endif
++#ifndef PRIu32
++#	define PRIu32 "u"
++#endif
++#ifndef PRIX32
++#	define PRIX32 "X"
++#endif
++#if SIZEOF_UNSIGNED_LONG == 4
++#	ifndef UINT64_C
++#		define UINT64_C(n) n ## ULL
++#	endif
++#	ifndef PRIu64
++#		define PRIu64 "llu"
++#	endif
++#	ifndef PRIX64
++#		define PRIX64 "llX"
++#	endif
++#else
++#	ifndef UINT64_C
++#		define UINT64_C(n) n ## UL
++#	endif
++#	ifndef PRIu64
++#		define PRIu64 "lu"
++#	endif
++#	ifndef PRIX64
++#		define PRIX64 "lX"
++#	endif
++#endif
++#ifndef UINT64_MAX
++#	define UINT64_MAX UINT64_C(18446744073709551615)
++#endif
++#ifndef SIZE_MAX
++#	if SIZEOF_SIZE_T == 4
++#		define SIZE_MAX UINT32_MAX
++#	else
++#		define SIZE_MAX UINT64_MAX
++#	endif
++#endif
+ 
+ #include <stdlib.h>
+ 
+@@ -70,6 +125,8 @@ typedef unsigned char _Bool;
+ #	include <memory.h>
+ #endif
+ 
++#include "lzma.h"
++
+ 
+ ////////////
+ // Macros //
+diff --git a/src/liblzma/api/lzma.h b/src/liblzma/api/lzma.h
+index 186ae12c..ad39d349 100644
+--- a/src/liblzma/api/lzma.h
++++ b/src/liblzma/api/lzma.h
+@@ -17,25 +17,37 @@
+  * but WITHOUT ANY WARRANTY; without even the implied warranty of
+  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+  * Lesser General Public License for more details.
++ *
++ * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
++ *
++ * Before #including this file, you must make the following types available:
++ *  - size_t
++ *  - uint8_t
++ *  - int32_t
++ *  - uint32_t
++ *  - int64_t
++ *  - uint64_t
++ *
++ * Before #including this file, you must make the following macros available:
++ *  - UINT32_C(n)
++ *  - UINT64_C(n)
++ *  - UINT32_MAX
++ *  - UINT64_MAX
++ *
++ * Easiest way to achieve the above is to #include sys/types.h and inttypes.h
++ * before #including lzma.h. However, some pre-C99 libc headers don't provide
++ * all the required types in inttypes.h (that file may even be missing).
++ * Portable applications need to provide these types themselves. This way
++ * liblzma API can use the standard types instead of defining its own
++ * (e.g. lzma_uint32).
++ *
++ * Note that the API still has lzma_bool, because using stdbool.h would
++ * break C89 and C++ programs on many systems.
+  */
+ 
+ #ifndef LZMA_H
+ #define LZMA_H
+ 
+-/********************
+- * External headers *
+- ********************/
+-
+-/* size_t */
+-#include <sys/types.h>
+-
+-/* NULL */
+-#include <stddef.h>
+-
+-/* uint8_t, uint32_t, uint64_t, UINT32_C, UINT64_C, UINT64_MAX. */
+-#include <inttypes.h>
+-
+-
+ /******************
+  * GCC extensions *
+  ******************/
+diff --git a/src/liblzma/check/crc32_table.c b/src/liblzma/check/crc32_table.c
+index b59642d4..f1cc0daf 100644
+--- a/src/liblzma/check/crc32_table.c
++++ b/src/liblzma/check/crc32_table.c
+@@ -11,9 +11,7 @@
+ //
+ ///////////////////////////////////////////////////////////////////////////////
+ 
+-#ifdef HAVE_CONFIG_H
+-#	include <config.h>
+-#endif
++#include "sysdefs.h"
+ 
+ #ifdef WORDS_BIGENDIAN
+ #	include "crc32_table_be.h"
+diff --git a/src/liblzma/check/crc32_table_be.h b/src/liblzma/check/crc32_table_be.h
+index bc5a5fbd..f4f4e365 100644
+--- a/src/liblzma/check/crc32_table_be.h
++++ b/src/liblzma/check/crc32_table_be.h
+@@ -1,7 +1,5 @@
+ /* This file has been automatically generated by crc32_tablegen.c. */
+ 
+-#include <inttypes.h>
+-
+ const uint32_t lzma_crc32_table[8][256] = {
+ 	{
+ 		0x00000000, 0x96300777, 0x2C610EEE, 0xBA510999, 
+diff --git a/src/liblzma/check/crc32_table_le.h b/src/liblzma/check/crc32_table_le.h
+index a96d772a..7b816665 100644
+--- a/src/liblzma/check/crc32_table_le.h
++++ b/src/liblzma/check/crc32_table_le.h
+@@ -1,7 +1,5 @@
+ /* This file has been automatically generated by crc32_tablegen.c. */
+ 
+-#include <inttypes.h>
+-
+ const uint32_t lzma_crc32_table[8][256] = {
+ 	{
+ 		0x00000000, 0x77073096, 0xEE0E612C, 0x990951BA, 
+diff --git a/src/liblzma/check/crc32_tablegen.c b/src/liblzma/check/crc32_tablegen.c
+index 280d3b12..f05d7536 100644
+--- a/src/liblzma/check/crc32_tablegen.c
++++ b/src/liblzma/check/crc32_tablegen.c
+@@ -31,7 +31,6 @@ main()
+ 
+ 	printf("/* This file has been automatically generated by "
+ 			"crc32_tablegen.c. */\n\n"
+-			"#include <inttypes.h>\n\n"
+ 			"const uint32_t lzma_crc32_table[8][256] = {\n\t{");
+ 
+ 	for (size_t s = 0; s < 8; ++s) {
+diff --git a/src/liblzma/check/crc64_table.c b/src/liblzma/check/crc64_table.c
+index 0f2d1fb1..2f227319 100644
+--- a/src/liblzma/check/crc64_table.c
++++ b/src/liblzma/check/crc64_table.c
+@@ -11,9 +11,7 @@
+ //
+ ///////////////////////////////////////////////////////////////////////////////
+ 
+-#ifdef HAVE_CONFIG_H
+-#	include <config.h>
+-#endif
++#include "sysdefs.h"
+ 
+ #ifdef WORDS_BIGENDIAN
+ #	include "crc64_table_be.h"
+diff --git a/src/liblzma/check/crc64_table_be.h b/src/liblzma/check/crc64_table_be.h
+index 99518400..2d2794fe 100644
+--- a/src/liblzma/check/crc64_table_be.h
++++ b/src/liblzma/check/crc64_table_be.h
+@@ -1,7 +1,5 @@
+ /* This file has been automatically generated by crc64_tablegen.c. */
+ 
+-#include <inttypes.h>
+-
+ const uint64_t lzma_crc64_table[4][256] = {
+ 	{
+ 		UINT64_C(0x0000000000000000), UINT64_C(0x6F5FA703BE4C2EB3), 
+diff --git a/src/liblzma/check/crc64_table_le.h b/src/liblzma/check/crc64_table_le.h
+index 3047ea16..6f82cad1 100644
+--- a/src/liblzma/check/crc64_table_le.h
++++ b/src/liblzma/check/crc64_table_le.h
+@@ -1,7 +1,5 @@
+ /* This file has been automatically generated by crc64_tablegen.c. */
+ 
+-#include <inttypes.h>
+-
+ const uint64_t lzma_crc64_table[4][256] = {
+ 	{
+ 		UINT64_C(0x0000000000000000), UINT64_C(0xB32E4CBE03A75F6F), 
+diff --git a/src/liblzma/check/crc64_tablegen.c b/src/liblzma/check/crc64_tablegen.c
+index 0f1005f4..4b35ac1f 100644
+--- a/src/liblzma/check/crc64_tablegen.c
++++ b/src/liblzma/check/crc64_tablegen.c
+@@ -31,7 +31,6 @@ main()
+ 
+ 	printf("/* This file has been automatically generated by "
+ 			"crc64_tablegen.c. */\n\n"
+-			"#include <inttypes.h>\n\n"
+ 			"const uint64_t lzma_crc64_table[4][256] = {\n\t{");
+ 
+ 	for (size_t s = 0; s < 4; ++s) {
+diff --git a/src/lzma/private.h b/src/lzma/private.h
+index 89afac9b..f6a75645 100644
+--- a/src/lzma/private.h
++++ b/src/lzma/private.h
+@@ -29,7 +29,6 @@ extern int errno;
+ #endif
+ 
+ #include <sys/stat.h>
+-#include <limits.h>
+ #include <signal.h>
+ #include <pthread.h>
+ #include <locale.h>

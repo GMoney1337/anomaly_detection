@@ -1,0 +1,154 @@
+diff --git a/COPYING b/COPYING
+index 43c90d05..20e60d5b 100644
+--- a/COPYING
++++ b/COPYING
+@@ -47,7 +47,7 @@ XZ Utils Licensing
+     naturally it is not legally required. Here is an example of a good
+     notice to put into "about box" or into documentation:
+ 
+-        This software includes code from XZ Utils <http://tukaani.org/xz/>.
++        This software includes code from XZ Utils <https://tukaani.org/xz/>.
+ 
+     The following license texts are included in the following files:
+       - COPYING.LGPLv2.1: GNU Lesser General Public License version 2.1
+diff --git a/README b/README
+index ab8aadfb..720a1a58 100644
+--- a/README
++++ b/README
+@@ -291,7 +291,7 @@ XZ Utils
+     XZ Embedded is a limited implementation written for use in the Linux
+     kernel, but it is also suitable for other embedded use.
+ 
+-        http://tukaani.org/xz/embedded.html
++        https://tukaani.org/xz/embedded.html
+ 
+ 
+ 6. Contact information
+diff --git a/configure.ac b/configure.ac
+index 81abce58..9786a3b4 100644
+--- a/configure.ac
++++ b/configure.ac
+@@ -18,7 +18,7 @@
+ AC_PREREQ([2.64])
+ 
+ AC_INIT([XZ Utils], m4_esyscmd([/bin/sh build-aux/version.sh]),
+-	[lasse.collin@tukaani.org], [xz], [http://tukaani.org/xz/])
++	[lasse.collin@tukaani.org], [xz], [https://tukaani.org/xz/])
+ AC_CONFIG_SRCDIR([src/liblzma/common/common.h])
+ AC_CONFIG_AUX_DIR([build-aux])
+ AC_CONFIG_MACRO_DIR([m4])
+diff --git a/doc/faq.txt b/doc/faq.txt
+index 333bee09..dee7824f 100644
+--- a/doc/faq.txt
++++ b/doc/faq.txt
+@@ -206,7 +206,7 @@ Q:  How do I build a program that needs liblzmadec (lzmadec.h)?
+ A:  liblzmadec is part of LZMA Utils. XZ Utils has liblzma, but no
+     liblzmadec. The code using liblzmadec should be ported to use
+     liblzma instead. If you cannot or don't want to do that, download
+-    LZMA Utils from <http://tukaani.org/lzma/>.
++    LZMA Utils from <https://tukaani.org/lzma/>.
+ 
+ 
+ Q:  The default build of liblzma is too big. How can I make it smaller?
+@@ -220,5 +220,5 @@ A:  Give --enable-small to the configure script. Use also appropriate
+     If the result is still too big, take a look at XZ Embedded. It is
+     a separate project, which provides a limited but significantly
+     smaller XZ decoder implementation than XZ Utils. You can find it
+-    at <http://tukaani.org/xz/embedded.html>.
++    at <https://tukaani.org/xz/embedded.html>.
+ 
+diff --git a/dos/config.h b/dos/config.h
+index 725cb8ec..7a385e10 100644
+--- a/dos/config.h
++++ b/dos/config.h
+@@ -126,7 +126,7 @@
+ #define PACKAGE_NAME "XZ Utils"
+ 
+ /* Define to the home page for this package. */
+-#define PACKAGE_URL "http://tukaani.org/xz/"
++#define PACKAGE_URL "https://tukaani.org/xz/"
+ 
+ /* The size of `size_t', as computed by sizeof. */
+ #define SIZEOF_SIZE_T 4
+diff --git a/src/common/common_w32res.rc b/src/common/common_w32res.rc
+index fdb88d18..a70de343 100644
+--- a/src/common/common_w32res.rc
++++ b/src/common/common_w32res.rc
+@@ -17,7 +17,7 @@
+ #define MY_VERSION LZMA_VERSION_MAJOR,LZMA_VERSION_MINOR,LZMA_VERSION_PATCH,MY_BUILD
+ 
+ #define MY_FILENAME    MY_NAME MY_SUFFIX
+-#define MY_COMPANY     "The Tukaani Project <http://tukaani.org/>"
++#define MY_COMPANY     "The Tukaani Project <https://tukaani.org/>"
+ #define MY_PRODUCT     PACKAGE_NAME " <" PACKAGE_URL ">"
+ 
+ LANGUAGE LANG_ENGLISH, SUBLANG_ENGLISH_US
+diff --git a/src/xz/xz.1 b/src/xz/xz.1
+index bc5514d5..9dffdc6f 100644
+--- a/src/xz/xz.1
++++ b/src/xz/xz.1
+@@ -5,7 +5,7 @@
+ .\" This file has been put into the public domain.
+ .\" You can do whatever you want with this file.
+ .\"
+-.TH XZ 1 "2015-05-11" "Tukaani" "XZ Utils"
++.TH XZ 1 "2017-04-19" "Tukaani" "XZ Utils"
+ .
+ .SH NAME
+ xz, unxz, xzcat, lzma, unlzma, lzcat \- Compress or decompress .xz and .lzma files
+@@ -2779,8 +2779,8 @@ have the same number of bytes per pixel.
+ .BR bzip2 (1),
+ .BR 7z (1)
+ .PP
+-XZ Utils: <http://tukaani.org/xz/>
++XZ Utils: <https://tukaani.org/xz/>
+ .br
+-XZ Embedded: <http://tukaani.org/xz/embedded.html>
++XZ Embedded: <https://tukaani.org/xz/embedded.html>
+ .br
+ LZMA SDK: <http://7-zip.org/sdk.html>
+diff --git a/src/xzdec/xzdec.1 b/src/xzdec/xzdec.1
+index 1e5ced94..78bc9b4a 100644
+--- a/src/xzdec/xzdec.1
++++ b/src/xzdec/xzdec.1
+@@ -4,7 +4,7 @@
+ .\" This file has been put into the public domain.
+ .\" You can do whatever you want with this file.
+ .\"
+-.TH XZDEC 1 "2013-06-30" "Tukaani" "XZ Utils"
++.TH XZDEC 1 "2017-04-19" "Tukaani" "XZ Utils"
+ .SH NAME
+ xzdec, lzmadec \- Small .xz and .lzma decompressors
+ .SH SYNOPSIS
+@@ -143,4 +143,4 @@ decompressor, consider using XZ Embedded.
+ .SH "SEE ALSO"
+ .BR xz (1)
+ .PP
+-XZ Embedded: <http://tukaani.org/xz/embedded.html>
++XZ Embedded: <https://tukaani.org/xz/embedded.html>
+diff --git a/windows/README-Windows.txt b/windows/README-Windows.txt
+index f9a00248..85ee3a09 100644
+--- a/windows/README-Windows.txt
++++ b/windows/README-Windows.txt
+@@ -7,7 +7,7 @@ Introduction
+ 
+     This package includes command line tools (xz.exe and a few others)
+     and the liblzma compression library from XZ Utils. You can find the
+-    latest version and full source code from <http://tukaani.org/xz/>.
++    latest version and full source code from <https://tukaani.org/xz/>.
+ 
+     The parts of the XZ Utils source code, that are relevant to this
+     binary package, are in the public domain. XZ Utils have been built
+diff --git a/windows/config.h b/windows/config.h
+index 71f353f4..5bd82b07 100644
+--- a/windows/config.h
++++ b/windows/config.h
+@@ -134,7 +134,7 @@
+ #define PACKAGE_NAME "XZ Utils"
+ 
+ /* Define to the home page for this package. */
+-#define PACKAGE_URL "http://tukaani.org/xz/"
++#define PACKAGE_URL "https://tukaani.org/xz/"
+ 
+ /* The size of `size_t', as computed by sizeof. */
+ #ifdef _WIN64

@@ -1,0 +1,13 @@
+diff --git a/tests/Makefile.am b/tests/Makefile.am
+index 159fe419..d5bb1266 100644
+--- a/tests/Makefile.am
++++ b/tests/Makefile.am
+@@ -12,7 +12,7 @@
+ ##  Lesser General Public License for more details.
+ ##
+ 
+-EXTRA_DIST = files tests.h
++EXTRA_DIST = files tests.h test_files.sh
+ 
+ AM_CPPFLAGS = \
+ 	-I@top_srcdir@/src/common \

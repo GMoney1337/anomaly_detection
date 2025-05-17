@@ -1,0 +1,54 @@
+diff --git a/src/liblzma/check/crc32_fast.c b/src/liblzma/check/crc32_fast.c
+index 73659049..9fce94d3 100644
+--- a/src/liblzma/check/crc32_fast.c
++++ b/src/liblzma/check/crc32_fast.c
+@@ -15,6 +15,7 @@
+ #include "check.h"
+ #include "crc_common.h"
+ 
++
+ #ifdef CRC_GENERIC
+ 
+ ///////////////////
+@@ -80,6 +81,7 @@ crc32_generic(const uint8_t *buf, size_t size, uint32_t crc)
+ }
+ #endif
+ 
++
+ #if defined(CRC_GENERIC) && defined(CRC_CLMUL)
+ 
+ //////////////////////////
+diff --git a/src/liblzma/check/crc64_fast.c b/src/liblzma/check/crc64_fast.c
+index 4e6633db..ce74901c 100644
+--- a/src/liblzma/check/crc64_fast.c
++++ b/src/liblzma/check/crc64_fast.c
+@@ -14,6 +14,7 @@
+ #include "check.h"
+ #include "crc_common.h"
+ 
++
+ #ifdef CRC_GENERIC
+ 
+ /////////////////////////////////
+@@ -75,7 +76,9 @@ crc64_generic(const uint8_t *buf, size_t size, uint64_t crc)
+ }
+ #endif
+ 
++
+ #if defined(CRC_GENERIC) && defined(CRC_CLMUL)
++
+ //////////////////////////
+ // Function dispatching //
+ //////////////////////////
+diff --git a/src/liblzma/check/crc_clmul.c b/src/liblzma/check/crc_clmul.c
+index 0c2bdab1..8db82940 100644
+--- a/src/liblzma/check/crc_clmul.c
++++ b/src/liblzma/check/crc_clmul.c
+@@ -22,7 +22,6 @@
+ //              Lasse Collin
+ //              Jia Tan
+ //
+-//
+ //  This file has been put into the public domain.
+ //  You can do whatever you want with this file.
+ //

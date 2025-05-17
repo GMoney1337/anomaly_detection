@@ -1,0 +1,29 @@
+diff --git a/THANKS b/THANKS
+index 40b8689e..00f4dbc3 100644
+--- a/THANKS
++++ b/THANKS
+@@ -16,6 +16,7 @@ has been important. :-) In alphabetical order:
+   - Markus Duft
+   - İsmail Dönmez
+   - Robert Elz
++  - Gilles Espinasse
+   - Mike Frysinger
+   - Joachim Henke
+   - Peter Ivanov
+diff --git a/doc/faq.txt b/doc/faq.txt
+index 14860e7c..8e87457a 100644
+--- a/doc/faq.txt
++++ b/doc/faq.txt
+@@ -67,6 +67,12 @@ A:  For now, no. Since XZ Utils supports the .lzma format, it's usually
+     tool, contact Lasse Collin and offer some money.
+ 
+ 
++Q:  I have installed xz, but my tar doesn't recognize .tar.xz files.
++    How can I extract .tar.xz files?
++
++A:  xz -dc foo.tar.xz | tar xf -
++
++
+ Q:  Can I recover parts of a broken .xz file (e.g. corrupted CD-R)?
+ 
+ A:  It may be possible if the file consists of multiple blocks, which

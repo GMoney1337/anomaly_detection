@@ -1,0 +1,12 @@
+diff --git a/THANKS b/THANKS
+index 9b76f858..982a8f01 100644
+--- a/THANKS
++++ b/THANKS
+@@ -74,6 +74,7 @@ has been important. :-) In alphabetical order:
+   - Kiyoshi Kanazawa
+   - Joona Kannisto
+   - Per Øyvind Karlsen
++  - Firas Khalil Khana
+   - Iouri Kharon
+   - Thomas Klausner
+   - Richard Koch

@@ -1,0 +1,47 @@
+diff --git a/src/liblzma/common/string_conversion.c b/src/liblzma/common/string_conversion.c
+index 92d9032b..370857f0 100644
+--- a/src/liblzma/common/string_conversion.c
++++ b/src/liblzma/common/string_conversion.c
+@@ -217,12 +217,14 @@ typedef struct {
+ 	uint16_t offset;
+ 
+ 	union {
++// NVHPC has problems with unions that contain pointers that are not the first
++// members
++		const name_value_map *map;
++
+ 		struct {
+ 			uint32_t min;
+ 			uint32_t max;
+ 		} range;
+-
+-		const name_value_map *map;
+ 	} u;
+ } option_map;
+ 
+diff --git a/src/liblzma/delta/delta_decoder.c b/src/liblzma/delta/delta_decoder.c
+index 10d53687..142fe6de 100644
+--- a/src/liblzma/delta/delta_decoder.c
++++ b/src/liblzma/delta/delta_decoder.c
+@@ -25,6 +25,9 @@ decode_buffer(lzma_delta_coder *coder, uint8_t *buffer, size_t size)
+ }
+ 
+ 
++#ifdef __NVCOMPILER
++#	pragma routine novector
++#endif
+ static lzma_ret
+ delta_decode(void *coder_ptr, const lzma_allocator *allocator,
+ 		const uint8_t *restrict in, size_t *restrict in_pos,
+diff --git a/src/liblzma/rangecoder/range_decoder.h b/src/liblzma/rangecoder/range_decoder.h
+index b6422247..31a58d1f 100644
+--- a/src/liblzma/rangecoder/range_decoder.h
++++ b/src/liblzma/rangecoder/range_decoder.h
+@@ -45,6 +45,7 @@
+ //     and different processors. Overall 0x1F0 seems to be the best choice.
+ #ifndef LZMA_RANGE_DECODER_CONFIG
+ #	if defined(__x86_64__) && !defined(__ILP32__) \
++			&& !defined(__NVCOMPILER) \
+ 			&& (defined(__GNUC__) || defined(__clang__))
+ #		define LZMA_RANGE_DECODER_CONFIG 0x1F0
+ #	else

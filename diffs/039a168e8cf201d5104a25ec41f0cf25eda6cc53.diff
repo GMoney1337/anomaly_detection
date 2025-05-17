@@ -1,0 +1,75 @@
+diff --git a/src/liblzma/common/alone_encoder.c b/src/liblzma/common/alone_encoder.c
+index 4853cfd1..402bebce 100644
+--- a/src/liblzma/common/alone_encoder.c
++++ b/src/liblzma/common/alone_encoder.c
+@@ -1,7 +1,7 @@
+ ///////////////////////////////////////////////////////////////////////////////
+ //
+-/// \file       alone_decoder.c
+-/// \brief      Decoder for LZMA_Alone files
++/// \file       alone_encoder.c
++/// \brief      Encoder for LZMA_Alone files
+ //
+ //  Author:     Lasse Collin
+ //
+diff --git a/src/liblzma/common/block_util.c b/src/liblzma/common/block_util.c
+index 00c7fe8d..acb31114 100644
+--- a/src/liblzma/common/block_util.c
++++ b/src/liblzma/common/block_util.c
+@@ -1,6 +1,6 @@
+ ///////////////////////////////////////////////////////////////////////////////
+ //
+-/// \file       block_header.c
++/// \file       block_util.c
+ /// \brief      Utility functions to handle lzma_block
+ //
+ //  Author:     Lasse Collin
+diff --git a/src/liblzma/common/common.c b/src/liblzma/common/common.c
+index 18453ae0..39bfabc2 100644
+--- a/src/liblzma/common/common.c
++++ b/src/liblzma/common/common.c
+@@ -1,6 +1,6 @@
+ ///////////////////////////////////////////////////////////////////////////////
+ //
+-/// \file       common.h
++/// \file       common.c
+ /// \brief      Common functions needed in many places in liblzma
+ //
+ //  Author:     Lasse Collin
+diff --git a/src/liblzma/common/filter_common.h b/src/liblzma/common/filter_common.h
+index 42a26a24..9390305c 100644
+--- a/src/liblzma/common/filter_common.h
++++ b/src/liblzma/common/filter_common.h
+@@ -1,6 +1,6 @@
+ ///////////////////////////////////////////////////////////////////////////////
+ //
+-/// \file       filter_common.c
++/// \file       filter_common.h
+ /// \brief      Filter-specific stuff common for both encoder and decoder
+ //
+ //  Author:     Lasse Collin
+diff --git a/src/liblzma/common/filter_decoder.h b/src/liblzma/common/filter_decoder.h
+index a2e255fe..2dac6028 100644
+--- a/src/liblzma/common/filter_decoder.h
++++ b/src/liblzma/common/filter_decoder.h
+@@ -1,6 +1,6 @@
+ ///////////////////////////////////////////////////////////////////////////////
+ //
+-/// \file       filter_decoder.c
++/// \file       filter_decoder.h
+ /// \brief      Filter ID mapping to filter-specific functions
+ //
+ //  Author:     Lasse Collin
+diff --git a/src/liblzma/common/filter_flags_encoder.c b/src/liblzma/common/filter_flags_encoder.c
+index d110566d..b57b9fd8 100644
+--- a/src/liblzma/common/filter_flags_encoder.c
++++ b/src/liblzma/common/filter_flags_encoder.c
+@@ -1,7 +1,7 @@
+ ///////////////////////////////////////////////////////////////////////////////
+ //
+ /// \file       filter_flags_encoder.c
+-/// \brief      Decodes a Filter Flags field
++/// \brief      Encodes a Filter Flags field
+ //
+ //  Author:     Lasse Collin
+ //

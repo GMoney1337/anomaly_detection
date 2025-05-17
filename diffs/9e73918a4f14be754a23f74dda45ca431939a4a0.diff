@@ -1,0 +1,78 @@
+diff --git a/INSTALL b/INSTALL
+index ba187bbb..f7422817 100644
+--- a/INSTALL
++++ b/INSTALL
+@@ -789,7 +789,7 @@ XZ Utils Installation
+ 
+     The configure script determines if assembler code can be used by
+     looking at the configure triplet; there is currently no check if
+-    the assembler code can actually actually be built. The x86 assembler
++    the assembler code can actually be built. The x86 assembler
+     code should work on x86 GNU/Linux, *BSDs, Solaris, Darwin, MinGW,
+     Cygwin, and DJGPP. On other x86 systems, there may be problems and
+     the assembler code may need to be disabled with the configure option.
+diff --git a/doc/examples/03_compress_custom.c b/doc/examples/03_compress_custom.c
+index 57797b87..80ad189a 100644
+--- a/doc/examples/03_compress_custom.c
++++ b/doc/examples/03_compress_custom.c
+@@ -45,7 +45,7 @@ init_encoder(lzma_stream *strm)
+ 	}
+ 
+ 	// Now we could customize the LZMA2 options if we wanted. For example,
+-	// we could set the the dictionary size (opt_lzma2.dict_size) to
++	// we could set the dictionary size (opt_lzma2.dict_size) to
+ 	// something else than the default (8 MiB) of the default preset.
+ 	// See lzma/lzma12.h for details of all LZMA2 options.
+ 	//
+diff --git a/src/common/tuklib_integer.h b/src/common/tuklib_integer.h
+index dab71ba8..4026249e 100644
+--- a/src/common/tuklib_integer.h
++++ b/src/common/tuklib_integer.h
+@@ -243,7 +243,7 @@
+ // from the memcpy() method than from simple byte-by-byte shift-or code
+ // when reading a 32-bit integer:
+ //
+-//     (1) It may be constructed on stack using using four 8-bit loads,
++//     (1) It may be constructed on stack using four 8-bit loads,
+ //         four 8-bit stores to stack, and finally one 32-bit load from stack.
+ //
+ //     (2) Especially with -Os, an actual memcpy() call may be emitted.
+diff --git a/src/liblzma/api/lzma/container.h b/src/liblzma/api/lzma/container.h
+index 8e4af420..ee5d77e4 100644
+--- a/src/liblzma/api/lzma/container.h
++++ b/src/liblzma/api/lzma/container.h
+@@ -306,7 +306,7 @@ extern LZMA_API(uint64_t) lzma_easy_decoder_memusage(uint32_t preset)
+  *                      number and zero or more flags. Usually flags aren't
+  *                      used, so preset is simply a number [0, 9] which match
+  *                      the options -0 ... -9 of the xz command line tool.
+- *                      Additional flags can be be set using bitwise-or with
++ *                      Additional flags can be set using bitwise-or with
+  *                      the preset level number, e.g. 6 | LZMA_PRESET_EXTREME.
+  * \param       check   Integrity check type to use. See check.h for available
+  *                      checks. The xz command line tool defaults to
+diff --git a/src/xz/mytime.c b/src/xz/mytime.c
+index 7d9a27d5..c603051d 100644
+--- a/src/xz/mytime.c
++++ b/src/xz/mytime.c
+@@ -95,7 +95,7 @@ extern void
+ mytime_sigtstp_handler(int sig lzma_attribute((__unused__)))
+ {
+ 	// Measure how long the process stays in the stopped state and add
+-	// that amount to start_time. This way the the progress indicator
++	// that amount to start_time. This way the progress indicator
+ 	// won't count the stopped time as elapsed time and the estimated
+ 	// remaining time won't be confused by the time spent in the
+ 	// stopped state.
+diff --git a/tests/test_filter_str.c b/tests/test_filter_str.c
+index 42d9a22c..0deb5899 100644
+--- a/tests/test_filter_str.c
++++ b/tests/test_filter_str.c
+@@ -402,7 +402,7 @@ test_lzma_str_from_filters(void)
+ 	free(output_str);
+ 
+ 	// Test LZMA_STR_ENCODER flag.
+-	// Only the the return value is checked since the actual string
++	// Only the return value is checked since the actual string
+ 	// may change in the future (even though it is unlikely).
+ 	// The order of options or the inclusion of new options could
+ 	// cause a change in output, so we will avoid hardcoding an

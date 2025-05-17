@@ -1,0 +1,58 @@
+diff --git a/src/liblzma/check/check.h b/src/liblzma/check/check.h
+index 73c6391d..1dfc4d73 100644
+--- a/src/liblzma/check/check.h
++++ b/src/liblzma/check/check.h
+@@ -61,6 +61,7 @@ typedef struct {
+ /// the array two-dimensional.
+ #ifdef HAVE_SMALL
+ extern uint32_t lzma_crc32_table[1][256];
++extern void lzma_crc32_init(void);
+ #else
+ extern const uint32_t lzma_crc32_table[8][256];
+ extern const uint64_t lzma_crc64_table[4][256];
+diff --git a/src/liblzma/check/crc32_small.c b/src/liblzma/check/crc32_small.c
+index b10bbd37..8507436b 100644
+--- a/src/liblzma/check/crc32_small.c
++++ b/src/liblzma/check/crc32_small.c
+@@ -38,10 +38,18 @@ crc32_init(void)
+ }
+ 
+ 
++extern void
++lzma_crc32_init(void)
++{
++	mythread_once(crc32_init);
++	return;
++}
++
++
+ extern LZMA_API(uint32_t)
+ lzma_crc32(const uint8_t *buf, size_t size, uint32_t crc)
+ {
+-	mythread_once(crc32_init);
++	lzma_crc32_init();
+ 
+ 	crc = ~crc;
+ 
+diff --git a/src/liblzma/lz/lz_encoder.c b/src/liblzma/lz/lz_encoder.c
+index 22a37cd7..0b4a2931 100644
+--- a/src/liblzma/lz/lz_encoder.c
++++ b/src/liblzma/lz/lz_encoder.c
+@@ -20,6 +20,7 @@
+ 
+ #include "lz_encoder.h"
+ #include "lz_encoder_hash.h"
++#include "check.h"
+ 
+ 
+ struct lzma_coder_s {
+@@ -488,8 +489,7 @@ lzma_lz_encoder_init(lzma_next_coder *next, lzma_allocator *allocator,
+ {
+ #ifdef HAVE_SMALL
+ 	// We need that the CRC32 table has been initialized.
+-	// This is enough to do it.
+-	lzma_crc32(NULL, 0, 0);
++	lzma_crc32_init();
+ #endif
+ 
+ 	// Allocate and initialize the base data structure.

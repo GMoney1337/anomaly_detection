@@ -1,0 +1,322 @@
+diff --git a/src/liblzma/api/lzma/base.h b/src/liblzma/api/lzma/base.h
+index ff2d8696..5e44ad5e 100644
+--- a/src/liblzma/api/lzma/base.h
++++ b/src/liblzma/api/lzma/base.h
+@@ -1,6 +1,9 @@
+ /**
+  * \file        lzma/base.h
+  * \brief       Data types and functions used in many places in liblzma API
++ * \note        Never include this file directly. Use <lzma.h> instead.
++ *
++ * See ../lzma.h for information about liblzma as a whole.
+  */
+ 
+ /*
+@@ -8,8 +11,6 @@
+  *
+  * This file has been put into the public domain.
+  * You can do whatever you want with this file.
+- *
+- * See ../lzma.h for information about liblzma as a whole.
+  */
+ 
+ #ifndef LZMA_H_INTERNAL
+diff --git a/src/liblzma/api/lzma/bcj.h b/src/liblzma/api/lzma/bcj.h
+index a1738d93..120a0003 100644
+--- a/src/liblzma/api/lzma/bcj.h
++++ b/src/liblzma/api/lzma/bcj.h
+@@ -1,6 +1,9 @@
+ /**
+  * \file        lzma/bcj.h
+  * \brief       Branch/Call/Jump conversion filters
++ * \note        Never include this file directly. Use <lzma.h> instead.
++ *
++ * See ../lzma.h for information about liblzma as a whole.
+  */
+ 
+ /*
+@@ -8,8 +11,6 @@
+  *
+  * This file has been put into the public domain.
+  * You can do whatever you want with this file.
+- *
+- * See ../lzma.h for information about liblzma as a whole.
+  */
+ 
+ #ifndef LZMA_H_INTERNAL
+diff --git a/src/liblzma/api/lzma/block.h b/src/liblzma/api/lzma/block.h
+index 082e5583..1cf928e6 100644
+--- a/src/liblzma/api/lzma/block.h
++++ b/src/liblzma/api/lzma/block.h
+@@ -1,6 +1,9 @@
+ /**
+  * \file        lzma/block.h
+  * \brief       .xz Block handling
++ * \note        Never include this file directly. Use <lzma.h> instead.
++ *
++ * See ../lzma.h for information about liblzma as a whole.
+  */
+ 
+ /*
+@@ -8,8 +11,6 @@
+  *
+  * This file has been put into the public domain.
+  * You can do whatever you want with this file.
+- *
+- * See ../lzma.h for information about liblzma as a whole.
+  */
+ 
+ #ifndef LZMA_H_INTERNAL
+diff --git a/src/liblzma/api/lzma/check.h b/src/liblzma/api/lzma/check.h
+index 6a243db0..c7336ae5 100644
+--- a/src/liblzma/api/lzma/check.h
++++ b/src/liblzma/api/lzma/check.h
+@@ -1,6 +1,9 @@
+ /**
+  * \file        lzma/check.h
+  * \brief       Integrity checks
++ * \note        Never include this file directly. Use <lzma.h> instead.
++ *
++ * See ../lzma.h for information about liblzma as a whole.
+  */
+ 
+ /*
+@@ -8,8 +11,6 @@
+  *
+  * This file has been put into the public domain.
+  * You can do whatever you want with this file.
+- *
+- * See ../lzma.h for information about liblzma as a whole.
+  */
+ 
+ #ifndef LZMA_H_INTERNAL
+diff --git a/src/liblzma/api/lzma/container.h b/src/liblzma/api/lzma/container.h
+index 6e432a1f..4e732e37 100644
+--- a/src/liblzma/api/lzma/container.h
++++ b/src/liblzma/api/lzma/container.h
+@@ -1,6 +1,9 @@
+ /**
+  * \file        lzma/container.h
+  * \brief       File formats
++ * \note        Never include this file directly. Use <lzma.h> instead.
++ *
++ * See ../lzma.h for information about liblzma as a whole.
+  */
+ 
+ /*
+@@ -8,8 +11,6 @@
+  *
+  * This file has been put into the public domain.
+  * You can do whatever you want with this file.
+- *
+- * See ../lzma.h for information about liblzma as a whole.
+  */
+ 
+ #ifndef LZMA_H_INTERNAL
+diff --git a/src/liblzma/api/lzma/delta.h b/src/liblzma/api/lzma/delta.h
+index 592fc4f8..84234b6d 100644
+--- a/src/liblzma/api/lzma/delta.h
++++ b/src/liblzma/api/lzma/delta.h
+@@ -1,6 +1,9 @@
+ /**
+  * \file        lzma/delta.h
+  * \brief       Delta filter
++ * \note        Never include this file directly. Use <lzma.h> instead.
++ *
++ * See ../lzma.h for information about liblzma as a whole.
+  */
+ 
+ /*
+@@ -8,8 +11,6 @@
+  *
+  * This file has been put into the public domain.
+  * You can do whatever you want with this file.
+- *
+- * See ../lzma.h for information about liblzma as a whole.
+  */
+ 
+ #ifndef LZMA_H_INTERNAL
+diff --git a/src/liblzma/api/lzma/filter.h b/src/liblzma/api/lzma/filter.h
+index 58c83bf7..4c83b2b3 100644
+--- a/src/liblzma/api/lzma/filter.h
++++ b/src/liblzma/api/lzma/filter.h
+@@ -1,6 +1,9 @@
+ /**
+  * \file        lzma/filter.h
+  * \brief       Common filter related types and functions
++ * \note        Never include this file directly. Use <lzma.h> instead.
++ *
++ * See ../lzma.h for information about liblzma as a whole.
+  */
+ 
+ /*
+@@ -8,8 +11,6 @@
+  *
+  * This file has been put into the public domain.
+  * You can do whatever you want with this file.
+- *
+- * See ../lzma.h for information about liblzma as a whole.
+  */
+ 
+ #ifndef LZMA_H_INTERNAL
+diff --git a/src/liblzma/api/lzma/hardware.h b/src/liblzma/api/lzma/hardware.h
+index 7040aae4..974f210c 100644
+--- a/src/liblzma/api/lzma/hardware.h
++++ b/src/liblzma/api/lzma/hardware.h
+@@ -1,6 +1,9 @@
+ /**
+  * \file        lzma/hardware.h
+  * \brief       Hardware information
++ * \note        Never include this file directly. Use <lzma.h> instead.
++ *
++ * See ../lzma.h for information about liblzma as a whole.
+  *
+  * Since liblzma can consume a lot of system resources, it also provides
+  * ways to limit the resource usage. Applications linking against liblzma
+@@ -25,8 +28,6 @@
+  *
+  * This file has been put into the public domain.
+  * You can do whatever you want with this file.
+- *
+- * See ../lzma.h for information about liblzma as a whole.
+  */
+ 
+ #ifndef LZMA_H_INTERNAL
+diff --git a/src/liblzma/api/lzma/index.h b/src/liblzma/api/lzma/index.h
+index 144d4166..93dba1a5 100644
+--- a/src/liblzma/api/lzma/index.h
++++ b/src/liblzma/api/lzma/index.h
+@@ -1,6 +1,9 @@
+ /**
+  * \file        lzma/index.h
+  * \brief       Handling of .xz Index and related information
++ * \note        Never include this file directly. Use <lzma.h> instead.
++ *
++ * See ../lzma.h for information about liblzma as a whole.
+  */
+ 
+ /*
+@@ -8,8 +11,6 @@
+  *
+  * This file has been put into the public domain.
+  * You can do whatever you want with this file.
+- *
+- * See ../lzma.h for information about liblzma as a whole.
+  */
+ 
+ #ifndef LZMA_H_INTERNAL
+diff --git a/src/liblzma/api/lzma/index_hash.h b/src/liblzma/api/lzma/index_hash.h
+index 8ff41633..bb5054b0 100644
+--- a/src/liblzma/api/lzma/index_hash.h
++++ b/src/liblzma/api/lzma/index_hash.h
+@@ -1,6 +1,9 @@
+ /**
+  * \file        lzma/index_hash.h
+  * \brief       Validate Index by using a hash function
++ * \note        Never include this file directly. Use <lzma.h> instead.
++ *
++ * See ../lzma.h for information about liblzma as a whole.
+  *
+  * Hashing makes it possible to use constant amount of memory to validate
+  * Index of arbitrary size.
+@@ -11,8 +14,6 @@
+  *
+  * This file has been put into the public domain.
+  * You can do whatever you want with this file.
+- *
+- * See ../lzma.h for information about liblzma as a whole.
+  */
+ 
+ #ifndef LZMA_H_INTERNAL
+diff --git a/src/liblzma/api/lzma/lzma12.h b/src/liblzma/api/lzma/lzma12.h
+index d34e7839..1b1ba2b3 100644
+--- a/src/liblzma/api/lzma/lzma12.h
++++ b/src/liblzma/api/lzma/lzma12.h
+@@ -1,6 +1,9 @@
+ /**
+  * \file        lzma/lzma12.h
+  * \brief       LZMA1 and LZMA2 filters
++ * \note        Never include this file directly. Use <lzma.h> instead.
++ *
++ * See ../lzma.h for information about liblzma as a whole.
+  */
+ 
+ /*
+@@ -8,8 +11,6 @@
+  *
+  * This file has been put into the public domain.
+  * You can do whatever you want with this file.
+- *
+- * See ../lzma.h for information about liblzma as a whole.
+  */
+ 
+ #ifndef LZMA_H_INTERNAL
+diff --git a/src/liblzma/api/lzma/stream_flags.h b/src/liblzma/api/lzma/stream_flags.h
+index bbdd4082..c8c7b22a 100644
+--- a/src/liblzma/api/lzma/stream_flags.h
++++ b/src/liblzma/api/lzma/stream_flags.h
+@@ -1,6 +1,9 @@
+ /**
+  * \file        lzma/stream_flags.h
+  * \brief       .xz Stream Header and Stream Footer encoder and decoder
++ * \note        Never include this file directly. Use <lzma.h> instead.
++ *
++ * See ../lzma.h for information about liblzma as a whole.
+  */
+ 
+ /*
+@@ -8,8 +11,6 @@
+  *
+  * This file has been put into the public domain.
+  * You can do whatever you want with this file.
+- *
+- * See ../lzma.h for information about liblzma as a whole.
+  */
+ 
+ #ifndef LZMA_H_INTERNAL
+diff --git a/src/liblzma/api/lzma/version.h b/src/liblzma/api/lzma/version.h
+index c148340a..fd575653 100644
+--- a/src/liblzma/api/lzma/version.h
++++ b/src/liblzma/api/lzma/version.h
+@@ -1,6 +1,9 @@
+ /**
+  * \file        lzma/version.h
+  * \brief       Version number
++ * \note        Never include this file directly. Use <lzma.h> instead.
++ *
++ * See ../lzma.h for information about liblzma as a whole.
+  */
+ 
+ /*
+@@ -8,8 +11,6 @@
+  *
+  * This file has been put into the public domain.
+  * You can do whatever you want with this file.
+- *
+- * See ../lzma.h for information about liblzma as a whole.
+  */
+ 
+ #ifndef LZMA_H_INTERNAL
+diff --git a/src/liblzma/api/lzma/vli.h b/src/liblzma/api/lzma/vli.h
+index 7a0a803d..6b604392 100644
+--- a/src/liblzma/api/lzma/vli.h
++++ b/src/liblzma/api/lzma/vli.h
+@@ -1,6 +1,9 @@
+ /**
+  * \file        lzma/vli.h
+  * \brief       Variable-length integer handling
++ * \note        Never include this file directly. Use <lzma.h> instead.
++ *
++ * See ../lzma.h for information about liblzma as a whole.
+  *
+  * In the .xz format, most integers are encoded in a variable-length
+  * representation, which is sometimes called little endian base-128 encoding.
+@@ -19,8 +22,6 @@
+  *
+  * This file has been put into the public domain.
+  * You can do whatever you want with this file.
+- *
+- * See ../lzma.h for information about liblzma as a whole.
+  */
+ 
+ #ifndef LZMA_H_INTERNAL

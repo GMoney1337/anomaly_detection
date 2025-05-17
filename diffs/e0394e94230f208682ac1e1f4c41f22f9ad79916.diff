@@ -1,0 +1,12 @@
+diff --git a/THANKS b/THANKS
+index 56758976..ece92c48 100644
+--- a/THANKS
++++ b/THANKS
+@@ -120,6 +120,7 @@ has been important. :-) In alphabetical order:
+   - Pippijn van Steenhoven
+   - Jonathan Stott
+   - Dan Stromberg
++  - Jia Tan
+   - Vincent Torri
+   - Paul Townsend
+   - Mohammed Adnène Trojette

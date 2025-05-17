@@ -1,0 +1,13 @@
+diff --git a/src/liblzma/lz/lz_encoder.h b/src/liblzma/lz/lz_encoder.h
+index 4904c229..35e9ebbf 100644
+--- a/src/liblzma/lz/lz_encoder.h
++++ b/src/liblzma/lz/lz_encoder.h
+@@ -234,7 +234,7 @@ mf_avail(const lzma_mf *mf)
+ static inline uint32_t
+ mf_unencoded(const lzma_mf *mf)
+ {
+-	return mf->write_pos - mf->read_pos - mf->read_ahead;
++	return mf->write_pos - mf->read_pos + mf->read_ahead;
+ }
+ 
+ 

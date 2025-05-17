@@ -1,0 +1,67 @@
+diff --git a/tests/test_compress.sh b/tests/test_compress.sh
+index a6d07c6b..128ef854 100755
+--- a/tests/test_compress.sh
++++ b/tests/test_compress.sh
+@@ -16,6 +16,18 @@ else
+ 	exit 77
+ fi
+ 
++# If compression or decompression support is missing, this test is skipped.
++# This isn't perfect as if only some compressors or decompressors are disabled
++# then this script can still fail because for now this doesn't check the
++# availability of each filter.
++if grep 'define HAVE_ENCODERS' ../config.h > /dev/null \
++		&& grep 'define HAVE_DECODERS' ../config.h > /dev/null ; then
++	:
++else
++	echo "Compression or decompression support is disabled, skipping this test."
++	exit 77
++fi
++
+ # Find out if our shell supports functions.
+ eval 'unset foo ; foo() { return 42; } ; foo'
+ if test $? != 42 ; then
+diff --git a/tests/test_files.sh b/tests/test_files.sh
+index d770e2b6..17c542f5 100755
+--- a/tests/test_files.sh
++++ b/tests/test_files.sh
+@@ -18,6 +18,17 @@ if test -z "$XZ$XZDEC"; then
+ 	exit 77
+ fi
+ 
++# If decompression support is missing, this test is skipped.
++# This isn't perfect as if only some decompressors are disabled
++# then some good files might not decompress and the test fails
++# for a (kind of) wrong reason.
++if grep 'define HAVE_DECODERS' ../config.h > /dev/null ; then
++	:
++else
++	echo "Decompression support is disabled, skipping this test."
++	exit 77
++fi
++
+ for I in "$srcdir"/files/good-*.xz
+ do
+ 	if test -z "$XZ" || "$XZ" -dc "$I" > /dev/null; then
+diff --git a/tests/test_scripts.sh b/tests/test_scripts.sh
+index baa9e249..ee823612 100755
+--- a/tests/test_scripts.sh
++++ b/tests/test_scripts.sh
+@@ -19,6 +19,17 @@ for i in XZ XZDIFF XZGREP; do
+ 	exit 77
+ done
+ 
++# If decompression support is missing, this test is skipped.
++# Installing the scripts in this case is a bit silly but they
++# could still be used with other decompression tools so configure
++# doesn't automatically disable scripts if decoders are disabled.
++if grep 'define HAVE_DECODERS' ../config.h > /dev/null ; then
++	:
++else
++	echo "Decompression support is disabled, skipping this test."
++	exit 77
++fi
++
+ PATH=`pwd`/../src/xz:$PATH
+ export PATH
+ 

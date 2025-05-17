@@ -1,0 +1,26 @@
+diff --git a/src/liblzma/api/lzma/version.h b/src/liblzma/api/lzma/version.h
+index 2c26ed24..a6f8ddbb 100644
+--- a/src/liblzma/api/lzma/version.h
++++ b/src/liblzma/api/lzma/version.h
+@@ -22,7 +22,7 @@
+  */
+ #define LZMA_VERSION_MAJOR 5
+ #define LZMA_VERSION_MINOR 3
+-#define LZMA_VERSION_PATCH 0
++#define LZMA_VERSION_PATCH 1
+ #define LZMA_VERSION_STABILITY LZMA_VERSION_STABILITY_ALPHA
+ 
+ #ifndef LZMA_VERSION_COMMIT
+diff --git a/src/liblzma/liblzma.map b/src/liblzma/liblzma.map
+index 930e5e86..bad8633c 100644
+--- a/src/liblzma/liblzma.map
++++ b/src/liblzma/liblzma.map
+@@ -104,7 +104,7 @@ global:
+ 	lzma_stream_encoder_mt_memusage;
+ } XZ_5.0;
+ 
+-XZ_5.3.0alpha {
++XZ_5.3.1alpha {
+ global:
+ 	lzma_file_info_decoder;
+ 

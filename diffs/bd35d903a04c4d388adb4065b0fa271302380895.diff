@@ -1,0 +1,246 @@
+diff --git a/Makefile.am b/Makefile.am
+index 1e7ba612..d94bb7bf 100644
+--- a/Makefile.am
++++ b/Makefile.am
+@@ -87,6 +87,7 @@ dist-hook:
+ 
+ # This works with GNU tar and gives cleaner package than normal 'make dist'.
+ mydist:
++	sh "$(srcdir)/src/liblzma/validate_map.sh"
+ 	VERSION=$(VERSION); \
+ 	if test -d "$(srcdir)/.git" && type git > /dev/null 2>&1; then \
+ 		SNAPSHOT=`cd "$(srcdir)" && git describe --abbrev=4 | cut -b2-`; \
+diff --git a/configure.ac b/configure.ac
+index bc85fdd0..106c0811 100644
+--- a/configure.ac
++++ b/configure.ac
+@@ -403,6 +403,27 @@ AC_ARG_ENABLE([scripts], [AC_HELP_STRING([--disable-scripts],
+ AM_CONDITIONAL([COND_SCRIPTS], [test x$enable_scripts != xno])
+ 
+ 
++#####################
++# Symbol versioning #
++#####################
++
++AC_ARG_ENABLE([symbol-versions], [AC_HELP_STRING([--enable-symbol-versions],
++		[Use symbol versioning for liblzma. Enabled by default on
++		GNU/Linux, other GNU-based systems, and FreeBSD.])],
++	[], [enable_symbol_versions=auto])
++if test "x$enable_symbol_versions" = xauto; then
++	case $host_os in
++		gnu* | *-gnu* | freebsd*)
++			enable_symbol_versions=yes
++			;;
++		*)
++			enable_symbol_versions=no
++			;;
++	esac
++fi
++AM_CONDITIONAL([COND_SYMVERS], [test "x$enable_symbol_versions" = xyes])
++
++
+ ###############################################################################
+ # Checks for programs.
+ ###############################################################################
+diff --git a/src/liblzma/Makefile.am b/src/liblzma/Makefile.am
+index 8331f136..5bd205d3 100644
+--- a/src/liblzma/Makefile.am
++++ b/src/liblzma/Makefile.am
+@@ -26,6 +26,12 @@ liblzma_la_CPPFLAGS = \
+ 	-DTUKLIB_SYMBOL_PREFIX=lzma_
+ liblzma_la_LDFLAGS = -no-undefined -version-info 5:99:0
+ 
++if COND_SYMVERS
++EXTRA_DIST += liblzma.map
++liblzma_la_LDFLAGS += \
++	-Wl,--version-script=$(top_srcdir)/src/liblzma/liblzma.map
++endif
++
+ include $(srcdir)/common/Makefile.inc
+ include $(srcdir)/check/Makefile.inc
+ 
+diff --git a/src/liblzma/liblzma.map b/src/liblzma/liblzma.map
+new file mode 100644
+index 00000000..835eb26d
+--- /dev/null
++++ b/src/liblzma/liblzma.map
+@@ -0,0 +1,105 @@
++XZ_5.0 {
++global:
++	lzma_alone_decoder;
++	lzma_alone_encoder;
++	lzma_auto_decoder;
++	lzma_block_buffer_bound;
++	lzma_block_buffer_decode;
++	lzma_block_buffer_encode;
++	lzma_block_compressed_size;
++	lzma_block_decoder;
++	lzma_block_encoder;
++	lzma_block_header_decode;
++	lzma_block_header_encode;
++	lzma_block_header_size;
++	lzma_block_total_size;
++	lzma_block_unpadded_size;
++	lzma_check_is_supported;
++	lzma_check_size;
++	lzma_code;
++	lzma_crc32;
++	lzma_crc64;
++	lzma_easy_buffer_encode;
++	lzma_easy_decoder_memusage;
++	lzma_easy_encoder;
++	lzma_easy_encoder_memusage;
++	lzma_end;
++	lzma_filter_decoder_is_supported;
++	lzma_filter_encoder_is_supported;
++	lzma_filter_flags_decode;
++	lzma_filter_flags_encode;
++	lzma_filter_flags_size;
++	lzma_filters_copy;
++	lzma_filters_update;
++	lzma_get_check;
++	lzma_index_append;
++	lzma_index_block_count;
++	lzma_index_buffer_decode;
++	lzma_index_buffer_encode;
++	lzma_index_cat;
++	lzma_index_checks;
++	lzma_index_decoder;
++	lzma_index_dup;
++	lzma_index_encoder;
++	lzma_index_end;
++	lzma_index_file_size;
++	lzma_index_hash_append;
++	lzma_index_hash_decode;
++	lzma_index_hash_end;
++	lzma_index_hash_init;
++	lzma_index_hash_size;
++	lzma_index_init;
++	lzma_index_iter_init;
++	lzma_index_iter_locate;
++	lzma_index_iter_next;
++	lzma_index_iter_rewind;
++	lzma_index_memusage;
++	lzma_index_memused;
++	lzma_index_size;
++	lzma_index_stream_count;
++	lzma_index_stream_flags;
++	lzma_index_stream_padding;
++	lzma_index_stream_size;
++	lzma_index_total_size;
++	lzma_index_uncompressed_size;
++	lzma_lzma_preset;
++	lzma_memlimit_get;
++	lzma_memlimit_set;
++	lzma_memusage;
++	lzma_mf_is_supported;
++	lzma_mode_is_supported;
++	lzma_physmem;
++	lzma_properties_decode;
++	lzma_properties_encode;
++	lzma_properties_size;
++	lzma_raw_buffer_decode;
++	lzma_raw_buffer_encode;
++	lzma_raw_decoder;
++	lzma_raw_decoder_memusage;
++	lzma_raw_encoder;
++	lzma_raw_encoder_memusage;
++	lzma_stream_buffer_bound;
++	lzma_stream_buffer_decode;
++	lzma_stream_buffer_encode;
++	lzma_stream_decoder;
++	lzma_stream_encoder;
++	lzma_stream_flags_compare;
++	lzma_stream_footer_decode;
++	lzma_stream_footer_encode;
++	lzma_stream_header_decode;
++	lzma_stream_header_encode;
++	lzma_version_number;
++	lzma_version_string;
++	lzma_vli_decode;
++	lzma_vli_encode;
++	lzma_vli_size;
++};
++
++XZ_5.1.1alpha {
++global:
++	lzma_stream_encoder_mt;
++	lzma_stream_encoder_mt_memusage;
++
++local:
++	*;
++} XZ_5.0;
+diff --git a/src/liblzma/validate_map.sh b/src/liblzma/validate_map.sh
+new file mode 100644
+index 00000000..3aee4668
+--- /dev/null
++++ b/src/liblzma/validate_map.sh
+@@ -0,0 +1,68 @@
++#!/bin/sh
++
++###############################################################################
++#
++# Check liblzma.map for certain types of errors
++#
++# Author: Lasse Collin
++#
++# This file has been put into the public domain.
++# You can do whatever you want with this file.
++#
++###############################################################################
++
++LC_ALL=C
++export LC_ALL
++
++STATUS=0
++
++cd "$(dirname "$0")"
++
++# Get the list of symbols that aren't defined in liblzma.map.
++SYMS=$(sed -n 's/^extern LZMA_API([^)]*) \([a-z0-9_]*\)(.*$/\1;/p' \
++		api/lzma/*.h \
++	| sort \
++	| grep -Fve "$(sed '/[{}:*]/d;/^$/d;s/^	//' liblzma.map)")
++
++# Check that there are no old alpha or beta versions listed.
++VER=$(cd ../.. && sh build-aux/version.sh)
++NAMES=
++case $VER in
++	*alpha | *beta)
++		NAMES=$(sed -n 's/^.*XZ_\([^ ]*\)\(alpha\|beta\) .*$/\1\2/p' \
++			liblzma.map | grep -Fv "$VER")
++		;;
++esac
++
++# Check for duplicate lines. It can catch missing dependencies.
++DUPS=$(sort liblzma.map | sed '/^$/d;/^global:$/d' | uniq -d)
++
++# Print error messages if needed.
++if test -n "$SYMS$NAMES$DUPS"; then
++	echo
++	echo 'validate_map.sh found problems from liblzma.map:'
++	echo
++
++	if test -n "$SYMS"; then
++		echo 'liblzma.map lacks the following symbols:'
++		echo "$SYMS"
++		echo
++	fi
++
++	if test -n "$NAMES"; then
++		echo 'Obsolete alpha or beta version names:'
++		echo "$NAMES"
++		echo
++	fi
++
++	if test -n "$DUPS"; then
++		echo 'Duplicate lines:'
++		echo "$DUPS"
++		echo
++	fi
++
++	STATUS=1
++fi
++
++# Exit status is 1 if problems were found, 0 otherwise.
++exit "$STATUS"

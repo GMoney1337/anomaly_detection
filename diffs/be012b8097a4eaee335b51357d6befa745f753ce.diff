@@ -1,0 +1,139 @@
+diff --git a/configure.ac b/configure.ac
+index f83c31eb..78d6e8ac 100644
+--- a/configure.ac
++++ b/configure.ac
+@@ -310,7 +310,7 @@ case $enable_microlzma in
+ 		;;
+ 	*)
+ 		AC_MSG_RESULT([])
+-		AC_MSG_ERROR([--enable-microlzma accepts only `yes' or `no'.])
++		AC_MSG_ERROR([--enable-microlzma accepts only 'yes' or 'no'.])
+ 		;;
+ esac
+ AM_CONDITIONAL(COND_MICROLZMA, test "x$enable_microlzma" = xyes)
+@@ -364,7 +364,7 @@ case $enable_assembler in
+ 		;;
+ 	*)
+ 		AC_MSG_RESULT([])
+-		AC_MSG_ERROR([--enable-assembler accepts only `yes', `no', or `x86' (32-bit).])
++		AC_MSG_ERROR([--enable-assembler accepts only 'yes', 'no', or 'x86' (32-bit).])
+ 		;;
+ esac
+ AM_CONDITIONAL(COND_ASM_X86, test "x$enable_assembler" = xx86)
+@@ -393,7 +393,7 @@ if test "x$enable_small" = xyes; then
+ 	AC_DEFINE([HAVE_SMALL], [1], [Define to 1 if optimizing for size.])
+ elif test "x$enable_small" != xno; then
+ 	AC_MSG_RESULT([])
+-	AC_MSG_ERROR([--enable-small accepts only `yes' or `no'])
++	AC_MSG_ERROR([--enable-small accepts only 'yes' or 'no'])
+ fi
+ AC_MSG_RESULT([$enable_small])
+ AM_CONDITIONAL(COND_SMALL, test "x$enable_small" = xyes)
+@@ -405,8 +405,8 @@ AM_CONDITIONAL(COND_SMALL, test "x$enable_small" = xyes)
+ 
+ AC_MSG_CHECKING([if threading support is wanted])
+ AC_ARG_ENABLE([threads], AS_HELP_STRING([--enable-threads=METHOD],
+-		[Supported METHODS are `yes', `no', `posix', `win95', and
+-		`vista'. The default is `yes'. Using `no' together with
++		[Supported METHODS are 'yes', 'no', 'posix', 'win95', and
++		'vista'. The default is 'yes'. Using 'no' together with
+ 		--enable-small makes liblzma thread unsafe.]),
+ 	[], [enable_threads=yes])
+ 
+@@ -433,7 +433,7 @@ case $enable_threads in
+ 		;;
+ 	*)
+ 		AC_MSG_RESULT([])
+-		AC_MSG_ERROR([--enable-threads only accepts `yes', `no', `posix', `win95', or `vista'])
++		AC_MSG_ERROR([--enable-threads only accepts 'yes', 'no', 'posix', 'win95', or 'vista'])
+ 		;;
+ esac
+ 
+@@ -519,8 +519,8 @@ AM_CONDITIONAL([COND_DOC], [test x$enable_doc != xno])
+ AC_MSG_CHECKING([if sandboxing should be used])
+ AC_ARG_ENABLE([sandbox], [AS_HELP_STRING([--enable-sandbox=METHOD],
+ 		[Sandboxing METHOD can be
+-		`auto', `no', `capsicum', or `pledge'.
+-		The default is `auto' which enables sandboxing if
++		'auto', 'no', 'capsicum', or 'pledge'.
++		The default is 'auto' which enables sandboxing if
+ 		a supported sandboxing method is found.])],
+ 	[], [enable_sandbox=auto])
+ case $enable_sandbox in
+@@ -532,7 +532,7 @@ case $enable_sandbox in
+ 		;;
+ 	*)
+ 		AC_MSG_RESULT([])
+-		AC_MSG_ERROR([--enable-sandbox only accepts `auto', `no', `capsicum', or `pledge'.])
++		AC_MSG_ERROR([--enable-sandbox only accepts 'auto', 'no', 'capsicum', or 'pledge'.])
+ 		;;
+ esac
+ 
+diff --git a/dos/config.h b/dos/config.h
+index 67b72f8f..cb535783 100644
+--- a/dos/config.h
++++ b/dos/config.h
+@@ -115,14 +115,14 @@
+ /* Define to 1 if you have the <sys/time.h> header file. */
+ #define HAVE_SYS_TIME_H 1
+ 
+-/* Define to 1 if you have the `utimes' function. */
++/* Define to 1 if you have the 'utimes' function. */
+ #define HAVE_UTIMES 1
+ 
+ /* Define to 1 or 0, depending whether the compiler supports simple visibility
+    declarations. */
+ #define HAVE_VISIBILITY 0
+ 
+-/* Define to 1 if the system has the type `_Bool'. */
++/* Define to 1 if the system has the type '_Bool'. */
+ #define HAVE__BOOL 1
+ 
+ /* Define to 1 if the GNU C extension __builtin_assume_aligned is supported.
+@@ -145,7 +145,7 @@
+ /* Define to the home page for this package. */
+ #define PACKAGE_URL "https://tukaani.org/xz/"
+ 
+-/* The size of `size_t', as computed by sizeof. */
++/* The size of 'size_t', as computed by sizeof. */
+ #define SIZEOF_SIZE_T 4
+ 
+ /* Define to 1 if the system supports fast unaligned access to 16-bit and
+diff --git a/m4/getopt.m4 b/m4/getopt.m4
+index 3f59db25..5271f557 100644
+--- a/m4/getopt.m4
++++ b/m4/getopt.m4
+@@ -47,7 +47,7 @@ AC_DEFUN([gl_GETOPT_CHECK_HEADERS],
+   dnl the next version of POSIX.  We don't use that feature, so this
+   dnl is not a problem for us. Thus, the respective test was removed here.
+ 
+-  dnl Checks for getopt handling `-' as a leading character in an option
++  dnl Checks for getopt handling '-' as a leading character in an option
+   dnl string were removed, since we also don't use that feature.
+ 
+ ])
+diff --git a/m4/tuklib_progname.m4 b/m4/tuklib_progname.m4
+index 7685d068..9f7d4c52 100644
+--- a/m4/tuklib_progname.m4
++++ b/m4/tuklib_progname.m4
+@@ -23,6 +23,6 @@ AC_DEFUN_ONCE([TUKLIB_PROGNAME], [
+ AC_REQUIRE([TUKLIB_COMMON])
+ AC_CHECK_DECL([program_invocation_name], [AC_DEFINE(
+ 	[HAVE_PROGRAM_INVOCATION_NAME], [1],
+-	[Define to 1 if `program_invocation_name' is declared in <errno.h>.])],
++	[Define to 1 if 'program_invocation_name' is declared in <errno.h>.])],
+ 	[], [#include <errno.h>])
+ ])dnl
+diff --git a/windows/build.bash b/windows/build.bash
+index 2d1ca9ce..9229af73 100644
+--- a/windows/build.bash
++++ b/windows/build.bash
+@@ -125,7 +125,7 @@ txtcp()
+ 	shift 2
+ 	for SRCFILE; do
+ 		DESTFILE="$DESTDIR/${SRCFILE##*/}$SUFFIX"
+-		echo "Converting \`$SRCFILE' -> \`$DESTFILE'"
++		echo "Converting '$SRCFILE' -> '$DESTFILE'"
+ 		u2d < "$SRCFILE" > "$DESTFILE"
+ 	done
+ }

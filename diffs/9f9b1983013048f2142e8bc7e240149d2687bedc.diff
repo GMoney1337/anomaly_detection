@@ -1,0 +1,177 @@
+diff --git a/src/liblzma/lzma/lzma_encoder.c b/src/liblzma/lzma/lzma_encoder.c
+index 2c46b0c5..f68633b8 100644
+--- a/src/liblzma/lzma/lzma_encoder.c
++++ b/src/liblzma/lzma/lzma_encoder.c
+@@ -116,23 +116,18 @@ lzma_length_encoder_update_table(lzma_length_encoder *lencoder,
+ 	uint32_t *prices = lencoder->prices[pos_state];
+ 	uint32_t i = 0;
+ 
+-	for (i = 0; i < num_symbols && i < LEN_LOW_SYMBOLS; ++i) {
+-		prices[i] = a0;
+-		bittree_get_price(prices[i], lencoder->low[pos_state],
++	for (i = 0; i < num_symbols && i < LEN_LOW_SYMBOLS; ++i)
++		prices[i] = a0 + bittree_get_price(lencoder->low[pos_state],
+ 				LEN_LOW_BITS, i);
+-	}
+ 
+-	for (; i < num_symbols && i < LEN_LOW_SYMBOLS + LEN_MID_SYMBOLS; ++i) {
+-		prices[i] = b0;
+-		bittree_get_price(prices[i], lencoder->mid[pos_state],
++	for (; i < num_symbols && i < LEN_LOW_SYMBOLS + LEN_MID_SYMBOLS; ++i)
++		prices[i] = b0 + bittree_get_price(lencoder->mid[pos_state],
+ 				LEN_MID_BITS, i - LEN_LOW_SYMBOLS);
+-	}
+ 
+-	for (; i < num_symbols; ++i) {
+-		prices[i] = b1;
+-		bittree_get_price(prices[i], lencoder->high, LEN_HIGH_BITS,
++	for (; i < num_symbols; ++i)
++		prices[i] = b1 + bittree_get_price(
++				lencoder->high, LEN_HIGH_BITS,
+ 				i - LEN_LOW_SYMBOLS - LEN_MID_SYMBOLS);
+-	}
+ 
+ 	lencoder->counters[pos_state] = num_symbols;
+ 
+diff --git a/src/liblzma/lzma/lzma_encoder_getoptimum.c b/src/liblzma/lzma/lzma_encoder_getoptimum.c
+index cdeb3145..b00f5c38 100644
+--- a/src/liblzma/lzma/lzma_encoder_getoptimum.c
++++ b/src/liblzma/lzma/lzma_encoder_getoptimum.c
+@@ -111,8 +111,7 @@ fill_distances_prices(lzma_coder *coder)
+ 		const uint32_t pos_slot = get_pos_slot(i);
+ 		const uint32_t footer_bits = ((pos_slot >> 1) - 1);
+ 		const uint32_t base = (2 | (pos_slot & 1)) << footer_bits;
+-		temp_prices[i] = 0;
+-		bittree_reverse_get_price(temp_prices[i],
++		temp_prices[i] = bittree_reverse_get_price(
+ 				coder->pos_encoders + base - pos_slot - 1,
+ 				footer_bits, i - base);
+ 	}
+@@ -129,8 +128,7 @@ fill_distances_prices(lzma_coder *coder)
+ 		for (uint32_t pos_slot = 0;
+ 				pos_slot < dist_table_size;
+ 				++pos_slot) {
+-			pos_slot_prices[pos_slot] = 0;
+-			bittree_get_price(pos_slot_prices[pos_slot], encoder,
++			pos_slot_prices[pos_slot] = bittree_get_price(encoder,
+ 					POS_SLOT_BITS, pos_slot);
+ 		}
+ 
+@@ -162,14 +160,12 @@ fill_distances_prices(lzma_coder *coder)
+ static void
+ fill_align_prices(lzma_coder *coder)
+ {
+-	for (uint32_t i = 0; i < ALIGN_TABLE_SIZE; ++i) {
+-		uint32_t tmp = 0;
+-		bittree_reverse_get_price(tmp, coder->pos_align_encoder,
+-				ALIGN_BITS, i);
+-		coder->align_prices[i] = tmp;
+-	}
++	for (uint32_t i = 0; i < ALIGN_TABLE_SIZE; ++i)
++		coder->align_prices[i] = bittree_reverse_get_price(
++				coder->pos_align_encoder, ALIGN_BITS, i);
+ 
+ 	coder->align_price_count = 0;
++	return;
+ }
+ 
+ 
+diff --git a/src/liblzma/rangecoder/range_encoder.h b/src/liblzma/rangecoder/range_encoder.h
+index 9f03e226..113f38a4 100644
+--- a/src/liblzma/rangecoder/range_encoder.h
++++ b/src/liblzma/rangecoder/range_encoder.h
+@@ -32,6 +32,23 @@ typedef struct {
+ } lzma_range_encoder;
+ 
+ 
++#ifdef HAVE_SMALL
++/// Probability prices used by *_get_price() macros. This is initialized
++/// by lzma_rc_init() and is not modified later.
++extern uint32_t lzma_rc_prob_prices[BIT_MODEL_TOTAL >> MOVE_REDUCING_BITS];
++
++/// Initializes lzma_rc_prob_prices[]. This needs to be called only once.
++extern void lzma_rc_init(void);
++
++#else
++// Not building a size optimized version, so we use a precomputed
++// constant table.
++extern const uint32_t
++lzma_rc_prob_prices[BIT_MODEL_TOTAL >> MOVE_REDUCING_BITS];
++
++#endif
++
++
+ /// Resets the range encoder structure.
+ #define rc_reset(rc) \
+ do { \
+@@ -222,44 +239,37 @@ do { \
+ 	lzma_rc_prob_prices[(BIT_MODEL_TOTAL - (prob)) >> MOVE_REDUCING_BITS]
+ 
+ 
+-// Adds price to price_target. TODO Optimize/Cleanup?
+-#define bittree_get_price(price_target, probs, bit_levels, symbol) \
+-do { \
+-	uint32_t bittree_symbol = (symbol) | (UINT32_C(1) << bit_levels); \
+-	while (bittree_symbol != 1) { \
+-		price_target += bit_get_price((probs)[bittree_symbol >> 1], \
+-				bittree_symbol & 1); \
+-		bittree_symbol >>= 1; \
+-	} \
+-} while (0)
+-
++static inline uint32_t
++bittree_get_price(const probability *probs,
++		uint32_t bit_levels, uint32_t symbol)
++{
++	uint32_t price = 0;
++	symbol |= UINT32_C(1) << bit_levels;
+ 
+-// Adds price to price_target.
+-#define bittree_reverse_get_price(price_target, probs, bit_levels, symbol) \
+-do { \
+-	uint32_t model_index = 1; \
+-	for (uint32_t bit_index = 0; bit_index < bit_levels; ++bit_index) { \
+-		const uint32_t bit = ((symbol) >> bit_index) & 1; \
+-		price_target += bit_get_price((probs)[model_index], bit); \
+-		model_index = (model_index << 1) | bit; \
+-	} \
+-} while (0)
++	do {
++		price += bit_get_price(probs[symbol >> 1], symbol & 1);
++		symbol >>= 1;
++	} while (symbol != 1);
+ 
++	return price;
++}
+ 
+-#ifdef HAVE_SMALL
+-/// Probability prices used by *_get_price() macros. This is initialized
+-/// by lzma_rc_init() and is not modified later.
+-extern uint32_t lzma_rc_prob_prices[BIT_MODEL_TOTAL >> MOVE_REDUCING_BITS];
+ 
+-/// Initializes lzma_rc_prob_prices[]. This needs to be called only once.
+-extern void lzma_rc_init(void);
++static inline uint32_t
++bittree_reverse_get_price(const probability *probs,
++		uint32_t bit_levels, uint32_t symbol)
++{
++	uint32_t price = 0;
++	uint32_t model_index = 1;
+ 
+-#else
+-// Not building a size optimized version, so we use a precomputed
+-// constant table.
+-extern const uint32_t
+-lzma_rc_prob_prices[BIT_MODEL_TOTAL >> MOVE_REDUCING_BITS];
++	do {
++		const uint32_t bit = symbol & 1;
++		symbol >>= 1;
++		price += bit_get_price(probs[model_index], bit);
++		model_index = (model_index << 1) | bit;
++	} while (--bit_levels != 0);
+ 
+-#endif
++	return price;
++}
+ 
+ #endif

@@ -1,0 +1,235 @@
+diff --git a/src/xz/hardware.c b/src/xz/hardware.c
+index d91b4cee..74742fce 100644
+--- a/src/xz/hardware.c
++++ b/src/xz/hardware.c
+@@ -21,6 +21,9 @@ static uint32_t threadlimit;
+ /// Memory usage limit
+ static uint64_t memlimit;
+ 
++/// Total amount of physical RAM
++static uint64_t total_ram;
++
+ 
+ extern void
+ hardware_threadlimit_set(uint32_t new_threadlimit)
+@@ -48,11 +51,27 @@ hardware_threadlimit_get(void)
+ extern void
+ hardware_memlimit_set(uint64_t new_memlimit)
+ {
+-	if (new_memlimit == 0) {
+-		// The default is 40 % of total installed physical RAM.
+-		hardware_memlimit_set_percentage(40);
+-	} else {
++	if (new_memlimit != 0) {
+ 		memlimit = new_memlimit;
++	} else {
++		// The default depends on the amount of RAM but so that
++		// on "low-memory" systems the relative limit is higher
++		// to make it more likely that files created with "xz -9"
++		// will still decompress without overriding the limit
++		// manually.
++		//
++		// If 40 % of RAM is 80 MiB or more, use 40 % of RAM as
++		// the limit.
++		memlimit = 40 * total_ram / 100;
++		if (memlimit < UINT64_C(80) * 1024 * 1024) {
++			// If 80 % of RAM is less than 80 MiB,
++			// use 80 % of RAM as the limit.
++			memlimit = 80 * total_ram / 100;
++			if (memlimit > UINT64_C(80) * 1024 * 1024) {
++				// Otherwise use 80 MiB as the limit.
++				memlimit = UINT64_C(80) * 1024 * 1024;
++			}
++		}
+ 	}
+ 
+ 	return;
+@@ -65,14 +84,7 @@ hardware_memlimit_set_percentage(uint32_t percentage)
+ 	assert(percentage > 0);
+ 	assert(percentage <= 100);
+ 
+-	uint64_t mem = lzma_physmem();
+-
+-	// If we cannot determine the amount of RAM, use the assumption
+-	// defined by the configure script.
+-	if (mem == 0)
+-		mem = (uint64_t)(ASSUME_RAM) * 1024 * 1024;
+-
+-	memlimit = percentage * mem / 100;
++	memlimit = percentage * total_ram / 100;
+ 	return;
+ }
+ 
+@@ -87,6 +99,13 @@ hardware_memlimit_get(void)
+ extern void
+ hardware_init(void)
+ {
++	// Get the amount of RAM. If we cannot determine it,
++	// use the assumption defined by the configure script.
++	total_ram = lzma_physmem();
++	if (total_ram == 0)
++		total_ram = (uint64_t)(ASSUME_RAM) * 1024 * 1024;
++
++	// Set the defaults.
+ 	hardware_memlimit_set(0);
+ 	hardware_threadlimit_set(0);
+ 	return;
+diff --git a/src/xz/xz.1 b/src/xz/xz.1
+index 9dc354a0..aba0a693 100644
+--- a/src/xz/xz.1
++++ b/src/xz/xz.1
+@@ -5,7 +5,7 @@
+ .\" This file has been put into the public domain.
+ .\" You can do whatever you want with this file.
+ .\"
+-.TH XZ 1 "2010-01-15" "Tukaani" "XZ Utils"
++.TH XZ 1 "2010-03-07" "Tukaani" "XZ Utils"
+ .SH NAME
+ xz, unxz, xzcat, lzma, unlzma, lzcat \- Compress or decompress .xz and .lzma files
+ .SH SYNOPSIS
+@@ -195,9 +195,16 @@ is several gigabytes.
+ .PP
+ To prevent uncomfortable surprises caused by huge memory usage,
+ .B xz
+-has a built-in memory usage limiter. The default limit is 40 % of total
+-physical RAM. While operating systems provide ways to limit the memory usage
+-of processes, relying on it wasn't deemed to be flexible enough.
++has a built-in memory usage limiter. While some operating systems provide
++ways to limit the memory usage of processes, relying on it wasn't deemed
++to be flexible enough. The default limit depends on the total amount of
++physical RAM:
++.IP \(bu 3
++If 40\ % of RAM is at least 80 MiB, 40\ % of RAM is used as the limit.
++.IP \(bu 3
++If 80\ % of RAM is over 80 MiB, 80 MiB is used as the limit.
++.IP \(bu 3
++Otherwise 80\ % of RAM is used as the limit.
+ .PP
+ When compressing, if the selected compression settings exceed the memory
+ usage limit, the settings are automatically adjusted downwards and a notice
+@@ -588,9 +595,11 @@ can be specified as a percentage of physical RAM. Example:
+ .IP \(bu 3
+ The
+ .I limit
+-can be reset back to its default value (currently 40 % of physical RAM)
+-by setting it to
++can be reset back to its default value by setting it to
+ .BR 0 .
++See the section
++.B "Memory usage"
++for how the default limit is defined.
+ .IP \(bu 3
+ The memory usage limiting can be effectively disabled by setting
+ .I limit
+diff --git a/src/xzdec/xzdec.1 b/src/xzdec/xzdec.1
+index 442a19ec..3057c586 100644
+--- a/src/xzdec/xzdec.1
++++ b/src/xzdec/xzdec.1
+@@ -4,7 +4,7 @@
+ .\" This file has been put into the public domain.
+ .\" You can do whatever you want with this file.
+ .\"
+-.TH XZDEC 1 "2009-06-04" "Tukaani" "XZ Utils"
++.TH XZDEC 1 "2010-03-07" "Tukaani" "XZ Utils"
+ .SH NAME
+ xzdec, lzmadec \- Small .xz and .lzma decompressors
+ .SH SYNOPSIS
+@@ -99,8 +99,7 @@ can be specified as a percentage of physical RAM. Example:
+ .IP \(bu 3
+ The
+ .I limit
+-can be reset back to its default value (currently 40 % of physical RAM)
+-by setting it to
++can be reset back to its default value by setting it to
+ .BR 0 .
+ .IP \(bu 3
+ The memory usage limiting can be effectively disabled by setting
+@@ -163,6 +162,7 @@ for executables distributed in typical non-embedded operating system
+ distributions. If you need a truly small
+ .B .xz
+ decompressor, consider using XZ Embedded.
+-.\" TODO: Provide URL to XZ Embedded.
+ .SH "SEE ALSO"
+ .BR xz (1)
++.PP
++XZ Embedded: <http://tukaani.org/xz/embedded.html>
+diff --git a/src/xzdec/xzdec.c b/src/xzdec/xzdec.c
+index 2b166861..6ddf7d28 100644
+--- a/src/xzdec/xzdec.c
++++ b/src/xzdec/xzdec.c
+@@ -38,6 +38,9 @@
+ /// Number of bytes to use memory at maximum
+ static uint64_t memlimit;
+ 
++/// Total amount of physical RAM
++static uint64_t total_ram;
++
+ /// Error messages are suppressed if this is zero, which is the case when
+ /// --quiet has been given at least twice.
+ static unsigned int display_errors = 2;
+@@ -103,14 +106,7 @@ version(void)
+ static void
+ memlimit_set_percentage(uint32_t percentage)
+ {
+-	uint64_t mem = lzma_physmem();
+-
+-	// If we cannot determine the amount of RAM, use the assumption
+-	// set by the configure script.
+-	if (mem == 0)
+-		mem = (uint64_t)(ASSUME_RAM) * 1024 * 1024;
+-
+-	memlimit = percentage * mem / 100;
++	memlimit = percentage * total_ram / 100;
+ 	return;
+ }
+ 
+@@ -120,15 +116,37 @@ memlimit_set_percentage(uint32_t percentage)
+ static void
+ memlimit_set(uint64_t new_memlimit)
+ {
+-	if (new_memlimit == 0)
+-		memlimit_set_percentage(40);
+-	else
++	if (new_memlimit != 0) {
+ 		memlimit = new_memlimit;
++	} else {
++		memlimit = 40 * total_ram / 100;
++		if (memlimit < UINT64_C(80) * 1024 * 1024) {
++			memlimit = 80 * total_ram / 100;
++			if (memlimit > UINT64_C(80) * 1024 * 1024)
++				memlimit = UINT64_C(80) * 1024 * 1024;
++		}
++	}
+ 
+ 	return;
+ }
+ 
+ 
++/// Get the total amount of physical RAM and set the memory usage limit
++/// to the default value.
++static void
++memlimit_init(void)
++{
++	// If we cannot determine the amount of RAM, use the assumption
++	// defined by the configure script.
++	total_ram = lzma_physmem();
++	if (total_ram == 0)
++		total_ram = (uint64_t)(ASSUME_RAM) * 1024 * 1024;
++
++	memlimit_set(0);
++	return;
++}
++
++
+ /// \brief      Convert a string to uint64_t
+ ///
+ /// This is rudely copied from src/xz/util.c and modified a little. :-(
+@@ -422,7 +440,7 @@ main(int argc, char **argv)
+ 
+ 	// Set the default memory usage limit. This is needed before parsing
+ 	// the command line arguments.
+-	memlimit_set(0);
++	memlimit_init();
+ 
+ 	// Parse the command line options.
+ 	parse_options(argc, argv);

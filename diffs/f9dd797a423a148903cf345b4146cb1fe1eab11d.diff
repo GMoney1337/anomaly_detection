@@ -1,0 +1,12 @@
+diff --git a/THANKS b/THANKS
+index 239daf47..3f2a4788 100644
+--- a/THANKS
++++ b/THANKS
+@@ -29,6 +29,7 @@ has been important. :-) In alphabetical order:
+   - Hin-Tak Leung
+   - Andraž 'ruskie' Levstik
+   - Jim Meyering
++  - Adrien Nader
+   - Hongbo Ni
+   - Jonathan Nieder
+   - Igor Pavlov

@@ -1,0 +1,15 @@
+diff --git a/po4a/update-po b/po4a/update-po
+index d886ad0d..71f3e47a 100755
+--- a/po4a/update-po
++++ b/po4a/update-po
+@@ -61,6 +61,10 @@ po4a --force --verbose \
+ 	--copyright-holder="The XZ Utils authors and contributors" \
+ 	po4a.conf
+ 
++# Remove the *.po.authors files that were generated above.
++# This way they won't get included in distribution tarballs.
++rm -f *.po.authors
++
+ # Add the customized POT header which contains the SPDX license
+ # identifier and spells out the license name instead of saying
+ # "the same license as the XZ Utils package".

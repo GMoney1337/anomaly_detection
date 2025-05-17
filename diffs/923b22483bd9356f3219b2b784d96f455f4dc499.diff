@@ -1,0 +1,162 @@
+diff --git a/src/xz/args.c b/src/xz/args.c
+index 1a357b24..f207e7f4 100644
+--- a/src/xz/args.c
++++ b/src/xz/args.c
+@@ -72,6 +72,7 @@ parse_real(args_info *args, int argc, char **argv)
+ 		OPT_NO_SPARSE,
+ 		OPT_FILES,
+ 		OPT_FILES0,
++		OPT_BLOCK_SIZE,
+ 		OPT_MEM_COMPRESS,
+ 		OPT_MEM_DECOMPRESS,
+ 		OPT_NO_ADJUST,
+@@ -105,6 +106,7 @@ parse_real(args_info *args, int argc, char **argv)
+ 		// Basic compression settings
+ 		{ "format",       required_argument, NULL,  'F' },
+ 		{ "check",        required_argument, NULL,  'C' },
++		{ "block-size",   required_argument, NULL,  OPT_BLOCK_SIZE },
+ 		{ "memlimit-compress",   required_argument, NULL, OPT_MEM_COMPRESS },
+ 		{ "memlimit-decompress", required_argument, NULL, OPT_MEM_DECOMPRESS },
+ 		{ "memlimit",     required_argument, NULL,  'M' },
+@@ -370,6 +372,11 @@ parse_real(args_info *args, int argc, char **argv)
+ 			break;
+ 		}
+ 
++		case OPT_BLOCK_SIZE:
++			opt_block_size = str_to_uint64("block-size", optarg,
++					0, LZMA_VLI_MAX);
++			break;
++
+ 		case OPT_SINGLE_STREAM:
+ 			opt_single_stream = true;
+ 			break;
+diff --git a/src/xz/coder.c b/src/xz/coder.c
+index 266482eb..5e5ed04c 100644
+--- a/src/xz/coder.c
++++ b/src/xz/coder.c
+@@ -25,6 +25,7 @@ enum operation_mode opt_mode = MODE_COMPRESS;
+ enum format_type opt_format = FORMAT_AUTO;
+ bool opt_auto_adjust = true;
+ bool opt_single_stream = false;
++uint64_t opt_block_size = 0;
+ 
+ 
+ /// Stream used to communicate with liblzma
+@@ -461,8 +462,8 @@ coder_normal(file_pair *pair)
+ 	// Encoder needs to know when we have given all the input to it.
+ 	// The decoders need to know it too when we are using
+ 	// LZMA_CONCATENATED. We need to check for src_eof here, because
+-	// the first input chunk has been already read, and that may
+-	// have been the only chunk we will read.
++	// the first input chunk has been already read if decompressing,
++	// and that may have been the only chunk we will read.
+ 	lzma_action action = pair->src_eof ? LZMA_FINISH : LZMA_RUN;
+ 
+ 	lzma_ret ret;
+@@ -470,6 +471,16 @@ coder_normal(file_pair *pair)
+ 	// Assume that something goes wrong.
+ 	bool success = false;
+ 
++	// block_remaining indicates how many input bytes to encode until
++	// finishing the current .xz Block. The Block size is set with
++	// --block-size=SIZE. It has an effect only when compressing
++	// to the .xz format. If block_remaining == UINT64_MAX, only
++	// a single block is created.
++	uint64_t block_remaining = UINT64_MAX;
++	if (opt_mode == MODE_COMPRESS && opt_format == FORMAT_XZ
++			&& opt_block_size > 0)
++		block_remaining = opt_block_size;
++
+ 	strm.next_out = out_buf.u8;
+ 	strm.avail_out = IO_BUFFER_SIZE;
+ 
+@@ -478,14 +489,23 @@ coder_normal(file_pair *pair)
+ 		// end of file yet.
+ 		if (strm.avail_in == 0 && !pair->src_eof) {
+ 			strm.next_in = in_buf.u8;
+-			strm.avail_in = io_read(
+-					pair, &in_buf, IO_BUFFER_SIZE);
++			strm.avail_in = io_read(pair, &in_buf,
++					my_min(block_remaining,
++						IO_BUFFER_SIZE));
+ 
+ 			if (strm.avail_in == SIZE_MAX)
+ 				break;
+ 
+-			if (pair->src_eof)
++			if (pair->src_eof) {
+ 				action = LZMA_FINISH;
++
++			} else if (block_remaining != UINT64_MAX) {
++				// Start a new Block after every
++				// opt_block_size bytes of input.
++				block_remaining -= strm.avail_in;
++				if (block_remaining == 0)
++					action = LZMA_FULL_FLUSH;
++			}
+ 		}
+ 
+ 		// Let liblzma do the actual work.
+@@ -501,7 +521,12 @@ coder_normal(file_pair *pair)
+ 			strm.avail_out = IO_BUFFER_SIZE;
+ 		}
+ 
+-		if (ret != LZMA_OK) {
++		if (ret == LZMA_STREAM_END && action == LZMA_FULL_FLUSH) {
++			// Start a new Block.
++			action = LZMA_RUN;
++			block_remaining = opt_block_size;
++
++		} else if (ret != LZMA_OK) {
+ 			// Determine if the return value indicates that we
+ 			// won't continue coding.
+ 			const bool stop = ret != LZMA_NO_CHECK
+@@ -627,10 +652,15 @@ coder_run(const char *filename)
+ 	// Assume that something goes wrong.
+ 	bool success = false;
+ 
+-	// Read the first chunk of input data. This is needed to detect
+-	// the input file type (for now, only for decompression).
+-	strm.next_in = in_buf.u8;
+-	strm.avail_in = io_read(pair, &in_buf, IO_BUFFER_SIZE);
++	if (opt_mode == MODE_COMPRESS) {
++		strm.next_in = NULL;
++		strm.avail_in = 0;
++	} else {
++		// Read the first chunk of input data. This is needed
++		// to detect the input file type.
++		strm.next_in = in_buf.u8;
++		strm.avail_in = io_read(pair, &in_buf, IO_BUFFER_SIZE);
++	}
+ 
+ 	if (strm.avail_in != SIZE_MAX) {
+ 		// Initialize the coder. This will detect the file format
+diff --git a/src/xz/coder.h b/src/xz/coder.h
+index d95319e5..7edca039 100644
+--- a/src/xz/coder.h
++++ b/src/xz/coder.h
+@@ -44,6 +44,9 @@ extern bool opt_auto_adjust;
+ /// If true, stop after decoding the first stream.
+ extern bool opt_single_stream;
+ 
++/// If non-zero, start a new .xz Block after every opt_block_size bytes
++/// of input. This has an effect only when compressing to the .xz format.
++extern uint64_t opt_block_size;
+ 
+ /// Set the integrity check type used when compressing
+ extern void coder_set_check(lzma_check check);
+diff --git a/src/xz/message.c b/src/xz/message.c
+index 2a928107..249e934f 100644
+--- a/src/xz/message.c
++++ b/src/xz/message.c
+@@ -1128,6 +1128,10 @@ message_help(bool long_help)
+ "                      `auto' (default), `xz', `lzma', and `raw'\n"
+ "  -C, --check=CHECK   integrity check type: `none' (use with caution),\n"
+ "                      `crc32', `crc64' (default), or `sha256'"));
++		puts(_(
++"      --block-size=SIZE\n"
++"                      when compressing to the .xz format, start a new block\n"
++"                      after every SIZE bytes of input; 0=disabled (default)"));
+ 	}
+ 
+ 	puts(_(

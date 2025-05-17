@@ -1,0 +1,11 @@
+diff --git a/.gitignore b/.gitignore
+index 333eb9eb..5788d4ac 100644
+--- a/.gitignore
++++ b/.gitignore
+@@ -110,4 +110,4 @@ coverage
+ 
+ /windows/*/.vs
+ /windows/*/liblzma.vcxproj.user
+-/.vscode/
+\ No newline at end of file
++/.vscode/

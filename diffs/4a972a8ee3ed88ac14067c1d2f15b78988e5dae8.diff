@@ -1,0 +1,12 @@
+diff --git a/THANKS b/THANKS
+index 2a5aa28a..c5a0c8aa 100644
+--- a/THANKS
++++ b/THANKS
+@@ -155,6 +155,7 @@ has been important. :-) In alphabetical order:
+   - Mohammed Adnène Trojette
+   - Alexey Tourbin
+   - Taiki Tsunekawa
++  - Maksym Vatsyk
+   - Loganaden Velvindron
+   - Patrick J. Volkerding
+   - Martin Väth

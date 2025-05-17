@@ -1,0 +1,13 @@
+diff --git a/src/liblzma/api/lzma/block.h b/src/liblzma/api/lzma/block.h
+index 8e78b257..2e982e1c 100644
+--- a/src/liblzma/api/lzma/block.h
++++ b/src/liblzma/api/lzma/block.h
+@@ -500,7 +500,7 @@ extern LZMA_API(lzma_ret) lzma_block_buffer_encode(
+ 
+ 
+ /**
+- * \brief       Single-call uncompress .xz Block encoder
++ * \brief       Single-call uncompressed .xz Block encoder
+  *
+  * This is like lzma_block_buffer_encode() except this doesn't try to
+  * compress the data and instead encodes the data using LZMA2 uncompressed

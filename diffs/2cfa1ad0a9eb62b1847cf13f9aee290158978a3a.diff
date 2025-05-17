@@ -1,0 +1,12 @@
+diff --git a/build-aux/license-check.sh b/build-aux/license-check.sh
+index 6d976f65..e994233e 100644
+--- a/build-aux/license-check.sh
++++ b/build-aux/license-check.sh
+@@ -64,6 +64,7 @@ PAT_UNTAGGED_0BSD='^(.*/)?\.gitattributes$
+ ^THANKS$
+ ^TODO$
+ ^(.*/)?[^/]+\.txt$
++^doc/SHA256SUMS$
+ ^po/LINGUAS$
+ ^src/common/w32_application\.manifest$
+ ^tests/xzgrep_expected_output$

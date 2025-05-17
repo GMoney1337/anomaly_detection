@@ -1,0 +1,981 @@
+diff --git a/src/liblzma/api/lzma/block.h b/src/liblzma/api/lzma/block.h
+index a747b145..3a49be3a 100644
+--- a/src/liblzma/api/lzma/block.h
++++ b/src/liblzma/api/lzma/block.h
+@@ -55,6 +55,7 @@ typedef struct {
+ 	 *  - lzma_block_total_size()
+ 	 *  - lzma_block_encoder()
+ 	 *  - lzma_block_decoder()
++	 *  - lzma_block_buffer_encode()
+ 	 *
+ 	 * Written by:
+ 	 *  - lzma_block_header_decode()
+@@ -76,6 +77,7 @@ typedef struct {
+ 	 *
+ 	 * Written by:
+ 	 *  - lzma_block_header_size()
++	 *  - lzma_block_buffer_encode()
+ 	 */
+ 	uint32_t header_size;
+ #	define LZMA_BLOCK_HEADER_SIZE_MIN 8
+@@ -95,6 +97,7 @@ typedef struct {
+ 	 *  - lzma_block_total_size()
+ 	 *  - lzma_block_encoder()
+ 	 *  - lzma_block_decoder()
++	 *  - lzma_block_buffer_encode()
+ 	 */
+ 	lzma_check check;
+ 
+@@ -147,6 +150,7 @@ typedef struct {
+ 	 *  - lzma_block_compressed_size()
+ 	 *  - lzma_block_encoder()
+ 	 *  - lzma_block_decoder()
++	 *  - lzma_block_buffer_encode()
+ 	 */
+ 	lzma_vli compressed_size;
+ 
+@@ -168,6 +172,7 @@ typedef struct {
+ 	 *  - lzma_block_header_decode()
+ 	 *  - lzma_block_encoder()
+ 	 *  - lzma_block_decoder()
++	 *  - lzma_block_buffer_encode()
+ 	 */
+ 	lzma_vli uncompressed_size;
+ 
+@@ -182,6 +187,7 @@ typedef struct {
+ 	 *  - lzma_block_header_encode()
+ 	 *  - lzma_block_encoder()
+ 	 *  - lzma_block_decoder()
++	 *  - lzma_block_buffer_encode()
+ 	 *
+ 	 * Written by:
+ 	 *  - lzma_block_header_decode(): Note that this does NOT free()
+@@ -415,3 +421,54 @@ extern lzma_ret lzma_block_encoder(lzma_stream *strm, lzma_block *block)
+  */
+ extern lzma_ret lzma_block_decoder(lzma_stream *strm, lzma_block *block)
+ 		lzma_attr_warn_unused_result;
++
++
++/**
++ * \brief       Calculate maximum output buffer size for single-call encoding
++ *
++ * This is equivalent to lzma_stream_buffer_bound() but for .xz Blocks.
++ * See the documentation of lzma_stream_buffer_bound().
++ */
++extern size_t lzma_block_buffer_bound(size_t uncompressed_size);
++
++
++/**
++ * \brief       Single-call .xz Block encoder
++ *
++ * In contrast to the multi-call encoder initialized with
++ * lzma_block_encoder(), this function encodes also the Block Header. This
++ * is required to make it possible to write appropriate Block Header also
++ * in case the data isn't compressible, and different filter chain has to be
++ * used to encode the data in uncompressed form using uncompressed chunks
++ * of the LZMA2 filter.
++ *
++ * When the data isn't compressible, header_size, compressed_size, and
++ * uncompressed_size are set just like when the data was compressible, but
++ * it is possible that header_size is too small to hold the filter chain
++ * specified in block->filters, because that isn't necessarily the filter
++ * chain that was actually used to encode the data. lzma_block_unpadded_size()
++ * still works normally, because it doesn't read the filters array.
++ *
++ * \param       block       Block options: block->version, block->check,
++ *                          and block->filters must be initialized.
++ * \param       allocator   lzma_allocator for custom allocator functions.
++ *                          Set to NULL to use malloc() and free().
++ * \param       in          Beginning of the input buffer
++ * \param       in_size     Size of the input buffer
++ * \param       out         Beginning of the output buffer
++ * \param       out_pos     The next byte will be written to out[*out_pos].
++ *                          *out_pos is updated only if encoding succeeds.
++ * \param       out_size    Size of the out buffer; the first byte into
++ *                          which no data is written to is out[out_size].
++ *
++ * \return      - LZMA_OK: Encoding was successful.
++ *              - LZMA_BUF_ERROR: Not enough output buffer space.
++ *              - LZMA_OPTIONS_ERROR
++ *              - LZMA_MEM_ERROR
++ *              - LZMA_DATA_ERROR
++ *              - LZMA_PROG_ERROR
++ */
++extern lzma_ret lzma_block_buffer_encode(
++		lzma_block *block, lzma_allocator *allocator,
++		const uint8_t *in, size_t in_size,
++		uint8_t *out, size_t *out_pos, size_t out_size);
+diff --git a/src/liblzma/api/lzma/container.h b/src/liblzma/api/lzma/container.h
+index f5c0e7ab..240d5dfb 100644
+--- a/src/liblzma/api/lzma/container.h
++++ b/src/liblzma/api/lzma/container.h
+@@ -169,6 +169,62 @@ extern lzma_ret lzma_alone_encoder(
+ 		lzma_attr_warn_unused_result;
+ 
+ 
++/**
++ * \brief       Calculate output buffer size for single-call Stream encoder
++ *
++ * When trying to compress uncompressible data, the encoded size will be
++ * slightly bigger than the input data. This function calculates how much
++ * output buffer space is required to be sure that lzma_stream_buffer_encode()
++ * doesn't return LZMA_BUF_ERROR.
++ *
++ * The calculated value is not exact, but it is guaranteed to be big enough.
++ * The actual maximum output space required may be slightly smaller (up to
++ * about 100 bytes). This should not be a problem in practice.
++ *
++ * If the calculated maximum size doesn't fit into size_t or would make the
++ * Stream grow past LZMA_VLI_MAX (which should never happen in practice),
++ * zero is returned to indicate the error.
++ *
++ * \note        The limit calculated by this function applies only to
++ *              single-call encoding. Multi-call encoding may (and probably
++ *              will) have larger maximum expansion when encoding
++ *              uncompressible data. Currently there is no function to
++ *              calculate the maximum expansion of multi-call encoding.
++ */
++extern size_t lzma_stream_buffer_bound(size_t uncompressed_size);
++
++
++/**
++ * \brief       Single-call Stream encoder
++ *
++ * \param       filters     Array of filters. This must be terminated with
++ *                          filters[n].id = LZMA_VLI_UNKNOWN. See filter.h
++ *                          for more information.
++ * \param       check       Type of the integrity check to calculate from
++ *                          uncompressed data.
++ * \param       allocator   lzma_allocator for custom allocator functions.
++ *                          Set to NULL to use malloc() and free().
++ * \param       in          Beginning of the input buffer
++ * \param       in_size     Size of the input buffer
++ * \param       out         Beginning of the output buffer
++ * \param       out_pos     The next byte will be written to out[*out_pos].
++ *                          *out_pos is updated only if encoding succeeds.
++ * \param       out_size    Size of the out buffer; the first byte into
++ *                          which no data is written to is out[out_size].
++ *
++ * \return      - LZMA_OK: Encoding was successful.
++ *              - LZMA_BUF_ERROR: Not enough output buffer space.
++ *              - LZMA_OPTIONS_ERROR
++ *              - LZMA_MEM_ERROR
++ *              - LZMA_DATA_ERROR
++ *              - LZMA_PROG_ERROR
++ */
++extern lzma_ret lzma_stream_buffer_encode(
++		lzma_filter *filters, lzma_check check,
++		lzma_allocator *allocator, const uint8_t *in, size_t in_size,
++		uint8_t *out, size_t *out_pos, size_t out_size);
++
++
+ /************
+  * Decoding *
+  ************/
+diff --git a/src/liblzma/api/lzma/index.h b/src/liblzma/api/lzma/index.h
+index 9d6b7550..9af296dd 100644
+--- a/src/liblzma/api/lzma/index.h
++++ b/src/liblzma/api/lzma/index.h
+@@ -255,7 +255,7 @@ extern lzma_ret lzma_index_cat(lzma_index *lzma_restrict dest,
+ 
+ 
+ /**
+- * \brief       Duplicates an Index list
++ * \brief       Duplicate an Index list
+  *
+  * Makes an identical copy of the Index. Also the read position is copied.
+  *
+@@ -267,7 +267,7 @@ extern lzma_index *lzma_index_dup(
+ 
+ 
+ /**
+- * \brief       Compares if two Index lists are identical
++ * \brief       Compare if two Index lists are identical
+  *
+  * \return      True if *a and *b are equal, false otherwise.
+  */
+@@ -276,7 +276,7 @@ extern lzma_bool lzma_index_equal(const lzma_index *a, const lzma_index *b)
+ 
+ 
+ /**
+- * \brief       Initializes Index encoder
++ * \brief       Initialize Index encoder
+  *
+  * \param       strm        Pointer to properly prepared lzma_stream
+  * \param       i           Pointer to lzma_index which should be encoded.
+@@ -294,14 +294,15 @@ extern lzma_ret lzma_index_encoder(lzma_stream *strm, lzma_index *i)
+ 
+ 
+ /**
+- * \brief       Initializes Index decoder
++ * \brief       Initialize Index decoder
+  *
+  * \param       strm        Pointer to properly prepared lzma_stream
+  * \param       i           Pointer to a pointer that will be made to point
+  *                          to the final decoded Index once lzma_code() has
+  *                          returned LZMA_STREAM_END. That is,
+- *                          lzma_index_decoder() takes care of allocating
+- *                          a new lzma_index structure.
++ *                          lzma_index_decoder() always takes care of
++ *                          allocating a new lzma_index structure, and *i
++ *                          doesn't need to be initialized by the caller.
+  * \param       memlimit    How much memory the resulting Index is allowed
+  *                          to require.
+  *
+@@ -321,3 +322,60 @@ extern lzma_ret lzma_index_encoder(lzma_stream *strm, lzma_index *i)
+ extern lzma_ret lzma_index_decoder(
+ 		lzma_stream *strm, lzma_index **i, uint64_t memlimit)
+ 		lzma_attr_warn_unused_result;
++
++
++/**
++ * \brief       Single-call Index encoder
++ *
++ * \param       i         Index to be encoded. The read position will be at
++ *                        the end of the Index if encoding succeeds, or at
++ *                        unspecified position in case an error occurs.
++ * \param       out       Beginning of the output buffer
++ * \param       out_pos   The next byte will be written to out[*out_pos].
++ *                        *out_pos is updated only if encoding succeeds.
++ * \param       out_size  Size of the out buffer; the first byte into
++ *                        which no data is written to is out[out_size].
++ *
++ * \return      - LZMA_OK: Encoding was successful.
++ *              - LZMA_BUF_ERROR: Output buffer is too small. Use
++ *                lzma_index_size() to find out how much output
++ *                space is needed.
++ *              - LZMA_PROG_ERROR
++ *
++ * \note        This function doesn't take allocator argument since all
++ *              the internal data is allocated on stack.
++ */
++extern lzma_ret lzma_index_buffer_encode(lzma_index *i,
++		uint8_t *out, size_t *out_pos, size_t out_size);
++
++
++/**
++ * \brief       Single-call Index decoder
++ *
++ * \param       i           Pointer to a pointer that will be made to point
++ *                          to the final decoded Index if decoding is
++ *                          successful. That is, lzma_index_buffer_decode()
++ *                          always takes care of allocating a new
++ *                          lzma_index structure, and *i doesn't need to be
++ *                          initialized by the caller.
++ * \param       memlimit    Pointer to how much memory the resulting Index
++ *                          is allowed to require. The value pointed by
++ *                          this pointer is modified if and only if
++ *                          LZMA_MEMLIMIT_ERROR is returned.
++ * \param       allocator   Pointer to lzma_allocator, or NULL to use malloc()
++ * \param       in          Beginning of the input buffer
++ * \param       in_pos      The next byte will be read from in[*in_pos].
++ *                          *in_pos is updated only if decoding succeeds.
++ * \param       in_size     Size of the input buffer; the first byte that
++ *                          won't be read is in[in_size].
++ *
++ * \return      - LZMA_OK: Decoding was successful.
++ *              - LZMA_MEM_ERROR
++ *              - LZMA_MEMLIMIT_ERROR: Memory usage limit was reached.
++ *                The minimum required memlimit value was stored to *memlimit.
++ *              - LZMA_DATA_ERROR
++ *              - LZMA_PROG_ERROR
++ */
++extern lzma_ret lzma_index_buffer_decode(
++		lzma_index **i,  uint64_t *memlimit, lzma_allocator *allocator,
++		const uint8_t *in, size_t *in_pos, size_t in_size);
+diff --git a/src/liblzma/common/Makefile.am b/src/liblzma/common/Makefile.am
+index f64abdf5..1fa845a4 100644
+--- a/src/liblzma/common/Makefile.am
++++ b/src/liblzma/common/Makefile.am
+@@ -39,6 +39,7 @@ libcommon_la_SOURCES = \
+ if COND_MAIN_ENCODER
+ libcommon_la_SOURCES += \
+ 	alone_encoder.c \
++	block_buffer_encoder.c \
+ 	block_encoder.c \
+ 	block_encoder.h \
+ 	block_header_encoder.c \
+@@ -48,6 +49,7 @@ libcommon_la_SOURCES += \
+ 	filter_flags_encoder.c \
+ 	index_encoder.c \
+ 	index_encoder.h \
++	stream_buffer_encoder.c \
+ 	stream_encoder.c \
+ 	stream_encoder.h \
+ 	stream_flags_encoder.c \
+diff --git a/src/liblzma/common/block_buffer_encoder.c b/src/liblzma/common/block_buffer_encoder.c
+new file mode 100644
+index 00000000..67412a7d
+--- /dev/null
++++ b/src/liblzma/common/block_buffer_encoder.c
+@@ -0,0 +1,305 @@
++///////////////////////////////////////////////////////////////////////////////
++//
++/// \file       block_buffer_encoder.c
++/// \brief      Single-call .xz Block encoder
++//
++//  Copyright (C) 2009 Lasse Collin
++//
++//  This library is free software; you can redistribute it and/or
++//  modify it under the terms of the GNU Lesser General Public
++//  License as published by the Free Software Foundation; either
++//  version 2.1 of the License, or (at your option) any later version.
++//
++//  This library is distributed in the hope that it will be useful,
++//  but WITHOUT ANY WARRANTY; without even the implied warranty of
++//  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
++//  Lesser General Public License for more details.
++//
++///////////////////////////////////////////////////////////////////////////////
++
++#include "block_encoder.h"
++#include "filter_encoder.h"
++#include "lzma2_encoder.h"
++#include "check.h"
++
++
++/// Estimate the maximum size of the Block Header and Check fields for
++/// a Block that uses LZMA2 uncompressed chunks. We could use
++/// lzma_block_header_size() but this is simpler.
++///
++/// Block Header Size + Block Flags + Compressed Size
++/// + Uncompressed Size + Filter Flags for LZMA2 + CRC32 + Check
++/// and round up to the next multiple of four to take Header Padding
++/// into account.
++#define HEADERS_BOUND ((1 + 1 + 2 * LZMA_VLI_BYTES_MAX + 3 + 4 \
++		+ LZMA_CHECK_SIZE_MAX + 3) & ~3)
++
++
++static lzma_vli
++lzma2_bound(lzma_vli uncompressed_size)
++{
++	// Prevent integer overflow in overhead calculation.
++	if (uncompressed_size > COMPRESSED_SIZE_MAX)
++		return 0;
++
++	// Calculate the exact overhead of the LZMA2 headers: Round
++	// uncompressed_size up to the next multiple of LZMA2_CHUNK_MAX,
++	// multiply by the size of per-chunk header, and add one byte for
++	// the end marker.
++	const lzma_vli overhead = ((uncompressed_size + LZMA2_CHUNK_MAX - 1)
++				/ LZMA2_CHUNK_MAX)
++			* LZMA2_HEADER_UNCOMPRESSED + 1;
++
++	// Catch the possible integer overflow.
++	if (COMPRESSED_SIZE_MAX - overhead < uncompressed_size)
++		return 0;
++
++	return uncompressed_size + overhead;
++}
++
++
++extern LZMA_API size_t
++lzma_block_buffer_bound(size_t uncompressed_size)
++{
++	// For now, if the data doesn't compress, we always use uncompressed
++	// chunks of LZMA2. In future we may use Subblock filter too, but
++	// but for simplicity we probably will still use the same bound
++	// calculation even though Subblock filter would have slightly less
++	// overhead.
++	lzma_vli lzma2_size = lzma2_bound(uncompressed_size);
++	if (lzma2_size == 0)
++		return 0;
++
++	// Take Block Padding into account.
++	lzma2_size = (lzma2_size + 3) & ~LZMA_VLI_C(3);
++
++#if SIZE_MAX < LZMA_VLI_MAX
++	// Catch the possible integer overflow on 32-bit systems. There's no
++	// overflow on 64-bit systems, because lzma2_bound() already takes
++	// into account the size of the headers in the Block.
++	if (SIZE_MAX - HEADERS_BOUND < lzma2_size)
++		return 0;
++#endif
++
++	return HEADERS_BOUND + lzma2_size;
++}
++
++
++static lzma_ret
++block_encode_uncompressed(lzma_block *block, const uint8_t *in, size_t in_size,
++		uint8_t *out, size_t *out_pos, size_t out_size)
++{
++	// TODO: Figure out if the last filter is LZMA2 or Subblock and use
++	// that filter to encode the uncompressed chunks.
++
++	// Use LZMA2 uncompressed chunks. We wouldn't need a dictionary at
++	// all, but LZMA2 always requires a dictionary, so use the minimum
++	// value to minimize memory usage of the decoder.
++	lzma_options_lzma lzma2 = {
++		.dict_size = LZMA_DICT_SIZE_MIN,
++	};
++
++	lzma_filter filters[2];
++	filters[0].id = LZMA_FILTER_LZMA2;
++	filters[0].options = &lzma2;
++	filters[1].id = LZMA_VLI_UNKNOWN;
++
++	// Set the above filter options to *block temporarily so that we can
++	// encode the Block Header.
++	lzma_filter *filters_orig = block->filters;
++	block->filters = filters;
++
++	if (lzma_block_header_size(block) != LZMA_OK) {
++		block->filters = filters_orig;
++		return LZMA_PROG_ERROR;
++	}
++
++	// Check that there's enough output space. The caller has already
++	// set block->compressed_size to what lzma2_bound() has returned,
++	// so we can reuse that value. We know that compressed_size is a
++	// known valid VLI and header_size is a small value so their sum
++	// will never overflow.
++	assert(block->compressed_size == lzma2_bound(in_size));
++	if (out_size - *out_pos
++			< block->header_size + block->compressed_size) {
++		block->filters = filters_orig;
++		return LZMA_BUF_ERROR;
++	}
++
++	if (lzma_block_header_encode(block, out + *out_pos) != LZMA_OK) {
++		block->filters = filters_orig;
++		return LZMA_PROG_ERROR;
++	}
++
++	block->filters = filters_orig;
++	*out_pos += block->header_size;
++
++	// Encode the data using LZMA2 uncompressed chunks.
++	size_t in_pos = 0;
++	uint8_t control = 0x01; // Dictionary reset
++
++	while (in_pos < in_size) {
++		// Control byte: Indicate uncompressed chunk, of which
++		// the first resets the dictionary.
++		out[(*out_pos)++] = control;
++		control = 0x02; // No dictionary reset
++
++		// Size of the uncompressed chunk
++		const size_t copy_size
++				= MIN(in_size - in_pos, LZMA2_CHUNK_MAX);
++		out[(*out_pos)++] = (copy_size - 1) >> 8;
++		out[(*out_pos)++] = (copy_size - 1) & 0xFF;
++
++		// The actual data
++		assert(*out_pos + copy_size <= out_size);
++		memcpy(out + *out_pos, in + in_pos, copy_size);
++
++		in_pos += copy_size;
++		*out_pos += copy_size;
++	}
++
++	// End marker
++	out[(*out_pos)++] = 0x00;
++	assert(*out_pos <= out_size);
++
++	return LZMA_OK;
++}
++
++
++static lzma_ret
++block_encode_normal(lzma_block *block, lzma_allocator *allocator,
++		const uint8_t *in, size_t in_size,
++		uint8_t *out, size_t *out_pos, size_t out_size)
++{
++	// Find out the size of the Block Header.
++	block->compressed_size = lzma2_bound(in_size);
++	if (block->compressed_size == 0)
++		return LZMA_DATA_ERROR;
++
++	block->uncompressed_size = in_size;
++	return_if_error(lzma_block_header_size(block));
++
++	// Reserve space for the Block Header and skip it for now.
++	if (out_size - *out_pos <= block->header_size)
++		return LZMA_BUF_ERROR;
++
++	const size_t out_start = *out_pos;
++	*out_pos += block->header_size;
++
++	// Limit out_size so that we stop encoding if the output would grow
++	// bigger than what uncompressed Block would be.
++	if (out_size - *out_pos > block->compressed_size)
++		out_size = *out_pos + block->compressed_size;
++
++	// TODO: In many common cases this could be optimized to use
++	// significantly less memory.
++	lzma_next_coder raw_encoder = LZMA_NEXT_CODER_INIT;
++	lzma_ret ret = lzma_raw_encoder_init(
++			&raw_encoder, allocator, block->filters);
++
++	if (ret == LZMA_OK) {
++		size_t in_pos = 0;
++		ret = raw_encoder.code(raw_encoder.coder, allocator,
++				in, &in_pos, in_size, out, out_pos, out_size,
++				LZMA_FINISH);
++	}
++
++	// NOTE: This needs to be run even if lzma_raw_encoder_init() failed.
++	lzma_next_end(&raw_encoder, allocator);
++
++	if (ret == LZMA_STREAM_END) {
++		// Compression was successful. Write the Block Header.
++		block->compressed_size
++				= *out_pos - (out_start + block->header_size);
++		ret = lzma_block_header_encode(block, out + out_start);
++		if (ret != LZMA_OK)
++			ret = LZMA_PROG_ERROR;
++
++	} else if (ret == LZMA_OK) {
++		// Output buffer became full.
++		ret = LZMA_BUF_ERROR;
++	}
++
++	// Reset *out_pos if something went wrong.
++	if (ret != LZMA_OK)
++		*out_pos = out_start;
++
++	return ret;
++}
++
++
++extern LZMA_API lzma_ret
++lzma_block_buffer_encode(lzma_block *block, lzma_allocator *allocator,
++		const uint8_t *in, size_t in_size,
++		uint8_t *out, size_t *out_pos, size_t out_size)
++{
++	// Sanity checks
++	if (block == NULL || block->filters == NULL
++			|| (in == NULL && in_size != 0) || out == NULL
++			|| out_pos == NULL || *out_pos > out_size)
++		return LZMA_PROG_ERROR;
++
++	// Check the version field.
++	if (block->version != 0)
++		return LZMA_OPTIONS_ERROR;
++
++	// Size of a Block has to be a multiple of four, so limit the size
++	// here already. This way we don't need to check it again when adding
++	// Block Padding.
++	out_size -= (out_size - *out_pos) & 3;
++
++	// Get the size of the Check field.
++	const size_t check_size = lzma_check_size(block->check);
++	if (check_size == UINT32_MAX)
++		return LZMA_PROG_ERROR;
++
++	// Reserve space for the Check field.
++	if (out_size - *out_pos <= check_size)
++		return LZMA_BUF_ERROR;
++
++	out_size -= check_size;
++
++	// Do the actual compression.
++	const lzma_ret ret = block_encode_normal(block, allocator,
++			in, in_size, out, out_pos, out_size);
++	if (ret != LZMA_OK) {
++		// If the error was something else than output buffer
++		// becoming full, return the error now.
++		if (ret != LZMA_BUF_ERROR)
++			return ret;
++
++		// The data was uncompressible (at least with the options
++		// given to us) or the output buffer was too small. Use the
++		// uncompressed chunks of LZMA2 to wrap the data into a valid
++		// Block. If we haven't been given enough output space, even
++		// this may fail.
++		return_if_error(block_encode_uncompressed(block, in, in_size,
++				out, out_pos, out_size));
++	}
++
++	assert(*out_pos <= out_size);
++
++	// Block Padding. No buffer overflow here, because we already adjusted
++	// out_size so that (out_size - out_start) is a multiple of four.
++	// Thus, if the buffer is full, the loop body can never run.
++	for (size_t i = (size_t)(block->compressed_size); i & 3; ++i) {
++		assert(*out_pos < out_size);
++		out[(*out_pos)++] = 0x00;
++	}
++
++	// If there's no Check field, we are done now.
++	if (check_size > 0) {
++		// Calculate the integrity check. We reserved space for
++		// the Check field earlier so we don't need to check for
++		// available output space here.
++		lzma_check_state check;
++		lzma_check_init(&check, block->check);
++		lzma_check_update(&check, block->check, in, in_size);
++		lzma_check_finish(&check, block->check);
++
++		memcpy(out + *out_pos, check.buffer.u8, check_size);
++		*out_pos += check_size;
++	}
++
++	return LZMA_OK;
++}
+diff --git a/src/liblzma/common/index_decoder.c b/src/liblzma/common/index_decoder.c
+index e29e0b0d..de507978 100644
+--- a/src/liblzma/common/index_decoder.c
++++ b/src/liblzma/common/index_decoder.c
+@@ -225,6 +225,27 @@ index_decoder_memconfig(lzma_coder *coder, uint64_t *memusage,
+ }
+ 
+ 
++static lzma_ret
++index_decoder_reset(lzma_coder *coder, lzma_allocator *allocator,
++		lzma_index **i, uint64_t memlimit)
++{
++	// We always allocate a new lzma_index.
++	*i = lzma_index_init(NULL, allocator);
++	if (*i == NULL)
++		return LZMA_MEM_ERROR;
++
++	// Initialize the rest.
++	coder->sequence = SEQ_INDICATOR;
++	coder->memlimit = memlimit;
++	coder->index = *i;
++	coder->count = 0; // Needs to be initialized due to _memconfig().
++	coder->pos = 0;
++	coder->crc32 = 0;
++
++	return LZMA_OK;
++}
++
++
+ static lzma_ret
+ index_decoder_init(lzma_next_coder *next, lzma_allocator *allocator,
+ 		lzma_index **i, uint64_t memlimit)
+@@ -247,20 +268,7 @@ index_decoder_init(lzma_next_coder *next, lzma_allocator *allocator,
+ 		lzma_index_end(next->coder->index, allocator);
+ 	}
+ 
+-	// We always allocate a new lzma_index.
+-	*i = lzma_index_init(NULL, allocator);
+-	if (*i == NULL)
+-		return LZMA_MEM_ERROR;
+-
+-	// Initialize the rest.
+-	next->coder->sequence = SEQ_INDICATOR;
+-	next->coder->memlimit = memlimit;
+-	next->coder->index = *i;
+-	next->coder->count = 0; // Needs to be initialized due to _memconfig().
+-	next->coder->pos = 0;
+-	next->coder->crc32 = 0;
+-
+-	return LZMA_OK;
++	return index_decoder_reset(next->coder, allocator, i, memlimit);
+ }
+ 
+ 
+@@ -273,3 +281,50 @@ lzma_index_decoder(lzma_stream *strm, lzma_index **i, uint64_t memlimit)
+ 
+ 	return LZMA_OK;
+ }
++
++
++extern LZMA_API lzma_ret
++lzma_index_buffer_decode(
++		lzma_index **i, uint64_t *memlimit, lzma_allocator *allocator,
++		const uint8_t *in, size_t *in_pos, size_t in_size)
++{
++	// Sanity checks
++	if (i == NULL || in == NULL || in_pos == NULL || *in_pos > in_size)
++		return LZMA_PROG_ERROR;
++
++	// Initialize the decoder.
++	lzma_coder coder;
++	return_if_error(index_decoder_reset(&coder, allocator, i, *memlimit));
++
++	// Store the input start position so that we can restore it in case
++	// of an error.
++	const size_t in_start = *in_pos;
++
++	// Do the actual decoding.
++	lzma_ret ret = index_decode(&coder, allocator, in, in_pos, in_size,
++			NULL, NULL, 0, LZMA_RUN);
++
++	if (ret == LZMA_STREAM_END) {
++		ret = LZMA_OK;
++	} else {
++		// Something went wrong, free the Index structure and restore
++		// the input position.
++		lzma_index_end(*i, allocator);
++		*i = NULL;
++		*in_pos = in_start;
++
++		if (ret == LZMA_OK) {
++			// The input is truncated or otherwise corrupt.
++			// Use LZMA_DATA_ERROR instead of LZMA_BUF_ERROR
++			// like lzma_vli_decode() does in single-call mode.
++			ret = LZMA_DATA_ERROR;
++
++		} else if (ret == LZMA_MEMLIMIT_ERROR) {
++			// Tell the caller how much memory would have
++			// been needed.
++			*memlimit = lzma_index_memusage(coder.count);
++		}
++	}
++
++	return ret;
++}
+diff --git a/src/liblzma/common/index_encoder.c b/src/liblzma/common/index_encoder.c
+index 522dbb53..17a0806a 100644
+--- a/src/liblzma/common/index_encoder.c
++++ b/src/liblzma/common/index_encoder.c
+@@ -178,6 +178,20 @@ index_encoder_end(lzma_coder *coder, lzma_allocator *allocator)
+ }
+ 
+ 
++static void
++index_encoder_reset(lzma_coder *coder, lzma_index *i)
++{
++	lzma_index_rewind(i);
++
++	coder->sequence = SEQ_INDICATOR;
++	coder->index = i;
++	coder->pos = 0;
++	coder->crc32 = 0;
++
++	return;
++}
++
++
+ extern lzma_ret
+ lzma_index_encoder_init(lzma_next_coder *next, lzma_allocator *allocator,
+ 		lzma_index *i)
+@@ -196,12 +210,7 @@ lzma_index_encoder_init(lzma_next_coder *next, lzma_allocator *allocator,
+ 		next->end = &index_encoder_end;
+ 	}
+ 
+-	lzma_index_rewind(i);
+-
+-	next->coder->sequence = SEQ_INDICATOR;
+-	next->coder->index = i;
+-	next->coder->pos = 0;
+-	next->coder->crc32 = 0;
++	index_encoder_reset(next->coder, i);
+ 
+ 	return LZMA_OK;
+ }
+@@ -216,3 +225,41 @@ lzma_index_encoder(lzma_stream *strm, lzma_index *i)
+ 
+ 	return LZMA_OK;
+ }
++
++
++extern LZMA_API lzma_ret
++lzma_index_buffer_encode(lzma_index *i,
++		uint8_t *out, size_t *out_pos, size_t out_size)
++{
++	// Validate the arugments.
++	if (i == NULL || out == NULL || out_pos == NULL || *out_pos > out_size)
++		return LZMA_PROG_ERROR;
++
++	// Don't try to encode if there's not enough output space.
++	if (out_size - *out_pos < lzma_index_size(i))
++		return LZMA_BUF_ERROR;
++
++	// The Index encoder needs just one small data structure so we can
++	// allocate it on stack.
++	lzma_coder coder;
++	index_encoder_reset(&coder, i);
++
++	// Do the actual encoding. This should never fail, but store
++	// the original *out_pos just in case.
++	const size_t out_start = *out_pos;
++	lzma_ret ret = index_encode(&coder, NULL, NULL, NULL, 0,
++			out, out_pos, out_size, LZMA_RUN);
++
++	if (ret == LZMA_STREAM_END) {
++		ret = LZMA_OK;
++	} else {
++		// We should never get here, but just in case, restore the
++		// output position and set the error accordingly if something
++		// goes wrong and debugging isn't enabled.
++		assert(0);
++		*out_pos = out_start;
++		ret = LZMA_PROG_ERROR;
++	}
++
++	return ret;
++}
+diff --git a/src/liblzma/common/stream_buffer_encoder.c b/src/liblzma/common/stream_buffer_encoder.c
+new file mode 100644
+index 00000000..29588365
+--- /dev/null
++++ b/src/liblzma/common/stream_buffer_encoder.c
+@@ -0,0 +1,138 @@
++///////////////////////////////////////////////////////////////////////////////
++//
++/// \file       stream_buffer_encoder.c
++/// \brief      Single-call .xz Stream encoder
++//
++//  Copyright (C) 2009 Lasse Collin
++//
++//  This library is free software; you can redistribute it and/or
++//  modify it under the terms of the GNU Lesser General Public
++//  License as published by the Free Software Foundation; either
++//  version 2.1 of the License, or (at your option) any later version.
++//
++//  This library is distributed in the hope that it will be useful,
++//  but WITHOUT ANY WARRANTY; without even the implied warranty of
++//  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
++//  Lesser General Public License for more details.
++//
++///////////////////////////////////////////////////////////////////////////////
++
++#include "index.h"
++
++
++/// Maximum size of Index that has exactly one Record.
++/// Index Indicator + Number of Records + Record + CRC32 rounded up to
++/// the next multiple of four.
++#define INDEX_BOUND ((1 + 1 + 2 * LZMA_VLI_BYTES_MAX + 4 + 3) & ~3)
++
++/// Stream Header, Stream Footer, and Index
++#define HEADERS_BOUND (2 * LZMA_STREAM_HEADER_SIZE + INDEX_BOUND)
++
++
++extern LZMA_API size_t
++lzma_stream_buffer_bound(size_t uncompressed_size)
++{
++	// Get the maximum possible size of a Block.
++	const size_t block_bound = lzma_block_buffer_bound(uncompressed_size);
++	if (block_bound == 0)
++		return 0;
++
++	// Catch the possible integer overflow and also prevent the size of
++	// the Stream exceeding LZMA_VLI_MAX (theoretically possible on
++	// 64-bit systems).
++	if (MIN(SIZE_MAX, LZMA_VLI_MAX) - block_bound < HEADERS_BOUND)
++		return 0;
++
++	return block_bound + HEADERS_BOUND;
++}
++
++
++extern LZMA_API lzma_ret
++lzma_stream_buffer_encode(lzma_filter *filters, lzma_check check,
++		lzma_allocator *allocator, const uint8_t *in, size_t in_size,
++		uint8_t *out, size_t *out_pos_ptr, size_t out_size)
++{
++	// Sanity checks
++	if (filters == NULL || (unsigned int)(check) > LZMA_CHECK_ID_MAX
++			|| (in == NULL && in_size != 0) || out == NULL
++			|| out_pos_ptr == NULL || *out_pos_ptr > out_size)
++		return LZMA_PROG_ERROR;
++
++	// Note for the paranoids: Index encoder prevents the Stream from
++	// getting too big and still being accepted with LZMA_OK, and Block
++	// encoder catches if the input is too big. So we don't need to
++	// separately check if the buffers are too big.
++
++	// Use a local copy. We update *out_pos_ptr only if everything
++	// succeeds.
++	size_t out_pos = *out_pos_ptr;
++
++	// Check that there's enough space for both Stream Header and
++	// Stream Footer.
++	if (out_size - out_pos <= 2 * LZMA_STREAM_HEADER_SIZE)
++		return LZMA_BUF_ERROR;
++
++	// Reserve space for Stream Footer so we don't need to check for
++	// available space again before encoding Stream Footer.
++	out_size -= LZMA_STREAM_HEADER_SIZE;
++
++	// Encode the Stream Header.
++	lzma_stream_flags stream_flags = {
++		.version = 0,
++		.check = check,
++	};
++
++	if (lzma_stream_header_encode(&stream_flags, out + out_pos)
++			!= LZMA_OK)
++		return LZMA_PROG_ERROR;
++
++	out_pos += LZMA_STREAM_HEADER_SIZE;
++
++	// Block
++	lzma_block block = {
++		.version = 0,
++		.check = check,
++		.filters = filters,
++	};
++
++	return_if_error(lzma_block_buffer_encode(&block, allocator,
++			in, in_size, out, &out_pos, out_size));
++
++	// Index
++	{
++		// Create an Index with one Record.
++		lzma_index *i = lzma_index_init(NULL, NULL);
++		if (i == NULL)
++			return LZMA_MEM_ERROR;
++
++		lzma_ret ret = lzma_index_append(i, NULL,
++				lzma_block_unpadded_size(&block),
++				block.uncompressed_size);
++
++		// If adding the Record was successful, encode the Index
++		// and get its size which will be stored into Stream Footer.
++		if (ret == LZMA_OK) {
++			ret = lzma_index_buffer_encode(
++					i, out, &out_pos, out_size);
++
++			stream_flags.backward_size = lzma_index_size(i);
++		}
++
++		lzma_index_end(i, NULL);
++
++		if (ret != LZMA_OK)
++			return ret;
++	}
++
++	// Stream Footer. We have already reserved space for this.
++	if (lzma_stream_footer_encode(&stream_flags, out + out_pos)
++			!= LZMA_OK)
++		return LZMA_PROG_ERROR;
++
++	out_pos += LZMA_STREAM_HEADER_SIZE;
++
++	// Everything went fine, make the new output position available
++	// to the application.
++	*out_pos_ptr = out_pos;
++	return LZMA_OK;
++}
+diff --git a/tests/test_index.c b/tests/test_index.c
+index 8a2cb266..bd2aecde 100644
+--- a/tests/test_index.c
++++ b/tests/test_index.c
+@@ -197,6 +197,30 @@ test_code(lzma_index *i)
+ 
+ 	lzma_index_hash_end(h, NULL);
+ 
++	// Encode buffer
++	size_t buf_pos = 1;
++	expect(lzma_index_buffer_encode(i, buf, &buf_pos, index_size)
++			== LZMA_BUF_ERROR);
++	expect(buf_pos == 1);
++
++	succeed(lzma_index_buffer_encode(i, buf, &buf_pos, index_size + 1));
++	expect(buf_pos == index_size + 1);
++
++	// Decode buffer
++	buf_pos = 1;
++	uint64_t memlimit = MEMLIMIT;
++	expect(lzma_index_buffer_decode(&d, &memlimit, NULL, buf, &buf_pos,
++			index_size) == LZMA_DATA_ERROR);
++	expect(buf_pos == 1);
++	expect(d == NULL);
++
++	succeed(lzma_index_buffer_decode(&d, &memlimit, NULL, buf, &buf_pos,
++			index_size + 1));
++	expect(buf_pos == index_size + 1);
++	expect(lzma_index_equal(i, d));
++
++	lzma_index_end(d, NULL);
++
+ 	free(buf);
+ }
+ 

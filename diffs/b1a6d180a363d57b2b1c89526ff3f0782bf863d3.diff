@@ -1,0 +1,33 @@
+diff --git a/src/common/tuklib_mbstr_fw.c b/src/common/tuklib_mbstr_fw.c
+index af80dc16..64c9ad5a 100644
+--- a/src/common/tuklib_mbstr_fw.c
++++ b/src/common/tuklib_mbstr_fw.c
+@@ -27,5 +27,5 @@ tuklib_mbstr_fw(const char *str, int columns_min)
+ 	if (width < (size_t)columns_min)
+ 		len += (size_t)columns_min - width;
+ 
+-	return len;
++	return (int)len;
+ }
+diff --git a/src/xz/list.c b/src/xz/list.c
+index ee61aeb9..90799bd2 100644
+--- a/src/xz/list.c
++++ b/src/xz/list.c
+@@ -276,7 +276,7 @@ init_headings(void)
+ 		// If the translated string is wider than the minimum width
+ 		// set at compile time, increase the width.
+ 		if ((size_t)(headings[HEADING_CHECK].columns) < w)
+-			headings[HEADING_CHECK].columns = w;
++			headings[HEADING_CHECK].columns = (int)w;
+ 	}
+ 
+ 	for (unsigned i = 0; i < ARRAY_SIZE(headings); ++i) {
+@@ -291,7 +291,7 @@ init_headings(void)
+ 		// If the translated string is wider than the minimum width
+ 		// set at compile time, increase the width.
+ 		if ((size_t)(headings[i].columns) < w)
+-			headings[i].columns = w;
++			headings[i].columns = (int)w;
+ 
+ 		// Calculate the field width for printf("%*s") so that
+ 		// the string uses .columns number of columns on a terminal.

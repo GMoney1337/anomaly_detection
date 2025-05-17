@@ -1,0 +1,19 @@
+diff --git a/src/scripts/xzdiff.in b/src/scripts/xzdiff.in
+index 3c09ad02..fc1e0575 100644
+--- a/src/scripts/xzdiff.in
++++ b/src/scripts/xzdiff.in
+@@ -83,11 +83,11 @@ if test $# -eq 1; then
+   esac
+   case $1 in
+     *[-.][zZ] | *_z | *[-.][gx]z | *[-.]bz2 | *[-.]lzma)
+-      FILE=`expr "X$1" : 'X\(.*\)[-.][abglmxzZ2]*$'`
++      FILE=`expr "X$1" : 'X\(.*\)[-.][abglmxzZ2]*$'`;;
+     *.t[abglx]z)
+-      FILE=`expr "X$1" : 'X\(.*[-.]t\)[abglx]z$'`ar
++      FILE=`expr "X$1" : 'X\(.*[-.]t\)[abglx]z$'`ar;;
+     *.tbz2)
+-      FILE=`expr "X$1" : 'X\(.*[-.]t\)bz2$'`ar
++      FILE=`expr "X$1" : 'X\(.*[-.]t\)bz2$'`ar;;
+   esac
+   xz_status=$(
+     exec 4>&1

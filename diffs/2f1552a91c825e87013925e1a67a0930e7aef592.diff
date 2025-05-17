@@ -1,0 +1,54 @@
+diff --git a/src/liblzma/check/crc32_fast.c b/src/liblzma/check/crc32_fast.c
+index 0b667d8b..1fadb70f 100644
+--- a/src/liblzma/check/crc32_fast.c
++++ b/src/liblzma/check/crc32_fast.c
+@@ -128,7 +128,7 @@ typedef uint32_t (*crc32_func_type)(
+ // Clang 16.0.0 and older has a bug where it marks the ifunc resolver
+ // function as unused since it is static and never used outside of
+ // __attribute__((__ifunc__())).
+-#if defined(HAVE_FUNC_ATTRIBUTE_IFUNC) && defined(__clang__)
++#if defined(CRC_USE_IFUNC) && defined(__clang__)
+ #	pragma GCC diagnostic push
+ #	pragma GCC diagnostic ignored "-Wunused-function"
+ #endif
+@@ -143,11 +143,11 @@ crc32_resolve(void)
+ 			? &crc32_arch_optimized : &crc32_generic;
+ }
+ 
+-#if defined(HAVE_FUNC_ATTRIBUTE_IFUNC) && defined(__clang__)
++#if defined(CRC_USE_IFUNC) && defined(__clang__)
+ #	pragma GCC diagnostic pop
+ #endif
+ 
+-#ifndef HAVE_FUNC_ATTRIBUTE_IFUNC
++#ifndef CRC_USE_IFUNC
+ 
+ #ifdef HAVE_FUNC_ATTRIBUTE_CONSTRUCTOR
+ // Constructor method.
+diff --git a/src/liblzma/check/crc64_fast.c b/src/liblzma/check/crc64_fast.c
+index d1ab6862..6a4e6d24 100644
+--- a/src/liblzma/check/crc64_fast.c
++++ b/src/liblzma/check/crc64_fast.c
+@@ -94,7 +94,7 @@ crc64_generic(const uint8_t *buf, size_t size, uint64_t crc)
+ typedef uint64_t (*crc64_func_type)(
+ 		const uint8_t *buf, size_t size, uint64_t crc);
+ 
+-#if defined(HAVE_FUNC_ATTRIBUTE_IFUNC) && defined(__clang__)
++#if defined(CRC_USE_IFUNC) && defined(__clang__)
+ #	pragma GCC diagnostic push
+ #	pragma GCC diagnostic ignored "-Wunused-function"
+ #endif
+@@ -106,11 +106,11 @@ crc64_resolve(void)
+ 			? &crc64_arch_optimized : &crc64_generic;
+ }
+ 
+-#if defined(HAVE_FUNC_ATTRIBUTE_IFUNC) && defined(__clang__)
++#if defined(CRC_USE_IFUNC) && defined(__clang__)
+ #	pragma GCC diagnostic pop
+ #endif
+ 
+-#ifndef HAVE_FUNC_ATTRIBUTE_IFUNC
++#ifndef CRC_USE_IFUNC
+ 
+ #ifdef HAVE_FUNC_ATTRIBUTE_CONSTRUCTOR
+ #	define CRC64_SET_FUNC_ATTR __attribute__((__constructor__))

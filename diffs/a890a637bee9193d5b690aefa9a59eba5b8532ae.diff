@@ -1,0 +1,12 @@
+diff --git a/THANKS b/THANKS
+index 5f9310ed..4707d8b1 100644
+--- a/THANKS
++++ b/THANKS
+@@ -61,6 +61,7 @@ has been important. :-) In alphabetical order:
+   - Jun I Jin
+   - Kiyoshi Kanazawa
+   - Per Øyvind Karlsen
++  - Iouri Kharon
+   - Thomas Klausner
+   - Richard Koch
+   - Ville Koskinen

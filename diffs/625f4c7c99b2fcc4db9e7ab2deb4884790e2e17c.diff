@@ -1,0 +1,447 @@
+diff --git a/src/liblzma/common/common.h b/src/liblzma/common/common.h
+index 555c77d1..95313042 100644
+--- a/src/liblzma/common/common.h
++++ b/src/liblzma/common/common.h
+@@ -172,6 +172,16 @@ struct lzma_next_coder_s {
+ 	lzma_ret (*update)(void *coder, const lzma_allocator *allocator,
+ 			const lzma_filter *filters,
+ 			const lzma_filter *reversed_filters);
++
++	/// Set how many bytes of output this coder may produce at maximum.
++	/// On success LZMA_OK must be returned.
++	/// If the filter chain as a whole cannot support this feature,
++	/// this must return LZMA_OPTIONS_ERROR.
++	/// If no input has been given to the coder and the requested limit
++	/// is too small, this must return LZMA_BUF_ERROR. If input has been
++	/// seen, LZMA_OK is allowed too.
++	lzma_ret (*set_out_limit)(void *coder, uint64_t *uncomp_size,
++			uint64_t out_limit);
+ };
+ 
+ 
+@@ -187,6 +197,7 @@ struct lzma_next_coder_s {
+ 		.get_check = NULL, \
+ 		.memconfig = NULL, \
+ 		.update = NULL, \
++		.set_out_limit = NULL, \
+ 	}
+ 
+ 
+diff --git a/src/liblzma/lz/lz_encoder.c b/src/liblzma/lz/lz_encoder.c
+index 9a74b7c4..08a8afe3 100644
+--- a/src/liblzma/lz/lz_encoder.c
++++ b/src/liblzma/lz/lz_encoder.c
+@@ -521,6 +521,21 @@ lz_encoder_update(void *coder_ptr, const lzma_allocator *allocator,
+ }
+ 
+ 
++static lzma_ret
++lz_encoder_set_out_limit(void *coder_ptr, uint64_t *uncomp_size,
++		uint64_t out_limit)
++{
++	lzma_coder *coder = coder_ptr;
++
++	// This is supported only if there are no other filters chained.
++	if (coder->next.code == NULL && coder->lz.set_out_limit != NULL)
++		return coder->lz.set_out_limit(
++				coder->lz.coder, uncomp_size, out_limit);
++
++	return LZMA_OPTIONS_ERROR;
++}
++
++
+ extern lzma_ret
+ lzma_lz_encoder_init(lzma_next_coder *next, const lzma_allocator *allocator,
+ 		const lzma_filter_info *filters,
+@@ -544,6 +559,7 @@ lzma_lz_encoder_init(lzma_next_coder *next, const lzma_allocator *allocator,
+ 		next->code = &lz_encode;
+ 		next->end = &lz_encoder_end;
+ 		next->update = &lz_encoder_update;
++		next->set_out_limit = &lz_encoder_set_out_limit;
+ 
+ 		coder->lz.coder = NULL;
+ 		coder->lz.code = NULL;
+diff --git a/src/liblzma/lz/lz_encoder.h b/src/liblzma/lz/lz_encoder.h
+index 426dcd8a..e249beba 100644
+--- a/src/liblzma/lz/lz_encoder.h
++++ b/src/liblzma/lz/lz_encoder.h
+@@ -204,6 +204,10 @@ typedef struct {
+ 	/// Update the options in the middle of the encoding.
+ 	lzma_ret (*options_update)(void *coder, const lzma_filter *filter);
+ 
++	/// Set maximum allowed output size
++	lzma_ret (*set_out_limit)(void *coder, uint64_t *uncomp_size,
++			uint64_t out_limit);
++
+ } lzma_lz_encoder;
+ 
+ 
+diff --git a/src/liblzma/lzma/lzma_encoder.c b/src/liblzma/lzma/lzma_encoder.c
+index 07d2b87b..62bb6343 100644
+--- a/src/liblzma/lzma/lzma_encoder.c
++++ b/src/liblzma/lzma/lzma_encoder.c
+@@ -268,6 +268,7 @@ static bool
+ encode_init(lzma_lzma1_encoder *coder, lzma_mf *mf)
+ {
+ 	assert(mf_position(mf) == 0);
++	assert(coder->uncomp_size == 0);
+ 
+ 	if (mf->read_pos == mf->read_limit) {
+ 		if (mf->action == LZMA_RUN)
+@@ -283,6 +284,7 @@ encode_init(lzma_lzma1_encoder *coder, lzma_mf *mf)
+ 		mf->read_ahead = 0;
+ 		rc_bit(&coder->rc, &coder->is_match[0][0], 0);
+ 		rc_bittree(&coder->rc, coder->literal[0], 8, mf->buffer[0]);
++		++coder->uncomp_size;
+ 	}
+ 
+ 	// Initialization is done (except if empty file).
+@@ -317,21 +319,28 @@ lzma_lzma_encode(lzma_lzma1_encoder *restrict coder, lzma_mf *restrict mf,
+ 	if (!coder->is_initialized && !encode_init(coder, mf))
+ 		return LZMA_OK;
+ 
+-	// Get the lowest bits of the uncompressed offset from the LZ layer.
+-	uint32_t position = mf_position(mf);
++	// Encode pending output bytes from the range encoder.
++	// At the start of the stream, encode_init() encodes one literal.
++	// Later there can be pending output only with LZMA1 because LZMA2
++	// ensures that there is always enough output space. Thus when using
++	// LZMA2, rc_encode() calls in this function will always return false.
++	if (rc_encode(&coder->rc, out, out_pos, out_size)) {
++		// We don't get here with LZMA2.
++		assert(limit == UINT32_MAX);
++		return LZMA_OK;
++	}
+ 
+-	while (true) {
+-		// Encode pending bits, if any. Calling this before encoding
+-		// the next symbol is needed only with plain LZMA, since
+-		// LZMA2 always provides big enough buffer to flush
+-		// everything out from the range encoder. For the same reason,
+-		// rc_encode() never returns true when this function is used
+-		// as part of LZMA2 encoder.
+-		if (rc_encode(&coder->rc, out, out_pos, out_size)) {
+-			assert(limit == UINT32_MAX);
+-			return LZMA_OK;
+-		}
++	// If the range encoder was flushed in an earlier call to this
++	// function but there wasn't enough output buffer space, those
++	// bytes would have now been encoded by the above rc_encode() call
++	// and the stream has now been finished. This can only happen with
++	// LZMA1 as LZMA2 always provides enough output buffer space.
++	if (coder->is_flushed) {
++		assert(limit == UINT32_MAX);
++		return LZMA_STREAM_END;
++	}
+ 
++	while (true) {
+ 		// With LZMA2 we need to take care that compressed size of
+ 		// a chunk doesn't get too big.
+ 		// FIXME? Check if this could be improved.
+@@ -365,37 +374,64 @@ lzma_lzma_encode(lzma_lzma1_encoder *restrict coder, lzma_mf *restrict mf,
+ 		if (coder->fast_mode)
+ 			lzma_lzma_optimum_fast(coder, mf, &back, &len);
+ 		else
+-			lzma_lzma_optimum_normal(
+-					coder, mf, &back, &len, position);
+-
+-		encode_symbol(coder, mf, back, len, position);
+-
+-		position += len;
+-	}
++			lzma_lzma_optimum_normal(coder, mf, &back, &len,
++					(uint32_t)(coder->uncomp_size));
++
++		encode_symbol(coder, mf, back, len,
++				(uint32_t)(coder->uncomp_size));
++
++		// If output size limiting is active (out_limit != 0), check
++		// if encoding this LZMA symbol would make the output size
++		// exceed the specified limit.
++		if (coder->out_limit != 0 && rc_encode_dummy(
++				&coder->rc, coder->out_limit)) {
++			// The most recent LZMA symbol would make the output
++			// too big. Throw it away.
++			rc_forget(&coder->rc);
++
++			// FIXME: Tell the LZ layer to not read more input as
++			// it would be waste of time. This doesn't matter if
++			// output-size-limited encoding is done with a single
++			// call though.
+ 
+-	if (!coder->is_flushed) {
+-		coder->is_flushed = true;
+-
+-		// We don't support encoding plain LZMA streams without EOPM,
+-		// and LZMA2 doesn't use EOPM at LZMA level.
+-		if (limit == UINT32_MAX)
+-			encode_eopm(coder, position);
++			break;
++		}
+ 
+-		// Flush the remaining bytes from the range encoder.
+-		rc_flush(&coder->rc);
++		// This symbol will be encoded so update the uncompressed size.
++		coder->uncomp_size += len;
+ 
+-		// Copy the remaining bytes to the output buffer. If there
+-		// isn't enough output space, we will copy out the remaining
+-		// bytes on the next call to this function by using
+-		// the rc_encode() call in the encoding loop above.
++		// Encode the LZMA symbol.
+ 		if (rc_encode(&coder->rc, out, out_pos, out_size)) {
++			// Once again, this can only happen with LZMA1.
+ 			assert(limit == UINT32_MAX);
+ 			return LZMA_OK;
+ 		}
+ 	}
+ 
+-	// Make it ready for the next LZMA2 chunk.
+-	coder->is_flushed = false;
++	// Make the uncompressed size available to the application.
++	if (coder->uncomp_size_ptr != NULL)
++		*coder->uncomp_size_ptr = coder->uncomp_size;
++
++	// LZMA2 doesn't use EOPM at LZMA level.
++	//
++	// Plain LZMA streams without EOPM aren't supported except when
++	// output size limiting is enabled.
++	if (limit == UINT32_MAX && coder->out_limit == 0)
++		encode_eopm(coder, (uint32_t)(coder->uncomp_size));
++
++	// Flush the remaining bytes from the range encoder.
++	rc_flush(&coder->rc);
++
++	// Copy the remaining bytes to the output buffer. If there
++	// isn't enough output space, we will copy out the remaining
++	// bytes on the next call to this function.
++	if (rc_encode(&coder->rc, out, out_pos, out_size)) {
++		// This cannot happen with LZMA2.
++		assert(limit == UINT32_MAX);
++
++		coder->is_flushed = true;
++		return LZMA_OK;
++	}
+ 
+ 	return LZMA_STREAM_END;
+ }
+@@ -414,6 +450,22 @@ lzma_encode(void *coder, lzma_mf *restrict mf,
+ }
+ 
+ 
++static lzma_ret
++lzma_lzma_set_out_limit(
++		void *coder_ptr, uint64_t *uncomp_size, uint64_t out_limit)
++{
++	// Minimum output size is 5 bytes but that cannot hold any output
++	// so we use 6 bytes.
++	if (out_limit < 6)
++		return LZMA_BUF_ERROR;
++
++	lzma_lzma1_encoder *coder = coder_ptr;
++	coder->out_limit = out_limit;
++	coder->uncomp_size_ptr = uncomp_size;
++	return LZMA_OK;
++}
++
++
+ ////////////////////
+ // Initialization //
+ ////////////////////
+@@ -598,6 +650,10 @@ lzma_lzma_encoder_create(void **coder_ptr,
+ 	coder->is_initialized = options->preset_dict != NULL
+ 			&& options->preset_dict_size > 0;
+ 	coder->is_flushed = false;
++	coder->uncomp_size = 0;
++
++	// Output size limitting is disabled by default.
++	coder->out_limit = 0;
+ 
+ 	set_lz_options(lz_options, options);
+ 
+@@ -610,6 +666,7 @@ lzma_encoder_init(lzma_lz_encoder *lz, const lzma_allocator *allocator,
+ 		const void *options, lzma_lz_options *lz_options)
+ {
+ 	lz->code = &lzma_encode;
++	lz->set_out_limit = &lzma_lzma_set_out_limit;
+ 	return lzma_lzma_encoder_create(
+ 			&lz->coder, allocator, options, lz_options);
+ }
+diff --git a/src/liblzma/lzma/lzma_encoder_private.h b/src/liblzma/lzma/lzma_encoder_private.h
+index 2e34aace..8960c52c 100644
+--- a/src/liblzma/lzma/lzma_encoder_private.h
++++ b/src/liblzma/lzma/lzma_encoder_private.h
+@@ -72,6 +72,18 @@ struct lzma_lzma1_encoder_s {
+ 	/// Range encoder
+ 	lzma_range_encoder rc;
+ 
++	/// Uncompressed size (doesn't include possible preset dictionary)
++	uint64_t uncomp_size;
++
++	/// If non-zero, produce at most this much output.
++	/// Some input may then be missing from the output.
++	uint64_t out_limit;
++
++	/// If the above out_limit is non-zero, *uncomp_size_ptr is set to
++	/// the amount of uncompressed data that we were able to fit
++	/// in the output buffer.
++	uint64_t *uncomp_size_ptr;
++
+ 	/// State
+ 	lzma_lzma_state state;
+ 
+diff --git a/src/liblzma/rangecoder/range_encoder.h b/src/liblzma/rangecoder/range_encoder.h
+index 4f3b30ca..1bcfd7a5 100644
+--- a/src/liblzma/rangecoder/range_encoder.h
++++ b/src/liblzma/rangecoder/range_encoder.h
+@@ -30,6 +30,9 @@ typedef struct {
+ 	uint32_t range;
+ 	uint8_t cache;
+ 
++	/// Number of bytes written out by rc_encode() -> rc_shift_low()
++	uint64_t out_total;
++
+ 	/// Number of symbols in the tables
+ 	size_t count;
+ 
+@@ -58,11 +61,21 @@ rc_reset(lzma_range_encoder *rc)
+ 	rc->cache_size = 1;
+ 	rc->range = UINT32_MAX;
+ 	rc->cache = 0;
++	rc->out_total = 0;
+ 	rc->count = 0;
+ 	rc->pos = 0;
+ }
+ 
+ 
++static inline void
++rc_forget(lzma_range_encoder *rc)
++{
++	// This must not be called when rc_encode() is partially done.
++	assert(rc->pos == 0);
++	rc->count = 0;
++}
++
++
+ static inline void
+ rc_bit(lzma_range_encoder *rc, probability *prob, uint32_t bit)
+ {
+@@ -132,6 +145,7 @@ rc_shift_low(lzma_range_encoder *rc,
+ 
+ 			out[*out_pos] = rc->cache + (uint8_t)(rc->low >> 32);
+ 			++*out_pos;
++			++rc->out_total;
+ 			rc->cache = 0xFF;
+ 
+ 		} while (--rc->cache_size != 0);
+@@ -146,6 +160,31 @@ rc_shift_low(lzma_range_encoder *rc,
+ }
+ 
+ 
++static inline bool
++rc_shift_low_dummy(uint64_t *low, uint64_t *cache_size, uint8_t *cache,
++		size_t *out_pos, size_t out_size)
++{
++	if ((uint32_t)(*low) < (uint32_t)(0xFF000000)
++			|| (uint32_t)(*low >> 32) != 0) {
++		do {
++			if (*out_pos == out_size)
++				return true;
++
++			++*out_pos;
++			*cache = 0xFF;
++
++		} while (--*cache_size != 0);
++
++		*cache = (*low >> 24) & 0xFF;
++	}
++
++	++*cache_size;
++	*low = (*low & 0x00FFFFFF) << RC_SHIFT_BITS;
++
++	return false;
++}
++
++
+ static inline bool
+ rc_encode(lzma_range_encoder *rc,
+ 		uint8_t *out, size_t *out_pos, size_t out_size)
+@@ -222,6 +261,78 @@ rc_encode(lzma_range_encoder *rc,
+ }
+ 
+ 
++static inline bool
++rc_encode_dummy(const lzma_range_encoder *rc, size_t out_size)
++{
++	assert(rc->count <= RC_SYMBOLS_MAX);
++
++	uint64_t low = rc->low;
++	uint64_t cache_size = rc->cache_size;
++	uint32_t range = rc->range;
++	uint8_t cache = rc->cache;
++	uint64_t out_pos = rc->out_total;
++
++	size_t pos = rc->pos;
++
++	while (pos < rc->count) {
++		// Normalize
++		if (range < RC_TOP_VALUE) {
++			if (rc_shift_low_dummy(&low, &cache_size, &cache,
++					&out_pos, out_size))
++				return true;
++
++			range <<= RC_SHIFT_BITS;
++		}
++
++		// Encode a bit
++		switch (rc->symbols[pos]) {
++		case RC_BIT_0: {
++			probability prob = *rc->probs[pos];
++			range = (range >> RC_BIT_MODEL_TOTAL_BITS)
++					* prob;
++			break;
++		}
++
++		case RC_BIT_1: {
++			probability prob = *rc->probs[pos];
++			const uint32_t bound = prob * (range
++					>> RC_BIT_MODEL_TOTAL_BITS);
++			low += bound;
++			range -= bound;
++			break;
++		}
++
++		case RC_DIRECT_0:
++			range >>= 1;
++			break;
++
++		case RC_DIRECT_1:
++			range >>= 1;
++			low += range;
++			break;
++
++		case RC_FLUSH:
++		default:
++			assert(0);
++			break;
++		}
++
++		++pos;
++	}
++
++	// Flush the last bytes. This isn't in rc->symbols[] so we do
++	// it after the above loop to take into account the size of
++	// the flushing that will be done at the end of the stream.
++	for (pos = 0; pos < 5; ++pos) {
++		if (rc_shift_low_dummy(&low, &cache_size,
++				&cache, &out_pos, out_size))
++			return true;
++	}
++
++	return false;
++}
++
++
+ static inline uint64_t
+ rc_pending(const lzma_range_encoder *rc)
+ {

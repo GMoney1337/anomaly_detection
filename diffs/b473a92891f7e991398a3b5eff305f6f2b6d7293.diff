@@ -1,0 +1,165 @@
+diff --git a/INSTALL b/INSTALL
+index 67df1880..7fb41fa6 100644
+--- a/INSTALL
++++ b/INSTALL
+@@ -596,7 +596,7 @@ XZ Utils Installation
+     a fallback xzdiff will use mkdir to securely create a temporary
+     directory. Having mktemp available is still recommended since the
+     mkdir fallback method isn't as robust as mktemp is. The original
+-    mktemp can be found from <http://www.mktemp.org/>. On GNU, most will
++    mktemp can be found from <https://www.mktemp.org/>. On GNU, most will
+     use the mktemp program from GNU coreutils instead of the original
+     implementation. Both mktemp versions are fine.
+ 
+diff --git a/README b/README
+index b9081ed4..ed1cace1 100644
+--- a/README
++++ b/README
+@@ -113,8 +113,8 @@ XZ Utils
+     Since the liblzma API has similarities to the zlib API, some people
+     may find it useful to read the zlib docs and tutorial too:
+ 
+-        http://zlib.net/manual.html
+-        http://zlib.net/zlib_how.html
++        https://zlib.net/manual.html
++        https://zlib.net/zlib_how.html
+ 
+ 
+ 2. Version numbering
+@@ -281,8 +281,8 @@ XZ Utils
+     7-Zip and the p7zip port of 7-Zip support the .xz format starting
+     from the version 9.00alpha.
+ 
+-        http://7-zip.org/
+-        http://p7zip.sourceforge.net/
++        https://7-zip.org/
++        https://p7zip.sourceforge.net/
+ 
+     XZ Embedded is a limited implementation written for use in the Linux
+     kernel, but it is also suitable for other embedded use.
+diff --git a/configure.ac b/configure.ac
+index 631b1877..d8811b9b 100644
+--- a/configure.ac
++++ b/configure.ac
+@@ -596,7 +596,7 @@ echo "Initializing Automake:"
+ 
+ # We don't use "subdir-objects" yet because it breaks "make distclean" when
+ # dependencies are enabled (as of Automake 1.14.1) due to this bug:
+-# http://debbugs.gnu.org/cgi/bugreport.cgi?bug=17354
++# https://debbugs.gnu.org/cgi/bugreport.cgi?bug=17354
+ # The -Wno-unsupported is used to silence warnings about missing
+ # "subdir-objects".
+ AM_INIT_AUTOMAKE([1.12 foreign tar-v7 filename-length-max=99 -Wno-unsupported])
+diff --git a/dos/INSTALL.txt b/dos/INSTALL.txt
+index 4c13211f..e5ba85bd 100644
+--- a/dos/INSTALL.txt
++++ b/dos/INSTALL.txt
+@@ -17,7 +17,7 @@ Introduction
+ 
+ Getting and Installing DJGPP
+ 
+-    You may use <http://www.delorie.com/djgpp/zip-picker.html> to help
++    You may use <https://www.delorie.com/djgpp/zip-picker.html> to help
+     deciding what to download. If you are only interested in building
+     XZ Utils, the zip-picker may list files that you don't strictly
+     need. However, using the zip-picker can still be worth it to get a
+@@ -25,7 +25,7 @@ Getting and Installing DJGPP
+     from readme.1st too).
+ 
+     For a more manual method, first select a mirror from
+-    <http://www.delorie.com/djgpp/getting.html> and go the
++    <https://www.delorie.com/djgpp/getting.html> and go the
+     subdirectory named "current". You need the following files:
+ 
+         unzip32.exe  (if you don't already have a LFN-capable unzipper)
+diff --git a/src/liblzma/api/lzma.h b/src/liblzma/api/lzma.h
+index ba4abd8c..4d8e3994 100644
+--- a/src/liblzma/api/lzma.h
++++ b/src/liblzma/api/lzma.h
+@@ -8,16 +8,16 @@
+  * format and raw (no headers) streams are supported. Multiple compression
+  * algorithms (filters) are supported. Currently LZMA2 is the primary filter.
+  *
+- * liblzma is part of XZ Utils <http://tukaani.org/xz/>. XZ Utils includes
++ * liblzma is part of XZ Utils <https://tukaani.org/xz/>. XZ Utils includes
+  * a gzip-like command line tool named xz and some other tools. XZ Utils
+  * is developed and maintained by Lasse Collin.
+  *
+  * Major parts of liblzma are based on Igor Pavlov's public domain LZMA SDK
+- * <http://7-zip.org/sdk.html>.
++ * <https://7-zip.org/sdk.html>.
+  *
+  * The SHA-256 implementation is based on the public domain code found from
+- * 7-Zip <http://7-zip.org/>, which has a modified version of the public
+- * domain SHA-256 code found from Crypto++ <http://www.cryptopp.com/>.
++ * 7-Zip <https://7-zip.org/>, which has a modified version of the public
++ * domain SHA-256 code found from Crypto++ <https://www.cryptopp.com/>.
+  * The SHA-256 code in Crypto++ was written by Kevin Springle and Wei Dai.
+  */
+ 
+diff --git a/src/liblzma/check/sha256.c b/src/liblzma/check/sha256.c
+index 5eede5ce..6feb3425 100644
+--- a/src/liblzma/check/sha256.c
++++ b/src/liblzma/check/sha256.c
+@@ -8,7 +8,7 @@
+ ///             conditionally to keep the code working on older boxes.
+ //
+ //  This code is based on the code found from 7-Zip, which has a modified
+-//  version of the SHA-256 found from Crypto++ <http://www.cryptopp.com/>.
++//  version of the SHA-256 found from Crypto++ <https://www.cryptopp.com/>.
+ //  The code was modified a little to fit into liblzma.
+ //
+ //  Authors:    Kevin Springle
+diff --git a/src/xz/xz.1 b/src/xz/xz.1
+index caa5a068..aefb79f2 100644
+--- a/src/xz/xz.1
++++ b/src/xz/xz.1
+@@ -3017,4 +3017,4 @@ XZ Utils: <https://tukaani.org/xz/>
+ .br
+ XZ Embedded: <https://tukaani.org/xz/embedded.html>
+ .br
+-LZMA SDK: <http://7-zip.org/sdk.html>
++LZMA SDK: <https://7-zip.org/sdk.html>
+diff --git a/windows/INSTALL-MinGW.txt b/windows/INSTALL-MinGW.txt
+index 90921711..72e2718f 100644
+--- a/windows/INSTALL-MinGW.txt
++++ b/windows/INSTALL-MinGW.txt
+@@ -32,7 +32,7 @@ Installing the toolchain(s)
+     So you need to pick between MinGW and MinGW-w32 when building
+     32-bit version. You don't need both.
+ 
+-    You might find 7-Zip <http://7-zip.org/> handy when extracting
++    You might find 7-Zip <https://7-zip.org/> handy when extracting
+     some files. The ready-made build script build.bash will also use
+     7-Zip to create the distributable .zip and .7z files.
+ 
+@@ -50,7 +50,7 @@ Installing MSYS
+ 
+     You can download MSYS from MinGW's Sourceforge page:
+ 
+-        http://sourceforge.net/projects/mingw/files/MSYS/Base/msys-core/
++        https://sourceforge.net/projects/mingw/files/MSYS/Base/msys-core/
+ 
+     I recommend using MSYS 1.0.11 (MSYS-1.0.11.exe or
+     msysCORE-1.0.11-bin.tar.gz) because that package includes all the
+@@ -69,7 +69,7 @@ Installing MinGW
+ 
+     You can download the required packages from MinGW's Sourceforge page:
+ 
+-        http://sourceforge.net/projects/mingw/files/
++        https://sourceforge.net/projects/mingw/files/
+ 
+     These version numbers were the latest when I wrote this document, but
+     you probably should pick the latest versions:
+@@ -94,9 +94,9 @@ Installing MinGW-w32 or MinGW-w64
+     toolchain. For XZ Utils 5.2.0 I used the packages from these
+     directories:
+ 
+-        http://sourceforge.net/projects/mingw-w64/files/Toolchains%20targetting%20Win32/Personal%20Builds/mingw-builds/4.9.2/threads-win32/sjlj/
++        https://sourceforge.net/projects/mingw-w64/files/Toolchains%20targetting%20Win32/Personal%20Builds/mingw-builds/4.9.2/threads-win32/sjlj/
+ 
+-        http://sourceforge.net/projects/mingw-w64/files/Toolchains%20targetting%20Win64/Personal%20Builds/mingw-builds/4.9.2/threads-win32/sjlj/
++        https://sourceforge.net/projects/mingw-w64/files/Toolchains%20targetting%20Win64/Personal%20Builds/mingw-builds/4.9.2/threads-win32/sjlj/
+ 
+     If you install both MinGW-w32 and MinGW-w64, remember to extract
+     them into different directories. build.bash looks at

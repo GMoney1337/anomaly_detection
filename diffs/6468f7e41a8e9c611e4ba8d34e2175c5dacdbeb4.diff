@@ -1,0 +1,28 @@
+diff --git a/src/liblzma/lzma/lzma2_encoder.c b/src/liblzma/lzma/lzma2_encoder.c
+index 63588ee3..6914f279 100644
+--- a/src/liblzma/lzma/lzma2_encoder.c
++++ b/src/liblzma/lzma/lzma2_encoder.c
+@@ -378,6 +378,9 @@ lzma_lzma2_encoder_memusage(const void *options)
+ extern lzma_ret
+ lzma_lzma2_props_encode(const void *options, uint8_t *out)
+ {
++	if (options == NULL)
++		return LZMA_PROG_ERROR;
++
+ 	const lzma_options_lzma *const opt = options;
+ 	uint32_t d = my_max(opt->dict_size, LZMA_DICT_SIZE_MIN);
+ 
+diff --git a/src/liblzma/lzma/lzma_encoder.c b/src/liblzma/lzma/lzma_encoder.c
+index 1f801453..8b90c059 100644
+--- a/src/liblzma/lzma/lzma_encoder.c
++++ b/src/liblzma/lzma/lzma_encoder.c
+@@ -716,6 +716,9 @@ lzma_lzma_lclppb_encode(const lzma_options_lzma *options, uint8_t *byte)
+ extern lzma_ret
+ lzma_lzma_props_encode(const void *options, uint8_t *out)
+ {
++	if (options == NULL)
++		return LZMA_PROG_ERROR;
++
+ 	const lzma_options_lzma *const opt = options;
+ 
+ 	if (lzma_lzma_lclppb_encode(opt, out))

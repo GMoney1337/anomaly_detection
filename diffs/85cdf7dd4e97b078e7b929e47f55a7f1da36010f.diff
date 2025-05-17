@@ -1,0 +1,15 @@
+diff --git a/INSTALL b/INSTALL
+index 339fedb9..9a3dd9cc 100644
+--- a/INSTALL
++++ b/INSTALL
+@@ -68,6 +68,10 @@ XZ Utils Installation
+     the -O2 optimization flag ("make check" fails). Using -O1 should
+     work.
+ 
++    A problem has been reported when using shared liblzma. Passing
++    --disable-shared to configure works around this. Alternatively,
++    putting "-64" to CFLAGS to build a 64-bit version might help too.
++
+ 
+ 1.2.2. MINIX 3
+ 

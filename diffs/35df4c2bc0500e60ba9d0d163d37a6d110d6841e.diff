@@ -1,0 +1,41 @@
+diff --git a/src/xz/args.c b/src/xz/args.c
+index cf0c9a3a..e85d1526 100644
+--- a/src/xz/args.c
++++ b/src/xz/args.c
+@@ -612,6 +612,9 @@ parse_real(args_info *args, int argc, char **argv)
+ 
+ 		case OPT_SINGLE_STREAM:
+ 			opt_single_stream = true;
++
++			// Since 5.7.1alpha --single-stream implies --keep.
++			opt_keep_original = true;
+ 			break;
+ 
+ 		case OPT_NO_SPARSE:
+diff --git a/src/xz/xz.1 b/src/xz/xz.1
+index 41a0a48c..803650d3 100644
+--- a/src/xz/xz.1
++++ b/src/xz/xz.1
+@@ -4,7 +4,7 @@
+ .\" Authors: Lasse Collin
+ .\"          Jia Tan
+ .\"
+-.TH XZ 1 "2024-12-30" "Tukaani" "XZ Utils"
++.TH XZ 1 "2025-01-04" "Tukaani" "XZ Utils"
+ .
+ .SH NAME
+ xz, unxz, xzcat, lzma, unlzma, lzcat \- Compress or decompress .xz and .lzma files
+@@ -497,6 +497,13 @@ This option has no effect if the operation mode is not
+ .B \-\-decompress
+ or
+ .BR \-\-test .
++.IP ""
++Since
++.B xz
++5.7.1alpha,
++.B \-\-single\-stream
++implies
++.BR \-\-keep .
+ .TP
+ .B \-\-no\-sparse
+ Disable creation of sparse files.

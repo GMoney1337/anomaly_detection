@@ -1,0 +1,203 @@
+diff --git a/src/liblzma/api/lzma.h b/src/liblzma/api/lzma.h
+index 8fbd9a87..ba4abd8c 100644
+--- a/src/liblzma/api/lzma.h
++++ b/src/liblzma/api/lzma.h
+@@ -1,6 +1,7 @@
+ /**
+  * \file        api/lzma.h
+  * \brief       The public API of liblzma data compression library
++ * \mainpage
+  *
+  * liblzma is a public domain general-purpose data compression library with
+  * a zlib-like API. The native file format is .xz, but also the old .lzma
+diff --git a/src/liblzma/api/lzma/base.h b/src/liblzma/api/lzma/base.h
+index 62d86d84..75cdd72a 100644
+--- a/src/liblzma/api/lzma/base.h
++++ b/src/liblzma/api/lzma/base.h
+@@ -2,8 +2,6 @@
+  * \file        lzma/base.h
+  * \brief       Data types and functions used in many places in liblzma API
+  * \note        Never include this file directly. Use <lzma.h> instead.
+- *
+- * See ../lzma.h for information about liblzma as a whole.
+  */
+ 
+ /*
+diff --git a/src/liblzma/api/lzma/bcj.h b/src/liblzma/api/lzma/bcj.h
+index 3e58f302..eecdf5fd 100644
+--- a/src/liblzma/api/lzma/bcj.h
++++ b/src/liblzma/api/lzma/bcj.h
+@@ -2,8 +2,6 @@
+  * \file        lzma/bcj.h
+  * \brief       Branch/Call/Jump conversion filters
+  * \note        Never include this file directly. Use <lzma.h> instead.
+- *
+- * See ../lzma.h for information about liblzma as a whole.
+  */
+ 
+ /*
+diff --git a/src/liblzma/api/lzma/block.h b/src/liblzma/api/lzma/block.h
+index f556ce34..ec5e77a6 100644
+--- a/src/liblzma/api/lzma/block.h
++++ b/src/liblzma/api/lzma/block.h
+@@ -2,8 +2,6 @@
+  * \file        lzma/block.h
+  * \brief       .xz Block handling
+  * \note        Never include this file directly. Use <lzma.h> instead.
+- *
+- * See ../lzma.h for information about liblzma as a whole.
+  */
+ 
+ /*
+diff --git a/src/liblzma/api/lzma/check.h b/src/liblzma/api/lzma/check.h
+index 5d793959..b37197d2 100644
+--- a/src/liblzma/api/lzma/check.h
++++ b/src/liblzma/api/lzma/check.h
+@@ -2,8 +2,6 @@
+  * \file        lzma/check.h
+  * \brief       Integrity checks
+  * \note        Never include this file directly. Use <lzma.h> instead.
+- *
+- * See ../lzma.h for information about liblzma as a whole.
+  */
+ 
+ /*
+diff --git a/src/liblzma/api/lzma/container.h b/src/liblzma/api/lzma/container.h
+index 33fccf90..48a64365 100644
+--- a/src/liblzma/api/lzma/container.h
++++ b/src/liblzma/api/lzma/container.h
+@@ -2,8 +2,6 @@
+  * \file        lzma/container.h
+  * \brief       File formats
+  * \note        Never include this file directly. Use <lzma.h> instead.
+- *
+- * See ../lzma.h for information about liblzma as a whole.
+  */
+ 
+ /*
+diff --git a/src/liblzma/api/lzma/delta.h b/src/liblzma/api/lzma/delta.h
+index 3d7a7f02..7a725bc4 100644
+--- a/src/liblzma/api/lzma/delta.h
++++ b/src/liblzma/api/lzma/delta.h
+@@ -2,8 +2,6 @@
+  * \file        lzma/delta.h
+  * \brief       Delta filter
+  * \note        Never include this file directly. Use <lzma.h> instead.
+- *
+- * See ../lzma.h for information about liblzma as a whole.
+  */
+ 
+ /*
+diff --git a/src/liblzma/api/lzma/filter.h b/src/liblzma/api/lzma/filter.h
+index b030c2ca..fa612455 100644
+--- a/src/liblzma/api/lzma/filter.h
++++ b/src/liblzma/api/lzma/filter.h
+@@ -2,8 +2,6 @@
+  * \file        lzma/filter.h
+  * \brief       Common filter related types and functions
+  * \note        Never include this file directly. Use <lzma.h> instead.
+- *
+- * See ../lzma.h for information about liblzma as a whole.
+  */
+ 
+ /*
+diff --git a/src/liblzma/api/lzma/hardware.h b/src/liblzma/api/lzma/hardware.h
+index 974f210c..f34897d8 100644
+--- a/src/liblzma/api/lzma/hardware.h
++++ b/src/liblzma/api/lzma/hardware.h
+@@ -3,8 +3,6 @@
+  * \brief       Hardware information
+  * \note        Never include this file directly. Use <lzma.h> instead.
+  *
+- * See ../lzma.h for information about liblzma as a whole.
+- *
+  * Since liblzma can consume a lot of system resources, it also provides
+  * ways to limit the resource usage. Applications linking against liblzma
+  * need to do the actual decisions how much resources to let liblzma to use.
+diff --git a/src/liblzma/api/lzma/index.h b/src/liblzma/api/lzma/index.h
+index 46afe3eb..46455b12 100644
+--- a/src/liblzma/api/lzma/index.h
++++ b/src/liblzma/api/lzma/index.h
+@@ -2,8 +2,6 @@
+  * \file        lzma/index.h
+  * \brief       Handling of .xz Index and related information
+  * \note        Never include this file directly. Use <lzma.h> instead.
+- *
+- * See ../lzma.h for information about liblzma as a whole.
+  */
+ 
+ /*
+diff --git a/src/liblzma/api/lzma/index_hash.h b/src/liblzma/api/lzma/index_hash.h
+index 5780ab3a..a2d4c484 100644
+--- a/src/liblzma/api/lzma/index_hash.h
++++ b/src/liblzma/api/lzma/index_hash.h
+@@ -3,8 +3,6 @@
+  * \brief       Validate Index by using a hash function
+  * \note        Never include this file directly. Use <lzma.h> instead.
+  *
+- * See ../lzma.h for information about liblzma as a whole.
+- *
+  * Hashing makes it possible to use constant amount of memory to validate
+  * Index of arbitrary size.
+  */
+@@ -118,7 +116,7 @@ extern LZMA_API(lzma_ret) lzma_index_hash_decode(lzma_index_hash *index_hash,
+  * This is needed to verify the Backward Size field in the Stream Footer.
+  *
+  * \param       index_hash      Pointer to a lzma_index_hash structure
+- * 
++ *
+  * \return      Size of the Index field in bytes.
+  */
+ extern LZMA_API(lzma_vli) lzma_index_hash_size(
+diff --git a/src/liblzma/api/lzma/lzma12.h b/src/liblzma/api/lzma/lzma12.h
+index e7d00fcc..ad4ce7b1 100644
+--- a/src/liblzma/api/lzma/lzma12.h
++++ b/src/liblzma/api/lzma/lzma12.h
+@@ -2,8 +2,6 @@
+  * \file        lzma/lzma12.h
+  * \brief       LZMA1 and LZMA2 filters
+  * \note        Never include this file directly. Use <lzma.h> instead.
+- *
+- * See ../lzma.h for information about liblzma as a whole.
+  */
+ 
+ /*
+diff --git a/src/liblzma/api/lzma/stream_flags.h b/src/liblzma/api/lzma/stream_flags.h
+index 253706e2..7622a621 100644
+--- a/src/liblzma/api/lzma/stream_flags.h
++++ b/src/liblzma/api/lzma/stream_flags.h
+@@ -2,8 +2,6 @@
+  * \file        lzma/stream_flags.h
+  * \brief       .xz Stream Header and Stream Footer encoder and decoder
+  * \note        Never include this file directly. Use <lzma.h> instead.
+- *
+- * See ../lzma.h for information about liblzma as a whole.
+  */
+ 
+ /*
+diff --git a/src/liblzma/api/lzma/version.h b/src/liblzma/api/lzma/version.h
+index 201104ab..294ec80c 100644
+--- a/src/liblzma/api/lzma/version.h
++++ b/src/liblzma/api/lzma/version.h
+@@ -2,8 +2,6 @@
+  * \file        lzma/version.h
+  * \brief       Version number
+  * \note        Never include this file directly. Use <lzma.h> instead.
+- *
+- * See ../lzma.h for information about liblzma as a whole.
+  */
+ 
+ /*
+diff --git a/src/liblzma/api/lzma/vli.h b/src/liblzma/api/lzma/vli.h
+index 097801a4..f9ad1550 100644
+--- a/src/liblzma/api/lzma/vli.h
++++ b/src/liblzma/api/lzma/vli.h
+@@ -3,8 +3,6 @@
+  * \brief       Variable-length integer handling
+  * \note        Never include this file directly. Use <lzma.h> instead.
+  *
+- * See ../lzma.h for information about liblzma as a whole.
+- *
+  * In the .xz format, most integers are encoded in a variable-length
+  * representation, which is sometimes called little endian base-128 encoding.
+  * This saves space when smaller values are more likely than bigger values.

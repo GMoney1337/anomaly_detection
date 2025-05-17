@@ -1,0 +1,12 @@
+diff --git a/THANKS b/THANKS
+index bbdc079e..94055dab 100644
+--- a/THANKS
++++ b/THANKS
+@@ -66,6 +66,7 @@ has been important. :-) In alphabetical order:
+   - Jan Kratochvil
+   - Christian Kujau
+   - Stephan Kulow
++  - Ilya Kurdyukov
+   - Peter Lawler
+   - James M Leddy
+   - Vincent Lefevre

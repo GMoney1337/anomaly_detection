@@ -1,0 +1,686 @@
+diff --git a/src/liblzma/api/lzma.h b/src/liblzma/api/lzma.h
+index fb593a35..fb874c3e 100644
+--- a/src/liblzma/api/lzma.h
++++ b/src/liblzma/api/lzma.h
+@@ -60,8 +60,8 @@
+  *
+  * Some could argue that liblzma API should provide all the required types,
+  * for example lzma_uint64, LZMA_UINT64_C(n), and LZMA_UINT64_MAX. This was
+- * seen unnecessary mess, since most systems already provide all the necessary
+- * types and macros in the standard headers.
++ * seen as an unnecessary mess, since most systems already provide all the
++ * necessary types and macros in the standard headers.
+  *
+  * Note that liblzma API still has lzma_bool, because using stdbool.h would
+  * break C89 and C++ programs on many systems. sizeof(bool) in C99 isn't
+diff --git a/src/liblzma/api/lzma/base.h b/src/liblzma/api/lzma/base.h
+index 993626a4..fc165ab7 100644
+--- a/src/liblzma/api/lzma/base.h
++++ b/src/liblzma/api/lzma/base.h
+@@ -281,21 +281,21 @@ typedef enum {
+ 		 * Using LZMA_SYNC_FLUSH very often can dramatically reduce
+ 		 * the compression ratio. With some filters (for example,
+ 		 * LZMA2), fine-tuning the compression options may help
+-		 * mitigate this problem significantly.
++		 * mitigate this problem significantly (for example,
++		 * match finder with LZMA2).
+ 		 *
+ 		 * Decoders don't support LZMA_SYNC_FLUSH.
+ 		 */
+ 
+ 	LZMA_FULL_FLUSH = 2,
+ 		/**<
+-		 * \brief       Make all the input available at output
++		 * \brief       Finish encoding of the current Block
+ 		 *
+-		 * Finish encoding of the current Block. All the input
+-		 * data going to the current Block must have been given
+-		 * to the encoder (the last bytes can still be pending in
+-		 * next_in). Call lzma_code() with LZMA_FULL_FLUSH until
+-		 * it returns LZMA_STREAM_END. Then continue normally with
+-		 * LZMA_RUN or finish the Stream with LZMA_FINISH.
++		 * All the input data going to the current Block must have
++		 * been given to the encoder (the last bytes can still be
++		 * pending in* next_in). Call lzma_code() with LZMA_FULL_FLUSH
++		 * until it returns LZMA_STREAM_END. Then continue normally
++		 * with LZMA_RUN or finish the Stream with LZMA_FINISH.
+ 		 *
+ 		 * This action is currently supported only by Stream encoder
+ 		 * and easy encoder (which uses Stream encoder). If there is
+@@ -306,12 +306,12 @@ typedef enum {
+ 		/**<
+ 		 * \brief       Finish the coding operation
+ 		 *
+-		 * Finishes the coding operation. All the input data must
+-		 * have been given to the encoder (the last bytes can still
+-		 * be pending in next_in). Call lzma_code() with LZMA_FINISH
+-		 * until it returns LZMA_STREAM_END. Once LZMA_FINISH has
+-		 * been used, the amount of input must no longer be changed
+-		 * by the application.
++		 * All the input data must have been given to the encoder
++		 * (the last bytes can still be pending in next_in).
++		 * Call lzma_code() with LZMA_FINISH until it returns
++		 * LZMA_STREAM_END. Once LZMA_FINISH has been used,
++		 * the amount of input must no longer be changed by
++		 * the application.
+ 		 *
+ 		 * When decoding, using LZMA_FINISH is optional unless the
+ 		 * LZMA_CONCATENATED flag was used when the decoder was
+@@ -554,11 +554,11 @@ extern LZMA_API(void) lzma_end(lzma_stream *strm) lzma_nothrow;
+  * this may give misleading information if decoding .xz Streams that have
+  * multiple Blocks, because each Block can have different memory requirements.
+  *
+- * \return      Rough estimate of how much memory is currently allocated
+- *              for the filter decoders. If no filter chain is currently
+- *              allocated, some non-zero value is still returned, which is
+- *              less than or equal to what any filter chain would indicate
+- *              as its memory requirement.
++ * \return      How much memory is currently allocated for the filter
++ *              decoders. If no filter chain is currently allocated,
++ *              some non-zero value is still returned, which is less than
++ *              or equal to what any filter chain would indicate as its
++ *              memory requirement.
+  *
+  *              If this function isn't supported by *strm or some other error
+  *              occurs, zero is returned.
+diff --git a/src/liblzma/api/lzma/bcj.h b/src/liblzma/api/lzma/bcj.h
+index 82e4a440..8e37538a 100644
+--- a/src/liblzma/api/lzma/bcj.h
++++ b/src/liblzma/api/lzma/bcj.h
+@@ -31,7 +31,7 @@
+ 
+ #define LZMA_FILTER_IA64        LZMA_VLI_C(0x06)
+ 	/**<
+-	 * Filter for IA64 (Itanium) binaries.
++	 * Filter for IA-64 (Itanium) binaries.
+ 	 */
+ 
+ #define LZMA_FILTER_ARM         LZMA_VLI_C(0x07)
+@@ -41,7 +41,7 @@
+ 
+ #define LZMA_FILTER_ARMTHUMB    LZMA_VLI_C(0x08)
+ 	/**<
+-	 * Filter for ARMThumb binaries.
++	 * Filter for ARM-Thumb binaries.
+ 	 */
+ 
+ #define LZMA_FILTER_SPARC       LZMA_VLI_C(0x09)
+diff --git a/src/liblzma/api/lzma/block.h b/src/liblzma/api/lzma/block.h
+index 8e681ed2..3019bf91 100644
+--- a/src/liblzma/api/lzma/block.h
++++ b/src/liblzma/api/lzma/block.h
+@@ -318,8 +318,8 @@ extern LZMA_API(lzma_ret) lzma_block_header_encode(
+  * The size of the Block Header must have already been decoded with
+  * lzma_block_header_size_decode() macro and stored to block->header_size.
+  *
+- * block->filters must have been allocated, but not necessarily initialized.
+- * Possible existing filter options are _not_ freed.
++ * block->filters must have been allocated, but they don't need to be
++ * initialized (possible existing filter options are not freed).
+  *
+  * \param       block       Destination for Block options.
+  * \param       allocator   lzma_allocator for custom allocator functions.
+diff --git a/src/liblzma/api/lzma/container.h b/src/liblzma/api/lzma/container.h
+index 0d907650..83e70b44 100644
+--- a/src/liblzma/api/lzma/container.h
++++ b/src/liblzma/api/lzma/container.h
+@@ -55,13 +55,13 @@
+  *
+  * This flag doesn't affect the memory usage requirements of the decoder (at
+  * least not significantly). The memory usage of the encoder may be increased
+- * a little but only at the lowest preset levels (0-2).
++ * a little but only at the lowest preset levels (0-3).
+  */
+ #define LZMA_PRESET_EXTREME       (UINT32_C(1) << 31)
+ 
+ 
+ /**
+- * \brief       Calculate rough memory usage of easy encoder
++ * \brief       Calculate approximate memory usage of easy encoder
+  *
+  * This function is a wrapper for lzma_raw_encoder_memusage().
+  *
+@@ -72,7 +72,7 @@ extern LZMA_API(uint64_t) lzma_easy_encoder_memusage(uint32_t preset)
+ 
+ 
+ /**
+- * \brief       Calculate rough decoder memory usage of a preset
++ * \brief       Calculate approximate decoder memory usage of a preset
+  *
+  * This function is a wrapper for lzma_raw_decoder_memusage().
+  *
+@@ -93,16 +93,19 @@ extern LZMA_API(uint64_t) lzma_easy_decoder_memusage(uint32_t preset)
+  * \param       preset  Compression preset to use. A preset consist of level
+  *                      number and zero or more flags. Usually flags aren't
+  *                      used, so preset is simply a number [0, 9] which match
+- *                      the options -0 .. -9 of the xz command line tool.
++ *                      the options -0 ... -9 of the xz command line tool.
+  *                      Additional flags can be be set using bitwise-or with
+  *                      the preset level number, e.g. 6 | LZMA_PRESET_EXTREME.
+  * \param       check   Integrity check type to use. See check.h for available
+- *                      checks. If you are unsure, use LZMA_CHECK_CRC32.
++ *                      checks. The xz command line tool defaults to
++ *                      LZMA_CHECK_CRC64, which is a good choice if you are
++ *                      unsure. LZMA_CHECK_CRC32 is good too as long as the
++ *                      uncompressed file is not many gigabytes.
+  *
+  * \return      - LZMA_OK: Initialization succeeded. Use lzma_code() to
+  *                encode your data.
+  *              - LZMA_MEM_ERROR: Memory allocation failed.
+- *              - LZMA_OPTIONS_ERROR: The given compression level is not
++ *              - LZMA_OPTIONS_ERROR: The given compression preset is not
+  *                supported by this build of liblzma.
+  *              - LZMA_UNSUPPORTED_CHECK: The given check type is not
+  *                supported by this liblzma build.
+@@ -310,7 +313,8 @@ extern LZMA_API(lzma_ret) lzma_stream_buffer_encode(
+  * \brief       Initialize .xz Stream decoder
+  *
+  * \param       strm        Pointer to properly prepared lzma_stream
+- * \param       memlimit    Rough memory usage limit as bytes
++ * \param       memlimit    Memory usage limit as bytes. Use UINT64_MAX
++ *                          to effectively disable the limiter.
+  * \param       flags       Bitwise-or of zero or more of the decoder flags:
+  *                          LZMA_TELL_NO_CHECK, LZMA_TELL_UNSUPPORTED_CHECK,
+  *                          LZMA_TELL_ANY_CHECK, LZMA_CONCATENATED
+@@ -318,6 +322,7 @@ extern LZMA_API(lzma_ret) lzma_stream_buffer_encode(
+  * \return      - LZMA_OK: Initialization was successful.
+  *              - LZMA_MEM_ERROR: Cannot allocate memory.
+  *              - LZMA_OPTIONS_ERROR: Unsupported flags
++ *              - LZMA_PROG_ERROR
+  */
+ extern LZMA_API(lzma_ret) lzma_stream_decoder(
+ 		lzma_stream *strm, uint64_t memlimit, uint32_t flags)
+@@ -332,12 +337,14 @@ extern LZMA_API(lzma_ret) lzma_stream_decoder(
+  * of the input file has been detected.
+  *
+  * \param       strm        Pointer to properly prepared lzma_stream
+- * \param       memlimit    Rough memory usage limit as bytes
++ * \param       memlimit    Memory usage limit as bytes. Use UINT64_MAX
++ *                          to effectively disable the limiter.
+  * \param       flags       Bitwise-or of flags, or zero for no flags.
+  *
+  * \return      - LZMA_OK: Initialization was successful.
+  *              - LZMA_MEM_ERROR: Cannot allocate memory.
+  *              - LZMA_OPTIONS_ERROR: Unsupported flags
++ *              - LZMA_PROG_ERROR
+  */
+ extern LZMA_API(lzma_ret) lzma_auto_decoder(
+ 		lzma_stream *strm, uint64_t memlimit, uint32_t flags)
+@@ -353,6 +360,7 @@ extern LZMA_API(lzma_ret) lzma_auto_decoder(
+  *
+  * \return      - LZMA_OK
+  *              - LZMA_MEM_ERROR
++ *              - LZMA_PROG_ERROR
+  */
+ extern LZMA_API(lzma_ret) lzma_alone_decoder(
+ 		lzma_stream *strm, uint64_t memlimit)
+@@ -379,7 +387,7 @@ extern LZMA_API(lzma_ret) lzma_alone_decoder(
+  *                          won't be read is in[in_size].
+  * \param       out         Beginning of the output buffer
+  * \param       out_pos     The next byte will be written to out[*out_pos].
+- *                          *out_pos is updated only if encoding succeeds.
++ *                          *out_pos is updated only if decoding succeeds.
+  * \param       out_size    Size of the out buffer; the first byte into
+  *                          which no data is written to is out[out_size].
+  *
+diff --git a/src/liblzma/api/lzma/filter.h b/src/liblzma/api/lzma/filter.h
+index 038a9339..efd036f7 100644
+--- a/src/liblzma/api/lzma/filter.h
++++ b/src/liblzma/api/lzma/filter.h
+@@ -1,6 +1,6 @@
+ /**
+  * \file        lzma/filter.h
+- * \brief       Common filter related types
++ * \brief       Common filter related types and functions
+  */
+ 
+ /*
+@@ -59,11 +59,6 @@ typedef struct {
+ 	 * If the filter doesn't need options, set this to NULL. If id is
+ 	 * set to LZMA_VLI_UNKNOWN, options is ignored, and thus
+ 	 * doesn't need be initialized.
+-	 *
+-	 * Some filters support changing the options in the middle of
+-	 * the encoding process. These filters store the pointer of the
+-	 * options structure and communicate with the application via
+-	 * modifications of the options structure.
+ 	 */
+ 	void *options;
+ 
+@@ -126,15 +121,16 @@ extern LZMA_API(lzma_ret) lzma_filters_copy(const lzma_filter *src,
+ 
+ 
+ /**
+- * \brief       Calculate rough memory requirements for raw encoder
++ * \brief       Calculate approximate memory requirements for raw encoder
+  *
+- * Because the calculation is rough, this function can be used to calculate
+- * the memory requirements for Block and Stream encoders too.
++ * This function can be used to calculate the memory requirements for
++ * Block and Stream encoders too because Block and Stream encoders don't
++ * need significantly more memory than raw encoder.
+  *
+  * \param       filters     Array of filters terminated with
+  *                          .id == LZMA_VLI_UNKNOWN.
+  *
+- * \return      Rough number of bytes of memory required for the given
++ * \return      Number of bytes of memory required for the given
+  *              filter chain when encoding.
+  */
+ extern LZMA_API(uint64_t) lzma_raw_encoder_memusage(const lzma_filter *filters)
+@@ -142,15 +138,16 @@ extern LZMA_API(uint64_t) lzma_raw_encoder_memusage(const lzma_filter *filters)
+ 
+ 
+ /**
+- * \brief       Calculate rough memory requirements for raw decoder
++ * \brief       Calculate approximate memory requirements for raw decoder
+  *
+- * Because the calculation is rough, this function can be used to calculate
+- * the memory requirements for Block and Stream decoders too.
++ * This function can be used to calculate the memory requirements for
++ * Block and Stream decoders too because Block and Stream decoders don't
++ * need significantly more memory than raw decoder.
+  *
+  * \param       filters     Array of filters terminated with
+  *                          .id == LZMA_VLI_UNKNOWN.
+  *
+- * \return      Rough number of bytes of memory required for the given
++ * \return      Number of bytes of memory required for the given
+  *              filter chain when decoding.
+  */
+ extern LZMA_API(uint64_t) lzma_raw_decoder_memusage(const lzma_filter *filters)
+@@ -251,7 +248,8 @@ extern LZMA_API(lzma_ret) lzma_filters_update(
+  *
+  * \note        There is no function to calculate how big output buffer
+  *              would surely be big enough. (lzma_stream_buffer_bound()
+- *              works only for lzma_stream_buffer_encode().)
++ *              works only for lzma_stream_buffer_encode(); raw encoder
++ *              won't necessarily meet that bound.)
+  */
+ extern LZMA_API(lzma_ret) lzma_raw_buffer_encode(
+ 		const lzma_filter *filters, lzma_allocator *allocator,
+@@ -323,9 +321,10 @@ extern LZMA_API(lzma_ret) lzma_properties_size(
+  *              succeeds but using the same options to initialize the encoder
+  *              will fail.
+  *
+- * \note        It is OK to skip calling this function if
+- *              lzma_properties_size() indicated that the size
+- *              of the Filter Properties field is zero.
++ * \note        If lzma_properties_size() indicated that the size
++ *              of the Filter Properties field is zero, calling
++ *              lzma_properties_encode() is not required, but it
++ *              won't do any harm either.
+  */
+ extern LZMA_API(lzma_ret) lzma_properties_encode(
+ 		const lzma_filter *filter, uint8_t *props) lzma_nothrow;
+@@ -364,11 +363,11 @@ extern LZMA_API(lzma_ret) lzma_properties_decode(
+  * memory to hold the encoded Filter Flags.
+  *
+  * \param       size    Pointer to integer to hold the calculated size
+- * \param       filters Filter ID and associated options whose encoded
++ * \param       filter  Filter ID and associated options whose encoded
+  *                      size is to be calculated
+  *
+  * \return      - LZMA_OK: *size set successfully. Note that this doesn't
+- *                guarantee that filters->options is valid, thus
++ *                guarantee that filter->options is valid, thus
+  *                lzma_filter_flags_encode() may still fail.
+  *              - LZMA_OPTIONS_ERROR: Unknown Filter ID or unsupported options.
+  *              - LZMA_PROG_ERROR: Invalid options
+@@ -377,7 +376,7 @@ extern LZMA_API(lzma_ret) lzma_properties_decode(
+  *              you need to loop over every lzma_filter entry.
+  */
+ extern LZMA_API(lzma_ret) lzma_filter_flags_size(
+-		uint32_t *size, const lzma_filter *filters)
++		uint32_t *size, const lzma_filter *filter)
+ 		lzma_nothrow lzma_attr_warn_unused_result;
+ 
+ 
+@@ -387,7 +386,7 @@ extern LZMA_API(lzma_ret) lzma_filter_flags_size(
+  * In contrast to some functions, this doesn't allocate the needed buffer.
+  * This is due to how this function is used internally by liblzma.
+  *
+- * \param       filters     Filter ID and options to be encoded
++ * \param       filter      Filter ID and options to be encoded
+  * \param       out         Beginning of the output buffer
+  * \param       out_pos     out[*out_pos] is the next write position. This
+  *                          is updated by the encoder.
+@@ -399,7 +398,7 @@ extern LZMA_API(lzma_ret) lzma_filter_flags_size(
+  *                buffer space (you should have checked it with
+  *                lzma_filter_flags_size()).
+  */
+-extern LZMA_API(lzma_ret) lzma_filter_flags_encode(const lzma_filter *filters,
++extern LZMA_API(lzma_ret) lzma_filter_flags_encode(const lzma_filter *filter,
+ 		uint8_t *out, size_t *out_pos, size_t out_size)
+ 		lzma_nothrow lzma_attr_warn_unused_result;
+ 
+@@ -407,8 +406,8 @@ extern LZMA_API(lzma_ret) lzma_filter_flags_encode(const lzma_filter *filters,
+ /**
+  * \brief       Decode Filter Flags from given buffer
+  *
+- * The decoded result is stored into *filters. filters->options is
+- * initialized but the old value is NOT free()d.
++ * The decoded result is stored into *filter. The old value of
++ * filter->options is not free()d.
+  *
+  * \return      - LZMA_OK
+  *              - LZMA_OPTIONS_ERROR
+@@ -416,6 +415,6 @@ extern LZMA_API(lzma_ret) lzma_filter_flags_encode(const lzma_filter *filters,
+  *              - LZMA_PROG_ERROR
+  */
+ extern LZMA_API(lzma_ret) lzma_filter_flags_decode(
+-		lzma_filter *filters, lzma_allocator *allocator,
++		lzma_filter *filter, lzma_allocator *allocator,
+ 		const uint8_t *in, size_t *in_pos, size_t in_size)
+ 		lzma_nothrow lzma_attr_warn_unused_result;
+diff --git a/src/liblzma/api/lzma/hardware.h b/src/liblzma/api/lzma/hardware.h
+index f44cb602..e7dd03c3 100644
+--- a/src/liblzma/api/lzma/hardware.h
++++ b/src/liblzma/api/lzma/hardware.h
+@@ -39,8 +39,7 @@
+  *
+  * This function may be useful when determining a reasonable memory
+  * usage limit for decompressing or how much memory it is OK to use
+- * for compressing. For example, the default limit used by the xz
+- * command line tool is 40 % of RAM.
++ * for compressing.
+  *
+  * \return      On success, the total amount of physical memory in bytes
+  *              is returned. If the amount of RAM cannot be determined,
+diff --git a/src/liblzma/api/lzma/index.h b/src/liblzma/api/lzma/index.h
+index 5ea12e35..16bacc28 100644
+--- a/src/liblzma/api/lzma/index.h
++++ b/src/liblzma/api/lzma/index.h
+@@ -136,6 +136,13 @@ typedef struct {
+ 		 *
+ 		 * This offset is relative to the beginning of the lzma_index
+ 		 * (i.e. usually the beginning of the .xz file).
++		 *
++		 * When doing random-access reading, it is possible that
++		 * the target offset is not exactly at Block boundary. One
++		 * will need to compare the target offset against
++		 * uncompressed_file_offset or uncompressed_stream_offset,
++		 * and possibly decode and throw away some amount of data
++		 * before reaching the target offset.
+ 		 */
+ 		lzma_vli uncompressed_file_offset;
+ 
+@@ -166,14 +173,8 @@ typedef struct {
+ 		 * \brief       Uncompressed size of this Block
+ 		 *
+ 		 * You should pass this to the Block decoder if you will
+-		 * decode this Block.
+-		 *
+-		 * When doing random-access reading, it is possible that
+-		 * the target offset is not exactly at Block boundary. One
+-		 * will need to compare the target offset against
+-		 * uncompressed_file_offset or uncompressed_stream_offset,
+-		 * and possibly decode and throw away some amount of data
+-		 * before reaching the target offset.
++		 * decode this Block. It will allow the Block decoder to
++		 * validate the uncompressed size.
+ 		 */
+ 		lzma_vli uncompressed_size;
+ 
+@@ -181,7 +182,8 @@ typedef struct {
+ 		 * \brief       Unpadded size of this Block
+ 		 *
+ 		 * You should pass this to the Block decoder if you will
+-		 * decode this Block.
++		 * decode this Block. It will allow the Block decoder to
++		 * validate the unpadded size.
+ 		 */
+ 		lzma_vli unpadded_size;
+ 
+@@ -583,7 +585,9 @@ extern LZMA_API(lzma_index *) lzma_index_dup(
+  * \param       strm        Pointer to properly prepared lzma_stream
+  * \param       i           Pointer to lzma_index which should be encoded.
+  *
+- * The only valid action value for lzma_code() is LZMA_RUN.
++ * The valid `action' values for lzma_code() are LZMA_RUN and LZMA_FINISH.
++ * It is enough to use only one of them (you can choose freely; use LZMA_RUN
++ * to support liblzma versions older than 5.0.0).
+  *
+  * \return      - LZMA_OK: Initialization succeeded, continue with lzma_code().
+  *              - LZMA_MEM_ERROR
+@@ -608,7 +612,9 @@ extern LZMA_API(lzma_ret) lzma_index_encoder(
+  * \param       memlimit    How much memory the resulting lzma_index is
+  *                          allowed to require.
+  *
+- * The only valid action value for lzma_code() is LZMA_RUN.
++ * The valid `action' values for lzma_code() are LZMA_RUN and LZMA_FINISH.
++ * It is enough to use only one of them (you can choose freely; use LZMA_RUN
++ * to support liblzma versions older than 5.0.0).
+  *
+  * \return      - LZMA_OK: Initialization succeeded, continue with lzma_code().
+  *              - LZMA_MEM_ERROR
+diff --git a/src/liblzma/api/lzma/index_hash.h b/src/liblzma/api/lzma/index_hash.h
+index 94726e7b..fa2e048d 100644
+--- a/src/liblzma/api/lzma/index_hash.h
++++ b/src/liblzma/api/lzma/index_hash.h
+@@ -1,6 +1,6 @@
+ /**
+  * \file        lzma/index_hash.h
+- * \brief       Validates Index by using a hash function
++ * \brief       Validate Index by using a hash function
+  *
+  * Hashing makes it possible to use constant amount of memory to validate
+  * Index of arbitrary size.
+diff --git a/src/liblzma/api/lzma/lzma.h b/src/liblzma/api/lzma/lzma.h
+index 9d31a5ce..ae577282 100644
+--- a/src/liblzma/api/lzma/lzma.h
++++ b/src/liblzma/api/lzma/lzma.h
+@@ -46,6 +46,10 @@
+  * Match finder has major effect on both speed and compression ratio.
+  * Usually hash chains are faster than binary trees.
+  *
++ * If you will use LZMA_SYNC_FLUSH often, the hash chains may be a better
++ * choice, because binary trees get much higher compression ratio penalty
++ * with LZMA_SYNC_FLUSH.
++ *
+  * The memory usage formulas are only rough estimates, which are closest to
+  * reality when dict_size is a power of two. The formulas are  more complex
+  * in reality, and can also change a little between liblzma versions. Use
+@@ -173,6 +177,7 @@ extern LZMA_API(lzma_bool) lzma_mode_is_supported(lzma_mode mode)
+  * Since LZMA1 and LZMA2 share most of the code, it's simplest to share
+  * the options structure too. For encoding, all but the reserved variables
+  * need to be initialized unless specifically mentioned otherwise.
++ * lzma_lzma_preset() can be used to get a good starting point.
+  *
+  * For raw decoding, both LZMA1 and LZMA2 need dict_size, preset_dict, and
+  * preset_dict_size (if preset_dict != NULL). LZMA1 needs also lc, lp, and pb.
+@@ -255,7 +260,13 @@ typedef struct {
+ 	 * eight-bit byte (also known as `literal') are taken into
+ 	 * account when predicting the bits of the next literal.
+ 	 *
+-	 * \todo        Example
++	 * E.g. in typical English text, an upper-case letter is
++	 * often followed by a lower-case letter, and a lower-case
++	 * letter is usually followed by another lower-case letter.
++	 * In the US-ASCII character set, the highest three bits are 010
++	 * for upper-case letters and 011 for lower-case letters.
++	 * When lc is at least 3, the literal coding can take advantage of
++	 * this property in the uncompressed data.
+ 	 *
+ 	 * There is a limit that applies to literal context bits and literal
+ 	 * position bits together: lc + lp <= 4. Without this limit the
+@@ -275,12 +286,9 @@ typedef struct {
+ 	/**
+ 	 * \brief       Number of literal position bits
+ 	 *
+-	 * How many of the lowest bits of the current position (number
+-	 * of bytes from the beginning of the uncompressed data) in the
+-	 * uncompressed data is taken into account when predicting the
+-	 * bits of the next literal (a single eight-bit byte).
+-	 *
+-	 * \todo        Example
++	 * lp affects what kind of alignment in the uncompressed data is
++	 * assumed when encoding literals. A literal is a single 8-bit byte.
++	 * See pb below for more information about alignment.
+ 	 */
+ 	uint32_t lp;
+ #	define LZMA_LP_DEFAULT  0
+@@ -288,14 +296,22 @@ typedef struct {
+ 	/**
+ 	 * \brief       Number of position bits
+ 	 *
+-	 * How many of the lowest bits of the current position in the
+-	 * uncompressed data is taken into account when estimating
+-	 * probabilities of matches. A match is a sequence of bytes for
+-	 * which a matching sequence is found from the dictionary and
+-	 * thus can be stored as distance-length pair.
++	 * pb affects what kind of alignment in the uncompressed data is
++	 * assumed in general. The default means four-byte alignment
++	 * (2^ pb =2^2=4), which is often a good choice when there's
++	 * no better guess.
++	 *
++	 * When the aligment is known, setting pb accordingly may reduce
++	 * the file size a little. E.g. with text files having one-byte
++	 * alignment (US-ASCII, ISO-8859-*, UTF-8), setting pb=0 can
++	 * improve compression slightly. For UTF-16 text, pb=1 is a good
++	 * choice. If the alignment is an odd number like 3 bytes, pb=0
++	 * might be the best choice.
+ 	 *
+-	 * Example: If most of the matches occur at byte positions of
+-	 * 8 * n + 3, that is, 3, 11, 19, ... set pb to 3, because 2**3 == 8.
++	 * Even though the assumed alignment can be adjusted with pb and
++	 * lp, LZMA1 and LZMA2 still slightly favor 16-byte alignment.
++	 * It might be worth taking into account when designing file formats
++	 * that are likely to be often compressed with LZMA1 or LZMA2.
+ 	 */
+ 	uint32_t pb;
+ #	define LZMA_PB_MIN      0
+@@ -346,7 +362,7 @@ typedef struct {
+ 	 *
+ 	 * Setting depth to zero tells liblzma to use an automatic default
+ 	 * value, that depends on the selected match finder and nice_len.
+-	 * The default is in the range [10, 200] or so (it may vary between
++	 * The default is in the range [4, 200] or so (it may vary between
+ 	 * liblzma versions).
+ 	 *
+ 	 * Using a bigger depth value than the default can increase
+diff --git a/src/liblzma/api/lzma/stream_flags.h b/src/liblzma/api/lzma/stream_flags.h
+index d255bdda..c6e73037 100644
+--- a/src/liblzma/api/lzma/stream_flags.h
++++ b/src/liblzma/api/lzma/stream_flags.h
+@@ -148,7 +148,7 @@ extern LZMA_API(lzma_ret) lzma_stream_footer_encode(
+ /**
+  * \brief       Decode Stream Header
+  *
+- * \param       options     Stream Header options to be encoded.
++ * \param       options     Target for the decoded Stream Header options.
+  * \param       in          Beginning of the input buffer of
+  *                          LZMA_STREAM_HEADER_SIZE bytes.
+  *
+@@ -183,7 +183,7 @@ extern LZMA_API(lzma_ret) lzma_stream_header_decode(
+ /**
+  * \brief       Decode Stream Footer
+  *
+- * \param       options     Stream Header options to be encoded.
++ * \param       options     Target for the decoded Stream Header options.
+  * \param       in          Beginning of the input buffer of
+  *                          LZMA_STREAM_HEADER_SIZE bytes.
+  *
+diff --git a/src/liblzma/api/lzma/vli.h b/src/liblzma/api/lzma/vli.h
+index 57e3d388..9ad13f2e 100644
+--- a/src/liblzma/api/lzma/vli.h
++++ b/src/liblzma/api/lzma/vli.h
+@@ -29,7 +29,7 @@
+ 
+ 
+ /**
+- * \brief       Maximum supported value of variable-length integer
++ * \brief       Maximum supported value of a variable-length integer
+  */
+ #define LZMA_VLI_MAX (UINT64_MAX / 2)
+ 
+@@ -39,11 +39,10 @@
+ #define LZMA_VLI_UNKNOWN UINT64_MAX
+ 
+ /**
+- * \brief       Maximum supported length of variable length integers
++ * \brief       Maximum supported encoded length of variable length integers
+  */
+ #define LZMA_VLI_BYTES_MAX 9
+ 
+-
+ /**
+  * \brief       VLI constant suffix
+  */
+@@ -53,19 +52,19 @@
+ /**
+  * \brief       Variable-length integer type
+  *
+- * This will always be unsigned integer. Valid VLI values are in the range
+- * [0, LZMA_VLI_MAX]. Unknown value is indicated with LZMA_VLI_UNKNOWN,
+- * which is the maximum value of the underlaying integer type.
++ * Valid VLI values are in the range [0, LZMA_VLI_MAX]. Unknown value is
++ * indicated with LZMA_VLI_UNKNOWN, which is the maximum value of the
++ * underlaying integer type.
+  *
+- * In future, even if lzma_vli is defined to be something other than uint64_t,
+- * it is guaranteed that 2 * LZMA_VLI_MAX will not overflow lzma_vli.
+- * This simplifies integer overflow detection.
++ * lzma_vli will be uint64_t for the foreseeable future. If a bigger size
++ * is needed in the future, it is guaranteed that 2 * LZMA_VLI_MAX will
++ * not overflow lzma_vli. This simplifies integer overflow detection.
+  */
+ typedef uint64_t lzma_vli;
+ 
+ 
+ /**
+- * \brief       Simple macro to validate variable-length integer
++ * \brief       Validate a variable-length integer
+  *
+  * This is useful to test that application has given acceptable values
+  * for example in the uncompressed_size and compressed_size variables.
+@@ -88,9 +87,9 @@ typedef uint64_t lzma_vli;
+  *
+  * \param       vli       Integer to be encoded
+  * \param       vli_pos   How many VLI-encoded bytes have already been written
+- *                        out. When starting to encode a new integer, *vli_pos
+- *                        must be set to zero. To use single-call encoding,
+- *                        set vli_pos to NULL.
++ *                        out. When starting to encode a new integer in
++ *                        multi-call mode, *vli_pos must be set to zero.
++ *                        To use single-call encoding, set vli_pos to NULL.
+  * \param       out       Beginning of the output buffer
+  * \param       out_pos   The next byte will be written to out[*out_pos].
+  * \param       out_size  Size of the out buffer; the first byte into
+@@ -126,9 +125,9 @@ extern LZMA_API(lzma_ret) lzma_vli_encode(lzma_vli vli, size_t *vli_pos,
+  *                        initialize it to zero when *vli_pos == 0, so
+  *                        application isn't required to initialize *vli.
+  * \param       vli_pos   How many bytes have already been decoded. When
+- *                        starting to decode a new integer, *vli_pos must
+- *                        be initialized to zero. To use single-call decoding,
+- *                        set this to NULL.
++ *                        starting to decode a new integer in multi-call
++ *                        mode, *vli_pos must be initialized to zero. To
++ *                        use single-call decoding, set vli_pos to NULL.
+  * \param       in        Beginning of the input buffer
+  * \param       in_pos    The next byte will be read from in[*in_pos].
+  * \param       in_size   Size of the input buffer; the first byte that
+diff --git a/src/liblzma/common/index_decoder.c b/src/liblzma/common/index_decoder.c
+index 86a22971..a6bc650e 100644
+--- a/src/liblzma/common/index_decoder.c
++++ b/src/liblzma/common/index_decoder.c
+@@ -291,6 +291,7 @@ lzma_index_decoder(lzma_stream *strm, lzma_index **i, uint64_t memlimit)
+ 	lzma_next_strm_init(index_decoder_init, strm, i, memlimit);
+ 
+ 	strm->internal->supported_actions[LZMA_RUN] = true;
++	strm->internal->supported_actions[LZMA_FINISH] = true;
+ 
+ 	return LZMA_OK;
+ }
+diff --git a/src/liblzma/common/index_encoder.c b/src/liblzma/common/index_encoder.c
+index 706f1fd7..c10d7afa 100644
+--- a/src/liblzma/common/index_encoder.c
++++ b/src/liblzma/common/index_encoder.c
+@@ -209,6 +209,7 @@ lzma_index_encoder(lzma_stream *strm, const lzma_index *i)
+ 	lzma_next_strm_init(lzma_index_encoder_init, strm, i);
+ 
+ 	strm->internal->supported_actions[LZMA_RUN] = true;
++	strm->internal->supported_actions[LZMA_FINISH] = true;
+ 
+ 	return LZMA_OK;
+ }

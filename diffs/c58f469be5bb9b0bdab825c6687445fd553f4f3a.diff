@@ -1,0 +1,26 @@
+diff --git a/src/liblzma/common/filter_decoder.c b/src/liblzma/common/filter_decoder.c
+index 241b272d..c969a554 100644
+--- a/src/liblzma/common/filter_decoder.c
++++ b/src/liblzma/common/filter_decoder.c
+@@ -133,7 +133,7 @@ static const lzma_filter_decoder decoders[] = {
+ 	{
+ 		.id = LZMA_FILTER_DELTA,
+ 		.init = &lzma_delta_decoder_init,
+-		.memusage = NULL,
++		.memusage = &lzma_delta_coder_memusage,
+ 		.props_decode = &lzma_delta_props_decode,
+ 	},
+ #endif
+diff --git a/src/liblzma/common/filter_encoder.c b/src/liblzma/common/filter_encoder.c
+index a839fe70..c9d6b91e 100644
+--- a/src/liblzma/common/filter_encoder.c
++++ b/src/liblzma/common/filter_encoder.c
+@@ -159,7 +159,7 @@ static const lzma_filter_encoder encoders[] = {
+ 	{
+ 		.id = LZMA_FILTER_DELTA,
+ 		.init = &lzma_delta_encoder_init,
+-		.memusage = NULL,
++		.memusage = &lzma_delta_coder_memusage,
+ 		.chunk_size = NULL,
+ 		.props_size_get = NULL,
+ 		.props_size_fixed = 1,

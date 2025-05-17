@@ -1,0 +1,13 @@
+diff --git a/src/common/sysdefs.h b/src/common/sysdefs.h
+index f89239a0..97a1c045 100644
+--- a/src/common/sysdefs.h
++++ b/src/common/sysdefs.h
+@@ -50,7 +50,7 @@
+ // we can work without inttypes.h thanks to Autoconf tests.
+ #ifndef UINT32_C
+ #	if UINT_MAX != 4294967295U
+-#		error UINT32_C is not defined and unsiged int is not 32-bit.
++#		error UINT32_C is not defined and unsigned int is not 32-bit.
+ #	endif
+ #	define UINT32_C(n) n ## U
+ #endif

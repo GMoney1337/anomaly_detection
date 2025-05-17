@@ -1,0 +1,56 @@
+diff --git a/m4/tuklib_physmem.m4 b/m4/tuklib_physmem.m4
+index ea02208f..8a57ca29 100644
+--- a/m4/tuklib_physmem.m4
++++ b/m4/tuklib_physmem.m4
+@@ -10,8 +10,8 @@
+ #
+ #   Supported methods:
+ #
+-#     - Windows (including Cygwin), OS/2, DJGPP (DOS), and OpenVMS have
+-#       operating-system specific functions.
++#     - Windows (including Cygwin), OS/2, DJGPP (DOS), OpenVMS, AROS,
++#       and QNX have operating-system specific functions.
+ #
+ #     - AIX has _system_configuration.physmem.
+ #
+@@ -54,7 +54,7 @@ AC_CACHE_CHECK([how to detect the amount of physical memory],
+ AC_COMPILE_IFELSE([AC_LANG_SOURCE([[
+ #if defined(_WIN32) || defined(__CYGWIN__) || defined(__OS2__) \
+ 		|| defined(__DJGPP__) || defined(__VMS) \
+-		|| defined(AMIGA) || defined(__AROS__)
++		|| defined(AMIGA) || defined(__AROS__) || defined(__QNX__)
+ int main(void) { return 0; }
+ #else
+ compile error
+diff --git a/src/common/tuklib_physmem.c b/src/common/tuklib_physmem.c
+index 3cc7d12a..cd2437d8 100644
+--- a/src/common/tuklib_physmem.c
++++ b/src/common/tuklib_physmem.c
+@@ -37,7 +37,10 @@
+ #	define __USE_INLINE__
+ #	include <proto/exec.h>
+ 
+-// AIX
++#elif defined(__QNX__)
++#	include <sys/syspage.h>
++#	include <string.h>
++
+ #elif defined(TUKLIB_PHYSMEM_AIX)
+ #	include <sys/systemcfg.h>
+ 
+@@ -126,6 +129,15 @@ tuklib_physmem(void)
+ #elif defined(AMIGA) || defined(__AROS__)
+ 	ret = AvailMem(MEMF_TOTAL);
+ 
++#elif defined(__QNX__)
++	const struct asinfo_entry *entries = SYSPAGE_ENTRY(asinfo);
++	size_t count = SYSPAGE_ENTRY_SIZE(asinfo) / sizeof(struct asinfo_entry);
++	const char *strings = SYSPAGE_ENTRY(strings)->data;
++
++	for (size_t i = 0; i < count; ++i)
++		if (strcmp(strings + entries[i].name, "ram") == 0)
++			ret += entries[i].end - entries[i].start + 1;
++
+ #elif defined(TUKLIB_PHYSMEM_AIX)
+ 	ret = _system_configuration.physmem;
+ 

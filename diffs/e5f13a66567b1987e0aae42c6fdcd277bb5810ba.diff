@@ -1,0 +1,22 @@
+diff --git a/m4/tuklib_integer.m4 b/m4/tuklib_integer.m4
+index 2ab72a2f..c3c59fe3 100644
+--- a/m4/tuklib_integer.m4
++++ b/m4/tuklib_integer.m4
+@@ -58,6 +58,17 @@ if test "x$enable_unaligned_access" = xauto ; then
+ 		i?86|x86_64|powerpc|powerpc64)
+ 			enable_unaligned_access=yes
+ 			;;
++		arm*|aarch64*)
++			# On 32-bit and 64-bit ARM, GCC and Clang
++			# #define __ARM_FEATURE_UNALIGNED if
++			# unaligned access is supported.
++			AC_COMPILE_IFELSE([AC_LANG_SOURCE([
++#ifndef __ARM_FEATURE_UNALIGNED
++compile error
++#endif
++int main(void) { return 0; }
++])], [enable_unaligned_access=yes], [enable_unaligned_access=no])
++			;;
+ 		*)
+ 			enable_unaligned_access=no
+ 			;;

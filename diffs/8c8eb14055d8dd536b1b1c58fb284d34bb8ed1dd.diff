@@ -1,0 +1,13 @@
+diff --git a/src/liblzma/subblock/subblock_decoder_helper.c b/src/liblzma/subblock/subblock_decoder_helper.c
+index 5ff24431..77d1f4bd 100644
+--- a/src/liblzma/subblock/subblock_decoder_helper.c
++++ b/src/liblzma/subblock/subblock_decoder_helper.c
+@@ -71,7 +71,7 @@ lzma_subblock_decoder_helper_init(lzma_next_coder *next,
+ 			return LZMA_MEM_ERROR;
+ 		
+ 		next->code = &helper_decode;
+-		next->end = helper_end;
++		next->end = &helper_end;
+ 	}
+ 
+ 	next->coder->options = filters[0].options;

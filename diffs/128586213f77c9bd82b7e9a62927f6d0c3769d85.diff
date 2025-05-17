@@ -1,0 +1,139 @@
+diff --git a/src/liblzma/api/lzma/filter.h b/src/liblzma/api/lzma/filter.h
+index 05c0c77b..13c3bdc3 100644
+--- a/src/liblzma/api/lzma/filter.h
++++ b/src/liblzma/api/lzma/filter.h
+@@ -102,7 +102,7 @@ extern lzma_bool lzma_filter_decoder_is_supported(lzma_vli id);
+  * \return      Rough number of bytes required for the given filter chain
+  *              when encoding.
+  */
+-extern uint64_t lzma_memusage_encoder(const lzma_filter *filters)
++extern uint64_t lzma_raw_encoder_memusage(const lzma_filter *filters)
+ 		lzma_attr_pure;
+ 
+ 
+@@ -115,7 +115,7 @@ extern uint64_t lzma_memusage_encoder(const lzma_filter *filters)
+  * \return      Rough number of bytes required for the given filter chain
+  *              when decoding.
+  */
+-extern uint64_t lzma_memusage_decoder(const lzma_filter *filters)
++extern uint64_t lzma_raw_decoder_memusage(const lzma_filter *filters)
+ 		lzma_attr_pure;
+ 
+ 
+diff --git a/src/liblzma/common/easy.c b/src/liblzma/common/easy.c
+index 441e66c0..2294ba70 100644
+--- a/src/liblzma/common/easy.c
++++ b/src/liblzma/common/easy.c
+@@ -113,7 +113,7 @@ lzma_easy_encoder_memusage(uint32_t preset)
+ 	if (easy_set_filters(&coder, preset))
+ 		return UINT32_MAX;
+ 
+-	return lzma_memusage_encoder(coder.filters);
++	return lzma_raw_encoder_memusage(coder.filters);
+ }
+ 
+ 
+@@ -124,5 +124,5 @@ lzma_easy_decoder_memusage(uint32_t preset)
+ 	if (easy_set_filters(&coder, preset))
+ 		return UINT32_MAX;
+ 
+-	return lzma_memusage_decoder(coder.filters);
++	return lzma_raw_decoder_memusage(coder.filters);
+ }
+diff --git a/src/liblzma/common/filter_common.c b/src/liblzma/common/filter_common.c
+index fe3c03a2..1a5860c8 100644
+--- a/src/liblzma/common/filter_common.c
++++ b/src/liblzma/common/filter_common.c
+@@ -223,7 +223,7 @@ lzma_raw_coder_init(lzma_next_coder *next, lzma_allocator *allocator,
+ 
+ 
+ extern uint64_t
+-lzma_memusage_coder(lzma_filter_find coder_find,
++lzma_raw_coder_memusage(lzma_filter_find coder_find,
+ 		const lzma_filter *filters)
+ {
+ 	// The chain has to have at least one filter.
+diff --git a/src/liblzma/common/filter_common.h b/src/liblzma/common/filter_common.h
+index 5241e5df..a401ee76 100644
+--- a/src/liblzma/common/filter_common.h
++++ b/src/liblzma/common/filter_common.h
+@@ -48,7 +48,7 @@ extern lzma_ret lzma_raw_coder_init(
+ 		lzma_filter_find coder_find, bool is_encoder);
+ 
+ 
+-extern uint64_t lzma_memusage_coder(lzma_filter_find coder_find,
++extern uint64_t lzma_raw_coder_memusage(lzma_filter_find coder_find,
+ 		const lzma_filter *filters);
+ 
+ 
+diff --git a/src/liblzma/common/filter_decoder.c b/src/liblzma/common/filter_decoder.c
+index c969a554..2b6ff840 100644
+--- a/src/liblzma/common/filter_decoder.c
++++ b/src/liblzma/common/filter_decoder.c
+@@ -180,9 +180,9 @@ lzma_raw_decoder(lzma_stream *strm, const lzma_filter *options)
+ 
+ 
+ extern LZMA_API uint64_t
+-lzma_memusage_decoder(const lzma_filter *filters)
++lzma_raw_decoder_memusage(const lzma_filter *filters)
+ {
+-	return lzma_memusage_coder(
++	return lzma_raw_coder_memusage(
+ 			(lzma_filter_find)(&decoder_find), filters);
+ }
+ 
+diff --git a/src/liblzma/common/filter_encoder.c b/src/liblzma/common/filter_encoder.c
+index c9d6b91e..661a54db 100644
+--- a/src/liblzma/common/filter_encoder.c
++++ b/src/liblzma/common/filter_encoder.c
+@@ -211,9 +211,9 @@ lzma_raw_encoder(lzma_stream *strm, const lzma_filter *options)
+ 
+ 
+ extern LZMA_API uint64_t
+-lzma_memusage_encoder(const lzma_filter *filters)
++lzma_raw_encoder_memusage(const lzma_filter *filters)
+ {
+-	return lzma_memusage_coder(
++	return lzma_raw_coder_memusage(
+ 			(lzma_filter_find)(&encoder_find), filters);
+ }
+ 
+diff --git a/src/liblzma/common/stream_decoder.c b/src/liblzma/common/stream_decoder.c
+index 7ed5c3af..66dfa778 100644
+--- a/src/liblzma/common/stream_decoder.c
++++ b/src/liblzma/common/stream_decoder.c
+@@ -200,7 +200,7 @@ stream_decode(lzma_coder *coder, lzma_allocator *allocator,
+ 				allocator, coder->buffer));
+ 
+ 		// Check the memory usage limit.
+-		const uint64_t memusage = lzma_memusage_decoder(filters);
++		const uint64_t memusage = lzma_raw_decoder_memusage(filters);
+ 		lzma_ret ret;
+ 
+ 		if (memusage == UINT64_MAX) {
+diff --git a/src/xz/process.c b/src/xz/process.c
+index e6870f81..59c19cd2 100644
+--- a/src/xz/process.c
++++ b/src/xz/process.c
+@@ -158,10 +158,10 @@ coder_set_compression_settings(void)
+ 	uint64_t memory_usage;
+ 	uint64_t memory_limit;
+ 	if (opt_mode == MODE_COMPRESS) {
+-		memory_usage = lzma_memusage_encoder(filters);
++		memory_usage = lzma_raw_encoder_memusage(filters);
+ 		memory_limit = hardware_memlimit_encoder();
+ 	} else {
+-		memory_usage = lzma_memusage_decoder(filters);
++		memory_usage = lzma_raw_decoder_memusage(filters);
+ 		memory_limit = hardware_memlimit_decoder();
+ 	}
+ 
+@@ -212,7 +212,7 @@ coder_set_compression_settings(void)
+ 			if (opt->dict_size < (UINT32_C(1) << 20))
+ 				memlimit_too_small(memory_usage, memory_limit);
+ 
+-			memory_usage = lzma_memusage_encoder(filters);
++			memory_usage = lzma_raw_encoder_memusage(filters);
+ 			if (memory_usage == UINT64_MAX)
+ 				message_bug();
+ 

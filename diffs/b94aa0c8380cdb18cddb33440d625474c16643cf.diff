@@ -1,0 +1,190 @@
+diff --git a/configure.ac b/configure.ac
+index 7a122d71..a75c520b 100644
+--- a/configure.ac
++++ b/configure.ac
+@@ -535,6 +535,60 @@ TUKLIB_PHYSMEM
+ TUKLIB_CPUCORES
+ TUKLIB_MBSTR
+ 
++# Check for system-provided SHA-256. At least the following is supported:
++#
++# OS       Headers                     Library  Type           Function
++# FreeBSD  sys/types.h + sha256.h      libmd    SHA256_CTX     SHA256_Init
++# NetBSD   sys/types.h + sha2.h                 SHA256_CTX     SHA256_Init
++# OpenBSD  sys/types.h + sha2.h                 SHA2_CTX       SHA256Init
++# Solaris  sys/types.h + sha2.h        libmd    SHA256_CTX     SHA256Init
++# MINIX 3  sys/types.h + minix/sha2.h  libutil  SHA256_CTX     SHA256_Init
++# Darwin   CommonCrypto/CommonDigest.h          CC_SHA256_CTX  CC_SHA256_Init
++#
++# Note that Darwin's CC_SHA256_Update takes buffer size as uint32_t instead
++# of size_t.
++#
++# We don't check for e.g. OpenSSL or libgcrypt because we don't want
++# to introduce dependencies to other packages by default. Maybe such
++# libraries could be supported via additional configure options though.
++#
++if test "x$enable_check_sha256" = "xyes"; then
++	# Test for Common Crypto before others, because Darwin has sha256.h
++	# too and we don't want to use that, because on older versions it
++	# uses OpenSSL functions, whose SHA256_Init is not guaranteed to
++	# succeed.
++	sha256_header_found=no
++	AC_CHECK_HEADERS(
++		[CommonCrypto/CommonDigest.h sha256.h sha2.h minix/sha2.h],
++		[sha256_header_found=yes ; break])
++	if test "x$sha256_header_found" = xyes; then
++		AC_CHECK_TYPES([CC_SHA256_CTX, SHA256_CTX, SHA2_CTX], [], [],
++			[[#ifdef HAVE_SYS_TYPES
++			  # include <sys/types.h>
++			  #endif
++			  #ifdef HAVE_COMMONCRYPTO_COMMONDIGEST_H
++			  # include <CommonCrypto/CommonDigest.h>
++			  #endif
++			  #ifdef HAVE_SHA256_H
++			  # include <sha256.h>
++			  #endif
++			  #ifdef HAVE_SHA2_H
++			  # include <sha2.h>
++			  #endif
++			  #ifdef HAVE_MINIX_SHA2_H
++			  # include <minix/sha2.h>
++			  #endif]])
++		AC_SEARCH_LIBS([SHA256_Init], [md util])
++		AC_SEARCH_LIBS([SHA256Init], [md])
++		AC_CHECK_FUNCS([CC_SHA256_Init SHA256_Init SHA256Init],
++			[break])
++	fi
++fi
++AM_CONDITIONAL([COND_INTERNAL_SHA256],
++	[test "x$ac_cv_func_SHA256_Init" != xyes \
++		&& test "x$ac_cv_func_SHA256Init" != xyes \
++		&& test "x$ac_cv_func_CC_SHA256_Init" != xyes])
++
+ 
+ ###############################################################################
+ # If using GCC, set some additional AM_CFLAGS:
+diff --git a/src/liblzma/check/Makefile.inc b/src/liblzma/check/Makefile.inc
+index e4067a9c..dc011a3f 100644
+--- a/src/liblzma/check/Makefile.inc
++++ b/src/liblzma/check/Makefile.inc
+@@ -47,5 +47,7 @@ endif
+ endif
+ 
+ if COND_CHECK_SHA256
++if COND_INTERNAL_SHA256
+ liblzma_la_SOURCES += check/sha256.c
+ endif
++endif
+diff --git a/src/liblzma/check/check.h b/src/liblzma/check/check.h
+index e100d2b8..0f96f65b 100644
+--- a/src/liblzma/check/check.h
++++ b/src/liblzma/check/check.h
+@@ -15,6 +15,43 @@
+ 
+ #include "common.h"
+ 
++#if defined(HAVE_COMMONCRYPTO_COMMONDIGEST_H)
++#	include <CommonCrypto/CommonDigest.h>
++#elif defined(HAVE_SHA256_H)
++#	include <sys/types.h>
++#	include <sha256.h>
++#elif defined(HAVE_SHA2_H)
++#	include <sys/types.h>
++#	include <sha2.h>
++#elif defined(HAVE_MINIX_SHA2_H)
++#	include <sys/types.h>
++#	include <minix/sha2.h>
++#endif
++
++#if defined(HAVE_CC_SHA256_CTX)
++typedef CC_SHA256_CTX lzma_sha256_state;
++#elif defined(HAVE_SHA256_CTX)
++typedef SHA256_CTX lzma_sha256_state;
++#elif defined(HAVE_SHA2_CTX)
++typedef SHA2_CTX lzma_sha256_state;
++#else
++/// State for the internal SHA-256 implementation
++typedef struct {
++	/// Internal state
++	uint32_t state[8];
++
++	/// Size of the message excluding padding
++	uint64_t size;
++} lzma_sha256_state;
++#endif
++
++#if defined(HAVE_CC_SHA256_INIT)
++#	define LZMA_SHA256FUNC(x) CC_SHA256_ ## x
++#elif defined(HAVE_SHA256_INIT)
++#	define LZMA_SHA256FUNC(x) SHA256_ ## x
++#elif defined(HAVE_SHA256INIT)
++#	define LZMA_SHA256FUNC(x) SHA256 ## x
++#endif
+ 
+ // Index hashing needs the best possible hash function (preferably
+ // a cryptographic hash) for maximum reliability.
+@@ -43,14 +80,7 @@ typedef struct {
+ 	union {
+ 		uint32_t crc32;
+ 		uint64_t crc64;
+-
+-		struct {
+-			/// Internal state
+-			uint32_t state[8];
+-
+-			/// Size of the message excluding padding
+-			uint64_t size;
+-		} sha256;
++		lzma_sha256_state sha256;
+ 	} state;
+ 
+ } lzma_check_state;
+@@ -82,6 +112,8 @@ extern void lzma_check_update(lzma_check_state *check, lzma_check type,
+ extern void lzma_check_finish(lzma_check_state *check, lzma_check type);
+ 
+ 
++#ifndef LZMA_SHA256FUNC
++
+ /// Prepare SHA-256 state for new input.
+ extern void lzma_sha256_init(lzma_check_state *check);
+ 
+@@ -92,4 +124,39 @@ extern void lzma_sha256_update(
+ /// Finish the SHA-256 calculation and store the result to check->buffer.u8.
+ extern void lzma_sha256_finish(lzma_check_state *check);
+ 
++
++#else
++
++static inline void
++lzma_sha256_init(lzma_check_state *check)
++{
++	LZMA_SHA256FUNC(Init)(&check->state.sha256);
++}
++
++
++static inline void
++lzma_sha256_update(const uint8_t *buf, size_t size, lzma_check_state *check)
++{
++#if defined(HAVE_CC_SHA256_INIT) && SIZE_MAX > UINT32_MAX
++	// Darwin's CC_SHA256_Update takes uint32_t as the buffer size,
++	// so use a loop to support size_t.
++	while (size > UINT32_MAX) {
++		LZMA_SHA256FUNC(Update)(&check->state.sha256, buf, UINT32_MAX);
++		buf += UINT32_MAX;
++		size -= UINT32_MAX;
++	}
++#endif
++
++	LZMA_SHA256FUNC(Update)(&check->state.sha256, buf, size);
++}
++
++
++static inline void
++lzma_sha256_finish(lzma_check_state *check)
++{
++	LZMA_SHA256FUNC(Final)(check->buffer.u8, &check->state.sha256);
++}
++
++#endif
++
+ #endif

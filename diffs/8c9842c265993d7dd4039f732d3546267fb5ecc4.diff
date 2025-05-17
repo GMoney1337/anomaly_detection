@@ -1,0 +1,73 @@
+diff --git a/src/liblzma/api/lzma/base.h b/src/liblzma/api/lzma/base.h
+index 9b3e9e1a..566247a1 100644
+--- a/src/liblzma/api/lzma/base.h
++++ b/src/liblzma/api/lzma/base.h
+@@ -235,16 +235,16 @@ typedef enum {
+ 		 * how to report bugs.
+ 		 */
+ 
+-	LZMA_SEEK               = 12
++	LZMA_SEEK_NEEDED        = 12
+ 		/**<
+ 		 * \brief       Request to change the input file position
+ 		 *
+ 		 * Some coders can do random access in the input file. The
+ 		 * initialization functions of these coders take the file size
+-		 * as an argument. No other coders can return LZMA_SEEK.
++		 * as an argument. No other coders can return LZMA_SEEK_NEEDED.
+ 		 *
+ 		 * When this value is returned, the application must seek to
+-		 * the file position given in lzma_stream.seek_in. This value
++		 * the file position given in lzma_stream.seek_pos. This value
+ 		 * is guaranteed to never exceed the file size that was
+ 		 * specified at the coder initialization.
+ 		 *
+@@ -533,16 +533,16 @@ typedef struct {
+ 	void *reserved_ptr4;
+ 
+ 	/**
+-	 * \brief       New seek input position for LZMA_SEEK
++	 * \brief       New seek input position for LZMA_SEEK_NEEDED
+ 	 *
+-	 * When lzma_code() returns LZMA_SEEK, the new input position needed
+-	 * by liblzma will be available seek_in. The value is guaranteed to
+-	 * not exceed the file size that was specified when this lzma_stream
+-	 * was initialized.
++	 * When lzma_code() returns LZMA_SEEK_NEEDED, the new input position
++	 * needed by liblzma will be available seek_pos. The value is
++	 * guaranteed to not exceed the file size that was specified when
++	 * this lzma_stream was initialized.
+ 	 *
+ 	 * In all other situations the value of this variable is undefined.
+ 	 */
+-	uint64_t seek_in;
++	uint64_t seek_pos;
+ 
+ 	uint64_t reserved_int2;
+ 	size_t reserved_int3;
+diff --git a/src/liblzma/common/common.c b/src/liblzma/common/common.c
+index 8ffe9764..1399b928 100644
+--- a/src/liblzma/common/common.c
++++ b/src/liblzma/common/common.c
+@@ -317,7 +317,7 @@ lzma_code(lzma_stream *strm, lzma_action action)
+ 		ret = LZMA_OK;
+ 		break;
+ 
+-	case LZMA_SEEK:
++	case LZMA_SEEK_NEEDED:
+ 		strm->internal->allow_buf_error = false;
+ 
+ 		// If LZMA_FINISH was used, reset it back to the
+diff --git a/src/xz/message.c b/src/xz/message.c
+index 41de60c7..7e9ec53b 100644
+--- a/src/xz/message.c
++++ b/src/xz/message.c
+@@ -818,7 +818,7 @@ message_strm(lzma_ret code)
+ 	case LZMA_STREAM_END:
+ 	case LZMA_GET_CHECK:
+ 	case LZMA_PROG_ERROR:
+-	case LZMA_SEEK:
++	case LZMA_SEEK_NEEDED:
+ 		// Without "default", compiler will warn if new constants
+ 		// are added to lzma_ret, it is not too easy to forget to
+ 		// add the new constants to this function.

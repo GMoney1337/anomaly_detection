@@ -1,0 +1,13 @@
+diff --git a/src/xz/message.c b/src/xz/message.c
+index 544572b8..a89c5a4e 100644
+--- a/src/xz/message.c
++++ b/src/xz/message.c
+@@ -144,7 +144,7 @@ my_time(void)
+ 	if (gettimeofday(&tv, NULL))
+ 		return -1.0;
+ 
+-	return (double)(tv.tv_sec) + (double)(tv.tv_usec) / 1.0e9;
++	return (double)(tv.tv_sec) + (double)(tv.tv_usec) / 1.0e6;
+ }
+ 
+ 

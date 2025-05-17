@@ -1,0 +1,62 @@
+diff --git a/lib/getopt.c b/lib/getopt.c
+index 1d14b245..f8fc003d 100644
+--- a/lib/getopt.c
++++ b/lib/getopt.c
+@@ -29,7 +29,9 @@
+ #include <stdio.h>
+ #include <stdlib.h>
+ #include <string.h>
+-#include <unistd.h>
++#ifndef _MSC_VER
++# include <unistd.h>
++#endif
+ 
+ #ifdef __VMS
+ # include <unixlib.h>
+diff --git a/lib/getopt.in.h b/lib/getopt.in.h
+index ea77e3d7..c50dda00 100644
+--- a/lib/getopt.in.h
++++ b/lib/getopt.in.h
+@@ -34,7 +34,9 @@
+ #if defined __GETOPT_PREFIX && !defined __need_getopt
+ # include <stdlib.h>
+ # include <stdio.h>
+-# include <unistd.h>
++# ifndef _MSC_VER
++#  include <unistd.h>
++# endif
+ # undef __need_getopt
+ # undef getopt
+ # undef getopt_long
+diff --git a/src/xz/private.h b/src/xz/private.h
+index 8a2db9ff..57606cd6 100644
+--- a/src/xz/private.h
++++ b/src/xz/private.h
+@@ -21,7 +21,10 @@
+ #include <signal.h>
+ #include <locale.h>
+ #include <stdio.h>
+-#include <unistd.h>
++
++#ifndef _MSC_VER
++#	include <unistd.h>
++#endif
+ 
+ #include "tuklib_gettext.h"
+ #include "tuklib_progname.h"
+diff --git a/src/xzdec/xzdec.c b/src/xzdec/xzdec.c
+index c1bd1998..95a412f4 100644
+--- a/src/xzdec/xzdec.c
++++ b/src/xzdec/xzdec.c
+@@ -16,7 +16,10 @@
+ #include <stdarg.h>
+ #include <errno.h>
+ #include <stdio.h>
+-#include <unistd.h>
++
++#ifndef _MSC_VER
++#	include <unistd.h>
++#endif
+ 
+ #include "getopt.h"
+ #include "tuklib_progname.h"

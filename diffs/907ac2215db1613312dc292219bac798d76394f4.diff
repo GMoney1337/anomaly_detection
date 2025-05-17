@@ -1,0 +1,35 @@
+diff --git a/.github/workflows/ci.yml b/.github/workflows/ci.yml
+index 01b8cdc6..6b36bdbe 100644
+--- a/.github/workflows/ci.yml
++++ b/.github/workflows/ci.yml
+@@ -28,7 +28,7 @@ jobs:
+         build_system: [autotools, cmake]
+     runs-on: ${{ matrix.os }}
+     steps:
+-      - uses: actions/checkout@v4.1.6
++      - uses: actions/checkout@v4
+ 
+       ########################
+       # Install Dependencies #
+@@ -158,7 +158,7 @@ jobs:
+         run: ./build-aux/ci_build.bash -b ${{ matrix.build_system }} -d small -p test -n small
+ 
+       # Attempt to upload the test logs as artifacts if any step has failed
+-      - uses: actions/upload-artifact@v4.3.3
++      - uses: actions/upload-artifact@v4
+         if: ${{ failure() }}
+         with:
+           name: ${{ matrix.os }} ${{ matrix.build_system }} Test Logs
+diff --git a/.github/workflows/msvc.yml b/.github/workflows/msvc.yml
+index c6b2fb7a..02da72a0 100644
+--- a/.github/workflows/msvc.yml
++++ b/.github/workflows/msvc.yml
+@@ -23,7 +23,7 @@ jobs:
+     runs-on: ${{ matrix.os }}
+ 
+     steps:
+-      - uses: actions/checkout@v4.2.2
++      - uses: actions/checkout@v4
+ 
+       - name: Configure Win32
+         run: >

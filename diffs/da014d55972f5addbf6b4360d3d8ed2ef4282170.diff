@@ -1,0 +1,25 @@
+diff --git a/src/xz/args.c b/src/xz/args.c
+index d28a3d40..4bd84a0c 100644
+--- a/src/xz/args.c
++++ b/src/xz/args.c
+@@ -25,7 +25,7 @@ bool opt_robot = false;
+ 
+ // We don't modify or free() this, but we need to assign it in some
+ // non-const pointers.
+-const char *const stdin_filename = "(stdin)";
++const char stdin_filename[] = "(stdin)";
+ 
+ 
+ /// Parse and set the memory usage limit for compression and/or decompression.
+diff --git a/src/xz/args.h b/src/xz/args.h
+index d01033c8..b23f4ef1 100644
+--- a/src/xz/args.h
++++ b/src/xz/args.h
+@@ -37,6 +37,6 @@ extern bool opt_keep_original;
+ // extern bool opt_recursive;
+ extern bool opt_robot;
+ 
+-extern const char *const stdin_filename;
++extern const char stdin_filename[];
+ 
+ extern void args_parse(args_info *args, int argc, char **argv);

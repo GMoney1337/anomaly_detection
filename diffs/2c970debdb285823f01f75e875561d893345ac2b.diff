@@ -1,0 +1,14 @@
+diff --git a/tests/test_index.c b/tests/test_index.c
+index e08c8da3..83ace3cb 100644
+--- a/tests/test_index.c
++++ b/tests/test_index.c
+@@ -1628,6 +1628,9 @@ test_lzma_index_buffer_encode(void)
+ 	assert_lzma_ret(lzma_index_buffer_encode(idx, buffer, &out_pos,
+ 			0), LZMA_PROG_ERROR);
+ 	out_pos = 0;
++	assert_lzma_ret(lzma_index_buffer_encode(idx, buffer, &out_pos,
++			0), LZMA_BUF_ERROR);
++	assert_uint_eq(out_pos, 0);
+ 	assert_lzma_ret(lzma_index_buffer_encode(idx, buffer, &out_pos,
+ 			1), LZMA_BUF_ERROR);
+ 

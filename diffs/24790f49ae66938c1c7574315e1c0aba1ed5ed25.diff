@@ -1,0 +1,65 @@
+diff --git a/src/liblzma/api/lzma/version.h b/src/liblzma/api/lzma/version.h
+index 9aa85c60..1a80ba61 100644
+--- a/src/liblzma/api/lzma/version.h
++++ b/src/liblzma/api/lzma/version.h
+@@ -22,8 +22,8 @@
+  */
+ #define LZMA_VERSION_MAJOR 5
+ #define LZMA_VERSION_MINOR 3
+-#define LZMA_VERSION_PATCH 4
+-#define LZMA_VERSION_STABILITY LZMA_VERSION_STABILITY_ALPHA
++#define LZMA_VERSION_PATCH 5
++#define LZMA_VERSION_STABILITY LZMA_VERSION_STABILITY_BETA
+ 
+ #ifndef LZMA_VERSION_COMMIT
+ #	define LZMA_VERSION_COMMIT ""
+diff --git a/src/liblzma/liblzma_generic.map b/src/liblzma/liblzma_generic.map
+index 3fb78d1e..bba93c78 100644
+--- a/src/liblzma/liblzma_generic.map
++++ b/src/liblzma/liblzma_generic.map
+@@ -107,15 +107,15 @@ global:
+ 	lzma_stream_encoder_mt_memusage;
+ } XZ_5.0;
+ 
+-XZ_5.3.4alpha {
++XZ_5.3.5beta {
+ global:
++	lzma_file_info_decoder;
++	lzma_filters_free;
++	lzma_lzip_decoder;
+ 	lzma_microlzma_decoder;
+ 	lzma_microlzma_encoder;
+-	lzma_file_info_decoder;
+ 	lzma_stream_decoder_mt;
+-	lzma_lzip_decoder;
+-	lzma_filters_free;
+-	lzma_str_to_filters;
+ 	lzma_str_from_filters;
+ 	lzma_str_list_filters;
++	lzma_str_to_filters;
+ } XZ_5.2;
+diff --git a/src/liblzma/liblzma_linux.map b/src/liblzma/liblzma_linux.map
+index 4df5c7e0..58c12ddb 100644
+--- a/src/liblzma/liblzma_linux.map
++++ b/src/liblzma/liblzma_linux.map
+@@ -122,15 +122,15 @@ global:
+ 	lzma_stream_encoder_mt_memusage;
+ } XZ_5.1.2alpha;
+ 
+-XZ_5.3.4alpha {
++XZ_5.3.5beta {
+ global:
++	lzma_file_info_decoder;
++	lzma_filters_free;
++	lzma_lzip_decoder;
+ 	lzma_microlzma_decoder;
+ 	lzma_microlzma_encoder;
+-	lzma_file_info_decoder;
+ 	lzma_stream_decoder_mt;
+-	lzma_lzip_decoder;
+-	lzma_filters_free;
+-	lzma_str_to_filters;
+ 	lzma_str_from_filters;
+ 	lzma_str_list_filters;
++	lzma_str_to_filters;
+ } XZ_5.2;

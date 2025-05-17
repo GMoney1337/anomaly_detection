@@ -1,0 +1,89 @@
+diff --git a/src/liblzma/api/lzma/index.h b/src/liblzma/api/lzma/index.h
+index f9d1910a..90c84f42 100644
+--- a/src/liblzma/api/lzma/index.h
++++ b/src/liblzma/api/lzma/index.h
+@@ -615,13 +615,6 @@ extern LZMA_API(lzma_ret) lzma_index_encoder(
+  *              - LZMA_MEM_ERROR
+  *              - LZMA_MEMLIMIT_ERROR
+  *              - LZMA_PROG_ERROR
+- *
+- * \note        The memory usage limit is checked early in the decoding
+- *              (within the first dozen input bytes or so). The actual memory
+- *              is allocated later in smaller pieces. If the memory usage
+- *              limit is modified with lzma_memlimit_set() after a part
+- *              of the Index has already been decoded, the new limit may
+- *              get ignored.
+  */
+ extern LZMA_API(lzma_ret) lzma_index_decoder(
+ 		lzma_stream *strm, lzma_index **i, uint64_t memlimit)
+diff --git a/src/liblzma/common/alone_decoder.c b/src/liblzma/common/alone_decoder.c
+index fa7fb839..039b4285 100644
+--- a/src/liblzma/common/alone_decoder.c
++++ b/src/liblzma/common/alone_decoder.c
+@@ -173,12 +173,15 @@ static lzma_ret
+ alone_decoder_memconfig(lzma_coder *coder, uint64_t *memusage,
+ 		uint64_t *old_memlimit, uint64_t new_memlimit)
+ {
+-	if (new_memlimit != 0 && new_memlimit < coder->memusage)
+-		return LZMA_MEMLIMIT_ERROR;
+-
+ 	*memusage = coder->memusage;
+ 	*old_memlimit = coder->memlimit;
+-	coder->memlimit = new_memlimit;
++
++	if (new_memlimit != 0) {
++		if (new_memlimit < coder->memusage)
++			return LZMA_MEMLIMIT_ERROR;
++
++		coder->memlimit = new_memlimit;
++	}
+ 
+ 	return LZMA_OK;
+ }
+diff --git a/src/liblzma/common/index_decoder.c b/src/liblzma/common/index_decoder.c
+index a3ea791f..86a22971 100644
+--- a/src/liblzma/common/index_decoder.c
++++ b/src/liblzma/common/index_decoder.c
+@@ -219,12 +219,14 @@ index_decoder_memconfig(lzma_coder *coder, uint64_t *memusage,
+ 		uint64_t *old_memlimit, uint64_t new_memlimit)
+ {
+ 	*memusage = lzma_index_memusage(1, coder->count);
++	*old_memlimit = coder->memlimit;
+ 
+-	if (new_memlimit != 0 && new_memlimit < *memusage)
+-		return LZMA_MEMLIMIT_ERROR;
++	if (new_memlimit != 0) {
++		if (new_memlimit < *memusage)
++			return LZMA_MEMLIMIT_ERROR;
+ 
+-	*old_memlimit = coder->memlimit;
+-	coder->memlimit = new_memlimit;
++		coder->memlimit = new_memlimit;
++	}
+ 
+ 	return LZMA_OK;
+ }
+diff --git a/src/liblzma/common/stream_decoder.c b/src/liblzma/common/stream_decoder.c
+index 680fc53e..60cc8247 100644
+--- a/src/liblzma/common/stream_decoder.c
++++ b/src/liblzma/common/stream_decoder.c
+@@ -383,12 +383,15 @@ static lzma_ret
+ stream_decoder_memconfig(lzma_coder *coder, uint64_t *memusage,
+ 		uint64_t *old_memlimit, uint64_t new_memlimit)
+ {
+-	if (new_memlimit != 0 && new_memlimit < coder->memusage)
+-		return LZMA_MEMLIMIT_ERROR;
+-
+ 	*memusage = coder->memusage;
+ 	*old_memlimit = coder->memlimit;
+-	coder->memlimit = new_memlimit;
++
++	if (new_memlimit != 0) {
++		if (new_memlimit < coder->memusage)
++			return LZMA_MEMLIMIT_ERROR;
++
++		coder->memlimit = new_memlimit;
++	}
+ 
+ 	return LZMA_OK;
+ }

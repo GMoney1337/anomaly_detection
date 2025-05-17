@@ -1,0 +1,107 @@
+diff --git a/src/xz/args.c b/src/xz/args.c
+index 32ab7785..1ee9a232 100644
+--- a/src/xz/args.c
++++ b/src/xz/args.c
+@@ -46,7 +46,8 @@ parse_real(args_info *args, int argc, char **argv)
+ 		OPT_FILES0,
+ 	};
+ 
+-	static const char short_opts[] = "cC:defF:hHlkM:qrS:tT:vVz0123456789";
++	static const char short_opts[]
++			= "cC:defF:hHlkM:qQrS:tT:vVz0123456789";
+ 
+ 	static const struct option long_opts[] = {
+ 		// Operation mode
+@@ -94,6 +95,7 @@ parse_real(args_info *args, int argc, char **argv)
+ 		// Other options
+ 		{ "quiet",          no_argument,       NULL,  'q' },
+ 		{ "verbose",        no_argument,       NULL,  'v' },
++		{ "no-warn",        no_argument,       NULL,  'Q' },
+ 		{ "help",           no_argument,       NULL,  'h' },
+ 		{ "long-help",      no_argument,       NULL,  'H' },
+ 		{ "version",        no_argument,       NULL,  'V' },
+@@ -195,6 +197,10 @@ parse_real(args_info *args, int argc, char **argv)
+ 			message_verbosity_decrease();
+ 			break;
+ 
++		case 'Q':
++			set_exit_no_warn();
++			break;
++
+ 		case 't':
+ 			opt_mode = MODE_TEST;
+ 			break;
+diff --git a/src/xz/main.c b/src/xz/main.c
+index 0afd9ff7..8a6cde63 100644
+--- a/src/xz/main.c
++++ b/src/xz/main.c
+@@ -17,6 +17,10 @@
+ /// Exit status to use. This can be changed with set_exit_status().
+ static enum exit_status_type exit_status = E_SUCCESS;
+ 
++/// True if --no-warn is specified. When this is true, we don't set
++/// the exit status to E_WARNING when something worth a warning happens.
++static bool no_warn = false;
++
+ 
+ extern void
+ set_exit_status(enum exit_status_type new_status)
+@@ -30,6 +34,14 @@ set_exit_status(enum exit_status_type new_status)
+ }
+ 
+ 
++extern void
++set_exit_no_warn(void)
++{
++	no_warn = true;
++	return;
++}
++
++
+ extern void
+ my_exit(enum exit_status_type status)
+ {
+@@ -59,6 +71,11 @@ my_exit(enum exit_status_type status)
+ 			status = E_ERROR;
+ 	}
+ 
++	// Suppress the exit status indicating a warning if --no-warn
++	// was specified.
++	if (status == E_WARNING && no_warn)
++		status = E_SUCCESS;
++
+ 	// If we have got a signal, raise it to kill the program.
+ 	// Otherwise we just call exit().
+ 	signals_exit();
+diff --git a/src/xz/main.h b/src/xz/main.h
+index 2e35a438..8fd92393 100644
+--- a/src/xz/main.h
++++ b/src/xz/main.h
+@@ -24,6 +24,12 @@ enum exit_status_type {
+ extern void set_exit_status(enum exit_status_type new_status);
+ 
+ 
++/// Use E_SUCCESS instead of E_WARNING if something worth a warning occurs
++/// but nothing worth an error has occurred. This is called when --no-warn
++/// is specified.
++extern void set_exit_no_warn(void);
++
++
+ /// Exits the program using the given status. This takes care of closing
+ /// stdin, stdout, and stderr and catches possible errors. If we had got
+ /// a signal, this function will raise it so that to the parent process it
+diff --git a/src/xz/message.c b/src/xz/message.c
+index 9e1ee2f6..7598adce 100644
+--- a/src/xz/message.c
++++ b/src/xz/message.c
+@@ -1133,6 +1133,10 @@ message_help(bool long_help)
+ "  -q, --quiet         suppress warnings; specify twice to suppress errors too\n"
+ "  -v, --verbose       be verbose; specify twice for even more verbose"));
+ 
++	if (long_help)
++		puts(_(
++"  -Q, --no-warn       make warnings not affect the exit status"));
++
+ 	if (long_help)
+ 		puts(_(
+ "\n"

@@ -1,0 +1,15 @@
+diff --git a/src/liblzma/common/index.c b/src/liblzma/common/index.c
+index 26e4e519..007e1570 100644
+--- a/src/liblzma/common/index.c
++++ b/src/liblzma/common/index.c
+@@ -825,8 +825,8 @@ lzma_index_cat(lzma_index *restrict dest, lzma_index *restrict src,
+ 				s->groups.root = &newg->node;
+ 			}
+ 
+-			if (s->groups.rightmost == &g->node)
+-				s->groups.rightmost = &newg->node;
++			assert(s->groups.rightmost == &g->node);
++			s->groups.rightmost = &newg->node;
+ 
+ 			lzma_free(g, allocator);
+ 

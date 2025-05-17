@@ -1,0 +1,128 @@
+diff --git a/src/scripts/xzdiff.1 b/src/scripts/xzdiff.1
+index 8f473eda..9d2608e5 100644
+--- a/src/scripts/xzdiff.1
++++ b/src/scripts/xzdiff.1
+@@ -5,7 +5,7 @@
+ .\"
+ .\" (Note that this file is not based on gzip's zdiff.1.)
+ .\"
+-.TH XZDIFF 1 "2024-02-13" "Tukaani" "XZ Utils"
++.TH XZDIFF 1 "2025-03-06" "Tukaani" "XZ Utils"
+ .SH NAME
+ xzcmp, xzdiff, lzcmp, lzdiff \- compare compressed files
+ .
+@@ -20,9 +20,11 @@ xzcmp, xzdiff, lzcmp, lzdiff \- compare compressed files
+ .br
+ .B lzcmp
+ \&...
++(DEPRECATED)
+ .br
+ .B lzdiff
+ \&...
++(DEPRECATED)
+ .
+ .SH DESCRIPTION
+ .B xzcmp
+@@ -75,6 +77,7 @@ The commands
+ and
+ .B lzdiff
+ are provided for backward compatibility with LZMA Utils.
++They are deprecated and will be removed in a future version.
+ .
+ .SH EXIT STATUS
+ If a decompression error occurs, the exit status is
+diff --git a/src/scripts/xzgrep.1 b/src/scripts/xzgrep.1
+index 63f012c9..c6bb0eb4 100644
+--- a/src/scripts/xzgrep.1
++++ b/src/scripts/xzgrep.1
+@@ -5,7 +5,7 @@
+ .\"
+ .\" (Note that this file is not based on gzip's zgrep.1.)
+ .\"
+-.TH XZGREP 1 "2024-02-13" "Tukaani" "XZ Utils"
++.TH XZGREP 1 "2025-03-06" "Tukaani" "XZ Utils"
+ .SH NAME
+ xzgrep \- search possibly-compressed files for patterns
+ .
+@@ -23,12 +23,15 @@ xzgrep \- search possibly-compressed files for patterns
+ .br
+ .B lzgrep
+ \&...
++(DEPRECATED)
+ .br
+ .B lzegrep
+ \&...
++(DEPRECATED)
+ .br
+ .B lzfgrep
+ \&...
++(DEPRECATED)
+ .
+ .SH DESCRIPTION
+ .B xzgrep
+@@ -106,6 +109,7 @@ The commands
+ and
+ .B lzfgrep
+ are provided for backward compatibility with LZMA Utils.
++They are deprecated and will be removed in a future version.
+ .
+ .SH EXIT STATUS
+ .TP
+diff --git a/src/scripts/xzless.1 b/src/scripts/xzless.1
+index 570e601c..17118b9b 100644
+--- a/src/scripts/xzless.1
++++ b/src/scripts/xzless.1
+@@ -5,7 +5,7 @@
+ .\"
+ .\" (Note that this file is not based on gzip's zless.1.)
+ .\"
+-.TH XZLESS 1 "2024-02-12" "Tukaani" "XZ Utils"
++.TH XZLESS 1 "2025-03-06" "Tukaani" "XZ Utils"
+ .SH NAME
+ xzless, lzless \- view xz or lzma compressed (text) files
+ .SH SYNOPSIS
+@@ -14,6 +14,7 @@ xzless, lzless \- view xz or lzma compressed (text) files
+ .br
+ .B lzless
+ .RI [ file ...]
++(DEPRECATED)
+ .SH DESCRIPTION
+ .B xzless
+ is a filter that displays text from compressed files to a terminal.
+@@ -47,6 +48,7 @@ manual for more information.
+ The command named
+ .B lzless
+ is provided for backward compatibility with LZMA Utils.
++It is deprecated and will be removed in a future version.
+ .SH ENVIRONMENT
+ .TP
+ .B LESSMETACHARS
+diff --git a/src/scripts/xzmore.1 b/src/scripts/xzmore.1
+index afe89b8c..15fc63a7 100644
+--- a/src/scripts/xzmore.1
++++ b/src/scripts/xzmore.1
+@@ -5,7 +5,7 @@
+ .\"
+ .\" (Note that this file is based on xzless.1 instead of gzip's zmore.1.)
+ .\"
+-.TH XZMORE 1 "2024-02-12" "Tukaani" "XZ Utils"
++.TH XZMORE 1 "2025-03-06" "Tukaani" "XZ Utils"
+ .SH NAME
+ xzmore, lzmore \- view xz or lzma compressed (text) files
+ .
+@@ -15,6 +15,7 @@ xzmore, lzmore \- view xz or lzma compressed (text) files
+ .br
+ .B lzmore
+ .RI [ file ...]
++(DEPRECATED)
+ .
+ .SH DESCRIPTION
+ .B xzmore
+@@ -48,6 +49,7 @@ which provides more advanced features.
+ The command
+ .B lzmore
+ is provided for backward compatibility with LZMA Utils.
++It is deprecated and will be removed in a future version.
+ .
+ .SH ENVIRONMENT
+ .TP

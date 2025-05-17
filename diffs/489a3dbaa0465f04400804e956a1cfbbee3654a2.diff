@@ -1,0 +1,328 @@
+diff --git a/dos/Makefile b/dos/Makefile
+index 9439295c..67437cd6 100644
+--- a/dos/Makefile
++++ b/dos/Makefile
+@@ -82,7 +82,11 @@ LIBLZMA_SRCS_C = \
+ 	../src/liblzma/common/block_header_encoder.c \
+ 	../src/liblzma/common/block_util.c \
+ 	../src/liblzma/common/common.c \
+-	../src/liblzma/common/easy.c \
++	../src/liblzma/common/easy_buffer_encoder.c \
++	../src/liblzma/common/easy_decoder_memusage.c \
++	../src/liblzma/common/easy_encoder.c \
++	../src/liblzma/common/easy_encoder_memusage.c \
++	../src/liblzma/common/easy_preset.c \
+ 	../src/liblzma/common/filter_common.c \
+ 	../src/liblzma/common/filter_decoder.c \
+ 	../src/liblzma/common/filter_encoder.c \
+diff --git a/src/liblzma/common/easy_buffer_encoder.c b/src/liblzma/common/easy_buffer_encoder.c
+new file mode 100644
+index 00000000..4d909ee4
+--- /dev/null
++++ b/src/liblzma/common/easy_buffer_encoder.c
+@@ -0,0 +1,34 @@
++///////////////////////////////////////////////////////////////////////////////
++//
++/// \file       easy_buffer_encoder.c
++/// \brief      Easy single-call .xz Stream encoder
++//
++//  Copyright (C) 2009 Lasse Collin
++//
++//  This library is free software; you can redistribute it and/or
++//  modify it under the terms of the GNU Lesser General Public
++//  License as published by the Free Software Foundation; either
++//  version 2.1 of the License, or (at your option) any later version.
++//
++//  This library is distributed in the hope that it will be useful,
++//  but WITHOUT ANY WARRANTY; without even the implied warranty of
++//  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
++//  Lesser General Public License for more details.
++//
++///////////////////////////////////////////////////////////////////////////////
++
++#include "easy_preset.h"
++
++
++extern LZMA_API(lzma_ret)
++lzma_easy_buffer_encode(uint32_t preset, lzma_check check,
++		lzma_allocator *allocator, const uint8_t *in, size_t in_size,
++		uint8_t *out, size_t *out_pos, size_t out_size)
++{
++	lzma_options_easy opt_easy;
++	if (lzma_easy_preset(&opt_easy, preset))
++		return LZMA_OPTIONS_ERROR;
++
++	return lzma_stream_buffer_encode(opt_easy.filters, check,
++			allocator, in, in_size, out, out_pos, out_size);
++}
+diff --git a/src/liblzma/common/easy_decoder_memusage.c b/src/liblzma/common/easy_decoder_memusage.c
+new file mode 100644
+index 00000000..be84241a
+--- /dev/null
++++ b/src/liblzma/common/easy_decoder_memusage.c
+@@ -0,0 +1,31 @@
++///////////////////////////////////////////////////////////////////////////////
++//
++/// \file       easy_decoder_memusage.c
++/// \brief      Decoder memory usage calculation to match easy encoder presets
++//
++//  Copyright (C) 2008 Lasse Collin
++//
++//  This library is free software; you can redistribute it and/or
++//  modify it under the terms of the GNU Lesser General Public
++//  License as published by the Free Software Foundation; either
++//  version 2.1 of the License, or (at your option) any later version.
++//
++//  This library is distributed in the hope that it will be useful,
++//  but WITHOUT ANY WARRANTY; without even the implied warranty of
++//  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
++//  Lesser General Public License for more details.
++//
++///////////////////////////////////////////////////////////////////////////////
++
++#include "easy_preset.h"
++
++
++extern LZMA_API(uint64_t)
++lzma_easy_decoder_memusage(uint32_t preset)
++{
++	lzma_options_easy opt_easy;
++	if (lzma_easy_preset(&opt_easy, preset))
++		return UINT32_MAX;
++
++	return lzma_raw_decoder_memusage(opt_easy.filters);
++}
+diff --git a/src/liblzma/common/easy.c b/src/liblzma/common/easy_encoder.c
+similarity index 69%
+rename from src/liblzma/common/easy.c
+rename to src/liblzma/common/easy_encoder.c
+index 8147a5b5..4a6709c6 100644
+--- a/src/liblzma/common/easy.c
++++ b/src/liblzma/common/easy_encoder.c
+@@ -1,7 +1,7 @@
+ ///////////////////////////////////////////////////////////////////////////////
+ //
+-/// \file       easy.c
+-/// \brief      Easy Stream encoder initialization
++/// \file       easy_encoder.c
++/// \brief      Easy .xz Stream encoder initialization
+ //
+ //  Copyright (C) 2008 Lasse Collin
+ //
+@@ -17,35 +17,16 @@
+ //
+ ///////////////////////////////////////////////////////////////////////////////
+ 
++#include "easy_preset.h"
+ #include "stream_encoder.h"
+ 
+ 
+ struct lzma_coder_s {
+ 	lzma_next_coder stream_encoder;
+-
+-	/// Options for LZMA2
+-	lzma_options_lzma opt_lzma;
+-
+-	/// We need to keep the filters array available in case
+-	/// LZMA_FULL_FLUSH is used.
+-	lzma_filter filters[LZMA_FILTERS_MAX + 1];
++	lzma_options_easy opt_easy;
+ };
+ 
+ 
+-static bool
+-easy_set_filters(lzma_coder *coder, uint32_t preset)
+-{
+-	if (lzma_lzma_preset(&coder->opt_lzma, preset))
+-		return true;
+-
+-	coder->filters[0].id = LZMA_FILTER_LZMA2;
+-	coder->filters[0].options = &coder->opt_lzma;
+-	coder->filters[1].id = LZMA_VLI_UNKNOWN;
+-
+-	return false;
+-}
+-
+-
+ static lzma_ret
+ easy_encode(lzma_coder *coder, lzma_allocator *allocator,
+ 		const uint8_t *restrict in, size_t *restrict in_pos,
+@@ -84,11 +65,11 @@ easy_encoder_init(lzma_next_coder *next, lzma_allocator *allocator,
+ 		next->coder->stream_encoder = LZMA_NEXT_CODER_INIT;
+ 	}
+ 
+-	if (easy_set_filters(next->coder, preset))
++	if (lzma_easy_preset(&next->coder->opt_easy, preset))
+ 		return LZMA_OPTIONS_ERROR;
+ 
+ 	return lzma_stream_encoder_init(&next->coder->stream_encoder,
+-			allocator, next->coder->filters, check);
++			allocator, next->coder->opt_easy.filters, check);
+ }
+ 
+ 
+@@ -104,25 +85,3 @@ lzma_easy_encoder(lzma_stream *strm, uint32_t preset, lzma_check check)
+ 
+ 	return LZMA_OK;
+ }
+-
+-
+-extern LZMA_API(uint64_t)
+-lzma_easy_encoder_memusage(uint32_t preset)
+-{
+-	lzma_coder coder;
+-	if (easy_set_filters(&coder, preset))
+-		return UINT32_MAX;
+-
+-	return lzma_raw_encoder_memusage(coder.filters);
+-}
+-
+-
+-extern LZMA_API(uint64_t)
+-lzma_easy_decoder_memusage(uint32_t preset)
+-{
+-	lzma_coder coder;
+-	if (easy_set_filters(&coder, preset))
+-		return UINT32_MAX;
+-
+-	return lzma_raw_decoder_memusage(coder.filters);
+-}
+diff --git a/src/liblzma/common/easy_encoder_memusage.c b/src/liblzma/common/easy_encoder_memusage.c
+new file mode 100644
+index 00000000..6f4154a8
+--- /dev/null
++++ b/src/liblzma/common/easy_encoder_memusage.c
+@@ -0,0 +1,31 @@
++///////////////////////////////////////////////////////////////////////////////
++//
++/// \file       easy_encoder_memusage.c
++/// \brief      Easy .xz Stream encoder memory usage calculation
++//
++//  Copyright (C) 2008 Lasse Collin
++//
++//  This library is free software; you can redistribute it and/or
++//  modify it under the terms of the GNU Lesser General Public
++//  License as published by the Free Software Foundation; either
++//  version 2.1 of the License, or (at your option) any later version.
++//
++//  This library is distributed in the hope that it will be useful,
++//  but WITHOUT ANY WARRANTY; without even the implied warranty of
++//  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
++//  Lesser General Public License for more details.
++//
++///////////////////////////////////////////////////////////////////////////////
++
++#include "easy_preset.h"
++
++
++extern LZMA_API(uint64_t)
++lzma_easy_encoder_memusage(uint32_t preset)
++{
++	lzma_options_easy opt_easy;
++	if (lzma_easy_preset(&opt_easy, preset))
++		return UINT32_MAX;
++
++	return lzma_raw_encoder_memusage(opt_easy.filters);
++}
+diff --git a/src/liblzma/common/easy_preset.c b/src/liblzma/common/easy_preset.c
+new file mode 100644
+index 00000000..d7f950c1
+--- /dev/null
++++ b/src/liblzma/common/easy_preset.c
+@@ -0,0 +1,34 @@
++///////////////////////////////////////////////////////////////////////////////
++//
++/// \file       easy_preset.c
++/// \brief      Preset handling for easy encoder and decoder
++//
++//  Copyright (C) 2008 Lasse Collin
++//
++//  This library is free software; you can redistribute it and/or
++//  modify it under the terms of the GNU Lesser General Public
++//  License as published by the Free Software Foundation; either
++//  version 2.1 of the License, or (at your option) any later version.
++//
++//  This library is distributed in the hope that it will be useful,
++//  but WITHOUT ANY WARRANTY; without even the implied warranty of
++//  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
++//  Lesser General Public License for more details.
++//
++///////////////////////////////////////////////////////////////////////////////
++
++#include "easy_preset.h"
++
++
++extern bool
++lzma_easy_preset(lzma_options_easy *opt_easy, uint32_t preset)
++{
++	if (lzma_lzma_preset(&opt_easy->opt_lzma, preset))
++		return true;
++
++	opt_easy->filters[0].id = LZMA_FILTER_LZMA2;
++	opt_easy->filters[0].options = &opt_easy->opt_lzma;
++	opt_easy->filters[1].id = LZMA_VLI_UNKNOWN;
++
++	return false;
++}
+diff --git a/src/liblzma/common/easy_preset.h b/src/liblzma/common/easy_preset.h
+new file mode 100644
+index 00000000..e8671fe2
+--- /dev/null
++++ b/src/liblzma/common/easy_preset.h
+@@ -0,0 +1,39 @@
++///////////////////////////////////////////////////////////////////////////////
++//
++/// \file       easy_preset.h
++/// \brief      Preset handling for easy encoder and decoder
++//
++//  Copyright (C) 2009 Lasse Collin
++//
++//  This library is free software; you can redistribute it and/or
++//  modify it under the terms of the GNU Lesser General Public
++//  License as published by the Free Software Foundation; either
++//  version 2.1 of the License, or (at your option) any later version.
++//
++//  This library is distributed in the hope that it will be useful,
++//  but WITHOUT ANY WARRANTY; without even the implied warranty of
++//  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
++//  Lesser General Public License for more details.
++//
++///////////////////////////////////////////////////////////////////////////////
++
++#include "common.h"
++
++
++typedef struct {
++	/// We need to keep the filters array available in case
++	/// LZMA_FULL_FLUSH is used.
++	lzma_filter filters[LZMA_FILTERS_MAX + 1];
++
++	/// Options for LZMA2
++	lzma_options_lzma opt_lzma;
++
++	// Options for more filters can be added later, so this struct
++	// is not ready to be put into the public API.
++
++} lzma_options_easy;
++
++
++/// Set *easy to the settings given by the preset. Returns true on error,
++/// false on success.
++extern bool lzma_easy_preset(lzma_options_easy *easy, uint32_t preset);
+diff --git a/windows/Makefile b/windows/Makefile
+index 5fb5d57d..9a9957cd 100644
+--- a/windows/Makefile
++++ b/windows/Makefile
+@@ -129,7 +129,11 @@ LIBLZMA_SRCS_C = \
+ 	../src/liblzma/common/block_header_encoder.c \
+ 	../src/liblzma/common/block_util.c \
+ 	../src/liblzma/common/common.c \
+-	../src/liblzma/common/easy.c \
++	../src/liblzma/common/easy_buffer_encoder.c \
++	../src/liblzma/common/easy_decoder_memusage.c \
++	../src/liblzma/common/easy_encoder.c \
++	../src/liblzma/common/easy_encoder_memusage.c \
++	../src/liblzma/common/easy_preset.c \
+ 	../src/liblzma/common/filter_common.c \
+ 	../src/liblzma/common/filter_decoder.c \
+ 	../src/liblzma/common/filter_encoder.c \

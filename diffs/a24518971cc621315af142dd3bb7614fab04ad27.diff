@@ -1,0 +1,10 @@
+diff --git a/build-aux/version.sh b/build-aux/version.sh
+index 40d04936..f9fcda79 100644
+--- a/build-aux/version.sh
++++ b/build-aux/version.sh
+@@ -21,4 +21,4 @@ sed -n 's/LZMA_VERSION_STABILITY_ALPHA/alpha/
+ 	src/liblzma/api/lzma/version.h \
+ 	| tr '\n' '|' \
+ 	| sed 's/|/./; s/|/./; s/|//g' \
+-	| tr -d '\n'
++	| tr -d '\r\n'

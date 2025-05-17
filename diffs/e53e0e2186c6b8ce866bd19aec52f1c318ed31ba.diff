@@ -1,0 +1,19 @@
+diff --git a/src/common/mythread.h b/src/common/mythread.h
+index be226542..41382183 100644
+--- a/src/common/mythread.h
++++ b/src/common/mythread.h
+@@ -370,10 +370,11 @@ typedef struct {
+ 		BOOL pending_; \
+ 		if (!InitOnceBeginInitialize(&once_, 0, &pending_, NULL)) \
+ 			abort(); \
+-		if (pending_) \
++		if (pending_) { \
+ 			func(); \
+-		if (!InitOnceComplete(&once, 0, NULL)) \
+-			abort(); \
++			if (!InitOnceComplete(&once, 0, NULL)) \
++				abort(); \
++		} \
+ 	} while (0)
+ #endif
+ 

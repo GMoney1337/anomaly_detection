@@ -1,0 +1,63 @@
+diff --git a/src/liblzma/lzma/lzma2_decoder.c b/src/liblzma/lzma/lzma2_decoder.c
+index 7f1f45f4..4470b4b1 100644
+--- a/src/liblzma/lzma/lzma2_decoder.c
++++ b/src/liblzma/lzma/lzma2_decoder.c
+@@ -261,11 +261,8 @@ lzma_lzma2_decoder_init(lzma_next_coder *next, lzma_allocator *allocator,
+ extern uint64_t
+ lzma_lzma2_decoder_memusage(const void *options)
+ {
+-	const uint64_t lzma_memusage = lzma_lzma_decoder_memusage(options);
+-	if (lzma_memusage == UINT64_MAX)
+-		return UINT64_MAX;
+-
+-	return sizeof(lzma_coder) + lzma_memusage;
++	return sizeof(lzma_coder)
++			+ lzma_lzma_decoder_memusage_nocheck(options);
+ }
+ 
+ 
+diff --git a/src/liblzma/lzma/lzma_decoder.c b/src/liblzma/lzma/lzma_decoder.c
+index df3371e2..03e3251a 100644
+--- a/src/liblzma/lzma/lzma_decoder.c
++++ b/src/liblzma/lzma/lzma_decoder.c
+@@ -1012,14 +1012,20 @@ lzma_lzma_lclppb_decode(lzma_options_lzma *options, uint8_t byte)
+ 
+ 
+ extern uint64_t
+-lzma_lzma_decoder_memusage(const void *options)
++lzma_lzma_decoder_memusage_nocheck(const void *options)
+ {
+ 	const lzma_options_lzma *const opt = options;
+-	const uint64_t lz_memusage = lzma_lz_decoder_memusage(opt->dict_size);
+-	if (lz_memusage == UINT64_MAX)
++	return sizeof(lzma_coder) + lzma_lz_decoder_memusage(opt->dict_size);
++}
++
++
++extern uint64_t
++lzma_lzma_decoder_memusage(const void *options)
++{
++	if (!is_lclppb_valid(options))
+ 		return UINT64_MAX;
+ 
+-	return sizeof(lzma_coder) + lz_memusage;
++	return lzma_lzma_decoder_memusage_nocheck(options);
+ }
+ 
+ 
+diff --git a/src/liblzma/lzma/lzma_decoder.h b/src/liblzma/lzma/lzma_decoder.h
+index 3792f452..133d2608 100644
+--- a/src/liblzma/lzma/lzma_decoder.h
++++ b/src/liblzma/lzma/lzma_decoder.h
+@@ -49,6 +49,11 @@ extern bool lzma_lzma_lclppb_decode(
+ extern lzma_ret lzma_lzma_decoder_create(
+ 		lzma_lz_decoder *lz, lzma_allocator *allocator,
+ 		const void *opt, size_t *dict_size);
++
++/// Gets memory usage without validating lc/lp/pb. This is used by LZMA2
++/// decoder, because raw LZMA2 decoding doesn't need lc/lp/pb.
++extern uint64_t lzma_lzma_decoder_memusage_nocheck(const void *options);
++
+ #endif
+ 
+ #endif

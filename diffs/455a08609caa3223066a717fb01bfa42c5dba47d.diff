@@ -1,0 +1,213 @@
+diff --git a/src/liblzma/check/crc32_fast.c b/src/liblzma/check/crc32_fast.c
+index 07d5afb1..be034bdc 100644
+--- a/src/liblzma/check/crc32_fast.c
++++ b/src/liblzma/check/crc32_fast.c
+@@ -24,7 +24,7 @@
+ #endif
+ 
+ 
+-#ifdef CRC_GENERIC
++#ifdef CRC32_GENERIC
+ 
+ ///////////////////
+ // Generic CRC32 //
+@@ -90,7 +90,7 @@ crc32_generic(const uint8_t *buf, size_t size, uint32_t crc)
+ #endif
+ 
+ 
+-#if defined(CRC_GENERIC) && defined(CRC_ARCH_OPTIMIZED)
++#if defined(CRC32_GENERIC) && defined(CRC32_ARCH_OPTIMIZED)
+ 
+ //////////////////////////
+ // Function dispatching //
+@@ -197,7 +197,7 @@ lzma_crc32(const uint8_t *buf, size_t size, uint32_t crc)
+ extern LZMA_API(uint32_t)
+ lzma_crc32(const uint8_t *buf, size_t size, uint32_t crc)
+ {
+-#if defined(CRC_GENERIC) && defined(CRC_ARCH_OPTIMIZED)
++#if defined(CRC32_GENERIC) && defined(CRC32_ARCH_OPTIMIZED)
+ 	// On x86-64, if CLMUL is available, it is the best for non-tiny
+ 	// inputs, being over twice as fast as the generic slice-by-four
+ 	// version. However, for size <= 16 it's different. In the extreme
+@@ -229,7 +229,7 @@ lzma_crc32(const uint8_t *buf, size_t size, uint32_t crc)
+ */
+ 	return crc32_func(buf, size, crc);
+ 
+-#elif defined(CRC_ARCH_OPTIMIZED)
++#elif defined(CRC32_ARCH_OPTIMIZED)
+ 	return crc32_arch_optimized(buf, size, crc);
+ 
+ #else
+diff --git a/src/liblzma/check/crc64_fast.c b/src/liblzma/check/crc64_fast.c
+index cb5d3e4c..3d94ed3f 100644
+--- a/src/liblzma/check/crc64_fast.c
++++ b/src/liblzma/check/crc64_fast.c
+@@ -23,7 +23,7 @@
+ #endif
+ 
+ 
+-#ifdef CRC_GENERIC
++#ifdef CRC64_GENERIC
+ 
+ /////////////////////////////////
+ // Generic slice-by-four CRC64 //
+@@ -85,7 +85,7 @@ crc64_generic(const uint8_t *buf, size_t size, uint64_t crc)
+ #endif
+ 
+ 
+-#if defined(CRC_GENERIC) && defined(CRC_ARCH_OPTIMIZED)
++#if defined(CRC64_GENERIC) && defined(CRC64_ARCH_OPTIMIZED)
+ 
+ //////////////////////////
+ // Function dispatching //
+@@ -154,7 +154,7 @@ lzma_crc64(const uint8_t *buf, size_t size, uint64_t crc)
+ extern LZMA_API(uint64_t)
+ lzma_crc64(const uint8_t *buf, size_t size, uint64_t crc)
+ {
+-#if defined(CRC_GENERIC) && defined(CRC_ARCH_OPTIMIZED)
++#if defined(CRC64_GENERIC) && defined(CRC64_ARCH_OPTIMIZED)
+ 
+ #ifdef CRC_USE_GENERIC_FOR_SMALL_INPUTS
+ 	if (size <= 16)
+@@ -162,7 +162,7 @@ lzma_crc64(const uint8_t *buf, size_t size, uint64_t crc)
+ #endif
+ 	return crc64_func(buf, size, crc);
+ 
+-#elif defined(CRC_ARCH_OPTIMIZED)
++#elif defined(CRC64_ARCH_OPTIMIZED)
+ 	// If arch-optimized version is used unconditionally without runtime
+ 	// CPU detection then omitting the generic version and its 8 KiB
+ 	// lookup table makes the library smaller.
+diff --git a/src/liblzma/check/crc_common.h b/src/liblzma/check/crc_common.h
+index 7c7f098d..35f60d95 100644
+--- a/src/liblzma/check/crc_common.h
++++ b/src/liblzma/check/crc_common.h
+@@ -48,54 +48,94 @@
+ #	define crc_attr_no_sanitize_address
+ #endif
+ 
++// Keep this in sync with changes to crc32_arm64.h
++#if defined(_WIN32) || defined(HAVE_GETAUXVAL) \
++		|| defined(HAVE_ELF_AUX_INFO) \
++		|| (defined(__APPLE__) && defined(HAVE_SYSCTLBYNAME))
++#	define ARM64_RUNTIME_DETECTION 1
++#endif
++
++
++#undef CRC32_GENERIC
++#undef CRC64_GENERIC
+ 
+-#undef CRC_GENERIC
+-#undef CRC_ARCH_OPTIMIZED
++#undef CRC32_ARCH_OPTIMIZED
++#undef CRC64_ARCH_OPTIMIZED
++
++// The x86 CLMUL is used for both CRC32 and CRC64.
+ #undef CRC_X86_CLMUL
++
+ #undef CRC32_ARM64
++#undef CRC64_ARM64_CLMUL
++
+ #undef CRC_USE_IFUNC
++
+ #undef CRC_USE_GENERIC_FOR_SMALL_INPUTS
+ 
++// ARM64 CRC32 instruction is only useful for CRC32. Currently, only
++// little endian is supported since we were unable to test on a big
++// endian machine.
++#if defined(HAVE_ARM64_CRC32) && !defined(WORDS_BIGENDIAN)
++// Allow ARM64 CRC32 instruction without a runtime check if
++// __ARM_FEATURE_CRC32 is defined. GCC and Clang only define this if the
++// proper compiler options are used.
++#	if defined(__ARM_FEATURE_CRC32)
++#		define CRC32_ARCH_OPTIMIZED 1
++#		define CRC32_ARM64 1
++#	elif defined(ARM64_RUNTIME_DETECTION)
++#		define CRC32_ARCH_OPTIMIZED 1
++#		define CRC32_ARM64 1
++#		define CRC32_GENERIC 1
++#	endif
++#endif
++
++#if defined(HAVE_USABLE_CLMUL)
+ // If CLMUL is allowed unconditionally in the compiler options then the
+ // generic version can be omitted. Note that this doesn't work with MSVC
+ // as I don't know how to detect the features here.
+ //
+ // NOTE: Keep this this in sync with crc32_table.c.
+-#if (defined(__SSSE3__) && defined(__SSE4_1__) && defined(__PCLMUL__)) \
++#	if (defined(__SSSE3__) && defined(__SSE4_1__) && defined(__PCLMUL__)) \
+ 		|| (defined(__e2k__) && __iset__ >= 6)
+-#	define CRC_ARCH_OPTIMIZED 1
+-#	define CRC_X86_CLMUL 1
+-
+-#elif (defined(__aarch64__))
+-#	define CRC_ARCH_OPTIMIZED 1
+-#	define CRC32_ARM64 1
+-// If CLMUL cannot be used then only the generic slice-by-eight (CRC32)
+-// or slice-by-four (CRC64) is built.
+-#elif !defined(HAVE_USABLE_CLMUL)
+-#	define CRC_GENERIC 1
+-// Otherwise build both and detect at runtime which version to use.
+-#else
+-#	define CRC_GENERIC 1
+-#	define CRC_ARCH_OPTIMIZED 1
+-#	define CRC_X86_CLMUL 1
+-#	define CRC32_ARM64 1
+-
+-#	ifdef HAVE_FUNC_ATTRIBUTE_IFUNC
+-#		define CRC_USE_IFUNC 1
+-#	endif
+-
++#		define CRC32_ARCH_OPTIMIZED 1
++#		define CRC64_ARCH_OPTIMIZED 1
++#		define CRC_X86_CLMUL 1
++#	else
++#		define CRC32_GENERIC 1
++#		define CRC64_GENERIC 1
++#		define CRC32_ARCH_OPTIMIZED 1
++#		define CRC64_ARCH_OPTIMIZED 1
++#		define CRC_X86_CLMUL 1
++
++#		ifdef HAVE_FUNC_ATTRIBUTE_IFUNC
++#			define CRC_USE_IFUNC 1
++#		endif
+ /*
+-	// The generic code is much faster with 1-8-byte inputs and has
+-	// similar performance up to 16 bytes  at least in microbenchmarks
+-	// (it depends on input buffer alignment too). If both versions are
+-	// built, this #define will use the generic version for inputs up to
+-	// 16 bytes and CLMUL for bigger inputs. It saves a little in code
+-	// size since the special cases for 0-16-byte inputs will be omitted
+-	// from the CLMUL code.
+-#	ifndef CRC_USE_IFUNC
+-#		define CRC_USE_GENERIC_FOR_SMALL_INPUTS 1
+-#	endif
++		// The generic code is much faster with 1-8-byte inputs and
++		// has similar performance up to 16 bytes  at least in
++		// microbenchmarks (it depends on input buffer alignment
++		// too). If both versions are built, this #define will use
++		// the generic version for inputs up to 16 bytes and CLMUL
++		// for bigger inputs. It saves a little in code size since
++		// the special cases for 0-16-byte inputs will be omitted
++		// from the CLMUL code.
++#		ifndef CRC_USE_IFUNC
++#			define CRC_USE_GENERIC_FOR_SMALL_INPUTS 1
++#		endif
+ */
++#	endif
++#endif
++
++// For CRC32 use the generic slice-by-eight implementation if no optimized
++// version is available.
++#if !defined(CRC32_ARCH_OPTIMIZED) && !defined(CRC32_GENERIC)
++#	define CRC32_GENERIC 1
++#endif
++
++// For CRC64 use the generic slice-by-four implementation if no optimized
++// version is available.
++#if !defined(CRC64_ARCH_OPTIMIZED) && !defined(CRC64_GENERIC)
++#	define CRC64_GENERIC 1
+ #endif
+ 
+ #endif

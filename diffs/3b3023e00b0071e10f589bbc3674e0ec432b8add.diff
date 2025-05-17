@@ -1,0 +1,35 @@
+diff --git a/tests/test_index.c b/tests/test_index.c
+index 458386df..04e5c159 100644
+--- a/tests/test_index.c
++++ b/tests/test_index.c
+@@ -100,7 +100,7 @@ test_lzma_index_memused(void)
+ static void
+ test_lzma_index_append(void)
+ {
+-	// Basic input-ouput test done here.
++	// Basic input-output test done here.
+ 	// Less trivial tests for this function are done throughout
+ 	// other tests.
+ 
+diff --git a/tests/test_lzip_decoder.c b/tests/test_lzip_decoder.c
+index 3743d434..e115573b 100644
+--- a/tests/test_lzip_decoder.c
++++ b/tests/test_lzip_decoder.c
+@@ -233,7 +233,7 @@ test_v1_trailing(void)
+ 
+ 
+ static void
+-test_concatentated(void)
++test_concatenated(void)
+ {
+ 	// First test a file with one v0 member and one v1 member
+ 	// The first member should contain "Hello\n" and
+@@ -474,7 +474,7 @@ main(int argc, char **argv)
+ 	tuktest_run(test_v1_decode);
+ 	tuktest_run(test_v0_trailing);
+ 	tuktest_run(test_v1_trailing);
+-	tuktest_run(test_concatentated);
++	tuktest_run(test_concatenated);
+ 	tuktest_run(test_crc);
+ 	tuktest_run(test_invalid_magic_bytes);
+ 	tuktest_run(test_invalid_version);

@@ -1,0 +1,54 @@
+diff --git a/src/xz/file_io.c b/src/xz/file_io.c
+index b559ae35..046ca7e3 100644
+--- a/src/xz/file_io.c
++++ b/src/xz/file_io.c
+@@ -748,8 +748,10 @@ error:
+ extern file_pair *
+ io_open_src(const char *src_name)
+ {
+-	if (is_empty_filename(src_name))
++	if (src_name[0] == '\0') {
++		message_error(_("Empty filename, skipping"));
+ 		return NULL;
++	}
+ 
+ 	// Since we have only one file open at a time, we can use
+ 	// a statically allocated structure.
+diff --git a/src/xz/util.c b/src/xz/util.c
+index a1339f4f..9f9a8fb0 100644
+--- a/src/xz/util.c
++++ b/src/xz/util.c
+@@ -260,18 +260,6 @@ my_snprintf(char **pos, size_t *left, const char *fmt, ...)
+ }
+ 
+ 
+-extern bool
+-is_empty_filename(const char *filename)
+-{
+-	if (filename[0] == '\0') {
+-		message_error(_("Empty filename, skipping"));
+-		return true;
+-	}
+-
+-	return false;
+-}
+-
+-
+ extern bool
+ is_tty_stdin(void)
+ {
+diff --git a/src/xz/util.h b/src/xz/util.h
+index a2516bf9..4a536f52 100644
+--- a/src/xz/util.h
++++ b/src/xz/util.h
+@@ -105,10 +105,6 @@ extern void my_snprintf(char **pos, size_t *left, const char *fmt, ...)
+ 		lzma_attribute((__format__(__printf__, 3, 4)));
+ 
+ 
+-/// \brief      Check if filename is empty and print an error message
+-extern bool is_empty_filename(const char *filename);
+-
+-
+ /// \brief      Test if stdin is a terminal
+ ///
+ /// If stdin is a terminal, an error message is printed and exit status set

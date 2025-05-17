@@ -1,0 +1,105 @@
+diff --git a/src/xz/args.c b/src/xz/args.c
+index 4bd84a0c..1a357b24 100644
+--- a/src/xz/args.c
++++ b/src/xz/args.c
+@@ -68,6 +68,7 @@ parse_real(args_info *args, int argc, char **argv)
+ 		OPT_LZMA1,
+ 		OPT_LZMA2,
+ 
++		OPT_SINGLE_STREAM,
+ 		OPT_NO_SPARSE,
+ 		OPT_FILES,
+ 		OPT_FILES0,
+@@ -94,6 +95,7 @@ parse_real(args_info *args, int argc, char **argv)
+ 		{ "force",        no_argument,       NULL,  'f' },
+ 		{ "stdout",       no_argument,       NULL,  'c' },
+ 		{ "to-stdout",    no_argument,       NULL,  'c' },
++		{ "single-stream", no_argument,      NULL,  OPT_SINGLE_STREAM },
+ 		{ "no-sparse",    no_argument,       NULL,  OPT_NO_SPARSE },
+ 		{ "suffix",       required_argument, NULL,  'S' },
+ 		// { "recursive",      no_argument,       NULL,  'r' }, // TODO
+@@ -368,6 +370,10 @@ parse_real(args_info *args, int argc, char **argv)
+ 			break;
+ 		}
+ 
++		case OPT_SINGLE_STREAM:
++			opt_single_stream = true;
++			break;
++
+ 		case OPT_NO_SPARSE:
+ 			io_no_sparse();
+ 			break;
+diff --git a/src/xz/coder.c b/src/xz/coder.c
+index 5182dddc..266482eb 100644
+--- a/src/xz/coder.c
++++ b/src/xz/coder.c
+@@ -24,6 +24,7 @@ enum coder_init_ret {
+ enum operation_mode opt_mode = MODE_COMPRESS;
+ enum format_type opt_format = FORMAT_AUTO;
+ bool opt_auto_adjust = true;
++bool opt_single_stream = false;
+ 
+ 
+ /// Stream used to communicate with liblzma
+@@ -366,8 +367,9 @@ coder_init(file_pair *pair)
+ 			break;
+ 		}
+ 	} else {
+-		const uint32_t flags = LZMA_TELL_UNSUPPORTED_CHECK
+-				| LZMA_CONCATENATED;
++		uint32_t flags = LZMA_TELL_UNSUPPORTED_CHECK;
++		if (!opt_single_stream)
++			flags |= LZMA_CONCATENATED;
+ 
+ 		// We abuse FORMAT_AUTO to indicate unknown file format,
+ 		// for which we may consider passthru mode.
+@@ -518,6 +520,11 @@ coder_normal(file_pair *pair)
+ 			}
+ 
+ 			if (ret == LZMA_STREAM_END) {
++				if (opt_single_stream) {
++					success = true;
++					break;
++				}
++
+ 				// Check that there is no trailing garbage.
+ 				// This is needed for LZMA_Alone and raw
+ 				// streams.
+diff --git a/src/xz/coder.h b/src/xz/coder.h
+index 4626466f..d95319e5 100644
+--- a/src/xz/coder.h
++++ b/src/xz/coder.h
+@@ -41,6 +41,9 @@ extern enum format_type opt_format;
+ /// they exceed the memory usage limit.
+ extern bool opt_auto_adjust;
+ 
++/// If true, stop after decoding the first stream.
++extern bool opt_single_stream;
++
+ 
+ /// Set the integrity check type used when compressing
+ extern void coder_set_check(lzma_check check);
+diff --git a/src/xz/message.c b/src/xz/message.c
+index 38cce4a1..2a928107 100644
+--- a/src/xz/message.c
++++ b/src/xz/message.c
+@@ -1108,7 +1108,10 @@ message_help(bool long_help)
+ "  -f, --force         force overwrite of output file and (de)compress links\n"
+ "  -c, --stdout        write to standard output and don't delete input files"));
+ 
+-	if (long_help)
++	if (long_help) {
++		puts(_(
++"      --single-stream decompress only the first stream, and silently\n"
++"                      ignore possible remaining input data"));
+ 		puts(_(
+ "      --no-sparse     do not create sparse files when decompressing\n"
+ "  -S, --suffix=.SUF   use the suffix `.SUF' on compressed files\n"
+@@ -1116,6 +1119,7 @@ message_help(bool long_help)
+ "                      omitted, filenames are read from the standard input;\n"
+ "                      filenames must be terminated with the newline character\n"
+ "      --files0[=FILE] like --files but use the null character as terminator"));
++	}
+ 
+ 	if (long_help) {
+ 		puts(_("\n Basic file format and compression options:\n"));

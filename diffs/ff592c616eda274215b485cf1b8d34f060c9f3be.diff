@@ -1,0 +1,171 @@
+diff --git a/src/xz/mytime.c b/src/xz/mytime.c
+index 7e8a0749..0b0e2be7 100644
+--- a/src/xz/mytime.c
++++ b/src/xz/mytime.c
+@@ -20,7 +20,12 @@
+ 
+ uint64_t opt_flush_timeout = 0;
+ 
++#ifdef USE_SIGTSTP_HANDLER
++static volatile uint64_t start_time;
++#else
+ static uint64_t start_time;
++#endif
++
+ static uint64_t next_flush;
+ 
+ 
+@@ -48,10 +53,49 @@ mytime_now(void)
+ }
+ 
+ 
++#ifdef USE_SIGTSTP_HANDLER
++extern void
++mytime_sigtstp_handler(int sig lzma_attribute((__unused__)))
++{
++	// Measure how long the process stays in the stopped state and add
++	// that amount to start_time. This way the the progress indicator
++	// won't count the stopped time as elapsed time and the estimated
++	// remaining time won't be confused by the time spent in the
++	// stopped state.
++	//
++	// FIXME? Is raising SIGSTOP the correct thing to do? POSIX.1-2017
++	// says that orphan processes shouldn't stop on SIGTSTP. So perhaps
++	// the most correct thing to do could be to revert to the default
++	// handler for SIGTSTP, unblock SIGTSTP, and then raise(SIGTSTP).
++	// It's quite a bit more complicated than just raising SIGSTOP though.
++	//
++	// The difference between raising SIGTSTP vs. SIGSTOP can be seen on
++	// the shell command line too by running "echo $?" after stopping
++	// a process but perhaps that doesn't matter.
++	const uint64_t t = mytime_now();
++	raise(SIGSTOP);
++	start_time += mytime_now() - t;
++	return;
++}
++#endif
++
++
+ extern void
+ mytime_set_start_time(void)
+ {
++#ifdef USE_SIGTSTP_HANDLER
++	// Block the signals when accessing start_time so that we cannot
++	// end up with a garbage value. start_time is volatile but access
++	// to it isn't atomic at least on 32-bit systems.
++	signals_block();
++#endif
++
+ 	start_time = mytime_now();
++
++#ifdef USE_SIGTSTP_HANDLER
++	signals_unblock();
++#endif
++
+ 	return;
+ }
+ 
+@@ -59,7 +103,17 @@ mytime_set_start_time(void)
+ extern uint64_t
+ mytime_get_elapsed(void)
+ {
+-	return mytime_now() - start_time;
++#ifdef USE_SIGTSTP_HANDLER
++	signals_block();
++#endif
++
++	const uint64_t t = mytime_now() - start_time;
++
++#ifdef USE_SIGTSTP_HANDLER
++	signals_unblock();
++#endif
++
++	return t;
+ }
+ 
+ 
+diff --git a/src/xz/mytime.h b/src/xz/mytime.h
+index a7be2aa7..5a3c1e21 100644
+--- a/src/xz/mytime.h
++++ b/src/xz/mytime.h
+@@ -21,6 +21,12 @@
+ extern uint64_t opt_flush_timeout;
+ 
+ 
++#ifdef USE_SIGTSTP_HANDLER
++/// \brief      Signal handler for SIGTSTP
++extern void mytime_sigtstp_handler(int sig);
++#endif
++
++
+ /// \brief      Store the time when (de)compression was started
+ ///
+ /// The start time is also stored as the time of the first flush.
+diff --git a/src/xz/private.h b/src/xz/private.h
+index 6414bdb5..a20dbc57 100644
+--- a/src/xz/private.h
++++ b/src/xz/private.h
+@@ -49,6 +49,18 @@
+ #	define ENABLE_SANDBOX 1
+ #endif
+ 
++// Handling SIGTSTP keeps time-keeping for progress indicator correct
++// if xz is stopped. It requires use of clock_gettime() as that is
++// async-signal safe in POSIX. Require also SIGALRM support since
++// on systems where SIGALRM isn't available, progress indicator code
++// polls the time and the SIGTSTP handling adds slight overhead to
++// that code. Most (all?) systems that have SIGTSTP also have SIGALRM
++// so this requirement won't exclude many systems.
++#if defined(HAVE_CLOCK_GETTIME) && defined(HAVE_CLOCK_MONOTONIC) \
++		&& defined(SIGTSTP) && defined(SIGALRM)
++#	define USE_SIGTSTP_HANDLER 1
++#endif
++
+ #include "main.h"
+ #include "mytime.h"
+ #include "coder.h"
+diff --git a/src/xz/signals.c b/src/xz/signals.c
+index 7aef463c..ff42a396 100644
+--- a/src/xz/signals.c
++++ b/src/xz/signals.c
+@@ -82,6 +82,11 @@ signals_init(void)
+ 		sigaddset(&hooked_signals, message_progress_sigs[i]);
+ #endif
+ 
++#ifdef USE_SIGTSTP_HANDLER
++	// Add the SIGTSTP handler from mytime.c to hooked_signals.
++	sigaddset(&hooked_signals, SIGTSTP);
++#endif
++
+ 	// Using "my_sa" because "sa" may conflict with a sockaddr variable
+ 	// from system headers on Solaris.
+ 	struct sigaction my_sa;
+@@ -96,10 +101,11 @@ signals_init(void)
+ 	my_sa.sa_flags = 0;
+ 	my_sa.sa_handler = &signal_handler;
+ 
++	struct sigaction old;
++
+ 	for (size_t i = 0; i < ARRAY_SIZE(sigs); ++i) {
+ 		// If the parent process has left some signals ignored,
+ 		// we don't unignore them.
+-		struct sigaction old;
+ 		if (sigaction(sigs[i], NULL, &old) == 0
+ 				&& old.sa_handler == SIG_IGN)
+ 			continue;
+@@ -109,6 +115,15 @@ signals_init(void)
+ 			message_signal_handler();
+ 	}
+ 
++#ifdef USE_SIGTSTP_HANDLER
++	if (!(sigaction(SIGTSTP, NULL, &old) == 0
++				&& old.sa_handler == SIG_IGN)) {
++		my_sa.sa_handler = &mytime_sigtstp_handler;
++		if (sigaction(SIGTSTP, &my_sa, NULL))
++			message_signal_handler();
++	}
++#endif
++
+ 	signals_are_initialized = true;
+ 
+ 	return;

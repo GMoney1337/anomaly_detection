@@ -1,0 +1,20 @@
+diff --git a/THANKS b/THANKS
+index bee56b11..308547a9 100644
+--- a/THANKS
++++ b/THANKS
+@@ -39,6 +39,7 @@ has been important. :-) In alphabetical order:
+   - Peter Lawler
+   - Hin-Tak Leung
+   - Andraž 'ruskie' Levstik
++  - Cary Lewis
+   - Wim Lewis
+   - Lorenzo De Liso
+   - Gregory Margo
+@@ -49,6 +50,7 @@ has been important. :-) In alphabetical order:
+   - Jonathan Nieder
+   - Andre Noll
+   - Peter O'Gorman
++  - Peter Pallinger
+   - Igor Pavlov
+   - Diego Elio Pettenò
+   - Elbert Pol

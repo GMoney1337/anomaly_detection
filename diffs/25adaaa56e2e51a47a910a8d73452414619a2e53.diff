@@ -1,0 +1,18 @@
+diff --git a/src/xz/options.c b/src/xz/options.c
+index 8ac67504..c52f61e0 100644
+--- a/src/xz/options.c
++++ b/src/xz/options.c
+@@ -68,11 +68,9 @@ parse_options(const char *str, const option_map *opts,
+ 	char *s = xstrdup(str);
+ 	char *name = s;
+ 
+-	while (true) {
++	while (*name != '\0') {
+ 		if (*name == ',') {
+-			if (*++name == '\0')
+-				break;
+-
++			++name;
+ 			continue;
+ 		}
+ 
