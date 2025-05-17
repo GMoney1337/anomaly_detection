@@ -53,13 +53,13 @@ python ml/extract_diff_features.py
 python ml/merge_features.py
 
 # Step 4: Train the autoencoder
-python ml/train_autoencoder.py
+python ml/autoencoder.py
 
 # Step 5: Detect the most anomalous commits
 python ml/detect_anomalies.py
 
 # Step 6: Print detailed info on flagged commits
-python ml/print_top_anomalies.py
+python ml/print_commits.py
 ```
 ---
 🔍 Example Output
