@@ -1,0 +1,6 @@
+numpy
+scikit-learn
+torch
+sentence-transformers
+tqdm
+matplotlib  # only used in classical visualization scripts
