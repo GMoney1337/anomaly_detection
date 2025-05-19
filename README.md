@@ -23,7 +23,6 @@ Each method is explained with code, visualizations, and real-world applications.
 ├── ml/                # Autoencoder scripts for commits + diffs
 ├── data/              # Git commit metadata, preprocessed features
 ├── diffs/             # Raw .diff files (from real commits)
-├── model/             # Trained autoencoder weights
 ├── requirements.txt   # Python dependencies
 └── README.md          # This file
 ```
