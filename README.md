@@ -1,6 +1,6 @@
 # 🧠 Anomaly Detection: A Primer
 
-This repository supports the article **“Anomaly Detection: A Primer”**, demonstrating both traditional and deep learning-based methods for identifying anomalies in data, including synthetic examples and a real-world case based on Git commit history (using the XZ Utils project).
+This repository supports the article **[Anomaly Detection: A Primer](https://www.linkedin.com/pulse/anomaly-detection-primer-galen-yanofsky-ut26e/?trackingId=FWlhI4re%2BpyvCNJ0C75ZDw%3D%3D)**, demonstrating both traditional and deep learning-based methods for identifying anomalies in data, including synthetic examples and a real-world case based on Git commit history (using the XZ Utils project).
 
 We walk through everything from basic **Z-Score analysis** to **autoencoder-based deep learning**, using both synthetic datasets and real commit histories from the [XZ Utils](https://tukaani.org/xz-backdoor/) repository, a project recently targeted by a high-profile supply chain attack.
 
